@@ -15,30 +15,134 @@ class _DebtsScreenState extends State<DebtsScreen> {
   String _selectedFilter = 'all';
   final DataService _dataService = DataService();
   List<Debt> _debts = [];
+  List<Debt> _filteredDebts = [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _loadDebts();
+    _searchController.addListener(_filterDebts);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when screen becomes visible
     _loadDebts();
   }
 
   void _loadDebts() {
     setState(() {
       _debts = _dataService.debts;
+      _filterDebts();
     });
   }
 
-  List<Debt> get _filteredDebts {
+  void _filterDebts() {
+    final query = _searchController.text.toLowerCase();
+    List<Debt> filtered = _debts;
+    
+    // Apply search filter
+    if (query.isNotEmpty) {
+      filtered = filtered.where((debt) {
+        return debt.customerName.toLowerCase().contains(query) ||
+               debt.description.toLowerCase().contains(query) ||
+               debt.amount.toString().contains(query);
+      }).toList();
+    }
+    
+    // Apply status filter
     switch (_selectedFilter) {
       case 'pending':
-        return _debts.where((debt) => debt.status == DebtStatus.pending).toList();
+        filtered = filtered.where((debt) => debt.status == DebtStatus.pending).toList();
+        break;
       case 'paid':
-        return _debts.where((debt) => debt.status == DebtStatus.paid).toList();
+        filtered = filtered.where((debt) => debt.status == DebtStatus.paid).toList();
+        break;
       case 'overdue':
-        return _debts.where((debt) => debt.isOverdue).toList();
-      default:
-        return _debts;
+        filtered = filtered.where((debt) => debt.isOverdue).toList();
+        break;
     }
+    
+    setState(() {
+      _filteredDebts = filtered;
+    });
+  }
+
+  Future<void> _markAsPaid(Debt debt) async {
+    try {
+      await _dataService.markDebtAsPaid(debt.id);
+      _loadDebts();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debt marked as paid'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to mark debt as paid: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteDebt(Debt debt) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Debt'),
+          content: const Text('Are you sure you want to delete this debt?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await _dataService.deleteDebt(debt.id);
+                  _loadDebts();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Debt deleted successfully'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to delete debt: $e'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -49,89 +153,134 @@ class _DebtsScreenState extends State<DebtsScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              // TODO: Search functionality
+              _loadDebts();
             },
-            icon: const Icon(Icons.search),
+            icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filter chips
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterChip(
-                    label: 'All',
-                    isSelected: _selectedFilter == 'all',
-                    onTap: () => setState(() => _selectedFilter = 'all'),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          _loadDebts();
+        },
+        child: Column(
+          children: [
+            // Search bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search debts...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          onPressed: () {
+                            _searchController.clear();
+                          },
+                          icon: const Icon(Icons.clear),
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: 'Pending',
-                    isSelected: _selectedFilter == 'pending',
-                    onTap: () => setState(() => _selectedFilter = 'pending'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: 'Paid',
-                    isSelected: _selectedFilter == 'paid',
-                    onTap: () => setState(() => _selectedFilter = 'paid'),
-                  ),
-                  const SizedBox(width: 8),
-                  _FilterChip(
-                    label: 'Overdue',
-                    isSelected: _selectedFilter == 'overdue',
-                    onTap: () => setState(() => _selectedFilter = 'overdue'),
-                  ),
-                ],
+                  filled: true,
+                  fillColor: AppColors.background,
+                ),
               ),
             ),
-          ),
-          // Debts list
-          Expanded(
-            child: _filteredDebts.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inbox_outlined,
-                          size: 64,
-                          color: AppColors.textLight,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No debts found',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Add a new debt to get started',
-                          style: TextStyle(
+            // Filter chips
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterChip(
+                      label: 'All (${_debts.length})',
+                      isSelected: _selectedFilter == 'all',
+                      onTap: () {
+                        setState(() => _selectedFilter = 'all');
+                        _filterDebts();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Pending (${_debts.where((d) => d.status == DebtStatus.pending).length})',
+                      isSelected: _selectedFilter == 'pending',
+                      onTap: () {
+                        setState(() => _selectedFilter = 'pending');
+                        _filterDebts();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Paid (${_debts.where((d) => d.status == DebtStatus.paid).length})',
+                      isSelected: _selectedFilter == 'paid',
+                      onTap: () {
+                        setState(() => _selectedFilter = 'paid');
+                        _filterDebts();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _FilterChip(
+                      label: 'Overdue (${_debts.where((d) => d.isOverdue).length})',
+                      isSelected: _selectedFilter == 'overdue',
+                      onTap: () {
+                        setState(() => _selectedFilter = 'overdue');
+                        _filterDebts();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Debts list
+            Expanded(
+              child: _filteredDebts.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
                             color: AppColors.textLight,
                           ),
-                        ),
-                      ],
+                          SizedBox(height: 16),
+                          Text(
+                            'No debts found',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Add a new debt to get started',
+                            style: TextStyle(
+                              color: AppColors.textLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _filteredDebts.length,
+                      itemBuilder: (context, index) {
+                        final debt = _filteredDebts[index];
+                        return _DebtCard(
+                          debt: debt,
+                          onMarkAsPaid: () => _markAsPaid(debt),
+                          onDelete: () => _deleteDebt(debt),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _filteredDebts.length,
-                    itemBuilder: (context, index) {
-                      final debt = _filteredDebts[index];
-                      return _DebtCard(debt: debt);
-                    },
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -195,8 +344,14 @@ class _FilterChip extends StatelessWidget {
 
 class _DebtCard extends StatelessWidget {
   final Debt debt;
+  final VoidCallback onMarkAsPaid;
+  final VoidCallback onDelete;
 
-  const _DebtCard({required this.debt});
+  const _DebtCard({
+    required this.debt,
+    required this.onMarkAsPaid,
+    required this.onDelete,
+  });
 
   Color _getStatusColor() {
     if (debt.status == DebtStatus.paid) {
@@ -294,13 +449,20 @@ class _DebtCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                if (debt.status == DebtStatus.pending)
+                if (debt.status == DebtStatus.pending) ...[
                   TextButton(
-                    onPressed: () {
-                      // TODO: Mark as paid
-                    },
+                    onPressed: onMarkAsPaid,
                     child: const Text('Mark as Paid'),
                   ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: onDelete,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                    child: const Text('Delete'),
+                  ),
+                ],
               ],
             ),
           ],

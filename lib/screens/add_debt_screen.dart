@@ -5,7 +5,9 @@ import '../models/customer.dart';
 import '../services/data_service.dart';
 
 class AddDebtScreen extends StatefulWidget {
-  const AddDebtScreen({super.key});
+  final Customer? selectedCustomer;
+
+  const AddDebtScreen({super.key, this.selectedCustomer});
 
   @override
   State<AddDebtScreen> createState() => _AddDebtScreenState();
@@ -23,6 +25,12 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   bool _isLoading = false;
 
   List<Customer> get _customers => DataService().customers;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCustomer = widget.selectedCustomer;
+  }
 
   @override
   void dispose() {
@@ -177,7 +185,9 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Record customer debt information',
+                            widget.selectedCustomer != null 
+                                ? 'Record debt for ${widget.selectedCustomer!.name}'
+                                : 'Record customer debt information',
                             style: TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -391,7 +401,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                                              onPressed: _isLoading ? null : () async => await _saveDebt(),
+                  onPressed: _isLoading ? null : () async => await _saveDebt(),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: AppColors.secondary,

@@ -3,6 +3,7 @@ import '../constants/app_colors.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'debts_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -13,11 +14,18 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
+  ];
 
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
     const DebtsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -42,6 +50,10 @@ class _MainScreenState extends State<MainScreen> {
           onTap: (index) {
             setState(() {
               _currentIndex = index;
+            });
+            // Force refresh when switching tabs
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              setState(() {});
             });
           },
           type: BottomNavigationBarType.fixed,
@@ -68,6 +80,10 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet),
               label: 'Debts',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: 'Settings',
             ),
           ],
         ),

@@ -4,7 +4,9 @@ import '../models/customer.dart';
 import '../services/data_service.dart';
 
 class AddCustomerScreen extends StatefulWidget {
-  const AddCustomerScreen({super.key});
+  final Customer? customer;
+
+  const AddCustomerScreen({super.key, this.customer});
 
   @override
   State<AddCustomerScreen> createState() => _AddCustomerScreenState();
@@ -17,6 +19,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.customer != null) {
+      _nameController.text = widget.customer!.name;
+      _phoneController.text = widget.customer!.phone;
+      _emailController.text = widget.customer!.email ?? '';
+      _addressController.text = widget.customer!.address ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -34,18 +47,30 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       });
 
       try {
-        // Create new customer
-        final customer = Customer(
-          id: DataService().generateCustomerId(),
-          name: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
-          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-          address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-          createdAt: DateTime.now(),
-        );
-
-        // Save customer
-        await DataService().addCustomer(customer);
+        Customer customer;
+        
+        if (widget.customer != null) {
+          // Update existing customer
+          customer = widget.customer!.copyWith(
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+            address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            updatedAt: DateTime.now(),
+          );
+          await DataService().updateCustomer(customer);
+        } else {
+          // Create new customer
+          customer = Customer(
+            id: DataService().generateCustomerId(),
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
+            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+            address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+            createdAt: DateTime.now(),
+          );
+          await DataService().addCustomer(customer);
+        }
 
         setState(() {
           _isLoading = false;
@@ -53,8 +78,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Customer added successfully!'),
+          SnackBar(
+            content: Text(widget.customer != null 
+                ? 'Customer updated successfully!' 
+                : 'Customer added successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -69,7 +96,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to add customer: $e'),
+            content: Text(widget.customer != null 
+                ? 'Failed to update customer: $e'
+                : 'Failed to add customer: $e'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -79,9 +108,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.customer != null;
+    
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Customer'),
+        title: Text(isEditing ? 'Edit Customer' : 'Add Customer'),
         actions: [
           if (_isLoading)
             const Padding(
@@ -126,8 +157,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(
-                        Icons.person_add,
+                      child: Icon(
+                        isEditing ? Icons.edit : Icons.person_add,
                         color: Colors.white,
                         size: 24,
                       ),
@@ -137,9 +168,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'New Customer',
-                            style: TextStyle(
+                          Text(
+                            isEditing ? 'Edit Customer' : 'New Customer',
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary,
@@ -147,7 +178,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Add customer information',
+                            isEditing ? 'Update customer information' : 'Add customer information',
                             style: TextStyle(
                               fontSize: 14,
                               color: AppColors.textSecondary,
@@ -269,7 +300,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                                              onPressed: _isLoading ? null : () async => await _saveCustomer(),
+                  onPressed: _isLoading ? null : () async => await _saveCustomer(),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: AppColors.primary,
@@ -284,9 +315,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text(
-                          'Save Customer',
-                          style: TextStyle(
+                      : Text(
+                          isEditing ? 'Update Customer' : 'Save Customer',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

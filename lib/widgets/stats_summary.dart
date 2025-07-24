@@ -27,8 +27,6 @@ class StatsSummary extends StatelessWidget {
               child: _StatCard(
                 title: 'Total Debt',
                 value: '\$${dataService.totalDebt.toStringAsFixed(0)}',
-                change: '+5.2%',
-                isPositive: false,
                 color: AppColors.error,
                 icon: Icons.trending_up,
               ),
@@ -36,10 +34,8 @@ class StatsSummary extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _StatCard(
-                title: 'Paid This Month',
+                title: 'Total Paid',
                 value: '\$${dataService.totalPaid.toStringAsFixed(0)}',
-                change: '+12.5%',
-                isPositive: true,
                 color: AppColors.success,
                 icon: Icons.check_circle,
               ),
@@ -54,9 +50,7 @@ class StatsSummary extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 title: 'Pending',
-                value: '\$${dataService.totalDebt.toStringAsFixed(0)}',
-                change: '-2.1%',
-                isPositive: true,
+                value: '${dataService.pendingDebtsCount}',
                 color: AppColors.warning,
                 icon: Icons.schedule,
               ),
@@ -65,9 +59,7 @@ class StatsSummary extends StatelessWidget {
             Expanded(
               child: _StatCard(
                 title: 'Overdue',
-                value: '\$${dataService.overdueDebt.toStringAsFixed(0)}',
-                change: '+8.3%',
-                isPositive: false,
+                value: '${dataService.overdueDebtsCount}',
                 color: AppColors.error,
                 icon: Icons.warning,
               ),
@@ -82,16 +74,12 @@ class StatsSummary extends StatelessWidget {
 class _StatCard extends StatelessWidget {
   final String title;
   final String value;
-  final String change;
-  final bool isPositive;
   final Color color;
   final IconData icon;
 
   const _StatCard({
     required this.title,
     required this.value,
-    required this.change,
-    required this.isPositive,
     required this.color,
     required this.icon,
   });
@@ -119,21 +107,6 @@ class _StatCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isPositive ? AppColors.success : AppColors.error,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    change,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),

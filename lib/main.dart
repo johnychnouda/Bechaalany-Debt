@@ -3,7 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/customer.dart';
 import 'models/debt.dart';
 import 'constants/app_theme.dart';
-import 'screens/main_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,7 +45,7 @@ class BechaalanyDebtApp extends StatelessWidget {
     return MaterialApp(
       title: 'Bechaalany Debt',
       theme: AppTheme.lightTheme,
-      home: const MainScreen(),
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
