@@ -19,6 +19,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
   List<Debt> _filteredDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
+  Set<String> _lastKnownDebtIds = {};
 
   @override
   void initState() {
@@ -149,7 +150,9 @@ class _DebtsScreenState extends State<DebtsScreen> {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         // Update filtered debts when app state changes
-        if (_filteredDebts.isEmpty || _filteredDebts.length != appState.debts.length) {
+        final currentDebtIds = appState.debts.map((d) => '${d.id}_${d.status}').toSet();
+        if (_lastKnownDebtIds != currentDebtIds) {
+          _lastKnownDebtIds = currentDebtIds;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _filterDebts();
           });
@@ -383,29 +386,47 @@ class _DebtCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '\$${debt.amount.toStringAsFixed(0)}',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.titleMedium?.color,
-              ),
-            ),
-            if (debt.status != DebtStatus.paid)
-              TextButton(
-                onPressed: onMarkAsPaid,
-                child: Text(
-                  'Mark Paid',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.green,
-                  ),
+        trailing: SizedBox(
+          width: 80,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '\$${debt.amount.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.titleMedium?.color,
                 ),
               ),
-          ],
+              if (debt.status != DebtStatus.paid) ...[
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: onMarkAsPaid,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.green.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      'Mark Paid',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
         onTap: onViewCustomer,
       ),
