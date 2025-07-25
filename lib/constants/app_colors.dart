@@ -38,7 +38,6 @@ class AppColors {
   // iOS-style Debt Status Colors
   static const Color debtPaid = Color(0xFF34C759);
   static const Color debtPending = Color(0xFFFF9500);
-  static const Color debtOverdue = Color(0xFFFF3B30);
   
   // iOS-style Border and Divider Colors
   static const Color border = Color(0xFFC6C6C8);

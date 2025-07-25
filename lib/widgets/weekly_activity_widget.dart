@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class WeeklyActivityWidget extends StatelessWidget {
   const WeeklyActivityWidget({super.key});
@@ -16,12 +17,12 @@ class WeeklyActivityWidget extends StatelessWidget {
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         
         final weeklyDebts = appState.debts.where((debt) {
-          final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
+          final createdAt = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
           final startDate = DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
           final endDate = DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day);
-          return dueDate.isAfter(startDate.subtract(const Duration(days: 1))) && 
-                 dueDate.isBefore(endDate.add(const Duration(days: 1))) &&
-                 debt.status != DebtStatus.paid;
+          return createdAt.isAfter(startDate.subtract(const Duration(days: 1))) && 
+                 createdAt.isBefore(endDate.add(const Duration(days: 1))) &&
+                 debt.status == DebtStatus.pending;
         }).toList();
 
         // Group by day
@@ -30,9 +31,9 @@ class WeeklyActivityWidget extends StatelessWidget {
           final day = startOfWeek.add(Duration(days: i));
           final dayKey = day.millisecondsSinceEpoch;
           debtsByDay[dayKey] = weeklyDebts.where((debt) {
-            final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
+            final createdAt = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
             final dayDate = DateTime(day.year, day.month, day.day);
-            return dueDate.isAtSameMomentAs(dayDate);
+            return createdAt.isAtSameMomentAs(dayDate);
           }).toList();
         }
 
@@ -156,7 +157,7 @@ class WeeklyActivityWidget extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              '\$${totalAmount.toStringAsFixed(0)}',
+                              CurrencyFormatter.formatAmount(context, totalAmount),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,

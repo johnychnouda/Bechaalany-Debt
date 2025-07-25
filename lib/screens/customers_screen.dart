@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/currency_formatter.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -431,7 +432,7 @@ class _CustomerListTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${pendingDebts} pending • \$${totalDebt.toStringAsFixed(0)}',
+                      '${pendingDebts} pending • ${CurrencyFormatter.formatAmount(context, totalDebt)}',
                       style: const TextStyle(
                         color: Colors.red,
                         fontSize: 13,

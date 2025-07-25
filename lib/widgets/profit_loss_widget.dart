@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class ProfitLossWidget extends StatefulWidget {
   const ProfitLossWidget({super.key});
@@ -161,7 +162,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                                 ),
                               ),
                               Text(
-                                '\$${netProfit.toStringAsFixed(2)}',
+                                CurrencyFormatter.formatAmount(context, netProfit),
                                 style: AppTheme.title1.copyWith(
                                   color: netProfit >= 0 ? AppColors.success : AppColors.error,
                                   fontWeight: FontWeight.bold,
@@ -219,7 +220,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
             ),
           ),
           Text(
-            '\$${amount.toStringAsFixed(2)}',
+            CurrencyFormatter.formatAmount(context, amount),
             style: AppTheme.title3.copyWith(
               color: color,
               fontWeight: FontWeight.w600,

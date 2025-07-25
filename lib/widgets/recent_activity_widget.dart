@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class RecentActivityWidget extends StatelessWidget {
   const RecentActivityWidget({super.key});
@@ -156,7 +157,7 @@ class RecentActivityWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '\$${debt.amount.toStringAsFixed(0)}',
+                                  CurrencyFormatter.formatAmount(context, debt.amount),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

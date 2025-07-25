@@ -136,26 +136,9 @@ class PaymentReminderService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('Amount: \$${debt.amount.toStringAsFixed(2)}'),
-                          pw.Text('Due: ${_formatDate(debt.dueDate)}'),
+                          pw.Text('Created: ${_formatDate(debt.createdAt)}'),
                         ],
                       ),
-                      if (debt.isOverdue)
-                        pw.Container(
-                          margin: const pw.EdgeInsets.only(top: 4),
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.red,
-                            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-                          ),
-                          child: pw.Text(
-                            'OVERDUE',
-                            style: pw.TextStyle(
-                              color: PdfColors.white,
-                              fontSize: 10,
-                              fontWeight: pw.FontWeight.bold,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 )).toList(),
@@ -308,14 +291,9 @@ class PaymentReminderService {
     String customMessage,
   ) {
     final totalAmount = debts.fold<double>(0, (sum, debt) => sum + debt.amount);
-    final overdueCount = debts.where((d) => d.isOverdue).length;
     
     String message = 'Hello ${customer.name},\n\n';
     message += 'This is a payment reminder for your outstanding debts.\n\n';
-    
-    if (overdueCount > 0) {
-      message += '⚠️ You have $overdueCount overdue payment(s).\n\n';
-    }
     
     message += 'Total outstanding amount: \$${totalAmount.toStringAsFixed(2)}\n\n';
     

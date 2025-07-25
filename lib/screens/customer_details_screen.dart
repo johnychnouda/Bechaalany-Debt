@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 import 'add_debt_screen.dart';
 import 'add_customer_screen.dart';
 
@@ -42,7 +43,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Mark as Paid'),
-          content: Text('Are you sure you want to mark this debt as paid?\n\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
+          content: Text('Are you sure you want to mark this debt as paid?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -95,7 +96,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
+          content: Text('Are you sure you want to delete this debt?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -148,6 +149,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         final totalDebt = allCustomerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
         final totalPaid = allCustomerDebts.where((d) => d.status == DebtStatus.paid).fold(0.0, (sum, debt) => sum + debt.amount);
+        
+        // Get pending debts for the customer (this will update automatically when AppState changes)
+        final customerPendingDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id && d.status != DebtStatus.paid).toList();
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -389,7 +393,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          '\$${totalDebt.toStringAsFixed(0)}',
+                          CurrencyFormatter.formatAmount(context, totalDebt),
                           style: const TextStyle(
                             fontSize: 15,
                             color: Colors.red,
@@ -419,7 +423,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                           ),
                         ),
                         subtitle: Text(
-                          '\$${totalPaid.toStringAsFixed(0)}',
+                          CurrencyFormatter.formatAmount(context, totalPaid),
                           style: const TextStyle(
                             fontSize: 15,
                             color: Colors.green,
@@ -456,6 +460,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                               builder: (context) => AddDebtScreen(customer: _currentCustomer),
                             ),
                           );
+                          
+                          // Refresh the debt list if a debt was added
+                          if (result == true) {
+                            _loadCustomerDebts();
+                          }
                         },
                         child: const Text(
                           'Add Debt',
@@ -472,7 +481,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 const SizedBox(height: 8),
                 
                 // Debts List
-                _customerDebts.isEmpty
+                customerPendingDebts.isEmpty
                     ? Container(
                         padding: const EdgeInsets.all(32),
                         child: Column(
@@ -505,9 +514,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     : ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _customerDebts.length,
+                        itemCount: customerPendingDebts.length,
                         itemBuilder: (context, index) {
-                          final debt = _customerDebts[index];
+                          final debt = customerPendingDebts[index];
                           return _DebtCard(
                             debt: debt,
                             onMarkAsPaid: () => _markAsPaid(debt),
@@ -541,8 +550,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return Colors.green;
-      case DebtStatus.overdue:
-        return Colors.red;
       case DebtStatus.pending:
       default:
         return Colors.orange;
@@ -553,8 +560,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return 'Paid';
-      case DebtStatus.overdue:
-        return 'Overdue';
       case DebtStatus.pending:
       default:
         return 'Pending';
@@ -608,8 +613,8 @@ class _DebtCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         debt.status == DebtStatus.paid 
-                            ? 'Paid: ${_formatDate(debt.paidAt ?? debt.dueDate)}'
-                            : 'Due: ${_formatDate(debt.dueDate)}',
+                            ? 'Paid: ${_formatDate(debt.paidAt ?? debt.createdAt)}'
+                            : 'Created: ${_formatDate(debt.createdAt)}',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 13,
@@ -622,7 +627,7 @@ class _DebtCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${debt.amount.toStringAsFixed(0)}',
+                      CurrencyFormatter.formatAmount(context, debt.amount),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,

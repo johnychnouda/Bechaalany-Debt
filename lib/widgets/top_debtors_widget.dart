@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class TopDebtorsWidget extends StatelessWidget {
   const TopDebtorsWidget({super.key});
@@ -147,7 +148,7 @@ class TopDebtorsWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '\$${totalDebt.toStringAsFixed(0)}',
+                                  CurrencyFormatter.formatAmount(context, totalDebt),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,

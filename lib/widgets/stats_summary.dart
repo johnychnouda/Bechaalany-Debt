@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class StatsSummary extends StatelessWidget {
   const StatsSummary({super.key});
@@ -28,7 +29,7 @@ class StatsSummary extends StatelessWidget {
                 Expanded(
                   child: _StatCard(
                     title: 'Total Debt',
-                    value: '\$${appState.totalDebt.toStringAsFixed(0)}',
+                    value: CurrencyFormatter.formatAmount(context, appState.totalDebt),
                     color: AppColors.error,
                     icon: Icons.trending_up,
                   ),
@@ -62,7 +63,7 @@ class StatsSummary extends StatelessWidget {
                 Expanded(
                   child: _StatCard(
                     title: 'Avg Debt',
-                    value: '\$${appState.averageDebtAmount.toStringAsFixed(0)}',
+                    value: CurrencyFormatter.formatAmount(context, appState.averageDebtAmount),
                     color: AppColors.secondary,
                     icon: Icons.analytics,
                   ),

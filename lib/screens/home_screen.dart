@@ -14,6 +14,7 @@ import '../widgets/recent_activity_widget.dart';
 import '../widgets/profit_loss_widget.dart';
 import '../widgets/customer_payment_history_widget.dart';
 import '../widgets/customizable_dashboard_widget.dart';
+import '../utils/currency_formatter.dart';
 import 'settings_screen.dart';
 import 'debts_screen.dart';
 
@@ -214,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildStatCard(
                     'Total Amount',
-                    '\$${totalAmount.toStringAsFixed(0)}',
+                    CurrencyFormatter.formatAmount(context, totalAmount),
                     Icons.attach_money,
                     AppColors.success,
                   ),

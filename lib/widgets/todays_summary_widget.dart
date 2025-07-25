@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class TodaysSummaryWidget extends StatelessWidget {
   const TodaysSummaryWidget({super.key});
@@ -11,21 +12,8 @@ class TodaysSummaryWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        final today = DateTime.now();
-        final todayDebts = appState.debts.where((debt) {
-          final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
-          final todayDate = DateTime(today.year, today.month, today.day);
-          return dueDate.isAtSameMomentAs(todayDate) && debt.status != DebtStatus.paid;
-        }).toList();
-
-        final overdueDebts = appState.debts.where((debt) {
-          final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
-          final todayDate = DateTime(today.year, today.month, today.day);
-          return dueDate.isBefore(todayDate) && debt.status != DebtStatus.paid;
-        }).toList();
-
-        final totalDueToday = todayDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        final totalOverdue = overdueDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final pendingDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).toList();
+        final totalPending = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
 
         return Card(
           child: Padding(
@@ -42,14 +30,14 @@ class TodaysSummaryWidget extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.today,
+                        Icons.pending,
                         color: AppColors.primary,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      "Today's Summary",
+                      "Pending Debts",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -59,7 +47,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                if (todayDebts.isEmpty && overdueDebts.isEmpty)
+                if (pendingDebts.isEmpty)
                   const Center(
                     child: Column(
                       children: [
@@ -70,7 +58,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'No payments due today!',
+                          'No pending debts!',
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
@@ -80,28 +68,12 @@ class TodaysSummaryWidget extends StatelessWidget {
                     ),
                   )
                 else
-                  Column(
-                    children: [
-                      if (todayDebts.isNotEmpty) ...[
-                        _SummaryRow(
-                          title: 'Due Today',
-                          amount: totalDueToday,
-                          count: todayDebts.length,
-                          color: AppColors.warning,
-                          icon: Icons.schedule,
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                      if (overdueDebts.isNotEmpty) ...[
-                        _SummaryRow(
-                          title: 'Overdue',
-                          amount: totalOverdue,
-                          count: overdueDebts.length,
-                          color: AppColors.error,
-                          icon: Icons.warning,
-                        ),
-                      ],
-                    ],
+                  _SummaryRow(
+                    title: 'Pending',
+                    amount: totalPending,
+                    count: pendingDebts.length,
+                    color: AppColors.warning,
+                    icon: Icons.pending,
                   ),
               ],
             ),
@@ -167,7 +139,7 @@ class _SummaryRow extends StatelessWidget {
           ),
         ),
         Text(
-          '\$${amount.toStringAsFixed(0)}',
+          CurrencyFormatter.formatAmount(context, amount),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

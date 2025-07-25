@@ -19,7 +19,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
   Customer? _selectedCustomer;
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
   bool _isLoading = false;
 
   @override
@@ -33,20 +32,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     _descriptionController.dispose();
     _amountController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
   }
 
   Future<void> _selectCustomer() async {
@@ -121,7 +106,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           description: _descriptionController.text.trim(),
           amount: amount,
           type: DebtType.credit,
-          dueDate: _selectedDate,
           status: DebtStatus.pending,
           createdAt: DateTime.now(),
         );
@@ -255,48 +239,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                 }
                 return null;
               },
-            ),
-            const SizedBox(height: 16),
-            
-            // Due date field
-            InkWell(
-              onTap: _selectDate,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today, color: AppColors.textSecondary),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Due Date *',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
-                  ],
-                ),
-              ),
             ),
             const SizedBox(height: 32),
             

@@ -7,8 +7,6 @@ enum DebtStatus {
   pending,
   @HiveField(1)
   paid,
-  @HiveField(2)
-  overdue,
 }
 
 @HiveType(typeId: 2)
@@ -36,12 +34,10 @@ class Debt extends HiveObject {
   @HiveField(6)
   final DebtStatus status;
   @HiveField(7)
-  final DateTime dueDate;
-  @HiveField(8)
   final DateTime createdAt;
-  @HiveField(9)
+  @HiveField(8)
   final DateTime? paidAt;
-  @HiveField(10)
+  @HiveField(9)
   final String? notes;
 
   Debt({
@@ -52,7 +48,6 @@ class Debt extends HiveObject {
     required this.description,
     required this.type,
     required this.status,
-    required this.dueDate,
     required this.createdAt,
     this.paidAt,
     this.notes,
@@ -71,7 +66,6 @@ class Debt extends HiveObject {
       status: DebtStatus.values.firstWhere(
         (e) => e.toString() == 'DebtStatus.${json['status']}',
       ),
-      dueDate: DateTime.parse(json['dueDate'] as String),
       createdAt: DateTime.parse(json['createdAt'] as String),
       paidAt: json['paidAt'] != null 
           ? DateTime.parse(json['paidAt'] as String) 
@@ -89,7 +83,6 @@ class Debt extends HiveObject {
       'description': description,
       'type': type.toString().split('.').last,
       'status': status.toString().split('.').last,
-      'dueDate': dueDate.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'paidAt': paidAt?.toIso8601String(),
       'notes': notes,
@@ -104,7 +97,6 @@ class Debt extends HiveObject {
     String? description,
     DebtType? type,
     DebtStatus? status,
-    DateTime? dueDate,
     DateTime? createdAt,
     DateTime? paidAt,
     String? notes,
@@ -117,24 +109,18 @@ class Debt extends HiveObject {
       description: description ?? this.description,
       type: type ?? this.type,
       status: status ?? this.status,
-      dueDate: dueDate ?? this.dueDate,
       createdAt: createdAt ?? this.createdAt,
       paidAt: paidAt ?? this.paidAt,
       notes: notes ?? this.notes,
     );
   }
 
-  bool get isOverdue => 
-      status == DebtStatus.pending && DateTime.now().isAfter(dueDate);
-
   String get statusText {
     switch (status) {
       case DebtStatus.pending:
-        return isOverdue ? 'Overdue' : 'Pending';
+        return 'Pending';
       case DebtStatus.paid:
         return 'Paid';
-      case DebtStatus.overdue:
-        return 'Overdue';
     }
   }
 } 

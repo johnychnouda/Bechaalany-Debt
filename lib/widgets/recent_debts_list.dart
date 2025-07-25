@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class RecentDebtsList extends StatelessWidget {
   const RecentDebtsList({super.key});
@@ -13,22 +14,67 @@ class RecentDebtsList extends StatelessWidget {
       builder: (context, appState, child) {
         final recentDebts = appState.recentDebts;
         
-        if (recentDebts.isEmpty) {
-          return const Center(
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.inbox_outlined, size: 48, color: AppColors.textLight),
-                SizedBox(height: 8),
-                Text('No recent debts', style: TextStyle(color: AppColors.textSecondary)),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.account_balance_wallet,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Recent Debts',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                if (recentDebts.isEmpty)
+                  const Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.account_balance_wallet_outlined,
+                          size: 32,
+                          color: AppColors.textLight,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'No recent debts',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Column(
+                    children: recentDebts.map((debt) {
+                      return _DebtCard(debt: debt);
+                    }).toList(),
+                  ),
               ],
             ),
-          );
-        }
-        
-        return Column(
-          children: recentDebts.map((debt) {
-            return _DebtCard(debt: debt);
-          }).toList(),
+          ),
         );
       },
     );
@@ -46,8 +92,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return AppColors.success;
-      case DebtStatus.overdue:
-        return AppColors.error;
       case DebtStatus.pending:
       default:
         return AppColors.warning;
@@ -58,8 +102,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return 'Paid';
-      case DebtStatus.overdue:
-        return 'Overdue';
       case DebtStatus.pending:
       default:
         return 'Pending';
@@ -68,94 +110,83 @@ class _DebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                Icons.person,
-                color: AppColors.primary,
-                size: 24,
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    debt.customerName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    debt.description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    debt.status == DebtStatus.paid 
-                        ? 'Paid: ${_formatDate(debt.paidAt ?? debt.dueDate)}'
-                        : 'Due: ${_formatDate(debt.dueDate)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textLight,
-                    ),
-                  ),
-                ],
-              ),
+            child: Icon(
+              Icons.person,
+              color: AppColors.primary,
+              size: 20,
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '\$${debt.amount.toStringAsFixed(0)}',
+                  debt.customerName,
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _getStatusColor().withOpacity(0.3),
-                      width: 1,
-                    ),
+                Text(
+                  debt.description,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
                   ),
-                  child: Text(
-                    _getStatusText(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _getStatusColor(),
-                    ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  debt.status == DebtStatus.paid 
+                      ? 'Paid: ${_formatDate(debt.paidAt ?? debt.createdAt)}'
+                      : 'Created: ${_formatDate(debt.createdAt)}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                CurrencyFormatter.formatAmount(context, debt.amount),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: debt.status == DebtStatus.paid 
+                      ? AppColors.success
+                      : AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                _getStatusText(),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: debt.status == DebtStatus.paid 
+                      ? AppColors.success
+                      : AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

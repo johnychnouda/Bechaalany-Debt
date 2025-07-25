@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/currency_formatter.dart';
 import 'add_debt_screen.dart';
 import 'customer_details_screen.dart';
 import 'dart:io';
@@ -92,7 +93,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Mark as Paid'),
-          content: Text('Are you sure you want to mark this debt as paid?\n\nCustomer: ${debt.customerName}\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
+          content: Text('Are you sure you want to mark this debt as paid?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -139,7 +140,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
+          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -238,7 +239,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: ['All', 'Pending', 'Paid', 'Overdue'].map((status) {
+                        children: ['All', 'Pending', 'Paid'].map((status) {
                           final isSelected = _selectedStatus == status;
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
@@ -372,8 +373,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
         return 'No pending debts';
       case 'Paid':
         return 'No paid debts';
-      case 'Overdue':
-        return 'No overdue debts';
       case 'All':
       default:
         return 'No debts found';
@@ -383,11 +382,9 @@ class _DebtsScreenState extends State<DebtsScreen> {
   String _getEmptyStateSubMessage() {
     switch (_selectedStatus) {
       case 'Pending':
-        return 'All debts have been paid or are overdue';
+        return 'All debts have been paid';
       case 'Paid':
         return 'No debts have been marked as paid yet';
-      case 'Overdue':
-        return 'No debts are currently overdue';
       case 'All':
       default:
         return 'Add a new debt to get started';
@@ -401,12 +398,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
       
       // Create CSV content
       final csvContent = StringBuffer();
-      csvContent.writeln('Customer Name,Description,Amount,Status,Due Date,Payment Date,Notes');
+      csvContent.writeln('Customer Name,Description,Amount,Status,Payment Date,Notes');
       
       for (final debt in debts) {
         final paymentDate = debt.paidAt != null ? debt.paidAt!.toString().split(' ')[0] : '';
         final notes = debt.notes ?? '';
-        csvContent.writeln('${debt.customerName},"${debt.description}",${debt.amount},${debt.statusText},${debt.dueDate.toString().split(' ')[0]},$paymentDate,"$notes"');
+        csvContent.writeln('${debt.customerName},"${debt.description}",${debt.amount},${debt.statusText},$paymentDate,"$notes"');
       }
       
       // Get temporary directory
@@ -455,8 +452,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return Colors.green;
-      case DebtStatus.overdue:
-        return Colors.red;
       case DebtStatus.pending:
       default:
         return Colors.orange;
@@ -467,8 +462,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return 'Paid';
-      case DebtStatus.overdue:
-        return 'Overdue';
       case DebtStatus.pending:
       default:
         return 'Pending';
@@ -477,10 +470,6 @@ class _DebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final daysOverdue = debt.status == DebtStatus.pending && debt.dueDate.isBefore(DateTime.now())
-        ? DateTime.now().difference(debt.dueDate).inDays
-        : 0;
-    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -530,7 +519,7 @@ class _DebtCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      '\$${debt.amount.toStringAsFixed(0)}',
+                      CurrencyFormatter.formatAmount(context, debt.amount),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -569,7 +558,7 @@ class _DebtCard extends StatelessWidget {
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  'Original Due: ${_formatDate(debt.dueDate)}',
+                  'Created: ${_formatDate(debt.createdAt)}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -590,25 +579,6 @@ class _DebtCard extends StatelessWidget {
                 ],
               ],
             ),
-            
-            // Overdue information
-            if (daysOverdue > 0) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.warning, size: 16, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$daysOverdue days overdue',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ],
             
             // Payment method and notes
             if (debt.notes != null && debt.notes!.isNotEmpty) ...[
@@ -687,8 +657,6 @@ class _DebtCard extends StatelessWidget {
     switch (debt.status) {
       case DebtStatus.paid:
         return Icons.check_circle;
-      case DebtStatus.overdue:
-        return Icons.warning;
       case DebtStatus.pending:
       default:
         return Icons.pending;

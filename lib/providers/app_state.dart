@@ -3,6 +3,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/category.dart';
+import '../models/product_purchase.dart';
+import '../models/currency_settings.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
@@ -17,6 +20,9 @@ class AppState extends ChangeNotifier {
   // Data
   List<Customer> _customers = [];
   List<Debt> _debts = [];
+  List<ProductCategory> _categories = [];
+  List<ProductPurchase> _productPurchases = [];
+  CurrencySettings? _currencySettings;
   
   // Loading states
   bool _isLoading = false;
@@ -36,7 +42,6 @@ class AppState extends ChangeNotifier {
   
   // Notification Settings
   bool _paymentDueRemindersEnabled = true;
-  bool _overdueNotificationsEnabled = true;
   bool _weeklyReportsEnabled = false;
   bool _monthlyReportsEnabled = true;
   bool _quietHoursEnabled = false;
@@ -60,13 +65,15 @@ class AppState extends ChangeNotifier {
   double? _cachedTotalDebt;
   double? _cachedTotalPaid;
   int? _cachedPendingCount;
-  int? _cachedOverdueCount;
   List<Debt>? _cachedRecentDebts;
   List<Customer>? _cachedTopDebtors;
   
   // Getters
   List<Customer> get customers => _customers;
   List<Debt> get debts => _debts;
+  List<ProductCategory> get categories => _categories;
+  List<ProductPurchase> get productPurchases => _productPurchases;
+  CurrencySettings? get currencySettings => _currencySettings;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
   bool get isOnline => _isOnline;
@@ -84,7 +91,6 @@ class AppState extends ChangeNotifier {
   
   // Notification Settings Getters
   bool get paymentDueRemindersEnabled => _paymentDueRemindersEnabled;
-  bool get overdueNotificationsEnabled => _overdueNotificationsEnabled;
   bool get weeklyReportsEnabled => _weeklyReportsEnabled;
   bool get monthlyReportsEnabled => _monthlyReportsEnabled;
   bool get quietHoursEnabled => _quietHoursEnabled;
@@ -121,11 +127,6 @@ class AppState extends ChangeNotifier {
   int get pendingDebtsCount {
     _cachedPendingCount ??= _calculatePendingCount();
     return _cachedPendingCount!;
-  }
-  
-  int get overdueDebtsCount {
-    _cachedOverdueCount ??= _calculateOverdueCount();
-    return _cachedOverdueCount!;
   }
   
   int get totalCustomersCount {
@@ -199,7 +200,6 @@ class AppState extends ChangeNotifier {
       
       // Notification settings
       _paymentDueRemindersEnabled = prefs.getBool('paymentDueRemindersEnabled') ?? true;
-      _overdueNotificationsEnabled = prefs.getBool('overdueNotificationsEnabled') ?? true;
       _weeklyReportsEnabled = prefs.getBool('weeklyReportsEnabled') ?? false;
       _monthlyReportsEnabled = prefs.getBool('monthlyReportsEnabled') ?? true;
       _quietHoursEnabled = prefs.getBool('quietHoursEnabled') ?? false;
@@ -239,7 +239,6 @@ class AppState extends ChangeNotifier {
       
       // Notification settings
       await prefs.setBool('paymentDueRemindersEnabled', _paymentDueRemindersEnabled);
-      await prefs.setBool('overdueNotificationsEnabled', _overdueNotificationsEnabled);
       await prefs.setBool('weeklyReportsEnabled', _weeklyReportsEnabled);
       await prefs.setBool('monthlyReportsEnabled', _monthlyReportsEnabled);
       await prefs.setBool('quietHoursEnabled', _quietHoursEnabled);
@@ -268,6 +267,9 @@ class AppState extends ChangeNotifier {
   Future<void> _loadData() async {
     _customers = _dataService.customers;
     _debts = _dataService.debts;
+    _categories = _dataService.categories;
+    _productPurchases = _dataService.productPurchases;
+    _currencySettings = _dataService.currencySettings;
     _clearCache();
     notifyListeners();
   }
@@ -302,20 +304,11 @@ class AppState extends ChangeNotifier {
   
   // Schedule notifications for due/overdue debts
   Future<void> _scheduleNotifications() async {
-    final today = DateTime.now();
-    final dueToday = _debts.where((debt) {
-      final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
-      final todayDate = DateTime(today.year, today.month, today.day);
-      return dueDate.isAtSameMomentAs(todayDate) && debt.status != DebtStatus.paid;
-    }).toList();
+    if (!_notificationsEnabled) return;
     
-    final overdue = _debts.where((debt) {
-      final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
-      final todayDate = DateTime(today.year, today.month, today.day);
-      return dueDate.isBefore(todayDate) && debt.status != DebtStatus.paid;
-    }).toList();
+    final pendingDebts = _debts.where((debt) => debt.status == DebtStatus.pending).toList();
     
-    await _notificationService.scheduleDebtReminders(dueToday, overdue);
+    await _notificationService.scheduleDebtReminders(pendingDebts);
   }
   
   // Customer operations
@@ -453,6 +446,104 @@ class AppState extends ChangeNotifier {
       rethrow;
     }
   }
+
+  // Category operations
+  Future<void> addCategory(ProductCategory category) async {
+    try {
+      await _dataService.addCategory(category);
+      _categories.add(category);
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      print('Error adding category: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateCategory(ProductCategory category) async {
+    try {
+      await _dataService.updateCategory(category);
+      final index = _categories.indexWhere((c) => c.id == category.id);
+      if (index != -1) {
+        _categories[index] = category;
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating category: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCategory(String categoryId) async {
+    try {
+      await _dataService.deleteCategory(categoryId);
+      _categories.removeWhere((c) => c.id == categoryId);
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting category: $e');
+      rethrow;
+    }
+  }
+
+  // Product Purchase operations
+  Future<void> addProductPurchase(ProductPurchase purchase) async {
+    try {
+      await _dataService.addProductPurchase(purchase);
+      _productPurchases.add(purchase);
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      print('Error adding product purchase: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateProductPurchase(ProductPurchase purchase) async {
+    try {
+      await _dataService.updateProductPurchase(purchase);
+      final index = _productPurchases.indexWhere((p) => p.id == purchase.id);
+      if (index != -1) {
+        _productPurchases[index] = purchase;
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating product purchase: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteProductPurchase(String purchaseId) async {
+    try {
+      await _dataService.deleteProductPurchase(purchaseId);
+      _productPurchases.removeWhere((p) => p.id == purchaseId);
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting product purchase: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> markProductPurchaseAsPaid(String purchaseId) async {
+    try {
+      await _dataService.markProductPurchaseAsPaid(purchaseId);
+      final index = _productPurchases.indexWhere((p) => p.id == purchaseId);
+      if (index != -1) {
+        _productPurchases[index] = _productPurchases[index].copyWith(
+          isPaid: true,
+          paidAt: DateTime.now(),
+        );
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error marking product purchase as paid: $e');
+      rethrow;
+    }
+  }
   
   // Manual refresh
   Future<void> refresh() async {
@@ -471,12 +562,19 @@ class AppState extends ChangeNotifier {
     return _dataService.generateDebtId();
   }
 
+  String generateCategoryId() {
+    return _dataService.generateCategoryId();
+  }
+
+  String generateProductPurchaseId() {
+    return _dataService.generateProductPurchaseId();
+  }
+
   // Clear cache when data changes
   void _clearCache() {
     _cachedTotalDebt = null;
     _cachedTotalPaid = null;
     _cachedPendingCount = null;
-    _cachedOverdueCount = null;
     _cachedRecentDebts = null;
     _cachedTopDebtors = null;
   }
@@ -496,10 +594,6 @@ class AppState extends ChangeNotifier {
   
   int _calculatePendingCount() {
     return _debts.where((d) => d.status == DebtStatus.pending).length;
-  }
-  
-  int _calculateOverdueCount() {
-    return _debts.where((d) => d.isOverdue).length;
   }
   
   List<Debt> _calculateRecentDebts() {
@@ -578,12 +672,6 @@ class AppState extends ChangeNotifier {
   // Notification settings
   Future<void> setPaymentDueRemindersEnabled(bool enabled) async {
     _paymentDueRemindersEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setOverdueNotificationsEnabled(bool enabled) async {
-    _overdueNotificationsEnabled = enabled;
     await _saveSettings();
     notifyListeners();
   }
@@ -672,5 +760,40 @@ class AppState extends ChangeNotifier {
     _reduceMotionEnabled = enabled;
     await _saveSettings();
     notifyListeners();
+  }
+
+  // Currency Settings methods
+  Future<void> updateCurrencySettings(CurrencySettings settings) async {
+    await _dataService.updateCurrencySettings(settings);
+    _currencySettings = settings;
+    notifyListeners();
+  }
+
+  // Convert amount using current exchange rate
+  double convertAmount(double amount) {
+    return _dataService.convertAmount(amount);
+  }
+
+  // Convert amount back to base currency
+  double convertBack(double amount) {
+    return _dataService.convertBack(amount);
+  }
+
+  // Get formatted exchange rate
+  String get formattedExchangeRate {
+    final settings = _currencySettings;
+    if (settings != null) {
+      return settings.formattedRate;
+    }
+    return 'No exchange rate set';
+  }
+
+  // Get reverse formatted exchange rate
+  String get reverseFormattedExchangeRate {
+    final settings = _currencySettings;
+    if (settings != null) {
+      return settings.reverseFormattedRate;
+    }
+    return 'No exchange rate set';
   }
 } 

@@ -136,15 +136,6 @@ class EmptyStates {
     );
   }
 
-  static Widget noOverdueDebts() {
-    return const EmptyStateWidget(
-      title: 'No Overdue Debts',
-      message: 'Great! All your debts are up to date.',
-      icon: Icons.check_circle_outline,
-      iconColor: AppColors.success,
-    );
-  }
-
   static Widget noPendingDebts() {
     return const EmptyStateWidget(
       title: 'No Pending Debts',

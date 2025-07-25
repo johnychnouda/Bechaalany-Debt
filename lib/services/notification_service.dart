@@ -30,7 +30,7 @@ class NotificationService {
     _isInitialized = true;
   }
 
-  Future<void> scheduleDebtReminders(List<Debt> dueToday, List<Debt> overdue) async {
+  Future<void> scheduleDebtReminders(List<Debt> pendingDebts) async {
     if (!_isInitialized) await initialize();
 
     // Cancel existing notifications
@@ -38,26 +38,18 @@ class NotificationService {
 
     // For now, just show immediate notifications instead of scheduling
     // This avoids timezone issues and is simpler for testing
-    for (final debt in dueToday) {
+    for (final debt in pendingDebts) {
       await showImmediateNotification(
-        title: 'Payment Due Today',
-        body: '${debt.customerName} owes \$${debt.amount.toStringAsFixed(0)}',
+        title: 'Pending Payment',
+        body: '${debt.customerName} owes \$${debt.amount.toStringAsFixed(2)}',
         payload: debt.id,
       );
     }
 
-    for (final debt in overdue) {
-      await showImmediateNotification(
-        title: 'Payment Overdue',
-        body: '${debt.customerName} owes \$${debt.amount.toStringAsFixed(0)} (${_getDaysOverdue(debt)} days overdue)',
-        payload: debt.id,
-      );
-    }
-
-    if (dueToday.isNotEmpty || overdue.isNotEmpty) {
+    if (pendingDebts.isNotEmpty) {
       await showImmediateNotification(
         title: 'Daily Debt Summary',
-        body: '${dueToday.length} payments due today, ${overdue.length} overdue',
+        body: '${pendingDebts.length} pending payments',
         payload: 'summary',
       );
     }
@@ -110,25 +102,16 @@ class NotificationService {
     return await _notifications.pendingNotificationRequests();
   }
 
-  int _getDaysOverdue(Debt debt) {
-    final now = DateTime.now();
-    final dueDate = DateTime(debt.dueDate.year, debt.dueDate.month, debt.dueDate.day);
-    final today = DateTime(now.year, now.month, now.day);
-    return today.difference(dueDate).inDays;
-  }
-
   // Save notification preferences
   Future<void> saveNotificationPreferences({
     required bool enabled,
-    required bool dueToday,
-    required bool overdue,
+    required bool pendingPayments,
     required bool dailySummary,
     required TimeOfDay reminderTime,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', enabled);
-    await prefs.setBool('notifications_due_today', dueToday);
-    await prefs.setBool('notifications_overdue', overdue);
+    await prefs.setBool('notifications_pending_payments', pendingPayments);
     await prefs.setBool('notifications_daily_summary', dailySummary);
     await prefs.setInt('notifications_reminder_hour', reminderTime.hour);
     await prefs.setInt('notifications_reminder_minute', reminderTime.minute);
@@ -139,8 +122,7 @@ class NotificationService {
     final prefs = await SharedPreferences.getInstance();
     return {
       'enabled': prefs.getBool('notifications_enabled') ?? true,
-      'dueToday': prefs.getBool('notifications_due_today') ?? true,
-      'overdue': prefs.getBool('notifications_overdue') ?? true,
+      'pendingPayments': prefs.getBool('notifications_pending_payments') ?? true,
       'dailySummary': prefs.getBool('notifications_daily_summary') ?? true,
       'reminderHour': prefs.getInt('notifications_reminder_hour') ?? 9,
       'reminderMinute': prefs.getInt('notifications_reminder_minute') ?? 0,

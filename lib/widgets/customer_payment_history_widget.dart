@@ -5,6 +5,7 @@ import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 
 class CustomerPaymentHistoryWidget extends StatefulWidget {
   const CustomerPaymentHistoryWidget({super.key});
@@ -268,7 +269,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
               Expanded(
                 child: _buildPaymentStat(
                   'Total Paid',
-                  '\$${totalPaid.toStringAsFixed(0)}',
+                  CurrencyFormatter.formatAmount(context, totalPaid),
                   Icons.check_circle,
                   AppColors.success,
                 ),
@@ -277,7 +278,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
               Expanded(
                 child: _buildPaymentStat(
                   'Avg Payment',
-                  '\$${averagePayment.toStringAsFixed(0)}',
+                  CurrencyFormatter.formatAmount(context, averagePayment),
                   Icons.analytics,
                   AppColors.primary,
                 ),

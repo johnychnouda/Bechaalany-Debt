@@ -8,8 +8,7 @@ import '../providers/app_state.dart';
 import '../utils/logo_utils.dart';
 import 'profit_loss_widget.dart';
 import 'customer_payment_history_widget.dart';
-import 'todays_summary_widget.dart';
-import 'weekly_activity_widget.dart';
+import 'total_debtors_widget.dart';
 import 'top_debtors_widget.dart';
 import 'recent_activity_widget.dart';
 import 'recent_debts_list.dart';
@@ -55,19 +54,11 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         isEnabled: true,
       ),
       DashboardWidget(
-        id: 'todays_summary',
-        title: "Today's Summary",
-        icon: Icons.today,
+        id: 'total_debtors',
+        title: 'Total Debtors',
+        icon: Icons.people,
         color: AppColors.primary,
-        widget: const TodaysSummaryWidget(),
-        isEnabled: true,
-      ),
-      DashboardWidget(
-        id: 'weekly_activity',
-        title: 'Weekly Activity',
-        icon: Icons.show_chart,
-        color: AppColors.warning,
-        widget: const WeeklyActivityWidget(),
+        widget: const TotalDebtorsWidget(),
         isEnabled: true,
       ),
       DashboardWidget(
@@ -106,6 +97,13 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         final enabledIds = List<String>.from(jsonDecode(enabledWidgetsJson));
         // Filter out any old 'quick_actions' widget that might still be in preferences
         final filteredIds = enabledIds.where((id) => id != 'quick_actions').toList();
+        
+        // Check if total_debtors is missing and add it if needed
+        if (!filteredIds.contains('total_debtors')) {
+          filteredIds.add('total_debtors');
+          await prefs.setString('enabled_widgets', jsonEncode(filteredIds));
+        }
+        
         _enabledWidgets = _availableWidgets
             .where((widget) => filteredIds.contains(widget.id))
             .toList();
@@ -115,12 +113,34 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
           await prefs.setString('enabled_widgets', jsonEncode(filteredIds));
         }
       } else {
-        // Default enabled widgets
-        _enabledWidgets = _availableWidgets.take(6).toList();
+        // Default enabled widgets - include total_debtors in the first 6
+        final defaultWidgetIds = [
+          'profit_loss',
+          'payment_history', 
+          'total_debtors',
+          'top_debtors',
+          'recent_activity',
+          'recent_debts',
+        ];
+        
+        _enabledWidgets = _availableWidgets
+            .where((widget) => defaultWidgetIds.contains(widget.id))
+            .toList();
       }
     } catch (e) {
       // Fallback to default widgets
-      _enabledWidgets = _availableWidgets.take(6).toList();
+      final defaultWidgetIds = [
+        'profit_loss',
+        'payment_history', 
+        'total_debtors',
+        'top_debtors',
+        'recent_activity',
+        'recent_debts',
+      ];
+      
+      _enabledWidgets = _availableWidgets
+          .where((widget) => defaultWidgetIds.contains(widget.id))
+          .toList();
     }
     
     setState(() {
@@ -188,9 +208,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
             
             // Widgets
             Expanded(
-              child: _isEditMode
-                  ? _buildEditMode()
-                  : _buildNormalMode(),
+              child: _buildNormalMode(),
             ),
           ],
         );
@@ -265,26 +283,20 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
               color: AppColors.textSecondary,
             ),
           ),
-          IconButton(
-            onPressed: _toggleEditMode,
-            icon: Icon(
-              _isEditMode ? Icons.check : Icons.edit,
-              color: _isEditMode ? AppColors.success : AppColors.primary,
-            ),
-            tooltip: _isEditMode ? 'Done' : 'Customize',
-          ),
         ],
       ),
     );
   }
 
   Widget _buildNormalMode() {
-    return ListView.builder(
+    return ReorderableListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: _enabledWidgets.length,
+      onReorder: _reorderWidgets,
       itemBuilder: (context, index) {
         final widget = _enabledWidgets[index];
         return Container(
+          key: ValueKey(widget.id),
           margin: const EdgeInsets.only(bottom: 16),
           child: widget.widget,
         );
