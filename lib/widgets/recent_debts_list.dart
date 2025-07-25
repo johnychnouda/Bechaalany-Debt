@@ -1,41 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
-import '../services/data_service.dart';
+import '../providers/app_state.dart';
 
 class RecentDebtsList extends StatelessWidget {
   const RecentDebtsList({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final dataService = DataService();
-    final recentDebts = dataService.recentDebts;
-    
-    if (recentDebts.isEmpty) {
-      return const Center(
-        child: Column(
-          children: [
-            Icon(Icons.inbox_outlined, size: 48, color: AppColors.textLight),
-            SizedBox(height: 8),
-            Text('No recent debts', style: TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
-      );
-    }
-    
-    return Column(
-      children: recentDebts.map((debt) {
-        return _DebtCard(
-          customerName: debt.customerName,
-          amount: debt.amount,
-          description: debt.description,
-          status: debt.status.toString().split('.').last,
-          dueDate: debt.dueDate,
-          createdAt: debt.createdAt,
-        );
-      }).toList(),
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final recentDebts = appState.recentDebts;
+        
+        if (recentDebts.isEmpty) {
+          return const Center(
+            child: Column(
+              children: [
+                Icon(Icons.inbox_outlined, size: 48, color: AppColors.textLight),
+                SizedBox(height: 8),
+                Text('No recent debts', style: TextStyle(color: AppColors.textSecondary)),
+              ],
+            ),
           );
-    }
+        }
+        
+        return Column(
+          children: recentDebts.map((debt) {
+            return _DebtCard(
+              customerName: debt.customerName,
+              amount: debt.amount,
+              description: debt.description,
+              status: debt.status.toString().split('.').last,
+              dueDate: debt.dueDate,
+              createdAt: debt.createdAt,
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
 }
 
 class _DebtCard extends StatelessWidget {

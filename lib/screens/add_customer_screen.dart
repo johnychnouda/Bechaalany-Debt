@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
-import '../services/data_service.dart';
+import '../providers/app_state.dart';
+import '../l10n/app_localizations.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -14,6 +16,7 @@ class AddCustomerScreen extends StatefulWidget {
 
 class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _idController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -24,15 +27,19 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   void initState() {
     super.initState();
     if (widget.customer != null) {
+      _idController.text = widget.customer!.id;
       _nameController.text = widget.customer!.name;
       _phoneController.text = widget.customer!.phone;
       _emailController.text = widget.customer!.email ?? '';
       _addressController.text = widget.customer!.address ?? '';
+    } else {
+      _idController.text = '';
     }
   }
 
   @override
   void dispose() {
+    _idController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -41,256 +48,179 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   }
 
   Future<void> _saveCustomer() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        Customer customer;
-        
-        if (widget.customer != null) {
-          // Update existing customer
-          customer = widget.customer!.copyWith(
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-            address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-            updatedAt: DateTime.now(),
-          );
-          await DataService().updateCustomer(customer);
-        } else {
-          // Create new customer
-          customer = Customer(
-            id: DataService().generateCustomerId(),
-            name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
-            email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-            address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-            createdAt: DateTime.now(),
-          );
-          await DataService().addCustomer(customer);
-        }
-
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.customer != null 
-                ? 'Customer updated successfully!' 
-                : 'Customer added successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        
-        // Navigate back with result
-        Navigator.pop(context, true);
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.customer != null 
-                ? 'Failed to update customer: $e'
-                : 'Failed to add customer: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    final l10n = AppLocalizations.of(context);
+    
+    String customerId = _idController.text.trim();
+    String name = _nameController.text.trim();
+    String phone = _phoneController.text.trim();
+    String email = _emailController.text.trim();
+    String address = _addressController.text.trim();
+    
+    if (customerId.isEmpty) {
+      _showErrorSnackBar(l10n.pleaseEnterCustomerId);
+      return;
     }
+    
+    if (name.isEmpty) {
+      _showErrorSnackBar(l10n.pleaseEnterName);
+      return;
+    }
+    
+    if (phone.isEmpty) {
+      _showErrorSnackBar(l10n.pleaseEnterPhone);
+      return;
+    }
+    
+    if (email.isNotEmpty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      _showErrorSnackBar(l10n.pleaseEnterValidEmail);
+      return;
+    }
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      
+      Customer customer;
+      
+      if (widget.customer != null) {
+        customer = widget.customer!.copyWith(
+          id: customerId,
+          name: name,
+          phone: phone,
+          email: email.isEmpty ? null : email,
+          address: address.isEmpty ? null : address,
+          updatedAt: DateTime.now(),
+        );
+        await appState.updateCustomer(customer);
+      } else {
+        customer = Customer(
+          id: customerId,
+          name: name,
+          phone: phone,
+          email: email.isEmpty ? null : email,
+          address: address.isEmpty ? null : address,
+          createdAt: DateTime.now(),
+        );
+        await appState.addCustomer(customer);
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _showSuccessSnackBar(widget.customer != null 
+          ? 'Customer updated successfully!' 
+          : 'Customer added successfully!');
+      
+      Navigator.pop(context, true);
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      _showErrorSnackBar(widget.customer != null 
+          ? 'Failed to update customer: $e'
+          : 'Failed to add customer: $e');
+    }
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+                            backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+                            backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.customer != null;
+    final l10n = AppLocalizations.of(context);
     
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Customer' : 'Add Customer'),
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              ),
-            ),
-        ],
+        title: Text(
+          widget.customer != null ? l10n.editCustomer : l10n.addCustomer,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: Colors.grey[50],
+        elevation: 0,
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
             children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary.withOpacity(0.1),
-                      AppColors.primaryLight.withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        isEditing ? Icons.edit : Icons.person_add,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isEditing ? 'Edit Customer' : 'New Customer',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isEditing ? 'Update customer information' : 'Add customer information',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              // Customer ID
+              _buildField(
+                label: 'Customer ID',
+                controller: _idController,
+                placeholder: 'Enter customer ID',
+                enabled: widget.customer == null,
+                isRequired: true,
               ),
               
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               
-              // Name Field
-              const Text(
-                'Full Name *',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
+              // Name
+              _buildField(
+                label: 'Full Name',
                 controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter customer full name',
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter customer name';
-                  }
-                  return null;
-                },
+                placeholder: 'Enter customer name',
+                isRequired: true,
               ),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               
-              // Phone Field
-              const Text(
-                'Phone Number *',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
+              // Phone
+              _buildField(
+                label: 'Phone Number',
                 controller: _phoneController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter phone number',
-                  prefixIcon: Icon(Icons.phone),
-                ),
+                placeholder: 'Enter phone number',
                 keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter phone number';
-                  }
-                  return null;
-                },
+                isRequired: true,
               ),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               
-              // Email Field
-              const Text(
-                'Email Address',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
+              // Email
+              _buildField(
+                label: 'Email Address',
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter email address (optional)',
-                  prefixIcon: Icon(Icons.email),
-                ),
+                placeholder: 'Enter email (optional)',
                 keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Please enter a valid email address';
-                    }
-                  }
-                  return null;
-                },
               ),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               
-              // Address Field
-              const Text(
-                'Address',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
+              // Address
+              _buildField(
+                label: 'Address',
                 controller: _addressController,
-                decoration: const InputDecoration(
-                  hintText: 'Enter address (optional)',
-                  prefixIcon: Icon(Icons.location_on),
-                ),
+                placeholder: 'Enter address (optional)',
                 maxLines: 3,
               ),
               
@@ -300,23 +230,17 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : () async => await _saveCustomer(),
+                  onPressed: _isLoading ? null : _saveCustomer,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          isEditing ? 'Update Customer' : 'Save Customer',
+                          widget.customer != null ? 'Update Customer' : 'Add Customer',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -324,10 +248,70 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         ),
                 ),
               ),
+              
+              const SizedBox(height: 20),
             ],
           ),
         ),
       ),
+    );
+  }
+  
+  Widget _buildField({
+    required String label,
+    required TextEditingController controller,
+    required String placeholder,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    bool enabled = true,
+    bool isRequired = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+                          style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black,
+            ),
+            ),
+            if (isRequired) ...[
+              const SizedBox(width: 4),
+              const Text(
+                '*',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+                TextField(
+          controller: controller,
+          enabled: enabled,
+          decoration: InputDecoration(
+            hintText: placeholder,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.black,
+          ),
+        ),
+      ],
     );
   }
 } 

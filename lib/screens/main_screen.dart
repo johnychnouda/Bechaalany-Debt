@@ -3,7 +3,6 @@ import '../constants/app_colors.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'debts_screen.dart';
-import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -18,14 +17,12 @@ class _MainScreenState extends State<MainScreen> {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
   ];
 
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
     const DebtsScreen(),
-    const SettingsScreen(),
   ];
 
   @override
@@ -80,10 +77,6 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet),
               label: 'Debts',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'Settings',
             ),
           ],
         ),

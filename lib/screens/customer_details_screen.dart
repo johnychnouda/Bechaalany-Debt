@@ -1,317 +1,47 @@
 import 'package:flutter/material.dart';
-import '../constants/app_colors.dart';
+import 'package:provider/provider.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../services/data_service.dart';
+import '../providers/app_state.dart';
 import 'add_debt_screen.dart';
+import 'add_customer_screen.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
 
-  const CustomerDetailsScreen({
-    super.key,
-    required this.customer,
-  });
+  const CustomerDetailsScreen({super.key, required this.customer});
 
   @override
   State<CustomerDetailsScreen> createState() => _CustomerDetailsScreenState();
 }
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
-  final DataService _dataService = DataService();
   List<Debt> _customerDebts = [];
-  String _selectedFilter = 'all';
+  late Customer _currentCustomer;
 
   @override
   void initState() {
     super.initState();
-    _loadCustomerDebts();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh data when screen becomes visible
+    _currentCustomer = widget.customer;
     _loadCustomerDebts();
   }
 
   void _loadCustomerDebts() {
+    final appState = Provider.of<AppState>(context, listen: false);
     setState(() {
-      _customerDebts = _dataService.getDebtsByCustomer(widget.customer.id);
+      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
     });
   }
 
-  List<Debt> get _filteredDebts {
-    switch (_selectedFilter) {
-      case 'pending':
-        return _customerDebts.where((debt) => debt.status == DebtStatus.pending).toList();
-      case 'paid':
-        return _customerDebts.where((debt) => debt.status == DebtStatus.paid).toList();
-      case 'overdue':
-        return _customerDebts.where((debt) => debt.isOverdue).toList();
-      default:
-        return _customerDebts;
-    }
-  }
-
-  double get _totalDebt {
-    return _customerDebts
-        .where((d) => d.status == DebtStatus.pending)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
-  }
-
-  double get _totalPaid {
-    return _customerDebts
-        .where((d) => d.status == DebtStatus.paid)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.customer.name),
-        actions: [
-          IconButton(
-            onPressed: () {
-              _loadCustomerDebts();
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _loadCustomerDebts();
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Customer Info Card
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: AppColors.primary.withOpacity(0.1),
-                            child: Text(
-                              widget.customer.name.split(' ').map((e) => e[0]).join(''),
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.customer.name,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.customer.phone,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                if (widget.customer.email != null) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    widget.customer.email!,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (widget.customer.address != null) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on, color: AppColors.textSecondary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.customer.address!,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _InfoCard(
-                              title: 'Total Debt',
-                              value: '\$${_totalDebt.toStringAsFixed(0)}',
-                              color: AppColors.error,
-                              icon: Icons.account_balance_wallet,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _InfoCard(
-                              title: 'Total Paid',
-                              value: '\$${_totalPaid.toStringAsFixed(0)}',
-                              color: AppColors.success,
-                              icon: Icons.check_circle,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Debts Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Debts',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AddDebtScreen(selectedCustomer: widget.customer),
-                        ),
-                      );
-                      if (result == true) {
-                        _loadCustomerDebts();
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Debt'),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Filter chips
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: 'All (${_customerDebts.length})',
-                      isSelected: _selectedFilter == 'all',
-                      onTap: () => setState(() => _selectedFilter = 'all'),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Pending (${_customerDebts.where((d) => d.status == DebtStatus.pending).length})',
-                      isSelected: _selectedFilter == 'pending',
-                      onTap: () => setState(() => _selectedFilter = 'pending'),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Paid (${_customerDebts.where((d) => d.status == DebtStatus.paid).length})',
-                      isSelected: _selectedFilter == 'paid',
-                      onTap: () => setState(() => _selectedFilter = 'paid'),
-                    ),
-                    const SizedBox(width: 8),
-                    _FilterChip(
-                      label: 'Overdue (${_customerDebts.where((d) => d.isOverdue).length})',
-                      isSelected: _selectedFilter == 'overdue',
-                      onTap: () => setState(() => _selectedFilter = 'overdue'),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Debts List
-              if (_filteredDebts.isEmpty)
-                const Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.inbox_outlined, size: 48, color: AppColors.textLight),
-                      SizedBox(height: 8),
-                      Text('No debts found', style: TextStyle(color: AppColors.textSecondary)),
-                    ],
-                  ),
-                )
-              else
-                ...(_filteredDebts.map((debt) => _DebtCard(
-                  debt: debt,
-                  onMarkAsPaid: () => _markAsPaid(debt),
-                  onDelete: () => _deleteDebt(debt),
-                ))),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _markAsPaid(Debt debt) async {
-    try {
-      await _dataService.markDebtAsPaid(debt.id);
-      _loadCustomerDebts();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debt marked as paid'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to mark debt as paid: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _deleteDebt(Debt debt) async {
-    return showDialog(
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Debt'),
-          content: const Text('Are you sure you want to delete this debt?'),
+          title: const Text('Mark as Paid'),
+          content: Text('Are you sure you want to mark this debt as paid?\n\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -321,13 +51,69 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 try {
-                  await _dataService.deleteDebt(debt.id);
-                  _loadCustomerDebts();
+                  await appState.markDebtAsPaid(debt.id);
+                  _loadCustomerDebts(); // Re-load after status change
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Debt marked as paid successfully'),
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                        margin: EdgeInsets.all(16),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to mark debt as paid: $e'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                        margin: const EdgeInsets.all(16),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Mark as Paid'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteDebt(Debt debt) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Debt'),
+          content: Text('Are you sure you want to delete this debt?\n\nAmount: \$${debt.amount.toStringAsFixed(0)}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                try {
+                  await appState.deleteDebt(debt.id);
+                  _loadCustomerDebts(); // Re-load after deletion
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Debt deleted successfully'),
-                        backgroundColor: AppColors.success,
+                        backgroundColor: Colors.green,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                        margin: EdgeInsets.all(16),
                       ),
                     );
                   }
@@ -336,102 +122,403 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Failed to delete debt: $e'),
-                        backgroundColor: AppColors.error,
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                        margin: const EdgeInsets.all(16),
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
       },
     );
   }
-}
-
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final Color color;
-  final IconData icon;
-
-  const _InfoCard({
-    required this.title,
-    required this.value,
-    required this.color,
-    required this.icon,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final totalDebt = _customerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalPaid = _customerDebts.where((d) => d.status == DebtStatus.paid).fold(0.0, (sum, debt) => sum + debt.amount);
+
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: AppBar(
+            title: Text(
+              _currentCustomer.name,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: Colors.grey[50],
+            elevation: 0,
+            actions: [
+              IconButton(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddCustomerScreen(customer: _currentCustomer),
+                    ),
+                  );
+                  // Refresh the screen after editing
+                  if (result == true) {
+                    setState(() {
+                      // Refresh customer data from AppState
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      final updatedCustomer = appState.customers.firstWhere(
+                        (c) => c.id == _currentCustomer.id,
+                        orElse: () => _currentCustomer,
+                      );
+                      _currentCustomer = updatedCustomer;
+                    });
+                    // Refresh customer debts
+                    _loadCustomerDebts();
+                  }
+                },
+                icon: Icon(
+                  Icons.edit,
+                  color: Colors.blue[600],
+                ),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Customer Information Section
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'CUSTOMER INFORMATION',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      // Customer ID
+                      ListTile(
+                        leading: Icon(
+                          Icons.tag,
+                          color: Colors.grey[600],
+                        ),
+                        title: const Text(
+                          'Customer ID',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _currentCustomer.id,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      // Name
+                      ListTile(
+                        leading: Icon(
+                          Icons.person,
+                          color: Colors.grey[600],
+                        ),
+                        title: const Text(
+                          'Full Name',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _currentCustomer.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      // Phone
+                      ListTile(
+                        leading: Icon(
+                          Icons.phone,
+                          color: Colors.grey[600],
+                        ),
+                        title: const Text(
+                          'Phone Number',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _currentCustomer.phone,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      // Email (if available)
+                      if (_currentCustomer.email != null)
+                        ListTile(
+                          leading: Icon(
+                            Icons.email,
+                            color: Colors.grey[600],
+                          ),
+                          title: const Text(
+                            'Email Address',
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: Colors.black,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _currentCustomer.email!,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      // Address (if available)
+                      if (_currentCustomer.address != null)
+                        ListTile(
+                          leading: Icon(
+                            Icons.location_on,
+                            color: Colors.grey[600],
+                          ),
+                          title: const Text(
+                            'Address',
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: Colors.black,
+                            ),
+                          ),
+                          subtitle: Text(
+                            _currentCustomer.address!,
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Financial Summary Section
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'FINANCIAL SUMMARY',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      // Total Debt
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.attach_money,
+                            color: Colors.red,
+                            size: 16,
+                          ),
+                        ),
+                        title: const Text(
+                          'Total Pending Debt',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '\$${totalDebt.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      // Total Paid
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 16,
+                          ),
+                        ),
+                        title: const Text(
+                          'Total Paid',
+                          style: TextStyle(
+                            fontSize: 17,
+                            color: Colors.black,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '\$${totalPaid.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Debts Section Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'DEBTS',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AddDebtScreen(customer: _currentCustomer),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Add Debt',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Debts List
+                _customerDebts.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.attach_money,
+                              size: 64,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No debts found',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Add a debt for this customer',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _customerDebts.length,
+                        itemBuilder: (context, index) {
+                          final debt = _customerDebts[index];
+                          return _DebtCard(
+                            debt: debt,
+                            onMarkAsPaid: () => _markAsPaid(debt),
+                            onDelete: () => _deleteDebt(debt),
+                          );
+                        },
+                      ),
+                
+                const SizedBox(height: 20),
+              ],
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.background,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -448,19 +535,41 @@ class _DebtCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    if (debt.status == DebtStatus.paid) {
-      return AppColors.success;
-    } else if (debt.isOverdue) {
-      return AppColors.error;
-    } else {
-      return AppColors.warning;
+    switch (debt.status) {
+      case DebtStatus.paid:
+        return Colors.green;
+      case DebtStatus.overdue:
+        return Colors.red;
+      case DebtStatus.pending:
+      default:
+        return Colors.orange;
+    }
+  }
+
+  String _getStatusText() {
+    switch (debt.status) {
+      case DebtStatus.paid:
+        return 'Paid';
+      case DebtStatus.overdue:
+        return 'Overdue';
+      case DebtStatus.pending:
+      default:
+        return 'Pending';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[300]!,
+          width: 1,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -468,6 +577,19 @@ class _DebtCard extends StatelessWidget {
           children: [
             Row(
               children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor().withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    debt.status == DebtStatus.paid ? Icons.check_circle : Icons.attach_money,
+                    color: _getStatusColor(),
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,17 +597,17 @@ class _DebtCard extends StatelessWidget {
                       Text(
                         debt.description,
                         style: const TextStyle(
-                          fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          color: Colors.black,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Due: ${_formatDate(debt.dueDate)}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 13,
                         ),
                       ),
                     ],
@@ -498,8 +620,8 @@ class _DebtCard extends StatelessWidget {
                       '\$${debt.amount.toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -507,16 +629,12 @@ class _DebtCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: _getStatusColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _getStatusColor().withOpacity(0.3),
-                          width: 1,
-                        ),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        debt.statusText,
+                        _getStatusText(),
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: _getStatusColor(),
                         ),
@@ -526,24 +644,47 @@ class _DebtCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (debt.status == DebtStatus.pending) ...[
+            if (debt.status != DebtStatus.paid) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                       onPressed: onMarkAsPaid,
-                      child: const Text('Mark as Paid'),
+                      child: const Text(
+                        'Mark as Paid',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton(
-                      onPressed: onDelete,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: const Text('Delete'),
+                      onPressed: onDelete,
+                      child: const Text(
+                        'Delete',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],

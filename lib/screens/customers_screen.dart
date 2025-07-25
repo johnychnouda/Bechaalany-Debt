@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../services/data_service.dart';
+import '../providers/app_state.dart';
+import '../l10n/app_localizations.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -14,55 +16,69 @@ class CustomersScreen extends StatefulWidget {
 }
 
 class _CustomersScreenState extends State<CustomersScreen> {
-  final DataService _dataService = DataService();
-  List<Customer> _customers = [];
   List<Customer> _filteredCustomers = [];
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _loadCustomers();
     _searchController.addListener(_filterCustomers);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh data when screen becomes visible
-    _loadCustomers();
-  }
-
-  void _loadCustomers() {
-    setState(() {
-      _customers = _dataService.customers;
-      _filteredCustomers = _customers;
-    });
-  }
-
   void _filterCustomers() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final customers = appState.customers;
     final query = _searchController.text.toLowerCase();
     setState(() {
       if (query.isEmpty) {
-        _filteredCustomers = _customers;
+        _filteredCustomers = customers;
       } else {
-        _filteredCustomers = _customers.where((customer) {
+        _filteredCustomers = customers.where((customer) {
           return customer.name.toLowerCase().contains(query) ||
                  customer.phone.toLowerCase().contains(query) ||
+                 customer.id.toLowerCase().contains(query) ||
                  (customer.email?.toLowerCase().contains(query) ?? false);
         }).toList();
       }
     });
   }
 
+  Map<String, List<Customer>> _groupCustomersByFirstLetter() {
+    final grouped = <String, List<Customer>>{};
+    
+    for (final customer in _filteredCustomers) {
+      final firstLetter = customer.name.isNotEmpty 
+          ? customer.name[0].toUpperCase() 
+          : '#';
+      
+      if (!grouped.containsKey(firstLetter)) {
+        grouped[firstLetter] = [];
+      }
+      grouped[firstLetter]!.add(customer);
+    }
+    
+    // Sort the groups alphabetically
+    final sortedKeys = grouped.keys.toList()..sort();
+    final sortedMap = <String, List<Customer>>{};
+    
+    for (final key in sortedKeys) {
+      sortedMap[key] = grouped[key]!..sort((a, b) => a.name.compareTo(b.name));
+    }
+    
+    return sortedMap;
+  }
+
   Future<void> _deleteCustomer(Customer customer) async {
-    final debts = _dataService.getDebtsByCustomer(customer.id);
+    final appState = Provider.of<AppState>(context, listen: false);
+    final debts = appState.debts.where((d) => d.customerId == customer.id).toList();
     
     return showDialog(
       context: context,
@@ -81,28 +97,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
               onPressed: () async {
                 Navigator.of(context).pop();
                 try {
-                  await _dataService.deleteCustomer(customer.id);
-                  _loadCustomers();
+                  await appState.deleteCustomer(customer.id);
+                  _filterCustomers(); // Re-filter after deletion
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Customer deleted successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
+                    _showSuccessSnackBar('Customer deleted successfully');
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete customer: $e'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
+                    _showErrorSnackBar('Failed to delete customer: $e');
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -110,115 +116,188 @@ class _CustomersScreenState extends State<CustomersScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Customers'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              _loadCustomers();
-            },
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _loadCustomers();
-        },
-        child: Column(
-          children: [
-            // Search bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search customers...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          onPressed: () {
-                            _searchController.clear();
-                          },
-                          icon: const Icon(Icons.clear),
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: AppColors.background,
-                ),
-              ),
-            ),
-            // Customers list
-            Expanded(
-              child: _filteredCustomers.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inbox_outlined, size: 64, color: AppColors.textLight),
-                          SizedBox(height: 16),
-                          Text('No customers found', style: TextStyle(color: AppColors.textSecondary, fontSize: 18, fontWeight: FontWeight.w600)),
-                          SizedBox(height: 8),
-                          Text('Add a new customer to get started', style: TextStyle(color: AppColors.textLight)),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filteredCustomers.length,
-                      itemBuilder: (context, index) {
-                        final customer = _filteredCustomers[index];
-                        return _CustomerCard(
-                          customer: customer,
-                          onDelete: () => _deleteCustomer(customer),
-                          onEdit: () => _editCustomer(customer),
-                          onView: () => _viewCustomerDetails(customer),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddCustomerScreen(),
-            ),
-          );
-          // Refresh the list when returning from add customer screen
-          if (result == true) {
-            _loadCustomers();
-          }
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(
-          Icons.person_add,
-          color: Colors.white,
-        ),
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+                            backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
 
-  void _editCustomer(Customer customer) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddCustomerScreen(customer: customer),
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+                            backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
       ),
     );
-    if (result == true) {
-      _loadCustomers();
-    }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        // Update filtered customers when app state changes
+        if (_filteredCustomers.isEmpty || _filteredCustomers.length != appState.customers.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _filterCustomers();
+          });
+        }
+
+        final groupedCustomers = _groupCustomersByFirstLetter();
+        final l10n = AppLocalizations.of(context);
+        
+        return Scaffold(
+          backgroundColor: Colors.grey[50],
+          appBar: AppBar(
+            title: Text(l10n.customers),
+            backgroundColor: Colors.grey[50],
+            elevation: 0,
+          ),
+          body: Stack(
+            children: [
+              Column(
+                children: [
+                  // Search bar
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: l10n.searchByNamePhoneIdEmail,
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+                  
+                  // Customers list
+                  Expanded(
+                    child: _filteredCustomers.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.people,
+                                  size: 64,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  l10n.noCustomersFound,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  l10n.addNewCustomerToGetStarted,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const AddCustomerScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Add Customer'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            itemCount: groupedCustomers.length,
+                            itemBuilder: (context, index) {
+                              final letter = groupedCustomers.keys.elementAt(index);
+                              final customers = groupedCustomers[letter]!;
+                              
+                              return Column(
+                                children: [
+                                  // Section header
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    color: Colors.grey[50],
+                                    child: Text(
+                                      letter,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  // Customers in this section
+                                  ...customers.map((customer) => _CustomerListTile(
+                                    customer: customer,
+                                    onDelete: () => _deleteCustomer(customer),
+                                    onView: () => _viewCustomerDetails(customer),
+                                  )),
+                                ],
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+              // Floating Action Button for adding customers
+              if (_filteredCustomers.isNotEmpty)
+                Positioned(
+                  bottom: 20,
+                  right: 20,
+                  child: FloatingActionButton(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AddCustomerScreen(),
+                        ),
+                      );
+                    },
+                    backgroundColor: Colors.blue[600],
+                    child: const Icon(
+                      Icons.person_add,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 
   void _viewCustomerDetails(Customer customer) async {
     final result = await Navigator.push(
@@ -227,133 +306,209 @@ class _CustomersScreenState extends State<CustomersScreen> {
         builder: (context) => CustomerDetailsScreen(customer: customer),
       ),
     );
-    // Refresh when returning from customer details
-    if (result == true) {
-      _loadCustomers();
-    }
   }
 }
 
-class _CustomerCard extends StatelessWidget {
+class _CustomerListTile extends StatelessWidget {
   final Customer customer;
   final VoidCallback onDelete;
-  final VoidCallback onEdit;
   final VoidCallback onView;
 
-  const _CustomerCard({
+  const _CustomerListTile({
     required this.customer,
     required this.onDelete,
-    required this.onEdit,
     required this.onView,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dataService = DataService();
-    final customerDebts = dataService.getDebtsByCustomer(customer.id);
-    final totalDebt = customerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
+    final l10n = AppLocalizations.of(context);
     
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withOpacity(0.1),
-          child: Text(
-            customer.name.split(' ').map((e) => e[0]).join(''),
-            style: TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final customerDebts = appState.debts.where((d) => d.customerId == customer.id).toList();
+        final totalDebt = customerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
+        final pendingDebts = customerDebts.where((d) => d.status == DebtStatus.pending).length;
+        
+        return ListTile(
+          leading: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.blue[600]!.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                customer.name.split(' ').map((e) => e[0]).join(''),
+                style: TextStyle(
+                  color: Colors.blue[600],
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
             ),
           ),
-        ),
-        title: Text(
-          customer.name,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
+          title: Text(
+            customer.name,
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 17,
+              color: Colors.black,
+            ),
           ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.tag,
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'ID: ${customer.id}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Icon(
+                    Icons.phone,
+                    size: 12,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    customer.phone,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              if (customer.email != null) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email,
+                      size: 12,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        customer.email!,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (totalDebt > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.attach_money,
+                      size: 12,
+                      color: Colors.red,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${pendingDebts} pending • \$${totalDebt.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+          trailing: IconButton(
+            onPressed: () => _showActionSheet(context),
+            icon: Icon(
+              Icons.more_vert,
+              color: Colors.grey[600],
+            ),
+          ),
+          onTap: onView,
+        );
+      },
+    );
+  }
+  
+  void _showActionSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (BuildContext context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 4),
             Text(
-              customer.phone,
+              customer.name,
               style: const TextStyle(
-                color: AppColors.textSecondary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.selectAction,
+              style: TextStyle(
+                color: Colors.grey[600],
                 fontSize: 14,
               ),
             ),
-            if (customer.email != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                customer.email!,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              'Total Debt: \$${totalDebt.toStringAsFixed(0)}',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        trailing: PopupMenuButton(
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'view',
-              child: Row(
-                children: [
-                  Icon(Icons.visibility),
-                  SizedBox(width: 8),
-                  Text('View Details'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(Icons.edit),
-                  SizedBox(width: 8),
-                  Text('Edit'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: AppColors.error),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: AppColors.error)),
-                ],
-              ),
-            ),
-          ],
-          onSelected: (value) {
-            switch (value) {
-              case 'view':
+            const SizedBox(height: 16),
+            ListTile(
+              leading: Icon(Icons.visibility, color: Colors.blue[600]),
+              title: Text(l10n.viewDetails),
+              onTap: () {
+                Navigator.pop(context);
                 onView();
-                break;
-              case 'edit':
-                onEdit();
-                break;
-              case 'delete':
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete, color: Colors.red),
+              title: Text(l10n.delete),
+              onTap: () {
+                Navigator.pop(context);
                 onDelete();
-                break;
-            }
-          },
+              },
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(l10n.cancel),
+              ),
+            ),
+          ],
         ),
-        onTap: onView,
       ),
     );
   }
-} 
+}

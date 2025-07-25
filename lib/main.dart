@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'models/customer.dart';
 import 'models/debt.dart';
 import 'constants/app_theme.dart';
+import 'providers/app_state.dart';
+import 'services/localization_service.dart';
+import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -42,11 +48,46 @@ class BechaalanyDebtApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Bechaalany Debt',
-      theme: AppTheme.lightTheme,
-      home: const SplashScreen(),
-      debugShowCheckedModeBanner: false,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => AppState()),
+        ChangeNotifierProvider(create: (context) => LocalizationService()),
+      ],
+      child: Consumer2<AppState, LocalizationService>(
+        builder: (context, appState, localizationService, child) {
+          // Initialize services
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            appState.setLocalizationService(localizationService);
+            localizationService.initialize();
+          });
+          
+          return MaterialApp(
+            title: 'Bechaalany Debt',
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            locale: localizationService.currentLocale,
+            supportedLocales: LocalizationService.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            home: const SplashScreen(),
+            debugShowCheckedModeBanner: false,
+            builder: (context, child) {
+              // Add system UI overlay style for iOS look
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaleFactor: appState.largeTextEnabled ? 1.2 : 1.0,
+                ),
+                child: child!,
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

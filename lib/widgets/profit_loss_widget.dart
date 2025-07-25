@@ -1,0 +1,234 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
+import '../models/debt.dart';
+import '../providers/app_state.dart';
+
+class ProfitLossWidget extends StatefulWidget {
+  const ProfitLossWidget({super.key});
+
+  @override
+  State<ProfitLossWidget> createState() => _ProfitLossWidgetState();
+}
+
+class _ProfitLossWidgetState extends State<ProfitLossWidget>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final totalIncome = appState.totalPaid;
+        final totalDebt = appState.totalDebt;
+        final netProfit = totalIncome - totalDebt;
+        final profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+
+        return SlideTransition(
+          position: _slideAnimation,
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.dynamicSurface(context).withOpacity(0.8),
+                    AppColors.dynamicSurface(context).withOpacity(0.6),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.1),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.trending_up,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Profit/Loss Analysis',
+                        style: AppTheme.title3.copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildProfitLossCard(
+                    'Total Income',
+                    totalIncome,
+                    Icons.arrow_upward,
+                    AppColors.success,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildProfitLossCard(
+                    'Total Debt',
+                    totalDebt,
+                    Icons.arrow_downward,
+                    AppColors.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: netProfit >= 0
+                            ? [AppColors.success.withOpacity(0.1), AppColors.success.withOpacity(0.05)]
+                            : [AppColors.error.withOpacity(0.1), AppColors.error.withOpacity(0.05)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: netProfit >= 0
+                            ? AppColors.success.withOpacity(0.3)
+                            : AppColors.error.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          netProfit >= 0 ? Icons.trending_up : Icons.trending_down,
+                          color: netProfit >= 0 ? AppColors.success : AppColors.error,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Net Profit',
+                                style: AppTheme.footnote.copyWith(
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                              ),
+                              Text(
+                                '\$${netProfit.toStringAsFixed(2)}',
+                                style: AppTheme.title1.copyWith(
+                                  color: netProfit >= 0 ? AppColors.success : AppColors.error,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: netProfit >= 0 ? AppColors.success : AppColors.error,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${profitMargin.toStringAsFixed(1)}%',
+                            style: AppTheme.footnote.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfitLossCard(String title, double amount, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context).withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: AppTheme.footnote.copyWith(
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ),
+          ),
+          Text(
+            '\$${amount.toStringAsFixed(2)}',
+            style: AppTheme.title3.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Removed _calculateTotalExpenses method as we now use totalDebt from AppState
+} 

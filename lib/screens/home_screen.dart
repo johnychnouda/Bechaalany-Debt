@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../widgets/dashboard_card.dart';
+import '../constants/app_theme.dart';
+import '../models/debt.dart';
+import '../providers/app_state.dart';
+import '../utils/logo_utils.dart';
 import '../widgets/recent_debts_list.dart';
-import '../widgets/stats_summary.dart';
-import 'add_customer_screen.dart';
-import 'add_debt_screen.dart';
+import '../widgets/todays_summary_widget.dart';
+import '../widgets/weekly_activity_widget.dart';
+import '../widgets/top_debtors_widget.dart';
+import '../widgets/recent_activity_widget.dart';
+import '../widgets/profit_loss_widget.dart';
+import '../widgets/customer_payment_history_widget.dart';
+import '../widgets/customizable_dashboard_widget.dart';
+import 'settings_screen.dart';
+import 'debts_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,232 +28,333 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Listen for app lifecycle changes to refresh data
+    // Refresh data when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {});
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (!appState.isLoading) {
+        appState.refresh();
+      }
     });
+  }
+
+  Future<void> _handleRefresh() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    await appState.refresh();
+  }
+
+  // Responsive sizing helpers
+  double _getResponsivePadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
+    
+    // Adjust for smaller screens
+    if (height < 700) return 12.0;
+    if (width < 375) return 16.0;
+    if (width < 414) return 20.0;
+    return 24.0;
+  }
+
+  double _getResponsiveSpacing(BuildContext context) {
+    final height = MediaQuery.of(context).size.height;
+    
+    // Reduce spacing for smaller screens
+    if (height < 700) return 8.0;
+    if (height < 800) return 12.0;
+    return 16.0;
+  }
+
+  double _getResponsiveFontSize(BuildContext context, double baseSize) {
+    final width = MediaQuery.of(context).size.width;
+    final height = MediaQuery.of(context).size.height;
+    
+    // Scale down for smaller screens
+    if (height < 700) return baseSize * 0.85;
+    if (width < 375) return baseSize * 0.9;
+    if (width < 414) return baseSize;
+    return baseSize * 1.05;
+  }
+
+  Widget _buildHeader(AppState appState) {
+    final padding = _getResponsivePadding(context);
+    final spacing = _getResponsiveSpacing(context);
+    
+    return Container(
+      padding: EdgeInsets.all(padding),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(spacing),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: LogoUtils.buildLogo(
+              context: context,
+              width: 24,
+              height: 24,
+              placeholder: const Icon(
+                Icons.account_balance_wallet,
+                color: AppColors.primary,
+                size: 24,
+              ),
+            ),
+          ),
+          SizedBox(width: spacing),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dashboard',
+                  style: AppTheme.title3.copyWith(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontSize: _getResponsiveFontSize(context, 20),
+                  ),
+                ),
+                Text(
+                  'Welcome back',
+                  style: AppTheme.footnote.copyWith(
+                    color: AppColors.dynamicTextSecondary(context),
+                    fontSize: _getResponsiveFontSize(context, 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (appState.isSyncing)
+            Container(
+              padding: EdgeInsets.all(spacing * 0.5),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+            ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.settings_outlined,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(AppState appState) {
+    final totalCustomers = appState.customers.length;
+    final totalDebts = appState.debts.length;
+    final pendingDebts = appState.debts.where((d) => d.status == DebtStatus.pending).length;
+    final totalAmount = appState.debts
+        .where((d) => d.status == DebtStatus.pending)
+        .fold(0.0, (sum, debt) => sum + debt.amount);
+
+    final padding = _getResponsivePadding(context);
+    final spacing = _getResponsiveSpacing(context);
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: padding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Overview',
+            style: AppTheme.title2.copyWith(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: _getResponsiveFontSize(context, 22),
+            ),
+          ),
+          SizedBox(height: spacing),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmallScreen = MediaQuery.of(context).size.height < 700;
+              final crossAxisCount = isSmallScreen ? 2 : 2;
+              final childAspectRatio = isSmallScreen ? 1.1 : 1.2;
+              
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: spacing,
+                mainAxisSpacing: spacing,
+                childAspectRatio: childAspectRatio,
+                children: [
+                  _buildStatCard(
+                    'Customers',
+                    totalCustomers.toString(),
+                    Icons.people_outlined,
+                    AppColors.primary,
+                  ),
+                  _buildStatCard(
+                    'Total Debts',
+                    totalDebts.toString(),
+                    Icons.account_balance_wallet_outlined,
+                    AppColors.secondary,
+                  ),
+                  _buildStatCard(
+                    'Pending',
+                    pendingDebts.toString(),
+                    Icons.pending_outlined,
+                    AppColors.warning,
+                  ),
+                  _buildStatCard(
+                    'Total Amount',
+                    '\$${totalAmount.toStringAsFixed(0)}',
+                    Icons.attach_money,
+                    AppColors.success,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    final padding = _getResponsivePadding(context);
+    final spacing = _getResponsiveSpacing(context);
+    
+    return Container(
+      padding: EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(spacing * 0.5),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: _getResponsiveFontSize(context, 20)),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: AppTheme.title1.copyWith(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: _getResponsiveFontSize(context, 24),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: AppTheme.footnote.copyWith(
+              color: AppColors.dynamicTextSecondary(context),
+              fontSize: _getResponsiveFontSize(context, 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {VoidCallback? onViewAll}) {
+    final padding = _getResponsivePadding(context);
+    final spacing = _getResponsiveSpacing(context);
+    
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: padding),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: AppTheme.title2.copyWith(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: _getResponsiveFontSize(context, 22),
+            ),
+          ),
+          if (onViewAll != null)
+            TextButton(
+              onPressed: onViewAll,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing,
+                  vertical: spacing * 0.5,
+                ),
+              ),
+              child: Text(
+                'View All',
+                style: AppTheme.footnote.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: _getResponsiveFontSize(context, 13),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentCard(Widget child) {
+    final padding = _getResponsivePadding(context);
+    
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: padding),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            // Bechaalany Connect Logo
-            SvgPicture.asset(
-              'assets/images/Logo.svg',
-              width: 32,
-              height: 32,
-              placeholderBuilder: (context) {
-                return Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        return Scaffold(
+          backgroundColor: AppColors.dynamicBackground(context),
+          body: SafeArea(
+            child: appState.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _handleRefresh,
                     color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    child: const CustomizableDashboardWidget(),
                   ),
-                  child: const Icon(
-                    Icons.account_balance_wallet,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                );
-              },
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Bechaalany Debt',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              setState(() {});
-            },
-            icon: const Icon(Icons.refresh),
           ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          setState(() {});
-        },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome section
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primaryDark,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Welcome back!',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Manage your debts efficiently',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.trending_up,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Quick actions
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: DashboardCard(
-                      title: 'Add Customer',
-                      subtitle: 'Register new customer',
-                      icon: Icons.person_add,
-                      color: AppColors.primary,
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddCustomerScreen(),
-                          ),
-                        );
-                        // Refresh the screen when returning
-                        if (result == true) {
-                          setState(() {});
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DashboardCard(
-                      title: 'Add Debt',
-                      subtitle: 'Record new debt',
-                      icon: Icons.add_card,
-                      color: AppColors.secondary,
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AddDebtScreen(),
-                          ),
-                        );
-                        // Refresh the screen when returning
-                        if (result == true) {
-                          setState(() {});
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Statistics summary
-              const StatsSummary(),
-              
-              const SizedBox(height: 24),
-              
-              // Recent debts
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Debts',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      // Navigate to debts screen
-                      DefaultTabController.of(context)?.animateTo(2);
-                    },
-                    child: const Text('View All'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              
-              const RecentDebtsList(),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddDebtScreen(),
-            ),
-          );
-          if (result == true) {
-            setState(() {});
-          }
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
-      ),
+          floatingActionButton: null,
+        );
+      },
     );
   }
-} 
+}
