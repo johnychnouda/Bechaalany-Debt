@@ -27,14 +27,7 @@ class RecentDebtsList extends StatelessWidget {
         
         return Column(
           children: recentDebts.map((debt) {
-            return _DebtCard(
-              customerName: debt.customerName,
-              amount: debt.amount,
-              description: debt.description,
-              status: debt.status.toString().split('.').last,
-              dueDate: debt.dueDate,
-              createdAt: debt.createdAt,
-            );
+            return _DebtCard(debt: debt);
           }).toList(),
         );
       },
@@ -43,41 +36,31 @@ class RecentDebtsList extends StatelessWidget {
 }
 
 class _DebtCard extends StatelessWidget {
-  final String customerName;
-  final double amount;
-  final String description;
-  final String status;
-  final DateTime dueDate;
-  final DateTime createdAt;
+  final Debt debt;
 
   const _DebtCard({
-    required this.customerName,
-    required this.amount,
-    required this.description,
-    required this.status,
-    required this.dueDate,
-    required this.createdAt,
+    required this.debt,
   });
 
   Color _getStatusColor() {
-    switch (status) {
-      case 'paid':
+    switch (debt.status) {
+      case DebtStatus.paid:
         return AppColors.success;
-      case 'overdue':
+      case DebtStatus.overdue:
         return AppColors.error;
-      case 'pending':
+      case DebtStatus.pending:
       default:
         return AppColors.warning;
     }
   }
 
   String _getStatusText() {
-    switch (status) {
-      case 'paid':
+    switch (debt.status) {
+      case DebtStatus.paid:
         return 'Paid';
-      case 'overdue':
+      case DebtStatus.overdue:
         return 'Overdue';
-      case 'pending':
+      case DebtStatus.pending:
       default:
         return 'Pending';
     }
@@ -110,7 +93,7 @@ class _DebtCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    customerName,
+                    debt.customerName,
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -119,7 +102,7 @@ class _DebtCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    description,
+                    debt.description,
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textSecondary,
@@ -127,7 +110,9 @@ class _DebtCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Due: ${_formatDate(dueDate)}',
+                    debt.status == DebtStatus.paid 
+                        ? 'Paid: ${_formatDate(debt.paidAt ?? debt.dueDate)}'
+                        : 'Due: ${_formatDate(debt.dueDate)}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.textLight,
@@ -140,7 +125,7 @@ class _DebtCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$${amount.toStringAsFixed(0)}',
+                  '\$${debt.amount.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

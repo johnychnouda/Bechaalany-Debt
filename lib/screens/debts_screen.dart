@@ -353,7 +353,9 @@ class _DebtCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Due: ${_formatDate(debt.dueDate)}',
+              debt.status == DebtStatus.paid 
+                  ? 'Paid: ${_formatDate(debt.paidAt ?? debt.dueDate)}'
+                  : 'Due: ${_formatDate(debt.dueDate)}',
               style: TextStyle(
                 color: Theme.of(context).textTheme.bodySmall?.color,
                 fontSize: 12,
