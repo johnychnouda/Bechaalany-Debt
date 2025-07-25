@@ -50,31 +50,15 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   Future<void> _saveCustomer() async {
     final l10n = AppLocalizations.of(context);
     
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    
     String customerId = _idController.text.trim();
     String name = _nameController.text.trim();
     String phone = _phoneController.text.trim();
     String email = _emailController.text.trim();
     String address = _addressController.text.trim();
-    
-    if (customerId.isEmpty) {
-      _showErrorSnackBar(l10n.pleaseEnterCustomerId);
-      return;
-    }
-    
-    if (name.isEmpty) {
-      _showErrorSnackBar(l10n.pleaseEnterName);
-      return;
-    }
-    
-    if (phone.isEmpty) {
-      _showErrorSnackBar(l10n.pleaseEnterPhone);
-      return;
-    }
-    
-    if (email.isNotEmpty && !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      _showErrorSnackBar(l10n.pleaseEnterValidEmail);
-      return;
-    }
     
     setState(() {
       _isLoading = true;
@@ -175,52 +159,80 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               // Customer ID
-              _buildField(
-                label: 'Customer ID',
+              _buildModernField(
+                label: 'Customer ID *',
                 controller: _idController,
                 placeholder: 'Enter customer ID',
+                icon: Icons.tag,
                 enabled: widget.customer == null,
-                isRequired: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter customer ID';
+                  }
+                  return null;
+                },
               ),
               
               const SizedBox(height: 16),
               
               // Name
-              _buildField(
-                label: 'Full Name',
+              _buildModernField(
+                label: 'Full Name *',
                 controller: _nameController,
                 placeholder: 'Enter customer name',
-                isRequired: true,
+                icon: Icons.person,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter customer name';
+                  }
+                  return null;
+                },
               ),
               
               const SizedBox(height: 16),
               
               // Phone
-              _buildField(
-                label: 'Phone Number',
+              _buildModernField(
+                label: 'Phone Number *',
                 controller: _phoneController,
                 placeholder: 'Enter phone number',
+                icon: Icons.phone,
                 keyboardType: TextInputType.phone,
-                isRequired: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter phone number';
+                  }
+                  return null;
+                },
               ),
               
               const SizedBox(height: 16),
               
               // Email
-              _buildField(
+              _buildModernField(
                 label: 'Email Address',
                 controller: _emailController,
                 placeholder: 'Enter email (optional)',
+                icon: Icons.email,
                 keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                  }
+                  return null;
+                },
               ),
               
               const SizedBox(height: 16),
               
               // Address
-              _buildField(
+              _buildModernField(
                 label: 'Address',
                 controller: _addressController,
                 placeholder: 'Enter address (optional)',
+                icon: Icons.location_on,
                 maxLines: 3,
               ),
               
@@ -229,22 +241,25 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               // Save Button
               SizedBox(
                 width: double.infinity,
+                height: 50,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _saveCustomer,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
                       : Text(
                           widget.customer != null ? 'Update Customer' : 'Add Customer',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: const TextStyle(fontSize: 16),
                         ),
                 ),
               ),
@@ -257,58 +272,35 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     );
   }
   
-  Widget _buildField({
+  Widget _buildModernField({
     required String label,
     required TextEditingController controller,
     required String placeholder,
+    required IconData icon,
     TextInputType? keyboardType,
     int maxLines = 1,
     bool enabled = true,
-    bool isRequired = false,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              label,
-                          style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
-            ),
-            if (isRequired) ...[
-              const SizedBox(width: 4),
-              const Text(
-                '*',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-                TextField(
+        TextFormField(
           controller: controller,
           enabled: enabled,
           decoration: InputDecoration(
-            hintText: placeholder,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+            labelText: label,
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(icon, color: AppColors.textSecondary),
             filled: true,
             fillColor: Colors.white,
           ),
           keyboardType: keyboardType,
           maxLines: maxLines,
+          validator: validator,
           style: const TextStyle(
             fontSize: 16,
-            color: Colors.black,
+            color: AppColors.textPrimary,
           ),
         ),
       ],
