@@ -118,7 +118,7 @@ class DataService {
     }
   }
   
-  Future<void> updateDebt(Debt debt) async {
+    Future<void> updateDebt(Debt debt) async {
     try {
       _debtBoxSafe.put(debt.id, debt);
       print('Debt updated successfully in local storage');
@@ -127,7 +127,7 @@ class DataService {
       rethrow;
     }
   }
-  
+
   Future<void> deleteDebt(String debtId) async {
     try {
       _debtBoxSafe.delete(debtId);
@@ -144,6 +144,7 @@ class DataService {
       if (debt != null) {
         final updated = debt.copyWith(
           status: DebtStatus.paid,
+          paidAmount: debt.amount,
           paidAt: DateTime.now(),
         );
         _debtBoxSafe.put(debtId, updated);
@@ -158,22 +159,24 @@ class DataService {
   // Statistics methods
   double get totalDebt {
     return debts
-        .where((d) => d.status == DebtStatus.pending)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
+        .where((d) => !d.isFullyPaid)
+        .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
   }
   
   double get totalPaid {
-    return debts
-        .where((d) => d.status == DebtStatus.paid)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
+    return debts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
   }
   
   int get pendingDebtsCount {
-    return debts.where((d) => d.status == DebtStatus.pending).length;
+    return debts.where((d) => !d.isFullyPaid).length;
   }
   
   int get paidDebtsCount {
-    return debts.where((d) => d.status == DebtStatus.paid).length;
+    return debts.where((d) => d.isFullyPaid).length;
+  }
+
+  int get partiallyPaidDebtsCount {
+    return debts.where((d) => d.isPartiallyPaid).length;
   }
 
   // Recent debts (last 5)

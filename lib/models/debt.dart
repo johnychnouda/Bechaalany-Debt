@@ -39,6 +39,8 @@ class Debt extends HiveObject {
   final DateTime? paidAt;
   @HiveField(9)
   final String? notes;
+  @HiveField(10)
+  final double paidAmount; // Amount that has been paid
 
   Debt({
     required this.id,
@@ -51,6 +53,7 @@ class Debt extends HiveObject {
     required this.createdAt,
     this.paidAt,
     this.notes,
+    this.paidAmount = 0.0,
   });
 
   factory Debt.fromJson(Map<String, dynamic> json) {
@@ -71,6 +74,7 @@ class Debt extends HiveObject {
           ? DateTime.parse(json['paidAt'] as String) 
           : null,
       notes: json['notes'] as String?,
+      paidAmount: (json['paidAmount'] as num).toDouble(),
     );
   }
 
@@ -86,6 +90,7 @@ class Debt extends HiveObject {
       'createdAt': createdAt.toIso8601String(),
       'paidAt': paidAt?.toIso8601String(),
       'notes': notes,
+      'paidAmount': paidAmount,
     };
   }
 
@@ -100,6 +105,7 @@ class Debt extends HiveObject {
     DateTime? createdAt,
     DateTime? paidAt,
     String? notes,
+    double? paidAmount,
   }) {
     return Debt(
       id: id ?? this.id,
@@ -112,15 +118,23 @@ class Debt extends HiveObject {
       createdAt: createdAt ?? this.createdAt,
       paidAt: paidAt ?? this.paidAt,
       notes: notes ?? this.notes,
+      paidAmount: paidAmount ?? this.paidAmount,
     );
   }
 
   String get statusText {
-    switch (status) {
-      case DebtStatus.pending:
-        return 'Pending';
-      case DebtStatus.paid:
-        return 'Paid';
+    if (paidAmount >= amount) {
+      return 'Paid';
+    } else if (paidAmount > 0) {
+      return 'Partially Paid';
+    } else {
+      return 'Pending';
     }
   }
+
+  double get remainingAmount => amount - paidAmount;
+
+  bool get isFullyPaid => paidAmount >= amount;
+
+  bool get isPartiallyPaid => paidAmount > 0 && paidAmount < amount;
 } 

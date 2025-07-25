@@ -9,29 +9,48 @@ import 'add_customer_screen.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
+  final bool showDebtsSection;
 
-  const CustomerDetailsScreen({super.key, required this.customer});
+  const CustomerDetailsScreen({
+    super.key, 
+    required this.customer,
+    this.showDebtsSection = true,
+  });
 
   @override
   State<CustomerDetailsScreen> createState() => _CustomerDetailsScreenState();
 }
 
-class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
+class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with WidgetsBindingObserver {
   List<Debt> _customerDebts = [];
   late Customer _currentCustomer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentCustomer = widget.customer;
     _loadCustomerDebts();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadCustomerDebts();
+    }
   }
 
   void _loadCustomerDebts() {
     final appState = Provider.of<AppState>(context, listen: false);
     setState(() {
-      // Only show pending debts in the debts list, but keep all debts for financial summary
-      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id && d.status != DebtStatus.paid).toList();
+      // Show all customer debts (both pending and paid)
+      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
     });
   }
 
@@ -145,13 +164,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
+        // Refresh customer data and debts when AppState changes
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _loadCustomerDebts();
+          }
+        });
+        
         // Calculate totals from all customer debts (including paid ones)
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
-        final totalDebt = allCustomerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
-        final totalPaid = allCustomerDebts.where((d) => d.status == DebtStatus.paid).fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        final totalPaid = allCustomerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
         
-        // Get pending debts for the customer (this will update automatically when AppState changes)
-        final customerPendingDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id && d.status != DebtStatus.paid).toList();
+        // Get all customer debts (this will update automatically when AppState changes)
+        final customerAllDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -437,93 +463,96 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 
                 const SizedBox(height: 16),
                 
-                // Debts Section Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'DEBTS',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AddDebtScreen(customer: _currentCustomer),
-                            ),
-                          );
-                          
-                          // Refresh the debt list if a debt was added
-                          if (result == true) {
-                            _loadCustomerDebts();
-                          }
-                        },
-                        child: const Text(
-                          'Add Debt',
+                // Debts Section (only show if showDebtsSection is true)
+                if (widget.showDebtsSection) ...[
+                  // Debts Section Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'DEBTS',
                           style: TextStyle(
-                            color: Colors.blue,
-                            fontSize: 15,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            letterSpacing: 0.5,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 8),
-                
-                // Debts List
-                customerPendingDebts.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.attach_money,
-                              size: 64,
-                              color: Colors.grey[600],
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No pending debts',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                        TextButton(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AddDebtScreen(customer: _currentCustomer),
                               ),
+                            );
+                            
+                            // Refresh the debt list if a debt was added
+                            if (result == true) {
+                              _loadCustomerDebts();
+                            }
+                          },
+                          child: const Text(
+                            'Add Debt',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 15,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'All debts have been paid or add a new debt',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: customerPendingDebts.length,
-                        itemBuilder: (context, index) {
-                          final debt = customerPendingDebts[index];
-                          return _DebtCard(
-                            debt: debt,
-                            onMarkAsPaid: () => _markAsPaid(debt),
-                            onDelete: () => _deleteDebt(debt),
-                          );
-                        },
-                      ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Debts List
+                  customerAllDebts.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.attach_money,
+                                size: 64,
+                                color: Colors.grey[600],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No debts found',
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add a new debt to get started',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: customerAllDebts.length,
+                          itemBuilder: (context, index) {
+                            final debt = customerAllDebts[index];
+                            return _DebtCard(
+                              debt: debt,
+                              onMarkAsPaid: () => _markAsPaid(debt),
+                              onDelete: () => _deleteDebt(debt),
+                            );
+                          },
+                        ),
+                ],
                 
                 const SizedBox(height: 20),
               ],
@@ -547,22 +576,22 @@ class _DebtCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    switch (debt.status) {
-      case DebtStatus.paid:
-        return Colors.green;
-      case DebtStatus.pending:
-      default:
-        return Colors.orange;
+    if (debt.isFullyPaid) {
+      return Colors.green;
+    } else if (debt.isPartiallyPaid) {
+      return Colors.blue;
+    } else {
+      return Colors.orange;
     }
   }
 
   String _getStatusText() {
-    switch (debt.status) {
-      case DebtStatus.paid:
-        return 'Paid';
-      case DebtStatus.pending:
-      default:
-        return 'Pending';
+    if (debt.isFullyPaid) {
+      return 'Paid';
+    } else if (debt.isPartiallyPaid) {
+      return 'Partially Paid';
+    } else {
+      return 'Pending';
     }
   }
 
@@ -592,7 +621,11 @@ class _DebtCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
-                    debt.status == DebtStatus.paid ? Icons.check_circle : Icons.attach_money,
+                    debt.isFullyPaid 
+                        ? Icons.check_circle 
+                        : debt.isPartiallyPaid 
+                            ? Icons.payment 
+                            : Icons.attach_money,
                     color: _getStatusColor(),
                     size: 16,
                   ),
@@ -627,13 +660,25 @@ class _DebtCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      CurrencyFormatter.formatAmount(context, debt.amount),
+                      debt.status == DebtStatus.paid 
+                          ? CurrencyFormatter.formatAmount(context, debt.amount)
+                          : CurrencyFormatter.formatAmount(context, debt.remainingAmount),
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
                     ),
+                    if (debt.status == DebtStatus.pending && debt.paidAmount > 0) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Paid: ${CurrencyFormatter.formatAmount(context, debt.paidAmount)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[600],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -654,7 +699,7 @@ class _DebtCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (debt.status != DebtStatus.paid) ...[
+            if (!debt.isFullyPaid) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -667,9 +712,9 @@ class _DebtCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      onPressed: onMarkAsPaid,
+                      onPressed: () => _showPaymentOptions(context),
                       child: const Text(
-                        'Mark as Paid',
+                        'Make Payment',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -719,5 +764,160 @@ class _DebtCard extends StatelessWidget {
     } else {
       return 'in $difference days';
     }
+  }
+
+  void _showPaymentOptions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Payment Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Debt: ${debt.description}'),
+              Text('Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
+              Text('Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}'),
+              const SizedBox(height: 16),
+              const Text('Payment Options:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              _PaymentOption(
+                title: 'Pay Full Amount',
+                subtitle: 'Mark this debt as fully paid',
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  onMarkAsPaid();
+                },
+              ),
+              const SizedBox(height: 8),
+              _PaymentOption(
+                title: 'Partial Payment',
+                subtitle: 'Enter amount to pay',
+                onTap: () {
+                  Navigator.of(dialogContext).pop();
+                  _showPartialPaymentDialog(context);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPartialPaymentDialog(BuildContext context) {
+    final TextEditingController amountController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Partial Payment'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Remaining Amount: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Amount',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final amount = double.tryParse(amountController.text) ?? 0;
+                if (amount > 0 && amount <= debt.remainingAmount) {
+                  Navigator.of(dialogContext).pop();
+                  _applyPartialPayment(amount, context);
+                }
+              },
+              child: const Text('Apply Payment'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _applyPartialPayment(double paymentAmount, BuildContext context) {
+    final updatedDebt = debt.copyWith(
+      paidAmount: debt.paidAmount + paymentAmount,
+      status: (debt.paidAmount + paymentAmount) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
+      paidAt: (debt.paidAmount + paymentAmount) >= debt.amount ? DateTime.now() : debt.paidAt,
+    );
+    
+    // Update the debt through the parent widget
+    final appState = Provider.of<AppState>(context, listen: false);
+    appState.updateDebt(updatedDebt);
+  }
+}
+
+class _PaymentOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _PaymentOption({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
+          ],
+        ),
+      ),
+    );
   }
 } 

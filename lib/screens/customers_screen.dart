@@ -16,7 +16,7 @@ class CustomersScreen extends StatefulWidget {
   State<CustomersScreen> createState() => _CustomersScreenState();
 }
 
-class _CustomersScreenState extends State<CustomersScreen> {
+class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingObserver {
   List<Customer> _filteredCustomers = [];
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -24,14 +24,23 @@ class _CustomersScreenState extends State<CustomersScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _searchController.addListener(_filterCustomers);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _filterCustomers();
+    }
   }
 
   void _filterCustomers() {
@@ -304,7 +313,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CustomerDetailsScreen(customer: customer),
+        builder: (context) => CustomerDetailsScreen(
+          customer: customer,
+          showDebtsSection: false,
+        ),
       ),
     );
   }
@@ -328,8 +340,7 @@ class _CustomerListTile extends StatelessWidget {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         final customerDebts = appState.debts.where((d) => d.customerId == customer.id).toList();
-        final totalDebt = customerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
-        final pendingDebts = customerDebts.where((d) => d.status == DebtStatus.pending).length;
+        final totalRemainingDebt = customerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
         return ListTile(
           leading: Container(
@@ -421,7 +432,7 @@ class _CustomerListTile extends StatelessWidget {
                   ],
                 ),
               ],
-              if (totalDebt > 0) ...[
+              if (totalRemainingDebt > 0) ...[
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -432,7 +443,7 @@ class _CustomerListTile extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      '${pendingDebts} pending • ${CurrencyFormatter.formatAmount(context, totalDebt)}',
+                      CurrencyFormatter.formatAmount(context, totalRemainingDebt),
                       style: const TextStyle(
                         color: Colors.red,
                         fontSize: 13,

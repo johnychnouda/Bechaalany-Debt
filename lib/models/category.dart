@@ -89,6 +89,12 @@ class Subcategory extends HiveObject {
   @HiveField(6)
   List<PriceHistory> priceHistory;
 
+  @HiveField(7)
+  String costPriceCurrency;
+
+  @HiveField(8)
+  String sellingPriceCurrency;
+
   Subcategory({
     required this.id,
     required this.name,
@@ -97,6 +103,8 @@ class Subcategory extends HiveObject {
     required this.sellingPrice,
     required this.createdAt,
     List<PriceHistory>? priceHistory,
+    required this.costPriceCurrency,
+    required this.sellingPriceCurrency,
   }) : priceHistory = priceHistory ?? [];
 
   double get profit => sellingPrice - costPrice;
@@ -128,6 +136,8 @@ class Subcategory extends HiveObject {
     double? sellingPrice,
     DateTime? createdAt,
     List<PriceHistory>? priceHistory,
+    String? costPriceCurrency,
+    String? sellingPriceCurrency,
   }) {
     return Subcategory(
       id: id ?? this.id,
@@ -137,6 +147,8 @@ class Subcategory extends HiveObject {
       sellingPrice: sellingPrice ?? this.sellingPrice,
       createdAt: createdAt ?? this.createdAt,
       priceHistory: priceHistory ?? this.priceHistory,
+      costPriceCurrency: costPriceCurrency ?? this.costPriceCurrency,
+      sellingPriceCurrency: sellingPriceCurrency ?? this.sellingPriceCurrency,
     );
   }
 
@@ -149,6 +161,8 @@ class Subcategory extends HiveObject {
       'sellingPrice': sellingPrice,
       'createdAt': createdAt.toIso8601String(),
       'priceHistory': priceHistory.map((p) => p.toJson()).toList(),
+      'costPriceCurrency': costPriceCurrency,
+      'sellingPriceCurrency': sellingPriceCurrency,
     };
   }
 
@@ -163,6 +177,8 @@ class Subcategory extends HiveObject {
       priceHistory: (json['priceHistory'] as List?)
           ?.map((p) => PriceHistory.fromJson(p))
           .toList() ?? [],
+      costPriceCurrency: json['costPriceCurrency'] ?? 'USD',
+      sellingPriceCurrency: json['sellingPriceCurrency'] ?? 'USD',
     );
   }
 }

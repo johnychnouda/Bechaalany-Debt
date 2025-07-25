@@ -384,7 +384,7 @@ class AppState extends ChangeNotifier {
     }
   }
   
-  Future<void> updateDebt(Debt debt) async {
+    Future<void> updateDebt(Debt debt) async {
     try {
       await _dataService.updateDebt(debt);
       final index = _debts.indexWhere((d) => d.id == debt.id);
@@ -405,7 +405,7 @@ class AppState extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   Future<void> deleteDebt(String debtId) async {
     try {
       await _dataService.deleteDebt(debtId);
@@ -429,6 +429,7 @@ class AppState extends ChangeNotifier {
       if (index != -1) {
         _debts[index] = _debts[index].copyWith(
           status: DebtStatus.paid,
+          paidAmount: _debts[index].amount,
           paidAt: DateTime.now(),
         );
         _clearCache();

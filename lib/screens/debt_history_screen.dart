@@ -4,27 +4,23 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
-import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
-import 'add_debt_screen.dart';
 import 'customer_details_screen.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import 'add_debt_from_product_screen.dart';
 
-class DebtsScreen extends StatefulWidget {
-  const DebtsScreen({super.key});
+class DebtHistoryScreen extends StatefulWidget {
+  const DebtHistoryScreen({super.key});
 
   @override
-  State<DebtsScreen> createState() => _DebtsScreenState();
+  State<DebtHistoryScreen> createState() => _DebtHistoryScreenState();
 }
 
-class _DebtsScreenState extends State<DebtsScreen> {
+class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   List<Map<String, dynamic>> _groupedDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
   Set<String> _lastKnownDebtIds = {};
-  bool _sortAscending = false; // true = ascending, false = descending
+  bool _sortAscending = false;
 
   @override
   void initState() {
@@ -50,7 +46,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
                              debt.description.toLowerCase().contains(query);
         
         final matchesStatus = _selectedStatus == 'All' ||
-                             debt.status.toString().split('.').last == _selectedStatus.toLowerCase();
+                             (_selectedStatus == 'Pending' && !debt.isFullyPaid) ||
+                             (_selectedStatus == 'Paid' && debt.isFullyPaid);
         
         return matchesSearch && matchesStatus;
       }).toList();
@@ -199,21 +196,31 @@ class _DebtsScreenState extends State<DebtsScreen> {
             _filterDebts();
           });
         }
-
-        final l10n = AppLocalizations.of(context);
         
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: const Text('Debt History'),
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-            actions: [
-              IconButton(
-                onPressed: _exportDebts,
-                icon: const Icon(Icons.download),
-                tooltip: 'Export Report',
-              ),
-            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddDebtFromProductScreen(),
+                ),
+              );
+              // Refresh the debt history after adding a new debt
+              if (mounted) {
+                _filterDebts();
+              }
+            },
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: const Icon(
+              Icons.add_shopping_cart,
+              color: Colors.white,
+            ),
           ),
           body: Column(
             children: [
@@ -225,7 +232,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: l10n.searchByNameDescription,
+                        hintText: 'Search by customer name or description',
                         prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -325,22 +332,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
               ),
             ],
           ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddDebtScreen(),
-                ),
-              );
-              // No need to manually refresh - AppState handles it
-            },
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-            ),
-          ),
         );
       },
     );
@@ -359,7 +350,11 @@ class _DebtsScreenState extends State<DebtsScreen> {
         ),
       ),
     );
-    // No need to manually refresh - AppState handles it
+    
+    // Force refresh of debt history when returning from customer details
+    if (mounted) {
+      _filterDebts();
+    }
   }
 
   String _getEmptyStateMessage() {
@@ -367,7 +362,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       case 'Pending':
         return 'No pending debts';
       case 'Paid':
-        return 'No paid debts';
+        return 'No fully paid debts';
       case 'All':
       default:
         return 'No debts found';
@@ -377,55 +372,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
   String _getEmptyStateSubMessage() {
     switch (_selectedStatus) {
       case 'Pending':
-        return 'All debts have been paid';
+        return 'All debts have been fully paid';
       case 'Paid':
-        return 'No debts have been marked as paid yet';
+        return 'No debts have been fully paid yet';
       case 'All':
       default:
         return 'Add a new debt to get started';
-    }
-  }
-
-  Future<void> _exportDebts() async {
-    try {
-      final appState = Provider.of<AppState>(context, listen: false);
-      final debts = appState.debts;
-      
-      // Create CSV content
-      final csvContent = StringBuffer();
-      csvContent.writeln('Customer Name,Description,Amount,Status,Payment Date,Notes');
-      
-      for (final debt in debts) {
-        final paymentDate = debt.paidAt != null ? debt.paidAt!.toString().split(' ')[0] : '';
-        final notes = debt.notes ?? '';
-        csvContent.writeln('${debt.customerName},"${debt.description}",${debt.amount},${debt.statusText},$paymentDate,"$notes"');
-      }
-      
-      // Get temporary directory
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/debts_report.csv');
-      await file.writeAsString(csvContent.toString());
-      
-      // Share the file
-      await Share.shareXFiles([XFile(file.path)], text: 'Debts Report');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debts report exported successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export debts: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
     }
   }
 }
@@ -446,24 +398,30 @@ class _GroupedDebtCard extends StatelessWidget {
   Color _getStatusColor() {
     final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
     final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
+    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
     
-    if (pendingDebts > 0 && partiallyPaidDebts > 0) {
+    if (fullyPaidDebts > 0 && pendingDebts > 0) {
       return Colors.blue; // Mixed status
+    } else if (partiallyPaidDebts > 0) {
+      return Colors.blue; // Partially paid
     } else if (pendingDebts > 0) {
       return Colors.orange; // All pending
     } else {
-      return Colors.green; // All paid
+      return Colors.green; // All fully paid
     }
   }
 
   String _getStatusText() {
     final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
     final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
+    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
     
     if (pendingDebts == 0) {
       return 'All Paid';
     } else if (partiallyPaidDebts > 0) {
       return 'Partially Paid';
+    } else if (fullyPaidDebts > 0 && pendingDebts > 0) {
+      return 'Mixed';
     } else {
       return 'Pending';
     }
@@ -595,8 +553,6 @@ class _GroupedDebtCard extends StatelessWidget {
               ],
             ),
             
-
-            
             // Action buttons
             const SizedBox(height: 12),
             Row(
@@ -620,7 +576,7 @@ class _GroupedDebtCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: onViewCustomer,
                     icon: const Icon(Icons.person, size: 16),
-                    label: const Text('View Customer Debts'),
+                    label: const Text('View Debts'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
@@ -635,8 +591,19 @@ class _GroupedDebtCard extends StatelessWidget {
   }
 
   IconData _getStatusIcon() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => d.status == DebtStatus.pending).length;
-    return pendingDebts > 0 ? Icons.pending : Icons.check_circle;
+    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
+    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
+    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
+    
+    if (fullyPaidDebts > 0 && pendingDebts > 0) {
+      return Icons.payment; // Mixed status
+    } else if (partiallyPaidDebts > 0) {
+      return Icons.payment; // Partially paid
+    } else if (pendingDebts > 0) {
+      return Icons.pending; // All pending
+    } else {
+      return Icons.check_circle; // All fully paid
+    }
   }
 
   Debt _getLatestDebt() {
@@ -672,7 +639,6 @@ class _GroupedDebtCard extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 8),
-
               _PaymentOption(
                 title: 'Partial Payment',
                 subtitle: 'Enter amount to pay',
@@ -704,8 +670,6 @@ class _GroupedDebtCard extends StatelessWidget {
       onMarkAsPaid(updatedDebt);
     }
   }
-
-
 
   void _showPartialPaymentDialog(BuildContext context, List<Debt> unpaidDebts) {
     final TextEditingController amountController = TextEditingController();
@@ -839,4 +803,4 @@ class _PaymentOption extends StatelessWidget {
       ),
     );
   }
-}
+} 

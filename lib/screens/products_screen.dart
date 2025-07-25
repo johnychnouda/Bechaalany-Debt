@@ -251,10 +251,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         itemCount: _filteredProducts.length,
                         itemBuilder: (context, index) {
                           final subcategory = _filteredProducts[index] as Subcategory;
+                          
+                          // Find the category name when in "All" view
+                          String? categoryName;
+                          if (_selectedCategory == 'All') {
+                            for (final category in appState.categories) {
+                              if (category is ProductCategory && category.subcategories.contains(subcategory)) {
+                                categoryName = category.name;
+                                break;
+                              }
+                            }
+                          }
+                          
                           return _ProductCard(
                             subcategory: subcategory,
                             onEdit: () => _editProduct(subcategory),
                             onDelete: () => _deleteProduct(subcategory),
+                            categoryName: categoryName,
                           );
                         },
                       ),
@@ -291,16 +304,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   void _editProduct(Subcategory subcategory) {
-    // TODO: Navigate to edit subcategory screen
+    // Find the category that contains this subcategory
+    final appState = Provider.of<AppState>(context, listen: false);
+    for (final category in appState.categories) {
+      if (category is ProductCategory) {
+        if (category.subcategories.contains(subcategory)) {
+          _showEditSubcategoryDialog(context, subcategory, category.name);
+          break;
+        }
+      }
+    }
   }
 
   void _deleteProduct(Subcategory subcategory) {
-    // TODO: Show confirmation dialog and delete subcategory
+    // Find the category that contains this subcategory
+    final appState = Provider.of<AppState>(context, listen: false);
+    for (final category in appState.categories) {
+      if (category is ProductCategory) {
+        if (category.subcategories.contains(subcategory)) {
+          _showDeleteSubcategoryDialog(context, subcategory, category.name);
+          break;
+        }
+      }
+    }
   }
 
   void _showAddCategoryDialog(BuildContext context) {
     final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
 
     showDialog(
       context: context,
@@ -317,15 +347,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   hintText: 'e.g., Electronics',
                 ),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'e.g., Electronic devices and gadgets',
-                ),
-                maxLines: 2,
-              ),
             ],
           ),
           actions: [
@@ -340,9 +361,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   final category = ProductCategory(
                     id: appState.generateCategoryId(),
                     name: nameController.text.trim(),
-                    description: descriptionController.text.trim().isEmpty 
-                        ? null 
-                        : descriptionController.text.trim(),
+                    description: null,
                     createdAt: DateTime.now(),
                   );
                   
@@ -361,17 +380,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  void _showAddSubcategoryDialog(BuildContext context, String categoryName) {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final costPriceController = TextEditingController();
-    final sellingPriceController = TextEditingController();
+  void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
+    final nameController = TextEditingController(text: subcategory.name);
+    final costPriceController = TextEditingController(text: subcategory.costPrice.toString());
+    final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toString());
+    String selectedCurrency = subcategory.costPriceCurrency; // Use same currency for both
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Add Subcategory to $categoryName'),
+          title: const Text('Edit Subcategory'),
+          contentPadding: const EdgeInsets.all(16),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -384,13 +404,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
+                DropdownButtonFormField<String>(
+                  value: selectedCurrency,
                   decoration: const InputDecoration(
-                    labelText: 'Description (Optional)',
-                    hintText: 'e.g., Apple smartphones',
+                    labelText: 'Currency',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   ),
-                  maxLines: 2,
+                  items: const [
+                    DropdownMenuItem(value: 'USD', child: Text('USD')),
+                    DropdownMenuItem(value: 'LBP', child: Text('LBP')),
+                  ],
+                  onChanged: (value) {
+                    selectedCurrency = value!;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -414,46 +440,217 @@ class _ProductsScreenState extends State<ProductsScreen> {
             ),
           ),
           actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isNotEmpty &&
+                        costPriceController.text.isNotEmpty &&
+                        sellingPriceController.text.isNotEmpty) {
+                      
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      final category = appState.categories.firstWhere(
+                        (cat) => cat is ProductCategory && cat.name == categoryName,
+                        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                      );
+                      
+                      if (category is ProductCategory) {
+                        // Convert prices to USD if they're in LBP
+                        double costPriceUSD = double.parse(costPriceController.text);
+                        double sellingPriceUSD = double.parse(sellingPriceController.text);
+                        
+                        if (selectedCurrency == 'LBP') {
+                          costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                          sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                        }
+                        
+                        // Update the subcategory
+                        subcategory.name = nameController.text.trim();
+                        subcategory.costPrice = costPriceUSD;
+                        subcategory.sellingPrice = sellingPriceUSD;
+                        subcategory.costPriceCurrency = selectedCurrency;
+                        subcategory.sellingPriceCurrency = selectedCurrency;
+                        
+                        appState.updateCategory(category);
+                        
+                        Navigator.of(context).pop();
+                        
+                        // Refresh the products list
+                        _filterProducts();
+                      }
+                    }
+                  },
+                  child: const Text('Update'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Subcategory'),
+          content: Text('Are you sure you want to delete "${subcategory.name}"? This action cannot be undone.'),
+          actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.trim().isNotEmpty &&
-                    costPriceController.text.isNotEmpty &&
-                    sellingPriceController.text.isNotEmpty) {
+                final appState = Provider.of<AppState>(context, listen: false);
+                final category = appState.categories.firstWhere(
+                  (cat) => cat is ProductCategory && cat.name == categoryName,
+                  orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                );
+                
+                if (category is ProductCategory) {
+                  category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
+                  appState.updateCategory(category);
                   
-                  final appState = Provider.of<AppState>(context, listen: false);
-                  final category = appState.categories.firstWhere(
-                    (cat) => cat is ProductCategory && cat.name == categoryName,
-                    orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                  );
+                  Navigator.of(context).pop();
                   
-                  if (category is ProductCategory) {
-                    final subcategory = Subcategory(
-                      id: appState.generateProductPurchaseId(), // Using this as subcategory ID generator
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim().isEmpty 
-                          ? null 
-                          : descriptionController.text.trim(),
-                      costPrice: double.parse(costPriceController.text),
-                      sellingPrice: double.parse(sellingPriceController.text),
-                      createdAt: DateTime.now(),
-                    );
-                    
-                    // Add subcategory to the category
-                    category.subcategories.add(subcategory);
-                    appState.updateCategory(category);
-                    
-                    Navigator.of(context).pop();
-                    
-                    // Refresh the products list
-                    _filterProducts();
-                  }
+                  // Refresh the products list
+                  _filterProducts();
                 }
               },
-              child: const Text('Add'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddSubcategoryDialog(BuildContext context, String categoryName) {
+    final nameController = TextEditingController();
+    final costPriceController = TextEditingController();
+    final sellingPriceController = TextEditingController();
+    String selectedCurrency = 'USD';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Add Subcategory to $categoryName'),
+          contentPadding: const EdgeInsets.all(16),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Subcategory Name',
+                    hintText: 'e.g., iPhone',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedCurrency,
+                  decoration: const InputDecoration(
+                    labelText: 'Currency',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'USD', child: Text('USD')),
+                    DropdownMenuItem(value: 'LBP', child: Text('LBP')),
+                  ],
+                  onChanged: (value) {
+                    selectedCurrency = value!;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: costPriceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Cost Price',
+                    hintText: 'e.g., 800.00',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: sellingPriceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Selling Price',
+                    hintText: 'e.g., 1000.00',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isNotEmpty &&
+                        costPriceController.text.isNotEmpty &&
+                        sellingPriceController.text.isNotEmpty) {
+                      
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      final category = appState.categories.firstWhere(
+                        (cat) => cat is ProductCategory && cat.name == categoryName,
+                        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                      );
+                      
+                      if (category is ProductCategory) {
+                        // Convert prices to USD if they're in LBP
+                        double costPriceUSD = double.parse(costPriceController.text);
+                        double sellingPriceUSD = double.parse(sellingPriceController.text);
+                        
+                        if (selectedCurrency == 'LBP') {
+                          costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                          sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                        }
+                        
+                        final subcategory = Subcategory(
+                          id: appState.generateProductPurchaseId(), // Using this as subcategory ID generator
+                          name: nameController.text.trim(),
+                          description: null, // No description field
+                          costPrice: costPriceUSD,
+                          sellingPrice: sellingPriceUSD,
+                          createdAt: DateTime.now(),
+                          costPriceCurrency: selectedCurrency,
+                          sellingPriceCurrency: selectedCurrency,
+                        );
+                        
+                        // Add subcategory to the category
+                        category.subcategories.add(subcategory);
+                        appState.updateCategory(category);
+                        
+                        Navigator.of(context).pop();
+                        
+                        // Refresh the products list
+                        _filterProducts();
+                      }
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
             ),
           ],
         );
@@ -466,11 +663,13 @@ class _ProductCard extends StatelessWidget {
   final Subcategory subcategory;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final String? categoryName; // Optional category name to display
 
   const _ProductCard({
     required this.subcategory,
     required this.onEdit,
     required this.onDelete,
+    this.categoryName,
   });
 
   @override
@@ -500,16 +699,18 @@ class _ProductCard extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subcategory.description ?? 'No description',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                      if (categoryName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          categoryName!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
+                      const SizedBox(height: 4),
                     ],
                   ),
                 ),
@@ -556,28 +757,34 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildInfoChip(
-                  context,
-                  'Cost',
-                  CurrencyFormatter.formatAmount(context, subcategory.costPrice),
-                  Icons.shopping_cart,
-                  AppColors.warning,
+                Expanded(
+                  child: _buildInfoChip(
+                    context,
+                    'Cost',
+                    CurrencyFormatter.formatAmount(context, subcategory.costPrice),
+                    Icons.shopping_cart,
+                    AppColors.warning,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _buildInfoChip(
-                  context,
-                  'Price',
-                  CurrencyFormatter.formatAmount(context, subcategory.sellingPrice),
-                  Icons.attach_money,
-                  AppColors.primary,
+                Expanded(
+                  child: _buildInfoChip(
+                    context,
+                    'Price',
+                    CurrencyFormatter.formatAmount(context, subcategory.sellingPrice),
+                    Icons.attach_money,
+                    AppColors.primary,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                _buildInfoChip(
-                  context,
-                  'Profit',
-                  CurrencyFormatter.formatAmount(context, subcategory.profit),
-                  Icons.trending_up,
-                  AppColors.success,
+                Expanded(
+                  child: _buildInfoChip(
+                    context,
+                    'Profit',
+                    CurrencyFormatter.formatAmount(context, subcategory.profit),
+                    Icons.trending_up,
+                    AppColors.success,
+                  ),
                 ),
               ],
             ),
@@ -595,23 +802,26 @@ class _ProductCard extends StatelessWidget {
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            '$label: $value',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: color,
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 2),
+          Flexible(
+            child: Text(
+              '$label: $value',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
-import 'debts_screen.dart';
+import 'debt_history_screen.dart';
 import 'products_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -24,7 +24,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
-    const DebtsScreen(),
+    const DebtHistoryScreen(),
     const ProductsScreen(),
   ];
 

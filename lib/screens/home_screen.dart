@@ -16,7 +16,7 @@ import '../widgets/customer_payment_history_widget.dart';
 import '../widgets/customizable_dashboard_widget.dart';
 import '../utils/currency_formatter.dart';
 import 'settings_screen.dart';
-import 'debts_screen.dart';
+import 'debt_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
