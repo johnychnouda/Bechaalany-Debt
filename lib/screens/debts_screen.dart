@@ -7,6 +7,9 @@ import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import 'add_debt_screen.dart';
 import 'customer_details_screen.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -20,6 +23,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
   Set<String> _lastKnownDebtIds = {};
+  String _sortBy = 'date'; // date, amount, customer, status
+  bool _sortAscending = false;
 
   @override
   void initState() {
@@ -48,7 +53,35 @@ class _DebtsScreenState extends State<DebtsScreen> {
         
         return matchesSearch && matchesStatus;
       }).toList();
+      
+      // Sort the filtered debts
+      _sortDebts();
     });
+  }
+
+  void _sortDebts() {
+    switch (_sortBy) {
+      case 'date':
+        _filteredDebts.sort((a, b) => _sortAscending 
+            ? a.createdAt.compareTo(b.createdAt)
+            : b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'amount':
+        _filteredDebts.sort((a, b) => _sortAscending 
+            ? a.amount.compareTo(b.amount)
+            : b.amount.compareTo(a.amount));
+        break;
+      case 'customer':
+        _filteredDebts.sort((a, b) => _sortAscending 
+            ? a.customerName.compareTo(b.customerName)
+            : b.customerName.compareTo(a.customerName));
+        break;
+      case 'status':
+        _filteredDebts.sort((a, b) => _sortAscending 
+            ? a.status.toString().compareTo(b.status.toString())
+            : b.status.toString().compareTo(a.status.toString()));
+        break;
+    }
   }
 
   Future<void> _markAsPaid(Debt debt) async {
@@ -163,8 +196,15 @@ class _DebtsScreenState extends State<DebtsScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: Text(l10n.debts),
+            title: const Text('Debt History'),
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            actions: [
+              IconButton(
+                onPressed: _exportDebts,
+                icon: const Icon(Icons.download),
+                tooltip: 'Export Report',
+              ),
+            ],
           ),
           body: Column(
             children: [
@@ -194,28 +234,63 @@ class _DebtsScreenState extends State<DebtsScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _selectedStatus,
-                      decoration: InputDecoration(
-                        labelText: 'Filter by Status',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                    // Status Filter Chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: ['All', 'Pending', 'Paid', 'Overdue'].map((status) {
+                          final isSelected = _selectedStatus == status;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(status),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedStatus = status;
+                                });
+                                _filterDebts();
+                              },
+                              backgroundColor: Colors.grey[200],
+                              selectedColor: AppColors.primary.withOpacity(0.2),
+                              checkmarkColor: AppColors.primary,
+                            ),
+                          );
+                        }).toList(),
                       ),
-                      items: ['All', 'Pending', 'Paid', 'Overdue'].map((status) {
-                        return DropdownMenuItem(
-                          value: status,
-                          child: Text(status),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedStatus = value!;
-                        });
-                        _filterDebts();
-                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Sort Options
+                    Row(
+                      children: [
+                        const Text('Sort by: ', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 8),
+                        DropdownButton<String>(
+                          value: _sortBy,
+                          items: [
+                            DropdownMenuItem(value: 'date', child: const Text('Date')),
+                            DropdownMenuItem(value: 'amount', child: const Text('Amount')),
+                            DropdownMenuItem(value: 'customer', child: const Text('Customer')),
+                            DropdownMenuItem(value: 'status', child: const Text('Status')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _sortBy = value!;
+                            });
+                            _filterDebts();
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _sortAscending = !_sortAscending;
+                            });
+                            _filterDebts();
+                          },
+                          icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -229,9 +304,15 @@ class _DebtsScreenState extends State<DebtsScreen> {
                           children: [
                             Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).textTheme.bodySmall?.color),
                             const SizedBox(height: 16),
-                            Text(l10n.noDebtsFound, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 18, fontWeight: FontWeight.w600)),
+                            Text(
+                              _getEmptyStateMessage(),
+                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 18, fontWeight: FontWeight.w600)
+                            ),
                             const SizedBox(height: 8),
-                            Text(l10n.addNewDebtToGetStarted, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)),
+                            Text(
+                              _getEmptyStateSubMessage(),
+                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)
+                            ),
                           ],
                         ),
                       )
@@ -284,6 +365,77 @@ class _DebtsScreenState extends State<DebtsScreen> {
     );
     // No need to manually refresh - AppState handles it
   }
+
+  String _getEmptyStateMessage() {
+    switch (_selectedStatus) {
+      case 'Pending':
+        return 'No pending debts';
+      case 'Paid':
+        return 'No paid debts';
+      case 'Overdue':
+        return 'No overdue debts';
+      case 'All':
+      default:
+        return 'No debts found';
+    }
+  }
+
+  String _getEmptyStateSubMessage() {
+    switch (_selectedStatus) {
+      case 'Pending':
+        return 'All debts have been paid or are overdue';
+      case 'Paid':
+        return 'No debts have been marked as paid yet';
+      case 'Overdue':
+        return 'No debts are currently overdue';
+      case 'All':
+      default:
+        return 'Add a new debt to get started';
+    }
+  }
+
+  Future<void> _exportDebts() async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final debts = appState.debts;
+      
+      // Create CSV content
+      final csvContent = StringBuffer();
+      csvContent.writeln('Customer Name,Description,Amount,Status,Due Date,Payment Date,Notes');
+      
+      for (final debt in debts) {
+        final paymentDate = debt.paidAt != null ? debt.paidAt!.toString().split(' ')[0] : '';
+        final notes = debt.notes ?? '';
+        csvContent.writeln('${debt.customerName},"${debt.description}",${debt.amount},${debt.statusText},${debt.dueDate.toString().split(' ')[0]},$paymentDate,"$notes"');
+      }
+      
+      // Get temporary directory
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/debts_report.csv');
+      await file.writeAsString(csvContent.toString());
+      
+      // Share the file
+      await Share.shareXFiles([XFile(file.path)], text: 'Debts Report');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debts report exported successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export debts: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 }
 
 class _DebtCard extends StatelessWidget {
@@ -325,112 +477,222 @@ class _DebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final daysOverdue = debt.status == DebtStatus.pending && debt.dueDate.isBefore(DateTime.now())
+        ? DateTime.now().difference(debt.dueDate).inDays
+        : 0;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getStatusColor().withOpacity(0.1),
-          child: Icon(
-            debt.status == DebtStatus.paid ? Icons.check_circle : Icons.account_balance_wallet,
-            color: _getStatusColor(),
-          ),
-        ),
-        title: Text(
-          debt.customerName,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-            color: Theme.of(context).textTheme.titleMedium?.color,
-          ),
-        ),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text(
-              debt.description,
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              debt.status == DebtStatus.paid 
-                  ? 'Paid: ${_formatDate(debt.paidAt ?? debt.dueDate)}'
-                  : 'Due: ${_formatDate(debt.dueDate)}',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: _getStatusColor().withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _getStatusColor().withOpacity(0.3),
-                  width: 1,
+            // Header with status icon and customer name
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor().withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getStatusIcon(),
+                    color: _getStatusColor(),
+                    size: 20,
+                  ),
                 ),
-              ),
-              child: Text(
-                _getStatusText(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _getStatusColor(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        debt.customerName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        debt.description,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ),
-        trailing: SizedBox(
-          width: 80,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '\$${debt.amount.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).textTheme.titleMedium?.color,
-                ),
-              ),
-              if (debt.status != DebtStatus.paid) ...[
-                const SizedBox(height: 4),
-                GestureDetector(
-                  onTap: onMarkAsPaid,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.green.withOpacity(0.3),
-                        width: 1,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '\$${debt.amount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
                     ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor().withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _getStatusColor().withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        _getStatusText(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: _getStatusColor(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Date information
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 8),
+                Text(
+                  'Original Due: ${_formatDate(debt.dueDate)}',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+                if (debt.status == DebtStatus.paid && debt.paidAt != null) ...[
+                  const SizedBox(width: 16),
+                  Icon(Icons.check_circle, size: 16, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Paid: ${_formatDate(debt.paidAt!)}',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            
+            // Overdue information
+            if (daysOverdue > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.warning, size: 16, color: Colors.red),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$daysOverdue days overdue',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            
+            // Payment method and notes
+            if (debt.notes != null && debt.notes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.note, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      'Mark Paid',
+                      debt.notes!,
                       style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green,
+                        color: Colors.grey[600],
+                        fontSize: 12,
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ],
-          ),
+            
+            // Action buttons
+            if (debt.status != DebtStatus.paid) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: onMarkAsPaid,
+                      icon: const Icon(Icons.check_circle, size: 16),
+                      label: const Text('Mark as Paid'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onViewCustomer,
+                      icon: const Icon(Icons.person, size: 16),
+                      label: const Text('View Customer'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onViewCustomer,
+                      icon: const Icon(Icons.person, size: 16),
+                      label: const Text('View Customer'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
         ),
-        onTap: onViewCustomer,
       ),
     );
+  }
+
+  IconData _getStatusIcon() {
+    switch (debt.status) {
+      case DebtStatus.paid:
+        return Icons.check_circle;
+      case DebtStatus.overdue:
+        return Icons.warning;
+      case DebtStatus.pending:
+      default:
+        return Icons.pending;
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -447,4 +709,4 @@ class _DebtCard extends StatelessWidget {
       return 'in $difference days';
     }
   }
-} 
+}

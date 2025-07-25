@@ -29,7 +29,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   void _loadCustomerDebts() {
     final appState = Provider.of<AppState>(context, listen: false);
     setState(() {
-      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
+      // Only show pending debts in the debts list, but keep all debts for financial summary
+      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id && d.status != DebtStatus.paid).toList();
     });
   }
 
@@ -143,8 +144,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        final totalDebt = _customerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
-        final totalPaid = _customerDebts.where((d) => d.status == DebtStatus.paid).fold(0.0, (sum, debt) => sum + debt.amount);
+        // Calculate totals from all customer debts (including paid ones)
+        final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
+        final totalDebt = allCustomerDebts.where((d) => d.status == DebtStatus.pending).fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalPaid = allCustomerDebts.where((d) => d.status == DebtStatus.paid).fold(0.0, (sum, debt) => sum + debt.amount);
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -481,7 +484,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             ),
                             const SizedBox(height: 16),
                             const Text(
-                              'No debts found',
+                              'No pending debts',
                               style: TextStyle(
                                 color: Colors.black,
                                 fontSize: 18,
@@ -490,7 +493,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Add a debt for this customer',
+                              'All debts have been paid or add a new debt',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 15,
