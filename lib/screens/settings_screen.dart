@@ -518,13 +518,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   CupertinoButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: CupertinoColors.systemBlue,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
-                  const Text(
-                    'Select Language',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                  RichText(
+                    text: TextSpan(
+                      text: 'Select Language',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.label,
+                        decoration: TextDecoration.none,
+                        decorationColor: Colors.transparent,
+                        decorationThickness: 0,
+                      ),
                     ),
                   ),
                   CupertinoButton(
@@ -532,7 +544,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.pop(context);
                       setState(() {});
                     },
-                    child: const Text('Done'),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: CupertinoColors.systemBlue,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -546,8 +564,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   appState.setSelectedLanguage(languageCodes[index]);
                 },
                 children: const [
-                  Text('English'),
-                  Text('العربية'),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'English',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'العربية',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
