@@ -7,6 +7,7 @@ import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import 'customer_details_screen.dart';
 import 'add_debt_from_product_screen.dart';
+import 'customer_debt_receipt_screen.dart';
 
 class DebtHistoryScreen extends StatefulWidget {
   const DebtHistoryScreen({super.key});
@@ -43,7 +44,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       // Filter debts first
       final filteredDebts = debts.where((debt) {
         final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
-                             debt.description.toLowerCase().contains(query);
+                             debt.customerId.toLowerCase().contains(query);
         
         final matchesStatus = _selectedStatus == 'All' ||
                              (_selectedStatus == 'Pending' && !debt.isFullyPaid) ||
@@ -218,7 +219,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
             },
             backgroundColor: Theme.of(context).colorScheme.primary,
             child: const Icon(
-              Icons.add_shopping_cart,
+              Icons.add,
               color: Colors.white,
             ),
           ),
@@ -232,7 +233,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search by customer name or description',
+                        hintText: 'Search by customer name or ID',
                         prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -326,6 +327,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                             onMarkAsPaid: (debt) => _markAsPaid(debt),
                             onDelete: (debt) => _deleteDebt(debt),
                             onViewCustomer: () => _viewCustomerDetails(group['customerId'] as String),
+                            selectedStatus: _selectedStatus,
                           );
                         },
                       ),
@@ -341,17 +343,20 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final customer = appState.customers.firstWhere((c) => c.id == customerId);
     
+    // Get all debts for this customer
+    final customerDebts = appState.debts.where((debt) => debt.customerId == customerId).toList();
+    
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CustomerDetailsScreen(
+        builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
-          showDebtsSection: false,
+          customerDebts: customerDebts,
         ),
       ),
     );
     
-    // Force refresh of debt history when returning from customer details
+    // Force refresh of debt history when returning from receipt
     if (mounted) {
       _filterDebts();
     }
@@ -387,12 +392,14 @@ class _GroupedDebtCard extends StatelessWidget {
   final Function(Debt) onMarkAsPaid;
   final Function(Debt) onDelete;
   final VoidCallback onViewCustomer;
+  final String selectedStatus;
 
   const _GroupedDebtCard({
     required this.group,
     required this.onMarkAsPaid,
     required this.onDelete,
     required this.onViewCustomer,
+    required this.selectedStatus,
   });
 
   Color _getStatusColor() {
@@ -403,7 +410,7 @@ class _GroupedDebtCard extends StatelessWidget {
     if (fullyPaidDebts > 0 && pendingDebts > 0) {
       return Colors.blue; // Mixed status
     } else if (partiallyPaidDebts > 0) {
-      return Colors.blue; // Partially paid
+      return Colors.orange; // Partially paid - still pending
     } else if (pendingDebts > 0) {
       return Colors.orange; // All pending
     } else {
@@ -464,13 +471,37 @@ class _GroupedDebtCard extends StatelessWidget {
                           color: Colors.black,
                         ),
                       ),
-                      Text(
-                        '${group['totalDebts']} debts • ${group['totalRemainingAmount'] as double > 0 ? '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining' : 'All paid'}',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
+                      // Show different subtitle based on filter
+                      if (selectedStatus == 'All') ...[
+                        Text(
+                          (group['totalRemainingAmount'] as double) > 0 
+                              ? '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining'
+                              : 'All paid',
+                          style: TextStyle(
+                            color: (group['totalRemainingAmount'] as double) > 0 ? Colors.red[600] : Colors.green[600],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
+                      ] else if (selectedStatus == 'Pending') ...[
+                        Text(
+                          '${group['totalDebts']} debts • ${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining',
+                          style: TextStyle(
+                            color: Colors.red[600],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ] else if (selectedStatus == 'Paid') ...[
+                        Text(
+                          '${CurrencyFormatter.formatAmount(context, group['totalPaidAmount'] as double)} paid',
+                          style: TextStyle(
+                            color: Colors.green[600],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -480,44 +511,31 @@ class _GroupedDebtCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        if ((group['totalPaidAmount'] as double) > 0) ...[
-                          Text(
-                            'Paid: ${CurrencyFormatter.formatAmount(context, group['totalPaidAmount'] as double)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green[600],
-                            ),
-                          ),
-                        ],
+                        // Main amount section removed for all filters
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _getStatusColor().withOpacity(0.3),
-                          width: 1,
+                    // Show status badge only when not "All", "Pending", or "Paid"
+                    if (selectedStatus != 'All' && selectedStatus != 'Pending' && selectedStatus != 'Paid') ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor().withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _getStatusColor().withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          _getStatusText(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _getStatusColor(),
+                          ),
                         ),
                       ),
-                      child: Text(
-                        _getStatusText(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusColor(),
-                        ),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -537,7 +555,8 @@ class _GroupedDebtCard extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                if (group['paidDebts'] > 0) ...[
+                // Show paid debts count only when not "All" or "Paid"
+                if (group['paidDebts'] > 0 && selectedStatus != 'All' && selectedStatus != 'Paid') ...[
                   const SizedBox(width: 16),
                   Icon(Icons.check_circle, size: 16, color: Colors.green),
                   const SizedBox(width: 8),
@@ -575,8 +594,8 @@ class _GroupedDebtCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: onViewCustomer,
-                    icon: const Icon(Icons.person, size: 16),
-                    label: const Text('View Debts'),
+                    icon: const Icon(Icons.receipt_long, size: 16),
+                    label: const Text('View Receipt'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
@@ -598,7 +617,7 @@ class _GroupedDebtCard extends StatelessWidget {
     if (fullyPaidDebts > 0 && pendingDebts > 0) {
       return Icons.payment; // Mixed status
     } else if (partiallyPaidDebts > 0) {
-      return Icons.payment; // Partially paid
+      return Icons.pending; // Partially paid - still pending
     } else if (pendingDebts > 0) {
       return Icons.pending; // All pending
     } else {

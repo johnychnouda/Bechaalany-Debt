@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../l10n/app_localizations.dart';
 import '../models/category.dart' show ProductCategory, Subcategory;
 import '../utils/currency_formatter.dart';
+import '../widgets/expandable_chip_dropdown.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -404,16 +405,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedCurrency,
-                  decoration: const InputDecoration(
-                    labelText: 'Currency',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                const Text(
+                  'Currency',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD')),
-                    DropdownMenuItem(value: 'LBP', child: Text('LBP')),
-                  ],
+                ),
+                const SizedBox(height: 8),
+                ExpandableChipDropdown<String>(
+                  label: 'Currency',
+                  value: selectedCurrency,
+                  items: ['USD', 'LBP'],
+                  itemToString: (currency) => currency,
                   onChanged: (value) {
                     selectedCurrency = value!;
                   },
@@ -561,16 +565,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedCurrency,
-                  decoration: const InputDecoration(
-                    labelText: 'Currency',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                const Text(
+                  'Currency',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'USD', child: Text('USD')),
-                    DropdownMenuItem(value: 'LBP', child: Text('LBP')),
-                  ],
+                ),
+                const SizedBox(height: 8),
+                ExpandableChipDropdown<String>(
+                  label: 'Currency',
+                  value: selectedCurrency,
+                  items: ['USD', 'LBP'],
+                  itemToString: (currency) => currency,
                   onChanged: (value) {
                     selectedCurrency = value!;
                   },

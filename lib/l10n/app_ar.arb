@@ -233,8 +233,9 @@
   "areYouSureDeleteDebt": "هل أنت متأكد من أنك تريد حذف هذا الدين؟",
   "thisActionWillPermanentlyDelete": "سيؤدي هذا الإجراء إلى حذف جميع العملاء والديون نهائياً. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد من أنك تريد المتابعة؟",
   
-  "searchByNamePhoneIdEmail": "البحث بالاسم أو الهاتف أو المعرف أو البريد الإلكتروني...",
+  "searchByNamePhoneIdEmail": "البحث بالاسم أو المعرف...",
   "searchByNameDescription": "البحث بالاسم أو الوصف...",
+  "searchByNameId": "البحث بالاسم أو المعرف...",
   "noCustomersFound": "لم يتم العثور على عملاء",
   "addNewCustomerToGetStarted": "أضف عميلاً جديداً للبدء",
   "noDebtsFound": "لم يتم العثور على ديون",

@@ -8,6 +8,7 @@ import '../utils/logo_utils.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/currency_settings.dart';
+import '../widgets/expandable_chip_dropdown.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -693,18 +694,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                   // Base Currency Dropdown (USD or LBP only)
-                  DropdownButtonFormField<String>(
-                    value: selectedBaseCurrency,
-                  decoration: const InputDecoration(
-                    labelText: 'Base Currency',
-                      border: OutlineInputBorder(),
+                  const Text(
+                    'Base Currency',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                    items: ['USD', 'LBP'].map((String currency) {
-                      return DropdownMenuItem<String>(
-                        value: currency,
-                        child: Text(currency),
-                      );
-                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  ExpandableChipDropdown<String>(
+                    label: 'Base Currency',
+                    value: selectedBaseCurrency,
+                    items: ['USD', 'LBP'],
+                    itemToString: (currency) => currency,
                     onChanged: (String? newValue) {
                       if (newValue != null) {
                         setState(() {
@@ -714,22 +716,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         });
                       }
                     },
-                ),
-                const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 16),
                   
                   // Target Currency Dropdown (USD or LBP only)
-                  DropdownButtonFormField<String>(
-                    value: selectedTargetCurrency,
-                  decoration: const InputDecoration(
-                    labelText: 'Target Currency',
-                      border: OutlineInputBorder(),
+                  const Text(
+                    'Target Currency',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
-                    items: ['USD', 'LBP'].map((String currency) {
-                      return DropdownMenuItem<String>(
-                        value: currency,
-                        child: Text(currency),
-                      );
-                    }).toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  ExpandableChipDropdown<String>(
+                    label: 'Target Currency',
+                    value: selectedTargetCurrency,
+                    items: ['USD', 'LBP'],
+                    itemToString: (currency) => currency,
                     onChanged: (String? newValue) {
                       if (newValue != null) {
                         setState(() {
@@ -739,7 +742,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         });
                       }
                     },
-                ),
+                  ),
                 const SizedBox(height: 16),
                   
                   // Exchange Rate Input

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../constants/app_colors.dart';
 import '../models/customer.dart';
-import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
@@ -53,9 +51,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
       } else {
         _filteredCustomers = customers.where((customer) {
           return customer.name.toLowerCase().contains(query) ||
-                 customer.phone.toLowerCase().contains(query) ||
-                 customer.id.toLowerCase().contains(query) ||
-                 (customer.email?.toLowerCase().contains(query) ?? false);
+                 customer.id.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -181,17 +177,13 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: l10n.searchByNamePhoneIdEmail,
+                        hintText: 'Search by customer name or ID',
                         prefixIcon: const Icon(Icons.search),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
                         fillColor: Colors.white,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: Colors.black,
                       ),
                     ),
                   ),

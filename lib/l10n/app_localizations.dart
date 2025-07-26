@@ -233,6 +233,7 @@ class AppLocalizations {
     'thisActionWillPermanentlyDelete': 'This action will permanently delete all customers and debts. This action cannot be undone. Are you sure you want to continue?',
     'searchByNamePhoneIdEmail': 'Search by name, phone, ID, or email...',
     'searchByNameDescription': 'Search by name or description...',
+    'searchByNameId': 'Search by name or ID...',
     'noCustomersFound': 'No customers found',
     'addNewCustomerToGetStarted': 'Add a new customer to get started',
     'noDebtsFound': 'No debts found',
@@ -452,6 +453,7 @@ class AppLocalizations {
     'thisActionWillPermanentlyDelete': 'سيؤدي هذا الإجراء إلى حذف جميع العملاء والديون نهائياً. لا يمكن التراجع عن هذا الإجراء. هل أنت متأكد من أنك تريد المتابعة؟',
     'searchByNamePhoneIdEmail': 'البحث بالاسم أو الهاتف أو المعرف أو البريد الإلكتروني...',
     'searchByNameDescription': 'البحث بالاسم أو الوصف...',
+    'searchByNameId': 'البحث بالاسم أو المعرف...',
     'noCustomersFound': 'لم يتم العثور على عملاء',
     'addNewCustomerToGetStarted': 'أضف عميلاً جديداً للبدء',
     'noDebtsFound': 'لم يتم العثور على ديون',
@@ -731,6 +733,7 @@ class AppLocalizations {
   // Search and empty states
   String get searchByNamePhoneIdEmail => translate('searchByNamePhoneIdEmail');
   String get searchByNameDescription => translate('searchByNameDescription');
+  String get searchByNameId => translate('searchByNameId');
   String get noCustomersFound => translate('noCustomersFound');
   String get addNewCustomerToGetStarted => translate('addNewCustomerToGetStarted');
   String get noDebtsFound => translate('noDebtsFound');

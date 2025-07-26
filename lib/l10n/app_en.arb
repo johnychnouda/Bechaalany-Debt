@@ -234,8 +234,9 @@
   "areYouSureDeleteDebt": "Are you sure you want to delete this debt?",
   "thisActionWillPermanentlyDelete": "This action will permanently delete all customers and debts. This action cannot be undone. Are you sure you want to continue?",
   
-  "searchByNamePhoneIdEmail": "Search by name, phone, ID, or email...",
+  "searchByNamePhoneIdEmail": "Search by name or ID...",
   "searchByNameDescription": "Search by name or description...",
+  "searchByNameId": "Search by name or ID...",
   "noCustomersFound": "No customers found",
   "addNewCustomerToGetStarted": "Add a new customer to get started",
   "noDebtsFound": "No debts found",
