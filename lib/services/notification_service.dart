@@ -151,6 +151,73 @@ class NotificationService {
     );
   }
 
+  // Category-related notifications
+  Future<void> showCategoryAddedNotification(String categoryName) async {
+    await showSuccessNotification(
+      title: 'Category Added',
+      body: '$categoryName category has been created successfully',
+      payload: 'category_added',
+    );
+  }
+
+  Future<void> showCategoryUpdatedNotification(String categoryName) async {
+    await showSuccessNotification(
+      title: 'Category Updated',
+      body: '$categoryName category has been updated',
+      payload: 'category_updated',
+    );
+  }
+
+  Future<void> showCategoryDeletedNotification(String categoryName) async {
+    await showInfoNotification(
+      title: 'Category Deleted',
+      body: '$categoryName category has been removed',
+      payload: 'category_deleted',
+    );
+  }
+
+  // Product-related notifications
+  Future<void> showProductDeletedNotification(String productName) async {
+    await showInfoNotification(
+      title: 'Product Deleted',
+      body: '$productName has been removed from inventory',
+      payload: 'product_deleted',
+    );
+  }
+
+  Future<void> showProductUpdatedNotification(String productName) async {
+    await showSuccessNotification(
+      title: 'Product Updated',
+      body: '$productName has been updated successfully',
+      payload: 'product_updated',
+    );
+  }
+
+  // Product purchase notifications
+  Future<void> showProductPurchaseAddedNotification(String productName) async {
+    await showSuccessNotification(
+      title: 'Purchase Recorded',
+      body: '$productName purchase has been added to inventory',
+      payload: 'purchase_added',
+    );
+  }
+
+  Future<void> showProductPurchaseUpdatedNotification(String productName) async {
+    await showSuccessNotification(
+      title: 'Purchase Updated',
+      body: '$productName purchase has been updated',
+      payload: 'purchase_updated',
+    );
+  }
+
+  Future<void> showProductPurchaseDeletedNotification(String productName) async {
+    await showInfoNotification(
+      title: 'Purchase Deleted',
+      body: '$productName purchase has been removed',
+      payload: 'purchase_deleted',
+    );
+  }
+
   // Settings and system notifications
   Future<void> showSettingsSavedNotification() async {
     await showSuccessNotification(

@@ -562,6 +562,9 @@ class AppState extends ChangeNotifier {
       _categories.add(category);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showCategoryAddedNotification(category.name);
     } catch (e) {
       print('Error adding category: $e');
       rethrow;
@@ -576,6 +579,9 @@ class AppState extends ChangeNotifier {
         _categories[index] = category;
         _clearCache();
         notifyListeners();
+        
+        // Show notification
+        await _notificationService.showCategoryUpdatedNotification(category.name);
       }
     } catch (e) {
       print('Error updating category: $e');
@@ -585,10 +591,17 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteCategory(String categoryId) async {
     try {
+      // Get category name before deletion for notification
+      final category = _categories.firstWhere((c) => c.id == categoryId);
+      final categoryName = category.name;
+      
       await _dataService.deleteCategory(categoryId);
       _categories.removeWhere((c) => c.id == categoryId);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showCategoryDeletedNotification(categoryName);
     } catch (e) {
       print('Error deleting category: $e');
       rethrow;
@@ -621,6 +634,9 @@ class AppState extends ChangeNotifier {
       _productPurchases.add(purchase);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName);
     } catch (e) {
       print('Error adding product purchase: $e');
       rethrow;
@@ -635,6 +651,9 @@ class AppState extends ChangeNotifier {
         _productPurchases[index] = purchase;
         _clearCache();
         notifyListeners();
+        
+              // Show notification
+      await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName);
       }
     } catch (e) {
       print('Error updating product purchase: $e');
@@ -644,10 +663,17 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteProductPurchase(String purchaseId) async {
     try {
+      // Get purchase name before deletion for notification
+      final purchase = _productPurchases.firstWhere((p) => p.id == purchaseId);
+      final purchaseName = purchase.subcategoryName;
+      
       await _dataService.deleteProductPurchase(purchaseId);
       _productPurchases.removeWhere((p) => p.id == purchaseId);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showProductPurchaseDeletedNotification(purchaseName);
     } catch (e) {
       print('Error deleting product purchase: $e');
       rethrow;

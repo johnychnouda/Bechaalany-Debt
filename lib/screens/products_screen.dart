@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../models/category.dart' show ProductCategory, Subcategory;
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
+import '../services/notification_service.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -504,9 +505,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.trim().isNotEmpty) {
                   final appState = Provider.of<AppState>(context, listen: false);
+                  final notificationService = NotificationService();
                   final category = ProductCategory(
                     id: appState.generateCategoryId(),
                     name: nameController.text.trim(),
@@ -514,11 +516,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     createdAt: DateTime.now(),
                   );
                   
-                  appState.addCategory(category);
-                  Navigator.of(context).pop();
-                  
-                  // Refresh the products list
-                  _filterProducts();
+                  try {
+                    await appState.addCategory(category);
+                    Navigator.of(context).pop();
+                    
+                    // Refresh the products list
+                    _filterProducts();
+                  } catch (e) {
+                    // Show error notification
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to add category: $e',
+                    );
+                  }
                 }
               },
               child: const Text('Add'),
@@ -600,40 +610,52 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameController.text.trim().isNotEmpty &&
                         costPriceController.text.isNotEmpty &&
                         sellingPriceController.text.isNotEmpty) {
                       
                       final appState = Provider.of<AppState>(context, listen: false);
+                      final notificationService = NotificationService();
                       final category = appState.categories.firstWhere(
                         (cat) => cat is ProductCategory && cat.name == categoryName,
                         orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                       );
                       
                       if (category is ProductCategory) {
-                        // Convert prices to USD if they're in LBP
-                        double costPriceUSD = double.parse(costPriceController.text);
-                        double sellingPriceUSD = double.parse(sellingPriceController.text);
-                        
-                        if (selectedCurrency == 'LBP') {
-                          costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                          sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                        try {
+                          // Convert prices to USD if they're in LBP
+                          double costPriceUSD = double.parse(costPriceController.text);
+                          double sellingPriceUSD = double.parse(sellingPriceController.text);
+                          
+                          if (selectedCurrency == 'LBP') {
+                            costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                            sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                          }
+                          
+                          // Update the subcategory
+                          subcategory.name = nameController.text.trim();
+                          subcategory.costPrice = costPriceUSD;
+                          subcategory.sellingPrice = sellingPriceUSD;
+                          subcategory.costPriceCurrency = selectedCurrency;
+                          subcategory.sellingPriceCurrency = selectedCurrency;
+                          
+                          await appState.updateCategory(category);
+                          
+                          Navigator.of(context).pop();
+                          
+                          // Show success notification
+                          await notificationService.showProductUpdatedNotification(subcategory.name);
+                          
+                          // Refresh the products list
+                          _filterProducts();
+                        } catch (e) {
+                          // Show error notification
+                          await notificationService.showErrorNotification(
+                            title: 'Error',
+                            body: 'Failed to update product: $e',
+                          );
                         }
-                        
-                        // Update the subcategory
-                        subcategory.name = nameController.text.trim();
-                        subcategory.costPrice = costPriceUSD;
-                        subcategory.sellingPrice = sellingPriceUSD;
-                        subcategory.costPriceCurrency = selectedCurrency;
-                        subcategory.sellingPriceCurrency = selectedCurrency;
-                        
-                        appState.updateCategory(category);
-                        
-                        Navigator.of(context).pop();
-                        
-                        // Refresh the products list
-                        _filterProducts();
                       }
                     }
                   },
@@ -660,21 +682,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final appState = Provider.of<AppState>(context, listen: false);
+                final notificationService = NotificationService();
                 final category = appState.categories.firstWhere(
                   (cat) => cat is ProductCategory && cat.name == categoryName,
                   orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                 );
                 
                 if (category is ProductCategory) {
-                  category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
-                  appState.updateCategory(category);
-                  
-                  Navigator.of(context).pop();
-                  
-                  // Refresh the products list
-                  _filterProducts();
+                  try {
+                    category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
+                    await appState.updateCategory(category);
+                    
+                    Navigator.of(context).pop();
+                    
+                    // Show success notification
+                    await notificationService.showProductDeletedNotification(subcategory.name);
+                    
+                    // Refresh the products list
+                    _filterProducts();
+                  } catch (e) {
+                    // Show error notification
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to delete product: $e',
+                    );
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -760,46 +794,58 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (nameController.text.trim().isNotEmpty &&
                         costPriceController.text.isNotEmpty &&
                         sellingPriceController.text.isNotEmpty) {
                       
                       final appState = Provider.of<AppState>(context, listen: false);
+                      final notificationService = NotificationService();
                       final category = appState.categories.firstWhere(
                         (cat) => cat is ProductCategory && cat.name == categoryName,
                         orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                       );
                       
                       if (category is ProductCategory) {
-                        // Convert prices to USD if they're in LBP
-                        double costPriceUSD = double.parse(costPriceController.text);
-                        double sellingPriceUSD = double.parse(sellingPriceController.text);
-                        
-                        if (selectedCurrency == 'LBP') {
-                          costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                          sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                        try {
+                          // Convert prices to USD if they're in LBP
+                          double costPriceUSD = double.parse(costPriceController.text);
+                          double sellingPriceUSD = double.parse(sellingPriceController.text);
+                          
+                          if (selectedCurrency == 'LBP') {
+                            costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                            sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
+                          }
+                          
+                          final subcategory = Subcategory(
+                            id: appState.generateProductPurchaseId(), // Using this as subcategory ID generator
+                            name: nameController.text.trim(),
+                            description: null, // No description field
+                            costPrice: costPriceUSD,
+                            sellingPrice: sellingPriceUSD,
+                            createdAt: DateTime.now(),
+                            costPriceCurrency: selectedCurrency,
+                            sellingPriceCurrency: selectedCurrency,
+                          );
+                          
+                          // Add subcategory to the category
+                          category.subcategories.add(subcategory);
+                          await appState.updateCategory(category);
+                          
+                          Navigator.of(context).pop();
+                          
+                          // Show success notification
+                          await notificationService.showProductUpdatedNotification(subcategory.name);
+                          
+                          // Refresh the products list
+                          _filterProducts();
+                        } catch (e) {
+                          // Show error notification
+                          await notificationService.showErrorNotification(
+                            title: 'Error',
+                            body: 'Failed to add product: $e',
+                          );
                         }
-                        
-                        final subcategory = Subcategory(
-                          id: appState.generateProductPurchaseId(), // Using this as subcategory ID generator
-                          name: nameController.text.trim(),
-                          description: null, // No description field
-                          costPrice: costPriceUSD,
-                          sellingPrice: sellingPriceUSD,
-                          createdAt: DateTime.now(),
-                          costPriceCurrency: selectedCurrency,
-                          sellingPriceCurrency: selectedCurrency,
-                        );
-                        
-                        // Add subcategory to the category
-                        category.subcategories.add(subcategory);
-                        appState.updateCategory(category);
-                        
-                        Navigator.of(context).pop();
-                        
-                        // Refresh the products list
-                        _filterProducts();
                       }
                     }
                   },
@@ -947,20 +993,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final appState = Provider.of<AppState>(context, listen: false);
-                appState.deleteCategory(category.id);
-                Navigator.of(context).pop();
+                final notificationService = NotificationService();
                 
-                // Reset to 'All' if the deleted category was selected
-                if (_selectedCategory == category.name) {
-                  setState(() {
-                    _selectedCategory = 'All';
-                  });
+                try {
+                  await appState.deleteCategory(category.id);
+                  Navigator.of(context).pop();
+                  
+                  // Reset to 'All' if the deleted category was selected
+                  if (_selectedCategory == category.name) {
+                    setState(() {
+                      _selectedCategory = 'All';
+                    });
+                  }
+                  
+                  // Refresh the products list
+                  _filterProducts();
+                } catch (e) {
+                  // Show error notification
+                  await notificationService.showErrorNotification(
+                    title: 'Error',
+                    body: 'Failed to delete category: $e',
+                  );
                 }
-                
-                // Refresh the products list
-                _filterProducts();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -1001,13 +1057,26 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final appState = Provider.of<AppState>(context, listen: false);
-                appState.deleteSubcategory(category.id, subcategory.id);
-                Navigator.of(context).pop();
+                final notificationService = NotificationService();
                 
-                // Refresh the products list
-                _filterProducts();
+                try {
+                  await appState.deleteSubcategory(category.id, subcategory.id);
+                  Navigator.of(context).pop();
+                  
+                  // Show success notification
+                  await notificationService.showProductDeletedNotification(subcategory.name);
+                  
+                  // Refresh the products list
+                  _filterProducts();
+                } catch (e) {
+                  // Show error notification
+                  await notificationService.showErrorNotification(
+                    title: 'Error',
+                    body: 'Failed to delete product: $e',
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
