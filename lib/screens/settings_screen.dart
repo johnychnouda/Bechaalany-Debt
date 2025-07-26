@@ -240,6 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
+                    color: CupertinoColors.black,
                   ),
                 ),
                 if (subtitle.isNotEmpty)
@@ -248,6 +249,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       color: CupertinoColors.systemGrey,
+                      decoration: TextDecoration.none,
                     ),
                   ),
               ],
@@ -304,6 +306,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         color: CupertinoColors.systemGrey,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                 ],
@@ -361,6 +364,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       style: TextStyle(
                         fontSize: 13,
                         color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                 ],
@@ -413,6 +417,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       color: CupertinoColors.systemGrey,
+                      decoration: TextDecoration.none,
                     ),
                   ),
               ],
