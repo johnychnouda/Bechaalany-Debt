@@ -171,31 +171,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       final isSelected = _selectedCategory == category;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
-                          onLongPress: () {
-                            if (category != 'All') {
-                              _showAddSubcategoryDialog(context, category);
-                            }
+                        child: FilterChip(
+                          label: Text(category),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedCategory = category;
+                            });
+                            _filterProducts();
                           },
-                          child: FilterChip(
-                            label: Text(category),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedCategory = category;
-                              });
-                              _filterProducts();
-                            },
-                            backgroundColor: Colors.transparent,
-                            selectedColor: AppColors.primary.withOpacity(0.2),
-                            checkmarkColor: AppColors.primary,
-                            labelStyle: TextStyle(
-                              color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                            ),
-                            side: BorderSide(
-                              color: isSelected ? AppColors.primary : AppColors.border,
-                            ),
+                          backgroundColor: Colors.transparent,
+                          selectedColor: AppColors.primary.withOpacity(0.2),
+                          checkmarkColor: AppColors.primary,
+                          labelStyle: TextStyle(
+                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primary : AppColors.border,
                           ),
                         ),
                       );
@@ -236,7 +229,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              '💡 Tap + to add categories, long press category chips to add subcategories',
+                              '💡 Tap + to add or delete categories and products',
                               style: TextStyle(
                                 color: Theme.of(context).textTheme.bodySmall?.color,
                                 fontSize: 12,
@@ -279,7 +272,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          _showAddCategoryDialog(context);
+          _showAddChoiceDialog(context);
         },
         backgroundColor: Theme.of(context).colorScheme.primary,
         child: const Icon(
@@ -328,6 +321,161 @@ class _ProductsScreenState extends State<ProductsScreen> {
         }
       }
     }
+  }
+
+  void _showAddChoiceDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final hasCategories = appState.categories.whereType<ProductCategory>().isNotEmpty;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              const Text(
+                'Quick Actions',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Add Category - Always available
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.category, color: Colors.blue, size: 24),
+                ),
+                title: const Text('Add Category'),
+                subtitle: const Text('Create a new product category'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showAddCategoryDialog(context);
+                },
+              ),
+              
+              // Add Subcategory - Only if categories exist
+              if (hasCategories)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.inventory, color: Colors.green, size: 24),
+                  ),
+                  title: const Text('Add Product'),
+                  subtitle: const Text('Add a product to an existing category'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showCategorySelectionDialog(context);
+                  },
+                ),
+              
+              // Delete options - Only if categories exist
+              if (hasCategories) ...[
+                const Divider(),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete, color: Colors.red, size: 24),
+                  ),
+                  title: const Text('Delete Category'),
+                  subtitle: const Text('Remove a category and all its products'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showDeleteCategorySelectionDialog(context);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete_sweep, color: Colors.red, size: 24),
+                  ),
+                  title: const Text('Delete Product'),
+                  subtitle: const Text('Remove a specific product'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showDeleteSubcategorySelectionDialog(context);
+                  },
+                ),
+              ],
+              
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCategorySelectionDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final categories = appState.categories.whereType<ProductCategory>().toList();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Category'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Choose a category to add a subcategory to:'),
+              const SizedBox(height: 16),
+              ...categories.map((category) => ListTile(
+                title: Text(category.name),
+                subtitle: Text('${category.subcategories.length} subcategories'),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showAddSubcategoryDialog(context, category.name);
+                },
+              )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showAddCategoryDialog(BuildContext context) {
@@ -658,6 +806,214 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: const Text('Add'),
                 ),
               ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteCategorySelectionDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final categories = appState.categories.whereType<ProductCategory>().toList();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Category'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Choose a category to delete:'),
+              const SizedBox(height: 16),
+              ...categories.map((category) => ListTile(
+                title: Text(category.name),
+                subtitle: Text('${category.subcategories.length} subcategories'),
+                trailing: const Icon(Icons.delete, color: Colors.red),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _showDeleteCategoryConfirmationDialog(context, category);
+                },
+              )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteSubcategorySelectionDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final allSubcategories = <Subcategory>[];
+    final categoryMap = <Subcategory, ProductCategory>{};
+
+    // Collect all subcategories with their parent categories
+    for (final category in appState.categories.whereType<ProductCategory>()) {
+      for (final subcategory in category.subcategories) {
+        allSubcategories.add(subcategory);
+        categoryMap[subcategory] = category;
+      }
+    }
+
+    if (allSubcategories.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('No Subcategories'),
+            content: const Text('There are no subcategories to delete.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Subcategory'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Choose a subcategory to delete:'),
+              const SizedBox(height: 16),
+              ...allSubcategories.map((subcategory) {
+                final category = categoryMap[subcategory]!;
+                return ListTile(
+                  title: Text(subcategory.name),
+                  subtitle: Text('Category: ${category.name}'),
+                  trailing: const Icon(Icons.delete, color: Colors.red),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _showDeleteSubcategoryConfirmationDialog(context, subcategory, category);
+                  },
+                );
+              }),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteCategoryConfirmationDialog(BuildContext context, ProductCategory category) {
+    final subcategoryCount = category.subcategories.length;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Category'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete "${category.name}"?'),
+              if (subcategoryCount > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'This category contains $subcategoryCount subcategory${subcategoryCount == 1 ? '' : 's'} that will also be deleted.',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final appState = Provider.of<AppState>(context, listen: false);
+                appState.deleteCategory(category.id);
+                Navigator.of(context).pop();
+                
+                // Reset to 'All' if the deleted category was selected
+                if (_selectedCategory == category.name) {
+                  setState(() {
+                    _selectedCategory = 'All';
+                  });
+                }
+                
+                // Refresh the products list
+                _filterProducts();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteSubcategoryConfirmationDialog(BuildContext context, Subcategory subcategory, ProductCategory category) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Subcategory'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete "${subcategory.name}"?'),
+              const SizedBox(height: 8),
+              Text(
+                'This will permanently remove the subcategory from "${category.name}".',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final appState = Provider.of<AppState>(context, listen: false);
+                appState.deleteSubcategory(category.id, subcategory.id);
+                Navigator.of(context).pop();
+                
+                // Refresh the products list
+                _filterProducts();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
             ),
           ],
         );

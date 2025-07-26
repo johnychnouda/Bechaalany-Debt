@@ -488,6 +488,25 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteSubcategory(String categoryId, String subcategoryId) async {
+    try {
+      final categoryIndex = _categories.indexWhere((c) => c.id == categoryId);
+      if (categoryIndex != -1) {
+        final category = _categories[categoryIndex];
+        final updatedSubcategories = category.subcategories.where((s) => s.id != subcategoryId).toList();
+        final updatedCategory = category.copyWith(subcategories: updatedSubcategories);
+        
+        await _dataService.updateCategory(updatedCategory);
+        _categories[categoryIndex] = updatedCategory;
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error deleting subcategory: $e');
+      rethrow;
+    }
+  }
+
   // Product Purchase operations
   Future<void> addProductPurchase(ProductPurchase purchase) async {
     try {
