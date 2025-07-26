@@ -12,6 +12,8 @@ import '../services/sync_service.dart';
 import '../services/localization_service.dart';
 import '../services/cloudkit_service.dart';
 import '../services/data_export_import_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
@@ -1017,6 +1019,85 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       print('Error clearing all data: $e');
       rethrow;
+    }
+  }
+
+  // Cache management methods
+  Future<void> clearAppCache() async {
+    try {
+      // Clear Hive cache
+      await _dataService.clearCache();
+      
+      // Clear any temporary files
+      await _clearTemporaryFiles();
+      
+      // Clear cache
+      _clearCache();
+      
+      notifyListeners();
+    } catch (e) {
+      print('Error clearing app cache: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _clearTemporaryFiles() async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final files = directory.listSync();
+      
+      for (final file in files) {
+        if (file is File) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      print('Error clearing temporary files: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getCacheInfo() async {
+    try {
+      final cacheInfo = await _dataService.getCacheInfo();
+      final tempInfo = await _getTemporaryFilesInfo();
+      
+      return {
+        'hiveCache': cacheInfo,
+        'temporaryFiles': tempInfo,
+        'totalSize': (cacheInfo['size'] ?? 0) + (tempInfo['size'] ?? 0),
+      };
+    } catch (e) {
+      print('Error getting cache info: $e');
+      return {
+        'hiveCache': {'size': 0, 'items': 0},
+        'temporaryFiles': {'size': 0, 'items': 0},
+        'totalSize': 0,
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> _getTemporaryFilesInfo() async {
+    try {
+      final directory = await getTemporaryDirectory();
+      final files = directory.listSync();
+      
+      int totalSize = 0;
+      int itemCount = 0;
+      
+      for (final file in files) {
+        if (file is File) {
+          totalSize += await file.length();
+          itemCount++;
+        }
+      }
+      
+      return {
+        'size': totalSize,
+        'items': itemCount,
+      };
+    } catch (e) {
+      print('Error getting temporary files info: $e');
+      return {'size': 0, 'items': 0};
     }
   }
 } 

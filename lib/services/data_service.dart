@@ -399,4 +399,68 @@ class DataService {
       rethrow;
     }
   }
+
+  // Cache management methods
+  Future<void> clearCache() async {
+    try {
+      // Clear Hive cache by compacting boxes
+      await _customerBoxSafe.compact();
+      await _debtBoxSafe.compact();
+      await _categoryBoxSafe.compact();
+      await _productPurchaseBoxSafe.compact();
+      await _currencySettingsBoxSafe.compact();
+      
+      print('Cache cleared successfully');
+    } catch (e) {
+      print('Error clearing cache: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getCacheInfo() async {
+    try {
+      int totalSize = 0;
+      int totalItems = 0;
+      
+      // Calculate size for each box
+      totalSize += await _getBoxSize(_customerBoxSafe);
+      totalItems += _customerBoxSafe.length;
+      
+      totalSize += await _getBoxSize(_debtBoxSafe);
+      totalItems += _debtBoxSafe.length;
+      
+      totalSize += await _getBoxSize(_categoryBoxSafe);
+      totalItems += _categoryBoxSafe.length;
+      
+      totalSize += await _getBoxSize(_productPurchaseBoxSafe);
+      totalItems += _productPurchaseBoxSafe.length;
+      
+      totalSize += await _getBoxSize(_currencySettingsBoxSafe);
+      totalItems += _currencySettingsBoxSafe.length;
+      
+      return {
+        'size': totalSize,
+        'items': totalItems,
+      };
+    } catch (e) {
+      print('Error getting cache info: $e');
+      return {'size': 0, 'items': 0};
+    }
+  }
+
+  Future<int> _getBoxSize(Box box) async {
+    try {
+      int size = 0;
+      for (final key in box.keys) {
+        final value = box.get(key);
+        if (value != null) {
+          // Estimate size by converting to string (rough approximation)
+          size += value.toString().length;
+        }
+      }
+      return size;
+    } catch (e) {
+      return 0;
+    }
+  }
 } 

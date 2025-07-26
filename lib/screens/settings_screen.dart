@@ -1204,32 +1204,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCacheManagement() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Cache Management'),
-        content: const Text('Clear app cache to free up storage space.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+  Future<void> _showCacheManagement() async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final cacheInfo = await appState.getCacheInfo();
+      
+      final totalSize = cacheInfo['totalSize'] ?? 0;
+      final hiveItems = cacheInfo['hiveCache']?['items'] ?? 0;
+      final tempItems = cacheInfo['temporaryFiles']?['items'] ?? 0;
+      
+      final sizeText = totalSize < 1024 
+          ? '${totalSize} B' 
+          : totalSize < 1024 * 1024 
+              ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
+              : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
+      
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Cache Management'),
+          content: Text(
+            'Current cache size: $sizeText\n'
+            'Hive cache: ${hiveItems} items\n'
+            'Temporary files: ${tempItems} items\n\n'
+            'Clear app cache to free up storage space?'
           ),
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Cache cleared successfully'),
-                  backgroundColor: AppColors.success,
-                ),
-              );
-            },
-            child: const Text('Clear Cache'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              onPressed: () async {
+                Navigator.pop(context);
+                
+                try {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Clearing cache...'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                  
+                  await appState.clearAppCache();
+                  
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Cache cleared successfully'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to clear cache: ${e.toString()}'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Clear Cache'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to get cache info: ${e.toString()}'),
+            backgroundColor: AppColors.error,
           ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 
   String _getCloudKitStatusText(BuildContext context) {
