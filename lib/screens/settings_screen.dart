@@ -69,8 +69,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Bold Text',
                   'Use bold text throughout the app',
                   CupertinoIcons.textformat,
-                  false, // TODO: Implement bold text setting
-                  (value) => _toggleBoldText(value),
+                  Provider.of<AppState>(context).boldTextEnabled,
+                  (value) => Provider.of<AppState>(context, listen: false).setBoldTextEnabled(value),
                 ),
               ],
             ),
@@ -136,8 +136,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'iCloud Sync',
                   'Sync data across devices',
                   CupertinoIcons.cloud,
-                  false, // TODO: Implement iCloud sync
-                  (value) => _toggleICloudSync(value),
+                  Provider.of<AppState>(context).iCloudSyncEnabled,
+                  (value) => Provider.of<AppState>(context, listen: false).setICloudSyncEnabled(value),
                 ),
                 _buildNavigationRow(
                   'Storage Usage',
@@ -918,11 +918,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // iOS 18.5 New Methods - Appearance
   void _showTextSizeSettings() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 300,
+        color: CupertinoColors.systemBackground,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: CupertinoColors.separator),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  const Text(
+                    'Text Size',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  CupertinoButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      setState(() {});
+                    },
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: CupertinoPicker(
+                itemExtent: 50,
+                onSelectedItemChanged: (index) {
+                  // Text size selection logic can be implemented here
+                },
+                children: const [
+                  Text('Small', style: TextStyle(fontSize: 14)),
+                  Text('Medium', style: TextStyle(fontSize: 16)),
+                  Text('Large', style: TextStyle(fontSize: 18)),
+                  Text('Extra Large', style: TextStyle(fontSize: 20)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStorageUsage() {
+    // Calculate storage usage
+    final appState = Provider.of<AppState>(context, listen: false);
+    final customersCount = appState.customers.length;
+    final debtsCount = appState.debts.length;
+    final categoriesCount = appState.categories.length;
+    
+    // Estimate storage (rough calculation)
+    final customersSize = customersCount * 0.5; // KB per customer
+    final debtsSize = debtsCount * 0.3; // KB per debt
+    final categoriesSize = categoriesCount * 0.2; // KB per category
+    final totalSize = customersSize + debtsSize + categoriesSize;
+    
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Text Size'),
-        content: const Text('Dynamic Type allows the app to scale text based on your system settings.'),
+        title: const Text('Storage Usage'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('App Data Breakdown:'),
+            const SizedBox(height: 12),
+            _buildStorageRow('Customers', customersCount, customersSize),
+            _buildStorageRow('Debts', debtsCount, debtsSize),
+            _buildStorageRow('Categories', categoriesCount, categoriesSize),
+            const Divider(),
+            _buildStorageRow('Total', null, totalSize, isTotal: true),
+            const SizedBox(height: 12),
+            const Text(
+              'Note: This is an estimate. Actual storage may vary.',
+              style: TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.systemGrey,
+              ),
+            ),
+          ],
+        ),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
@@ -933,50 +1024,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _toggleBoldText(bool value) {
-    // TODO: Implement bold text setting
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Bold text ${value ? 'enabled' : 'disabled'}'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  // iOS 18.5 New Methods - Data & Storage
-  void _toggleICloudSync(bool value) {
-    // TODO: Implement iCloud sync
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('iCloud sync ${value ? 'enabled' : 'disabled'}'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  void _showStorageUsage() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Storage Usage'),
-        content: const Text('View detailed breakdown of app storage usage.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+  Widget _buildStorageRow(String label, int? count, double size, {bool isTotal = false}) {
+    final sizeText = size < 1 ? '${(size * 1024).toStringAsFixed(0)} B' : '${size.toStringAsFixed(1)} KB';
+    final countText = count != null ? ' ($count items)' : '';
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$label$countText',
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              // Removed system settings link - users can access via iOS Settings
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Access storage settings via iOS Settings'),
-                  backgroundColor: AppColors.primary,
-                ),
-              );
-            },
-            child: const Text('OK'),
+          Text(
+            sizeText,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+              color: CupertinoColors.systemGrey,
+            ),
           ),
         ],
       ),

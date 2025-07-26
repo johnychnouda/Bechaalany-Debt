@@ -39,6 +39,8 @@ class AppState extends ChangeNotifier {
   bool _biometricEnabled = false;
   bool _offlineModeEnabled = false;
   bool _ipadOptimizationsEnabled = false;
+  bool _boldTextEnabled = false;
+  bool _iCloudSyncEnabled = false;
   
   // Notification Settings
   bool _paymentDueRemindersEnabled = true;
@@ -88,6 +90,8 @@ class AppState extends ChangeNotifier {
   bool get biometricEnabled => _biometricEnabled;
   bool get offlineModeEnabled => _offlineModeEnabled;
   bool get ipadOptimizationsEnabled => _ipadOptimizationsEnabled;
+  bool get boldTextEnabled => _boldTextEnabled;
+  bool get iCloudSyncEnabled => _iCloudSyncEnabled;
   
   // Notification Settings Getters
   bool get paymentDueRemindersEnabled => _paymentDueRemindersEnabled;
@@ -197,6 +201,8 @@ class AppState extends ChangeNotifier {
       _biometricEnabled = prefs.getBool('biometricEnabled') ?? false;
       _offlineModeEnabled = prefs.getBool('offlineModeEnabled') ?? false;
       _ipadOptimizationsEnabled = prefs.getBool('ipadOptimizationsEnabled') ?? false;
+      _boldTextEnabled = prefs.getBool('boldTextEnabled') ?? false;
+      _iCloudSyncEnabled = prefs.getBool('iCloudSyncEnabled') ?? false;
       
       // Notification settings
       _paymentDueRemindersEnabled = prefs.getBool('paymentDueRemindersEnabled') ?? true;
@@ -236,6 +242,8 @@ class AppState extends ChangeNotifier {
       await prefs.setBool('biometricEnabled', _biometricEnabled);
       await prefs.setBool('offlineModeEnabled', _offlineModeEnabled);
       await prefs.setBool('ipadOptimizationsEnabled', _ipadOptimizationsEnabled);
+      await prefs.setBool('boldTextEnabled', _boldTextEnabled);
+      await prefs.setBool('iCloudSyncEnabled', _iCloudSyncEnabled);
       
       // Notification settings
       await prefs.setBool('paymentDueRemindersEnabled', _paymentDueRemindersEnabled);
@@ -685,6 +693,18 @@ class AppState extends ChangeNotifier {
   
   Future<void> setIpadOptimizationsEnabled(bool enabled) async {
     _ipadOptimizationsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+  
+  Future<void> setBoldTextEnabled(bool enabled) async {
+    _boldTextEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+  
+  Future<void> setICloudSyncEnabled(bool enabled) async {
+    _iCloudSyncEnabled = enabled;
     await _saveSettings();
     notifyListeners();
   }
