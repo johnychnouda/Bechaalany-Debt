@@ -420,8 +420,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 if (subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
+                  DefaultTextStyle(
                     style: TextStyle(
                       fontSize: 13,
                       color: CupertinoColors.systemGrey,
@@ -429,6 +428,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       decorationColor: Colors.transparent,
                       decorationThickness: 0,
                     ),
+                    child: Text(subtitle),
                   ),
               ],
             ),
