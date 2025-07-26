@@ -42,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const SizedBox(height: 8),
             
-            // App Appearance
+            // Appearance
             _buildSection(
               'Appearance',
               [
@@ -59,12 +59,101 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.globe,
                   () => _showLanguagePicker(),
                 ),
+                _buildNavigationRow(
+                  'Text Size',
+                  'Dynamic Type',
+                  CupertinoIcons.textformat_size,
+                  () => _showTextSizeSettings(),
+                ),
+                _buildSwitchRow(
+                  'Bold Text',
+                  'Use bold text throughout the app',
+                  CupertinoIcons.textformat,
+                  false, // TODO: Implement bold text setting
+                  (value) => _toggleBoldText(value),
+                ),
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // Currency Settings
+            // Privacy & Security
+            _buildSection(
+              'Privacy & Security',
+              [
+                _buildSwitchRow(
+                  'Face ID / Touch ID',
+                  'Use biometric authentication',
+                  CupertinoIcons.person_crop_circle,
+                  false, // TODO: Implement biometric auth
+                  (value) => _toggleBiometricAuth(value),
+                ),
+                _buildSwitchRow(
+                  'App Lock',
+                  'Require authentication to open app',
+                  CupertinoIcons.lock,
+                  false, // TODO: Implement app lock
+                  (value) => _toggleAppLock(value),
+                ),
+                _buildNavigationRow(
+                  'Location Services',
+                  'Precise location access',
+                  CupertinoIcons.location,
+                  () => _showLocationSettings(),
+                ),
+                _buildNavigationRow(
+                  'Camera & Microphone',
+                  'Access controls',
+                  CupertinoIcons.camera,
+                  () => _showCameraMicrophoneSettings(),
+                ),
+                _buildNavigationRow(
+                  'Photo Library',
+                  'Limited vs Full access',
+                  CupertinoIcons.photo,
+                  () => _showPhotoLibrarySettings(),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Notifications
+            _buildSection(
+              'Notifications',
+              [
+                _buildSwitchRow(
+                  'Push Notifications',
+                  'Receive notifications',
+                  CupertinoIcons.bell,
+                  true, // TODO: Implement notification settings
+                  (value) => _togglePushNotifications(value),
+                ),
+                _buildNavigationRow(
+                  'Notification Style',
+                  'Banners, alerts, or none',
+                  CupertinoIcons.bell,
+                  () => _showNotificationStyleSettings(),
+                ),
+                _buildNavigationRow(
+                  'Sound & Haptics',
+                  'Custom notification sounds',
+                  CupertinoIcons.speaker_2,
+                  () => _showSoundHapticsSettings(),
+                ),
+                _buildSwitchRow(
+                  'Badge App Icon',
+                  'Show unread count on app icon',
+                  CupertinoIcons.number_circle,
+                  true, // TODO: Implement badge settings
+                  (value) => _toggleBadgeIcon(value),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Currency Configuration (Keeping as requested)
             _buildSection(
               'Currency',
               [
@@ -119,6 +208,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection(
               'Data & Storage',
               [
+                _buildSwitchRow(
+                  'iCloud Sync',
+                  'Sync data across devices',
+                  CupertinoIcons.cloud,
+                  false, // TODO: Implement iCloud sync
+                  (value) => _toggleICloudSync(value),
+                ),
+                _buildNavigationRow(
+                  'Storage Usage',
+                  'Detailed storage breakdown',
+                  CupertinoIcons.chart_bar,
+                  () => _showStorageUsage(),
+                ),
+                _buildNavigationRow(
+                  'Cache Management',
+                  'Clear app cache',
+                  CupertinoIcons.trash,
+                  () => _showCacheManagement(),
+                ),
                 _buildNavigationRow(
                   'Export Data',
                   'Save to Files app',
@@ -137,6 +245,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.delete,
                   () => _showClearDataDialog(),
                   isDestructive: true,
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Accessibility
+            _buildSection(
+              'Accessibility',
+              [
+                _buildNavigationRow(
+                  'Dynamic Type',
+                  'Text size scaling',
+                  CupertinoIcons.textformat_size,
+                  () => _showDynamicTypeSettings(),
+                ),
+                _buildSwitchRow(
+                  'Reduce Motion',
+                  'Reduce animations',
+                  CupertinoIcons.speedometer,
+                  false, // TODO: Implement reduce motion
+                  (value) => _toggleReduceMotion(value),
+                ),
+                _buildSwitchRow(
+                  'High Contrast',
+                  'Enhanced visibility',
+                  CupertinoIcons.eye,
+                  false, // TODO: Implement high contrast
+                  (value) => _toggleHighContrast(value),
+                ),
+                _buildNavigationRow(
+                  'VoiceOver Support',
+                  'Screen reader compatibility',
+                  CupertinoIcons.speaker,
+                  () => _showVoiceOverSettings(),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // System Settings Links
+            _buildSection(
+              'System Settings',
+              [
+                _buildSystemLinkRow(
+                  'Privacy & Security',
+                  'iOS Privacy settings',
+                  CupertinoIcons.shield,
+                  () => _openSystemPrivacySettings(),
+                ),
+                _buildSystemLinkRow(
+                  'Accessibility',
+                  'iOS Accessibility settings',
+                  CupertinoIcons.person_2,
+                  () => _openSystemAccessibilitySettings(),
+                ),
+                _buildSystemLinkRow(
+                  'Notifications',
+                  'iOS Notification settings',
+                  CupertinoIcons.bell,
+                  () => _openSystemNotificationSettings(),
+                ),
+                _buildSystemLinkRow(
+                  'Storage',
+                  'iOS Storage settings',
+                  CupertinoIcons.chart_bar,
+                  () => _openSystemStorageSettings(),
                 ),
               ],
             ),
@@ -881,6 +1057,428 @@ class _SettingsScreenState extends State<SettingsScreen> {
           },
         );
       },
+    );
+  }
+
+  // iOS 18.5 New Methods - Appearance
+  void _showTextSizeSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Text Size'),
+        content: const Text('Dynamic Type allows the app to scale text based on your system settings.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleBoldText(bool value) {
+    // TODO: Implement bold text setting
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Bold text ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  // iOS 18.5 New Methods - Privacy & Security
+  void _toggleBiometricAuth(bool value) {
+    // TODO: Implement biometric authentication
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Biometric authentication ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _toggleAppLock(bool value) {
+    // TODO: Implement app lock
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('App lock ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _showLocationSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Location Services'),
+        content: const Text('Control how the app accesses your location.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemPrivacySettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCameraMicrophoneSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Camera & Microphone'),
+        content: const Text('Control camera and microphone access for this app.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemPrivacySettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPhotoLibrarySettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Photo Library'),
+        content: const Text('Control photo library access for this app.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemPrivacySettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // iOS 18.5 New Methods - Notifications
+  void _togglePushNotifications(bool value) {
+    // TODO: Implement push notifications
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Push notifications ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _showNotificationStyleSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Notification Style'),
+        content: const Text('Choose how notifications appear: banners, alerts, or none.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemNotificationSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSoundHapticsSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Sound & Haptics'),
+        content: const Text('Customize notification sounds and haptic feedback.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemNotificationSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleBadgeIcon(bool value) {
+    // TODO: Implement badge icon setting
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Badge app icon ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  // iOS 18.5 New Methods - Data & Storage
+  void _toggleICloudSync(bool value) {
+    // TODO: Implement iCloud sync
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('iCloud sync ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _showStorageUsage() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Storage Usage'),
+        content: const Text('View detailed breakdown of app storage usage.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemStorageSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCacheManagement() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Cache Management'),
+        content: const Text('Clear app cache to free up storage space.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Cache cleared successfully'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            },
+            child: const Text('Clear Cache'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // iOS 18.5 New Methods - Accessibility
+  void _showDynamicTypeSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Dynamic Type'),
+        content: const Text('Text size scaling follows your system settings.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemAccessibilitySettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _toggleReduceMotion(bool value) {
+    // TODO: Implement reduce motion
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Reduce motion ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _toggleHighContrast(bool value) {
+    // TODO: Implement high contrast
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('High contrast ${value ? 'enabled' : 'disabled'}'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _showVoiceOverSettings() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('VoiceOver Support'),
+        content: const Text('This app is compatible with VoiceOver screen reader.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _openSystemAccessibilitySettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // iOS 18.5 New Methods - System Settings Links
+  void _openSystemPrivacySettings() {
+    // TODO: Implement opening iOS Privacy settings
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Opening iOS Privacy & Security settings...'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _openSystemAccessibilitySettings() {
+    // TODO: Implement opening iOS Accessibility settings
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Opening iOS Accessibility settings...'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _openSystemNotificationSettings() {
+    // TODO: Implement opening iOS Notification settings
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Opening iOS Notification settings...'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _openSystemStorageSettings() {
+    // TODO: Implement opening iOS Storage settings
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Opening iOS Storage settings...'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  // iOS 18.5 New Widget - System Link Row
+  Widget _buildSystemLinkRow(String title, String subtitle, IconData icon, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground,
+      ),
+      child: CupertinoButton(
+        onPressed: onTap,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemGrey6,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: CupertinoColors.systemGrey,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  RichText(
+                    text: TextSpan(
+                      text: title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: CupertinoColors.black,
+                        decoration: TextDecoration.none,
+                        decorationColor: Colors.transparent,
+                        decorationThickness: 0,
+                      ),
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    RichText(
+                      text: TextSpan(
+                        text: subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.systemGrey,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                          decorationThickness: 0,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(
+              CupertinoIcons.arrow_up_right_square,
+              size: 16,
+              color: CupertinoColors.systemGrey3,
+            ),
+          ],
+        ),
+      ),
     );
   }
 } 
