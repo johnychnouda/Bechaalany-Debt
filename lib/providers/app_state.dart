@@ -11,12 +11,14 @@ import '../services/notification_service.dart';
 import '../services/sync_service.dart';
 import '../services/localization_service.dart';
 import '../services/cloudkit_service.dart';
+import '../services/data_export_import_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
   final SyncService _syncService = SyncService();
   final CloudKitService _cloudKitService = CloudKitService();
+  final DataExportImportService _exportImportService = DataExportImportService();
   LocalizationService? _localizationService;
   
   // Data
@@ -925,5 +927,70 @@ class AppState extends ChangeNotifier {
   Future<void> resetSyncState() async {
     await _syncService.resetSyncState();
     await _cloudKitService.resetSyncState();
+  }
+
+  // Export and Import methods
+  Future<String> exportData() async {
+    try {
+      final filePath = await _exportImportService.exportToCSV(_customers, _debts);
+      return filePath;
+    } catch (e) {
+      print('Error exporting data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> shareExportFile(String filePath) async {
+    try {
+      await _exportImportService.shareExportFile(filePath);
+    } catch (e) {
+      print('Error sharing export file: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> importData() async {
+    try {
+      final importData = await _exportImportService.importFromCSV();
+      await _exportImportService.validateImportData(importData);
+      return importData;
+    } catch (e) {
+      print('Error importing data: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> applyImportedData(Map<String, dynamic> importData) async {
+    try {
+      final customers = importData['customers'] as List<Customer>;
+      final debts = importData['debts'] as List<Debt>;
+
+      // Clear existing data
+      _customers.clear();
+      _debts.clear();
+
+      // Add imported customers
+      for (final customer in customers) {
+        await _dataService.addCustomer(customer);
+        _customers.add(customer);
+      }
+
+      // Add imported debts
+      for (final debt in debts) {
+        await _dataService.addDebt(debt);
+        _debts.add(debt);
+      }
+
+      _clearCache();
+      notifyListeners();
+
+      // Sync to CloudKit if enabled
+      if (_iCloudSyncEnabled) {
+        await _cloudKitService.syncData(_customers, _debts);
+      }
+    } catch (e) {
+      print('Error applying imported data: $e');
+      rethrow;
+    }
   }
 } 

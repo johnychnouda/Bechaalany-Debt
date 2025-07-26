@@ -690,24 +690,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _performExport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Exporting data to Files app...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-    
-    Future.delayed(const Duration(seconds: 2), () {
+  Future<void> _performExport() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Exporting data to CSV...'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      final appState = Provider.of<AppState>(context, listen: false);
+      final filePath = await appState.exportData();
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Export completed successfully'),
+            content: Text('Export completed! Opening share dialog...'),
             backgroundColor: AppColors.success,
           ),
         );
       }
-    });
+
+      // Share the file
+      await appState.shareExportFile(filePath);
+      
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Export failed: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _showImportDialog() {
@@ -733,24 +749,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _performImport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Importing data from Files app...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-    
-    Future.delayed(const Duration(seconds: 2), () {
+  Future<void> _performImport() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecting CSV file...'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      final appState = Provider.of<AppState>(context, listen: false);
+      final importData = await appState.importData();
+      
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Import completed successfully'),
+          SnackBar(
+            content: Text('Found ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts. Importing...'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+
+      // Apply the imported data
+      await appState.applyImportedData(importData);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import completed! ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts imported.'),
             backgroundColor: AppColors.success,
           ),
         );
       }
-    });
+      
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _showHelpSupportDialog() {

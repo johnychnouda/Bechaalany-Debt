@@ -46,6 +46,8 @@ dependencies:
   path_provider: ^2.1.2
   pdf: ^3.10.7
   share_plus: ^7.2.1
+  file_picker: ^6.1.1
+  csv: ^5.1.1
   cloud_firestore: ^4.15.5
   firebase_core: ^2.24.2
   firebase_auth: ^4.16.0
