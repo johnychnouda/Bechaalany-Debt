@@ -13,40 +13,45 @@ class DataExportImportService {
 
   Future<String> exportToCSV(List<Customer> customers, List<Debt> debts) async {
     try {
-      // Create CSV data for customers
+      // Create CSV data for customers with better formatting
       final customerData = [
-        ['ID', 'Name', 'Phone', 'Email', 'Address', 'Created At'], // Header
+        ['Customer ID', 'Customer Name', 'Phone Number', 'Email Address', 'Physical Address', 'Registration Date'], // Header
         ...customers.map((customer) => [
           customer.id,
           customer.name,
           customer.phone,
-          customer.email ?? '',
-          customer.address ?? '',
-          customer.createdAt.toIso8601String(),
+          customer.email ?? 'N/A',
+          customer.address ?? 'N/A',
+          _formatDate(customer.createdAt),
         ]),
       ];
 
-      // Create CSV data for debts
+      // Create CSV data for debts with better formatting
       final debtData = [
-        ['ID', 'Customer ID', 'Customer Name', 'Description', 'Amount', 'Paid Amount', 'Remaining Amount', 'Type', 'Status', 'Created At', 'Paid At', 'Notes'], // Header
+        ['Debt ID', 'Customer ID', 'Customer Name', 'Description', 'Total Amount', 'Paid Amount', 'Remaining Amount', 'Debt Type', 'Status', 'Created Date', 'Paid Date', 'Notes'], // Header
         ...debts.map((debt) => [
           debt.id,
           debt.customerId,
           debt.customerName,
           debt.description,
-          debt.amount.toString(),
-          debt.paidAmount.toString(),
-          debt.remainingAmount.toString(),
-          debt.type.toString().split('.').last,
-          debt.status.toString().split('.').last,
-          debt.createdAt.toIso8601String(),
-          debt.paidAt?.toIso8601String() ?? '',
-          debt.notes ?? '',
+          _formatCurrency(debt.amount),
+          _formatCurrency(debt.paidAmount),
+          _formatCurrency(debt.remainingAmount),
+          _formatDebtType(debt.type),
+          _formatDebtStatus(debt.status),
+          _formatDate(debt.createdAt),
+          debt.paidAt != null ? _formatDate(debt.paidAt!) : 'N/A',
+          debt.notes ?? 'N/A',
         ]),
       ];
 
-      // Create combined CSV
-      final combinedData = [
+      // Create a summary header
+      final summaryData = [
+        ['Bechaalany Debt App - Data Export'],
+        ['Export Date: ${_formatDate(DateTime.now())}'],
+        ['Total Customers: ${customers.length}'],
+        ['Total Debts: ${debts.length}'],
+        [''],
         ['=== CUSTOMERS DATA ==='],
         ...customerData,
         [''],
@@ -54,17 +59,91 @@ class DataExportImportService {
         ...debtData,
       ];
 
-      final csvString = const ListToCsvConverter().convert(combinedData);
+      final csvString = const ListToCsvConverter().convert(summaryData);
 
-      // Save to temporary file
+      // Save to temporary file with better naming
       final directory = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File('${directory.path}/debt_app_export_$timestamp.csv');
+      final dateStr = DateTime.now().toString().split(' ')[0].replaceAll('-', '');
+      final file = File('${directory.path}/Bechaalany_Debt_Export_$dateStr.csv');
       await file.writeAsString(csvString);
 
       return file.path;
     } catch (e) {
       throw Exception('Failed to export data: $e');
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _formatCurrency(double amount) {
+    return '\$${amount.toStringAsFixed(2)}';
+  }
+
+  String _formatDebtType(DebtType type) {
+    switch (type) {
+      case DebtType.credit:
+        return 'Credit';
+      case DebtType.payment:
+        return 'Payment';
+    }
+  }
+
+  String _formatDebtStatus(DebtStatus status) {
+    switch (status) {
+      case DebtStatus.pending:
+        return 'Pending';
+      case DebtStatus.paid:
+        return 'Paid';
+    }
+  }
+
+  DateTime _parseDate(String dateStr) {
+    try {
+      // Handle DD/MM/YYYY format
+      final parts = dateStr.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        return DateTime(year, month, day);
+      }
+      // Fallback to ISO format
+      return DateTime.parse(dateStr);
+    } catch (e) {
+      return DateTime.now();
+    }
+  }
+
+  double _parseCurrency(String currencyStr) {
+    try {
+      // Remove $ and parse
+      return double.parse(currencyStr.replaceAll('\$', '').trim());
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
+  DebtType _parseDebtType(String typeStr) {
+    switch (typeStr.toLowerCase()) {
+      case 'credit':
+        return DebtType.credit;
+      case 'payment':
+        return DebtType.payment;
+      default:
+        return DebtType.credit;
+    }
+  }
+
+  DebtStatus _parseDebtStatus(String statusStr) {
+    switch (statusStr.toLowerCase()) {
+      case 'pending':
+        return DebtStatus.pending;
+      case 'paid':
+        return DebtStatus.paid;
+      default:
+        return DebtStatus.pending;
     }
   }
 
@@ -133,13 +212,16 @@ class DataExportImportService {
 
         if (inCustomersSection && row.length >= 6) {
           try {
+            // Skip header row
+            if (row[0].toString().toLowerCase().contains('customer id')) continue;
+            
             final customer = Customer(
               id: row[0].toString(),
               name: row[1].toString(),
               phone: row[2].toString(),
-              email: row[3].toString().isEmpty ? null : row[3].toString(),
-              address: row[4].toString().isEmpty ? null : row[4].toString(),
-              createdAt: DateTime.parse(row[5].toString()),
+              email: row[3].toString() == 'N/A' ? null : row[3].toString(),
+              address: row[4].toString() == 'N/A' ? null : row[4].toString(),
+              createdAt: _parseDate(row[5].toString()),
             );
             customers.add(customer);
           } catch (e) {
@@ -149,24 +231,21 @@ class DataExportImportService {
 
         if (inDebtsSection && row.length >= 12) {
           try {
+            // Skip header row
+            if (row[0].toString().toLowerCase().contains('debt id')) continue;
+            
             final debt = Debt(
               id: row[0].toString(),
               customerId: row[1].toString(),
               customerName: row[2].toString(),
               description: row[3].toString(),
-              amount: double.parse(row[4].toString()),
-              type: DebtType.values.firstWhere(
-                (e) => e.toString().split('.').last == row[7].toString(),
-                orElse: () => DebtType.credit,
-              ),
-              status: DebtStatus.values.firstWhere(
-                (e) => e.toString().split('.').last == row[8].toString(),
-                orElse: () => DebtStatus.pending,
-              ),
-              createdAt: DateTime.parse(row[9].toString()),
-              paidAt: row[10].toString().isEmpty ? null : DateTime.parse(row[10].toString()),
-              notes: row[11].toString().isEmpty ? null : row[11].toString(),
-              paidAmount: double.parse(row[5].toString()),
+              amount: _parseCurrency(row[4].toString()),
+              type: _parseDebtType(row[7].toString()),
+              status: _parseDebtStatus(row[8].toString()),
+              createdAt: _parseDate(row[9].toString()),
+              paidAt: row[10].toString() == 'N/A' ? null : _parseDate(row[10].toString()),
+              notes: row[11].toString() == 'N/A' ? null : row[11].toString(),
+              paidAmount: _parseCurrency(row[5].toString()),
             );
             debts.add(debt);
           } catch (e) {
