@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../services/data_service.dart';
 import '../services/localization_service.dart';
-import '../utils/logo_utils.dart';
+
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/currency_settings.dart';
@@ -28,7 +28,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context);
     
     return CupertinoPageScaffold(
@@ -43,9 +42,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const SizedBox(height: 8),
             
-            // App Preferences
+            // App Appearance
             _buildSection(
-              'App Preferences',
+              'Appearance',
               [
                 _buildSwitchRow(
                   'Dark Mode',
@@ -67,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             
             // Currency Settings
             _buildSection(
-              'Currency Settings',
+              'Currency',
               [
                 Consumer<AppState>(
                   builder: (context, appState, child) {
@@ -116,19 +115,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             
             const SizedBox(height: 20),
             
-            // Data Management
+            // Data & Storage
             _buildSection(
-              'Data Management',
+              'Data & Storage',
               [
                 _buildNavigationRow(
                   'Export Data',
-                  'Export to CSV',
+                  'Save to Files app',
                   CupertinoIcons.square_arrow_up,
                   () => _showExportDialog(),
                 ),
                 _buildNavigationRow(
                   'Import Data',
-                  'Import from file',
+                  'Import from Files app',
                   CupertinoIcons.square_arrow_down,
                   () => _showImportDialog(),
                 ),
@@ -138,22 +137,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.delete,
                   () => _showClearDataDialog(),
                   isDestructive: true,
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
             
             const SizedBox(height: 20),
             
-            // Support & About
+            // Support & Legal
             _buildSection(
-              'Support & About',
+              'Support & Legal',
               [
                 _buildNavigationRow(
                   'Help & Support',
                   'Get help and contact us',
                   CupertinoIcons.question_circle,
                   () => _showHelpSupportDialog(),
-            ),
+                ),
                 _buildNavigationRow(
                   'Privacy Policy',
                   'Read our privacy policy',
@@ -175,8 +174,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             
             const SizedBox(height: 40),
-              ],
-            ),
+          ],
+        ),
       ),
     );
   }
@@ -218,10 +217,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: CupertinoColors.systemGrey,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemGrey6,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: CupertinoColors.systemGrey,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -232,6 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title,
                   style: const TextStyle(
                     fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (subtitle.isNotEmpty)
@@ -248,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           CupertinoSwitch(
             value: value,
             onChanged: onChanged,
-            activeColor: AppColors.primary,
+            activeTrackColor: AppColors.primary,
           ),
         ],
       ),
@@ -262,43 +269,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: CupertinoButton(
         onPressed: onTap,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemGrey6,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
                 icon,
                 size: 20,
                 color: CupertinoColors.systemGrey,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: CupertinoColors.label,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey,
                       ),
                     ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: CupertinoColors.systemGrey,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-              Icon(
-                CupertinoIcons.chevron_right,
-                size: 16,
-                color: CupertinoColors.systemGrey3,
-              ),
-            ],
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey3,
+            ),
+          ],
         ),
       ),
     );
@@ -311,43 +326,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: CupertinoButton(
         onPressed: onTap,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.1) : CupertinoColors.systemGrey6,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
                 icon,
                 size: 20,
                 color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.systemGrey,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.label,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
                       ),
                     ),
-                    if (subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-              Icon(
-                CupertinoIcons.chevron_right,
-                size: 16,
-                color: CupertinoColors.systemGrey3,
-              ),
-            ],
+            ),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey3,
+            ),
+          ],
         ),
       ),
     );
@@ -358,10 +381,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: CupertinoColors.systemGrey,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: CupertinoColors.systemGrey6,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: CupertinoColors.systemGrey,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -372,6 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title,
                   style: const TextStyle(
                     fontSize: 16,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (subtitle.isNotEmpty)
@@ -511,7 +542,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Export Data'),
-        content: const Text('Export all data to CSV format?'),
+        content: const Text('Export all data to CSV format and save to Files app?'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
@@ -532,7 +563,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _performExport() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Exporting data to CSV...'),
+        content: Text('Exporting data to Files app...'),
         backgroundColor: AppColors.primary,
       ),
     );
@@ -554,7 +585,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Import Data'),
-        content: const Text('Select a CSV file to import data from.'),
+        content: const Text('Select a CSV file from Files app to import data.'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
@@ -575,7 +606,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _performImport() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Importing data...'),
+        content: Text('Importing data from Files app...'),
         backgroundColor: AppColors.primary,
       ),
     );
@@ -688,11 +719,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
-        return AlertDialog(
-          title: const Text('Currency Exchange Rate'),
+            return AlertDialog(
+              title: const Text('Currency Exchange Rate'),
               content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   // Base Currency Dropdown (USD or LBP only)
                   const Text(
                     'Base Currency',
@@ -743,64 +774,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       }
                     },
                   ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   
                   // Exchange Rate Input
-                TextField(
-                  controller: exchangeRateController,
+                  TextField(
+                    controller: exchangeRateController,
                     decoration: InputDecoration(
-                    labelText: 'Exchange Rate',
-                    hintText: 'e.g., 89500.0',
+                      labelText: 'Exchange Rate',
+                      hintText: 'e.g., 89500.0',
                       helperText: '1 $selectedBaseCurrency = how many $selectedTargetCurrency?',
                       border: const OutlineInputBorder(),
-                      ),
+                    ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                    ],
-          ),
-          actions: [
+                  ),
+                ],
+              ),
+              actions: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final rate = double.tryParse(exchangeRateController.text);
-                if (rate != null && rate > 0) {
-                  final settings = CurrencySettings(
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        final rate = double.tryParse(exchangeRateController.text);
+                        if (rate != null && rate > 0) {
+                          final settings = CurrencySettings(
                             baseCurrency: selectedBaseCurrency,
                             targetCurrency: selectedTargetCurrency,
-                    exchangeRate: rate,
-                    lastUpdated: DateTime.now(),
+                            exchangeRate: rate,
+                            lastUpdated: DateTime.now(),
                             notes: null,
-                  );
-                  
-                  appState.updateCurrencySettings(settings);
-                  Navigator.of(context).pop();
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Exchange rate updated: ${settings.formattedRate}'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid exchange rate'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save'),
+                          );
+                          
+                          appState.updateCurrencySettings(settings);
+                          Navigator.of(context).pop();
+                          
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Exchange rate updated: ${settings.formattedRate}'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please enter a valid exchange rate'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save'),
                     ),
                   ],
-            ),
-          ],
+                ),
+              ],
             );
           },
         );
