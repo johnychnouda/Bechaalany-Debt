@@ -253,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSwitchRow(String title, String subtitle, IconData icon, bool value, ValueChanged<bool> onChanged) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           Container(
@@ -319,7 +319,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: CupertinoButton(
         onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
             Container(
@@ -352,7 +352,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                  if (subtitle.isNotEmpty)
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     RichText(
                       text: TextSpan(
                         text: subtitle,
@@ -365,6 +366,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -386,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       child: CupertinoButton(
         onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
             Container(
@@ -419,7 +421,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                  if (subtitle.isNotEmpty)
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     RichText(
                       text: TextSpan(
                         text: subtitle,
@@ -432,6 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -448,7 +452,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildInfoRow(String title, String subtitle, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Row(
         children: [
           Container(
@@ -481,7 +485,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                if (subtitle.isNotEmpty)
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   RichText(
                     text: TextSpan(
                       text: subtitle,
@@ -494,6 +499,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),
