@@ -950,12 +950,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                  const Text(
-                    'Text Size',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: CupertinoColors.label,
+                  RichText(
+                    text: TextSpan(
+                      text: 'Text Size',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.label,
+                        decoration: TextDecoration.none,
+                        decorationColor: Colors.transparent,
+                        decorationThickness: 0,
+                      ),
                     ),
                   ),
                   CupertinoButton(
