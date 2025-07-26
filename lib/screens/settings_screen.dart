@@ -175,39 +175,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             
             const SizedBox(height: 20),
             
-            // System Settings Links (iOS 18.5 Standards)
-            _buildSection(
-              'System Settings',
-              [
-                _buildSystemLinkRow(
-                  'Privacy & Security',
-                  'iOS Privacy settings',
-                  CupertinoIcons.shield,
-                  () => _openSystemPrivacySettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Notifications',
-                  'iOS Notification settings',
-                  CupertinoIcons.bell,
-                  () => _openSystemNotificationSettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Accessibility',
-                  'iOS Accessibility settings',
-                  CupertinoIcons.person_2,
-                  () => _openSystemAccessibilitySettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Storage',
-                  'iOS Storage settings',
-                  CupertinoIcons.chart_bar,
-                  () => _openSystemStorageSettings(),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 20),
-            
             // Support & Legal
             _buildSection(
               'Support & Legal',
@@ -1001,9 +968,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           CupertinoDialogAction(
             onPressed: () {
               Navigator.pop(context);
-              _openSystemStorageSettings();
+              // Removed system settings link - users can access via iOS Settings
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Access storage settings via iOS Settings'),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
             },
-            child: const Text('Open Settings'),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -1034,115 +1007,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Clear Cache'),
           ),
         ],
-      ),
-    );
-  }
-
-  // iOS 18.5 New Methods - System Settings Links
-  void _openSystemPrivacySettings() {
-    // TODO: Implement opening iOS Privacy settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening iOS Privacy & Security settings...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  void _openSystemAccessibilitySettings() {
-    // TODO: Implement opening iOS Accessibility settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening iOS Accessibility settings...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  void _openSystemNotificationSettings() {
-    // TODO: Implement opening iOS Notification settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening iOS Notification settings...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  void _openSystemStorageSettings() {
-    // TODO: Implement opening iOS Storage settings
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Opening iOS Storage settings...'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
-  }
-
-  // iOS 18.5 New Widget - System Link Row
-  Widget _buildSystemLinkRow(String title, String subtitle, IconData icon, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-      ),
-      child: CupertinoButton(
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey6,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: CupertinoColors.systemGrey,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      text: title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: CupertinoColors.black,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
-                    ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    RichText(
-                      text: TextSpan(
-                        text: subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: CupertinoColors.systemGrey,
-                          decoration: TextDecoration.none,
-                          decorationColor: Colors.transparent,
-                          decorationThickness: 0,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              CupertinoIcons.arrow_up_right_square,
-              size: 16,
-              color: CupertinoColors.systemGrey3,
-            ),
-          ],
-        ),
       ),
     );
   }
