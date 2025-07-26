@@ -45,5 +45,49 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	
+	<!-- iOS Settings Integration -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app uses notifications to remind you about pending debt payments and daily summaries.</string>
+	
+	<!-- Privacy & Security Settings -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app uses Face ID to securely access your debt data.</string>
+	
+	<!-- Location Services (if needed for future features) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app may use location services for enhanced features.</string>
+	
+	<!-- Camera & Photo Library (if needed for future features) -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app may use camera to scan documents or take photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app may access photo library to save or import documents.</string>
+	
+	<!-- Microphone (if needed for future features) -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may use microphone for voice notes or audio features.</string>
+	
+	<!-- Background App Refresh -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+	</array>
+	
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 </dict>
 </plist>
