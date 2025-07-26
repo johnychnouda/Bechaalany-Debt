@@ -237,23 +237,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CupertinoColors.black,
-                  ),
-                ),
-                if (subtitle.isNotEmpty)
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: CupertinoColors.systemGrey,
+                RichText(
+                  text: TextSpan(
+                    text: title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: CupertinoColors.black,
                       decoration: TextDecoration.none,
                       decorationColor: Colors.transparent,
                       decorationThickness: 0,
+                    ),
+                  ),
+                ),
+                if (subtitle.isNotEmpty)
+                  RichText(
+                    text: TextSpan(
+                      text: subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey,
+                        decoration: TextDecoration.none,
+                        decorationColor: Colors.transparent,
+                        decorationThickness: 0,
+                      ),
                     ),
                   ),
               ],
@@ -296,23 +303,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: CupertinoColors.black,
-                    ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: CupertinoColors.systemGrey,
+                  RichText(
+                    text: TextSpan(
+                      text: title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: CupertinoColors.black,
                         decoration: TextDecoration.none,
                         decorationColor: Colors.transparent,
                         decorationThickness: 0,
+                      ),
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    RichText(
+                      text: TextSpan(
+                        text: subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.systemGrey,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                          decorationThickness: 0,
+                        ),
                       ),
                     ),
                 ],
@@ -356,23 +370,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.black,
-                    ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    Text(
-                      subtitle,
+                  RichText(
+                    text: TextSpan(
+                      text: title,
                       style: TextStyle(
-                        fontSize: 13,
-                        color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.black,
                         decoration: TextDecoration.none,
                         decorationColor: Colors.transparent,
                         decorationThickness: 0,
+                      ),
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty)
+                    RichText(
+                      text: TextSpan(
+                        text: subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                          decorationThickness: 0,
+                        ),
                       ),
                     ),
                 ],
@@ -411,24 +432,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CupertinoColors.black,
-                  ),
-                ),
-                if (subtitle.isNotEmpty)
-                  DefaultTextStyle(
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: CupertinoColors.systemGrey,
+                RichText(
+                  text: TextSpan(
+                    text: title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: CupertinoColors.black,
                       decoration: TextDecoration.none,
                       decorationColor: Colors.transparent,
                       decorationThickness: 0,
                     ),
-                    child: Text(subtitle),
+                  ),
+                ),
+                if (subtitle.isNotEmpty)
+                  RichText(
+                    text: TextSpan(
+                      text: subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey,
+                        decoration: TextDecoration.none,
+                        decorationColor: Colors.transparent,
+                        decorationThickness: 0,
+                      ),
+                    ),
                   ),
               ],
             ),
