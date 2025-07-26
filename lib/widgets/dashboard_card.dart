@@ -31,7 +31,7 @@ class DashboardCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withAlpha(26), // 0.1 * 255
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(

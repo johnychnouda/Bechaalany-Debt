@@ -48,7 +48,7 @@ class WeeklyActivityWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.secondary.withOpacity(0.1),
+                        color: AppColors.secondary.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -112,8 +112,8 @@ class WeeklyActivityWidget extends StatelessWidget {
                                 color: isToday 
                                     ? AppColors.primary 
                                     : isPast 
-                                        ? AppColors.error.withOpacity(0.1)
-                                        : AppColors.secondary.withOpacity(0.1),
+                                        ? AppColors.error.withAlpha(26) // 0.1 * 255
+                                        : AppColors.secondary.withAlpha(26), // 0.1 * 255
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Center(

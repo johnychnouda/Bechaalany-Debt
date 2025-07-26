@@ -7,6 +7,26 @@ import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
+// Type-safe class for customer payment data
+class CustomerPaymentData {
+  final Customer customer;
+  final double totalPaid;
+  final double totalDebt;
+  final int paymentCount;
+  final DateTime? lastPayment;
+
+  const CustomerPaymentData({
+    required this.customer,
+    required this.totalPaid,
+    required this.totalDebt,
+    required this.paymentCount,
+    this.lastPayment,
+  });
+
+  double get averagePayment => paymentCount > 0 ? totalPaid / paymentCount : 0.0;
+  double get paymentRate => totalDebt > 0 ? (totalPaid / totalDebt) * 100 : 0.0;
+}
+
 class CustomerPaymentHistoryWidget extends StatefulWidget {
   const CustomerPaymentHistoryWidget({super.key});
 
@@ -71,18 +91,18 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.dynamicSurface(context).withOpacity(0.8),
-                    AppColors.dynamicSurface(context).withOpacity(0.6),
+                    AppColors.dynamicSurface(context).withAlpha(204), // 0.8 * 255
+                    AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withAlpha(26), // 0.1 * 255
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withAlpha(13), // 0.05 * 255
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -96,7 +116,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withAlpha(26), // 0.1 * 255
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -149,13 +169,13 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.dynamicSurface(context).withOpacity(0.8),
-            AppColors.dynamicSurface(context).withOpacity(0.6),
+            AppColors.dynamicSurface(context).withAlpha(204), // 0.8 * 255
+            AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withAlpha(26), // 0.1 * 255
           width: 1,
         ),
       ),
@@ -164,7 +184,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
           Icon(
             Icons.history,
             size: 48,
-            color: AppColors.dynamicTextSecondary(context).withOpacity(0.5),
+            color: AppColors.dynamicTextSecondary(context).withAlpha(128), // 0.5 * 255
           ),
           const SizedBox(height: 16),
           Text(
@@ -187,23 +207,15 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
     );
   }
 
-  Widget _buildCustomerPaymentCard(Map<String, dynamic> customerData) {
-    final customer = customerData['customer'] as Customer;
-    final totalPaid = customerData['totalPaid'] as double;
-    final totalDebt = customerData['totalDebt'] as double;
-    final paymentCount = customerData['paymentCount'] as int;
-    final lastPayment = customerData['lastPayment'] as DateTime?;
-    final averagePayment = paymentCount > 0 ? totalPaid / paymentCount : 0.0;
-    final paymentRate = totalDebt > 0 ? (totalPaid / totalDebt) * 100 : 0.0;
-
+  Widget _buildCustomerPaymentCard(CustomerPaymentData customerData) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context).withOpacity(0.5),
+        color: AppColors.dynamicSurface(context).withAlpha(128), // 0.5 * 255
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withAlpha(26), // 0.1 * 255
         ),
       ),
       child: Column(
@@ -213,9 +225,9 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.primary.withOpacity(0.1),
+                backgroundColor: AppColors.primary.withAlpha(26), // 0.1 * 255
                 child: Text(
-                  customer.name[0].toUpperCase(),
+                  customerData.customer.name[0].toUpperCase(),
                   style: AppTheme.title3.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -228,14 +240,14 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      customer.name,
+                      customerData.customer.name,
                       style: AppTheme.title3.copyWith(
                         color: AppColors.dynamicTextPrimary(context),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
-                      '${paymentCount} payments',
+                      '${customerData.paymentCount} payments',
                       style: AppTheme.footnote.copyWith(
                         color: AppColors.dynamicTextSecondary(context),
                       ),
@@ -246,15 +258,15 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: paymentRate >= 80 
+                  color: customerData.paymentRate >= 80 
                       ? AppColors.success 
-                      : paymentRate >= 50 
+                      : customerData.paymentRate >= 50 
                           ? AppColors.warning 
                           : AppColors.error,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  '${paymentRate.toStringAsFixed(0)}%',
+                  '${customerData.paymentRate.toStringAsFixed(0)}%',
                   style: AppTheme.footnote.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -269,7 +281,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
               Expanded(
                 child: _buildPaymentStat(
                   'Total Paid',
-                  CurrencyFormatter.formatAmount(context, totalPaid),
+                  CurrencyFormatter.formatAmount(context, customerData.totalPaid),
                   Icons.check_circle,
                   AppColors.success,
                 ),
@@ -278,14 +290,14 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
               Expanded(
                 child: _buildPaymentStat(
                   'Avg Payment',
-                  CurrencyFormatter.formatAmount(context, averagePayment),
+                  CurrencyFormatter.formatAmount(context, customerData.averagePayment),
                   Icons.analytics,
                   AppColors.primary,
                 ),
               ),
             ],
           ),
-          if (lastPayment != null) ...[
+          if (customerData.lastPayment != null) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -296,7 +308,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Last payment: ${_formatDate(lastPayment)}',
+                  'Last payment: ${_formatDate(customerData.lastPayment!)}',
                   style: AppTheme.footnote.copyWith(
                     color: AppColors.dynamicTextSecondary(context),
                   ),
@@ -313,7 +325,7 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26), // 0.1 * 255
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -346,8 +358,8 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
     );
   }
 
-  List<Map<String, dynamic>> _getCustomersWithPaymentHistory(List<Customer> customers, List<Debt> debts) {
-    final List<Map<String, dynamic>> customersWithHistory = [];
+  List<CustomerPaymentData> _getCustomersWithPaymentHistory(List<Customer> customers, List<Debt> debts) {
+    final List<CustomerPaymentData> customersWithHistory = [];
 
     for (final customer in customers) {
       final customerDebts = debts.where((d) => d.customerId == customer.id).toList();
@@ -360,18 +372,18 @@ class _CustomerPaymentHistoryWidgetState extends State<CustomerPaymentHistoryWid
             .map((d) => d.paidAt!)
             .reduce((a, b) => a.isAfter(b) ? a : b);
 
-        customersWithHistory.add({
-          'customer': customer,
-          'totalPaid': totalPaid,
-          'totalDebt': totalDebt,
-          'paymentCount': paidDebts.length,
-          'lastPayment': lastPayment,
-        });
+        customersWithHistory.add(CustomerPaymentData(
+          customer: customer,
+          totalPaid: totalPaid,
+          totalDebt: totalDebt,
+          paymentCount: paidDebts.length,
+          lastPayment: lastPayment,
+        ));
       }
     }
 
     // Sort by total paid amount (descending)
-    customersWithHistory.sort((a, b) => (b['totalPaid'] as double).compareTo(a['totalPaid'] as double));
+    customersWithHistory.sort((a, b) => b.totalPaid.compareTo(a.totalPaid));
     
     return customersWithHistory;
   }

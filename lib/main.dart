@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +10,6 @@ import 'models/currency_settings.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'services/localization_service.dart';
-import 'services/theme_service.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 
@@ -38,9 +36,9 @@ void main() async {
       await Hive.openBox<ProductCategory>('categories');
       await Hive.openBox<ProductPurchase>('product_purchases');
       await Hive.openBox<CurrencySettings>('currency_settings');
-      print('Hive boxes opened successfully');
+      // print('Hive boxes opened successfully');
     } catch (e) {
-      print('Error opening Hive boxes: $e');
+      // print('Error opening Hive boxes: $e');
       // Try to delete and recreate boxes if they're corrupted
       await Hive.deleteBoxFromDisk('customers');
       await Hive.deleteBoxFromDisk('debts');
@@ -52,10 +50,10 @@ void main() async {
       await Hive.openBox<ProductCategory>('categories');
       await Hive.openBox<ProductPurchase>('product_purchases');
       await Hive.openBox<CurrencySettings>('currency_settings');
-      print('Hive boxes recreated successfully');
+      // print('Hive boxes recreated successfully');
     }
   } catch (e) {
-    print('Error during initialization: $e');
+    // print('Error during initialization: $e');
   }
   
   runApp(const BechaalanyDebtApp());

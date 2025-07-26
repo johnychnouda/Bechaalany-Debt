@@ -16,7 +16,7 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   String _searchQuery = '';
-  List<dynamic> _filteredProducts = [];
+  List<Subcategory> _filteredProducts = [];
   String _selectedCategory = 'All';
   String _sortBy = 'Name';
   bool _sortAscending = true;
@@ -181,7 +181,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             _filterProducts();
                           },
                           backgroundColor: Colors.transparent,
-                          selectedColor: AppColors.primary.withOpacity(0.2),
+                          selectedColor: AppColors.primary.withAlpha(51), // 0.2 * 255
                           checkmarkColor: AppColors.primary,
                           labelStyle: TextStyle(
                             color: isSelected ? AppColors.primary : AppColors.textSecondary,
@@ -365,7 +365,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withAlpha(26), // 0.1 * 255
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.category, color: Colors.blue, size: 24),
@@ -384,7 +384,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.inventory, color: Colors.green, size: 24),
@@ -404,7 +404,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.delete, color: Colors.red, size: 24),
@@ -420,7 +420,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.delete_sweep, color: Colors.red, size: 24),
@@ -1167,9 +1167,9 @@ class _ProductCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26), // 0.1 * 255
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withAlpha(77)), // 0.3 * 255
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

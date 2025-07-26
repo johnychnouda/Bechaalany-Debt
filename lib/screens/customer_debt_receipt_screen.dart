@@ -3,6 +3,7 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../utils/currency_formatter.dart';
+import '../services/notification_service.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -77,7 +78,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26), // 0.1 * 255
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -137,7 +138,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26), // 0.1 * 255
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -217,7 +218,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26), // 0.1 * 255
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -314,7 +315,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26), // 0.1 * 255
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -347,10 +348,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getDebtStatusColor(isFullyPaid, isPartiallyPaid).withOpacity(0.1),
+        color: _getDebtStatusColor(isFullyPaid, isPartiallyPaid).withAlpha(26), // 0.1 * 255
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _getDebtStatusColor(isFullyPaid, isPartiallyPaid).withOpacity(0.3),
+          color: _getDebtStatusColor(isFullyPaid, isPartiallyPaid).withAlpha(77), // 0.3 * 255
           width: 1,
         ),
       ),
@@ -475,7 +476,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withAlpha(26), // 0.1 * 255
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -541,12 +542,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
-  void _printReceipt() {
+  void _printReceipt() async {
     // TODO: Implement print functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Print functionality coming soon!'),
-      ),
+    final notificationService = NotificationService();
+    await notificationService.showInfoNotification(
+      title: 'Print Feature',
+      body: 'Print functionality coming soon!',
     );
   }
 } 

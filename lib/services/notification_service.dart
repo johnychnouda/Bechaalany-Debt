@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/debt.dart';
+import '../models/customer.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -30,24 +31,193 @@ class NotificationService {
     _isInitialized = true;
   }
 
+  // Enhanced notification methods for different app actions
+  Future<void> showSuccessNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showNotification(
+      title: title,
+      body: body,
+      payload: payload,
+      category: 'success',
+    );
+  }
+
+  Future<void> showErrorNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showNotification(
+      title: title,
+      body: body,
+      payload: payload,
+      category: 'error',
+    );
+  }
+
+  Future<void> showInfoNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showNotification(
+      title: title,
+      body: body,
+      payload: payload,
+      category: 'info',
+    );
+  }
+
+  Future<void> showWarningNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await _showNotification(
+      title: title,
+      body: body,
+      payload: payload,
+      category: 'warning',
+    );
+  }
+
+  // Customer-related notifications
+  Future<void> showCustomerAddedNotification(Customer customer) async {
+    await showSuccessNotification(
+      title: 'Customer Added',
+      body: '${customer.name} has been added successfully',
+      payload: 'customer_added_${customer.id}',
+    );
+  }
+
+  Future<void> showCustomerUpdatedNotification(Customer customer) async {
+    await showSuccessNotification(
+      title: 'Customer Updated',
+      body: '${customer.name}\'s information has been updated',
+      payload: 'customer_updated_${customer.id}',
+    );
+  }
+
+  Future<void> showCustomerDeletedNotification(String customerName) async {
+    await showInfoNotification(
+      title: 'Customer Deleted',
+      body: '$customerName has been removed from your records',
+      payload: 'customer_deleted',
+    );
+  }
+
+  // Debt-related notifications
+  Future<void> showDebtAddedNotification(Debt debt) async {
+    await showSuccessNotification(
+      title: 'Debt Recorded',
+      body: '${debt.customerName} owes ${_formatCurrency(debt.amount)}',
+      payload: 'debt_added_${debt.id}',
+    );
+  }
+
+  Future<void> showDebtUpdatedNotification(Debt debt) async {
+    await showSuccessNotification(
+      title: 'Debt Updated',
+      body: '${debt.customerName}\'s debt has been updated',
+      payload: 'debt_updated_${debt.id}',
+    );
+  }
+
+  Future<void> showDebtPaidNotification(Debt debt) async {
+    await showSuccessNotification(
+      title: 'Payment Received',
+      body: '${debt.customerName} has paid ${_formatCurrency(debt.amount)}',
+      payload: 'debt_paid_${debt.id}',
+    );
+  }
+
+  Future<void> showDebtDeletedNotification(String customerName, double amount) async {
+    await showInfoNotification(
+      title: 'Debt Removed',
+      body: 'Debt of ${_formatCurrency(amount)} for $customerName has been deleted',
+      payload: 'debt_deleted',
+    );
+  }
+
+  // Payment-related notifications
+  Future<void> showPaymentAppliedNotification(Debt debt, double paymentAmount) async {
+    await showSuccessNotification(
+      title: 'Payment Applied',
+      body: '${_formatCurrency(paymentAmount)} applied to ${debt.customerName}\'s debt',
+      payload: 'payment_applied_${debt.id}',
+    );
+  }
+
+  // Settings and system notifications
+  Future<void> showSettingsSavedNotification() async {
+    await showSuccessNotification(
+      title: 'Settings Saved',
+      body: 'Your preferences have been updated',
+      payload: 'settings_saved',
+    );
+  }
+
+  Future<void> showDataExportedNotification() async {
+    await showSuccessNotification(
+      title: 'Data Exported',
+      body: 'Your data has been exported successfully',
+      payload: 'data_exported',
+    );
+  }
+
+  Future<void> showDataImportedNotification() async {
+    await showSuccessNotification(
+      title: 'Data Imported',
+      body: 'Your data has been imported successfully',
+      payload: 'data_imported',
+    );
+  }
+
+  Future<void> showCacheClearedNotification() async {
+    await showInfoNotification(
+      title: 'Cache Cleared',
+      body: 'App cache has been cleared successfully',
+      payload: 'cache_cleared',
+    );
+  }
+
+  Future<void> showSyncCompletedNotification() async {
+    await showSuccessNotification(
+      title: 'Sync Complete',
+      body: 'Your data has been synchronized',
+      payload: 'sync_completed',
+    );
+  }
+
+  Future<void> showSyncFailedNotification() async {
+    await showErrorNotification(
+      title: 'Sync Failed',
+      body: 'Unable to sync data. Please check your connection.',
+      payload: 'sync_failed',
+    );
+  }
+
+  // Debt reminder notifications
   Future<void> scheduleDebtReminders(List<Debt> pendingDebts) async {
     if (!_isInitialized) await initialize();
 
     // Cancel existing notifications
     await _notifications.cancelAll();
 
-    // For now, just show immediate notifications instead of scheduling
-    // This avoids timezone issues and is simpler for testing
+    // Show immediate notifications for pending debts
     for (final debt in pendingDebts) {
-      await showImmediateNotification(
+      await showWarningNotification(
         title: 'Pending Payment',
-        body: '${debt.customerName} owes \$${debt.amount.toStringAsFixed(2)}',
+        body: '${debt.customerName} owes ${_formatCurrency(debt.amount)}',
         payload: debt.id,
       );
     }
 
     if (pendingDebts.isNotEmpty) {
-      await showImmediateNotification(
+      await showInfoNotification(
         title: 'Daily Debt Summary',
         body: '${pendingDebts.length} pending payments',
         payload: 'summary',
@@ -55,25 +225,31 @@ class NotificationService {
     }
   }
 
-  Future<void> showImmediateNotification({
+  // Private method to show notifications with proper iOS configuration
+  Future<void> _showNotification({
     required String title,
     required String body,
     String? payload,
+    required String category,
   }) async {
     if (!_isInitialized) await initialize();
 
     const androidDetails = AndroidNotificationDetails(
-      'immediate_notifications',
-      'Immediate Notifications',
-      channelDescription: 'Immediate notifications for app events',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      'app_notifications',
+      'App Notifications',
+      channelDescription: 'Notifications for app events and actions',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
     );
 
     const iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
+      sound: 'default',
+      badgeNumber: 1,
+      categoryIdentifier: 'app_actions',
     );
 
     const details = NotificationDetails(
@@ -81,11 +257,31 @@ class NotificationService {
       iOS: iosDetails,
     );
 
+    final id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+    
     await _notifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      id,
       title,
       body,
       details,
+      payload: payload,
+    );
+  }
+
+  // Helper method to format currency
+  String _formatCurrency(double amount) {
+    return '\$${amount.toStringAsFixed(2)}';
+  }
+
+  // Legacy methods for backward compatibility
+  Future<void> showImmediateNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await showInfoNotification(
+      title: title,
+      body: body,
       payload: payload,
     );
   }

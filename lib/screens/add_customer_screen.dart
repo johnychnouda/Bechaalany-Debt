@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../services/notification_service.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -48,92 +49,53 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   }
 
   Future<void> _saveCustomer() async {
-    final l10n = AppLocalizations.of(context);
-    
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
-    String customerId = _idController.text.trim();
-    String name = _nameController.text.trim();
-    String phone = _phoneController.text.trim();
-    String email = _emailController.text.trim();
-    String address = _addressController.text.trim();
-    
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      final customer = Customer(
+        id: _idController.text.trim(),
+        name: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        createdAt: DateTime.now(),
+      );
+
       final appState = Provider.of<AppState>(context, listen: false);
       
-      Customer customer;
-      
       if (widget.customer != null) {
-        customer = widget.customer!.copyWith(
-          id: customerId,
-          name: name,
-          phone: phone,
-          email: email.isEmpty ? null : email,
-          address: address.isEmpty ? null : address,
-          updatedAt: DateTime.now(),
-        );
         await appState.updateCustomer(customer);
       } else {
-        customer = Customer(
-          id: customerId,
-          name: name,
-          phone: phone,
-          email: email.isEmpty ? null : email,
-          address: address.isEmpty ? null : address,
-          createdAt: DateTime.now(),
-        );
         await appState.addCustomer(customer);
       }
 
-      setState(() {
-        _isLoading = false;
-      });
-      
-      _showSuccessSnackBar(widget.customer != null 
-          ? 'Customer updated successfully!' 
-          : 'Customer added successfully!');
-      
-      Navigator.pop(context, true);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      
-      _showErrorSnackBar(widget.customer != null 
-          ? 'Failed to update customer: $e'
-          : 'Failed to add customer: $e');
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to save customer: $e',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-                            backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-                            backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

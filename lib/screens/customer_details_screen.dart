@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../services/notification_service.dart';
 import 'add_debt_screen.dart';
 import 'add_customer_screen.dart';
 
@@ -75,27 +76,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 try {
                   await appState.markDebtAsPaid(debt.id);
                   _loadCustomerDebts(); // Re-load after status change
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Debt marked as paid successfully'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                        margin: EdgeInsets.all(16),
-                      ),
-                    );
-                  }
+
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to mark debt as paid: $e'),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                        margin: const EdgeInsets.all(16),
-                      ),
+                    // Show error notification
+                    final notificationService = NotificationService();
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to mark debt as paid: $e',
                     );
                   }
                 }
@@ -128,27 +116,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 try {
                   await appState.deleteDebt(debt.id);
                   _loadCustomerDebts(); // Re-load after deletion
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Debt deleted successfully'),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                        margin: EdgeInsets.all(16),
-                      ),
-                    );
-                  }
+
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete debt: $e'),
-                        backgroundColor: Colors.red,
-                        behavior: SnackBarBehavior.floating,
-                        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                        margin: const EdgeInsets.all(16),
-                      ),
+                    // Show error notification
+                    final notificationService = NotificationService();
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to delete debt: $e',
                     );
                   }
                 }
@@ -232,7 +207,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withAlpha(13), // 0.05 * 255
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -370,7 +345,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withAlpha(13), // 0.05 * 255
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -396,7 +371,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
+                            color: Colors.red.withAlpha(26), // 0.1 * 255
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -426,7 +401,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.1),
+                            color: Colors.green.withAlpha(26), // 0.1 * 255
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -611,7 +586,7 @@ class _DebtCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
+                    color: _getStatusColor().withAlpha(26), // 0.1 * 255
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -677,7 +652,7 @@ class _DebtCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: _getStatusColor().withOpacity(0.1),
+                        color: _getStatusColor().withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -851,15 +826,9 @@ class _DebtCard extends StatelessWidget {
   }
 
   void _applyPartialPayment(double paymentAmount, BuildContext context) {
-    final updatedDebt = debt.copyWith(
-      paidAmount: debt.paidAmount + paymentAmount,
-      status: (debt.paidAmount + paymentAmount) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-      paidAt: (debt.paidAmount + paymentAmount) >= debt.amount ? DateTime.now() : debt.paidAt,
-    );
-    
-    // Update the debt through the parent widget
+    // Use the new partial payment method
     final appState = Provider.of<AppState>(context, listen: false);
-    appState.updateDebt(updatedDebt);
+    appState.applyPartialPayment(debt.id, paymentAmount);
   }
 }
 

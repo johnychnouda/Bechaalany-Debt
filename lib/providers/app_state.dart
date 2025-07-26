@@ -343,6 +343,9 @@ class AppState extends ChangeNotifier {
       
       notifyListeners();
       
+      // Show system notification
+      await _notificationService.showCustomerAddedNotification(customer);
+      
       if (_isOnline) {
         await _syncService.syncCustomers([customer]);
       }
@@ -366,6 +369,9 @@ class AppState extends ChangeNotifier {
         }
         
         notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showCustomerUpdatedNotification(customer);
       }
       
       if (_isOnline) {
@@ -379,6 +385,7 @@ class AppState extends ChangeNotifier {
   
   Future<void> deleteCustomer(String customerId) async {
     try {
+      final customer = _customers.firstWhere((c) => c.id == customerId);
       await _dataService.deleteCustomer(customerId);
       _customers.removeWhere((c) => c.id == customerId);
       _debts.removeWhere((d) => d.customerId == customerId);
@@ -390,6 +397,9 @@ class AppState extends ChangeNotifier {
       }
       
       notifyListeners();
+      
+      // Show system notification
+      await _notificationService.showCustomerDeletedNotification(customer.name);
       
       if (_isOnline) {
         await _syncService.deleteCustomer(customerId);
@@ -413,6 +423,9 @@ class AppState extends ChangeNotifier {
       }
       
       notifyListeners();
+      
+      // Show system notification
+      await _notificationService.showDebtAddedNotification(debt);
       
       if (_isOnline) {
         await _syncService.syncDebts([debt]);
@@ -440,6 +453,9 @@ class AppState extends ChangeNotifier {
         }
         
         notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showDebtUpdatedNotification(debt);
       }
       
       if (_isOnline) {
@@ -456,10 +472,14 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteDebt(String debtId) async {
     try {
+      final debt = _debts.firstWhere((d) => d.id == debtId);
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
       _clearCache();
       notifyListeners();
+      
+      // Show system notification
+      await _notificationService.showDebtDeletedNotification(debt.customerName, debt.amount);
       
       if (_isOnline) {
         await _syncService.deleteDebt(debtId);
@@ -475,6 +495,7 @@ class AppState extends ChangeNotifier {
       await _dataService.markDebtAsPaid(debtId);
       final index = _debts.indexWhere((d) => d.id == debtId);
       if (index != -1) {
+        final originalDebt = _debts[index];
         _debts[index] = _debts[index].copyWith(
           status: DebtStatus.paid,
           paidAmount: _debts[index].amount,
@@ -482,6 +503,9 @@ class AppState extends ChangeNotifier {
         );
         _clearCache();
         notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showDebtPaidNotification(originalDebt);
       }
       
       if (_isOnline) {
@@ -492,6 +516,41 @@ class AppState extends ChangeNotifier {
       await _scheduleNotifications();
     } catch (e) {
       print('Error marking debt as paid: $e');
+      rethrow;
+    }
+  }
+
+  // Apply partial payment to a debt
+  Future<void> applyPartialPayment(String debtId, double paymentAmount) async {
+    try {
+      final index = _debts.indexWhere((d) => d.id == debtId);
+      if (index != -1) {
+        final originalDebt = _debts[index];
+        final newPaidAmount = originalDebt.paidAmount + paymentAmount;
+        final isFullyPaid = newPaidAmount >= originalDebt.amount;
+        
+        _debts[index] = originalDebt.copyWith(
+          paidAmount: newPaidAmount,
+          status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+          paidAt: isFullyPaid ? DateTime.now() : originalDebt.paidAt,
+        );
+        
+        await _dataService.updateDebt(_debts[index]);
+        _clearCache();
+        notifyListeners();
+        
+        // Show system notification for partial payment
+        await _notificationService.showPaymentAppliedNotification(originalDebt, paymentAmount);
+        
+        if (_isOnline) {
+          await _syncService.syncDebts([_debts[index]]);
+        }
+        
+        // Reschedule notifications
+        await _scheduleNotifications();
+      }
+    } catch (e) {
+      print('Error applying partial payment: $e');
       rethrow;
     }
   }

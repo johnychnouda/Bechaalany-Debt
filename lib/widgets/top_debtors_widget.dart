@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
@@ -48,7 +47,7 @@ class TopDebtorsWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.1),
+                        color: AppColors.error.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -107,7 +106,7 @@ class TopDebtorsWidget extends StatelessWidget {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: _getRankColor(index).withOpacity(0.1),
+                                color: _getRankColor(index).withAlpha(26), // 0.1 * 255
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Center(
@@ -159,7 +158,7 @@ class TopDebtorsWidget extends StatelessWidget {
                                   _getRankLabel(index),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: _getRankColor(index).withOpacity(0.7),
+                                    color: _getRankColor(index).withAlpha(179), // 0.7 * 255
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

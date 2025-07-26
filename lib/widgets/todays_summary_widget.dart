@@ -26,7 +26,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -106,7 +106,7 @@ class _SummaryRow extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha(26), // 0.1 * 255
             borderRadius: BorderRadius.circular(6),
           ),
           child: Icon(

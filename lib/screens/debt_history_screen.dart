@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import 'customer_details_screen.dart';
+import '../services/notification_service.dart';
 import 'add_debt_from_product_screen.dart';
 import 'customer_debt_receipt_screen.dart';
 
@@ -118,21 +117,13 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     try {
       await appState.updateDebt(debt);
       _filterDebts(); // Re-filter after status change
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(debt.isFullyPaid ? 'Debt marked as paid successfully' : 'Payment applied successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update debt: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to update debt: $e',
         );
       }
     }
@@ -158,21 +149,13 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                 try {
                   await appState.deleteDebt(debt.id);
                   _filterDebts(); // Re-filter after deletion
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Debt deleted successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete debt: $e'),
-                        backgroundColor: AppColors.error,
-                      ),
+                    // Show error notification
+                    final notificationService = NotificationService();
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to delete debt: $e',
                     );
                   }
                 }
@@ -346,7 +329,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     // Get all debts for this customer
     final customerDebts = appState.debts.where((debt) => debt.customerId == customerId).toList();
     
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerDebtReceiptScreen(
@@ -724,7 +707,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 final amount = double.tryParse(amountController.text) ?? 0;
                 if (amount > 0 && amount <= totalRemaining) {
                   Navigator.of(dialogContext).pop();
-                  _applyPartialPayment(unpaidDebts, amount);
+                  _applyPartialPayment(context, unpaidDebts, amount);
                 }
               },
               child: const Text('Apply Payment'),
@@ -735,8 +718,9 @@ class _GroupedDebtCard extends StatelessWidget {
     );
   }
 
-  void _applyPartialPayment(List<Debt> unpaidDebts, double paymentAmount) {
+  void _applyPartialPayment(BuildContext context, List<Debt> unpaidDebts, double paymentAmount) {
     double remainingPayment = paymentAmount;
+    final appState = Provider.of<AppState>(context, listen: false);
     
     for (final debt in unpaidDebts) {
       if (remainingPayment <= 0) break;
@@ -744,13 +728,8 @@ class _GroupedDebtCard extends StatelessWidget {
       final debtRemaining = debt.remainingAmount;
       final paymentForThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
       
-      final updatedDebt = debt.copyWith(
-        paidAmount: debt.paidAmount + paymentForThisDebt,
-        status: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-        paidAt: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DateTime.now() : debt.paidAt,
-      );
-      
-      onMarkAsPaid(updatedDebt);
+      // Use the new partial payment method
+      appState.applyPartialPayment(debt.id, paymentForThisDebt);
       remainingPayment -= paymentForThisDebt;
     }
   }

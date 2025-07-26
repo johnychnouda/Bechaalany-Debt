@@ -2,16 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
-import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
-import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
-import 'add_debt_screen.dart';
-import 'customer_details_screen.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../services/notification_service.dart';
+
+// Type-safe class for grouped debt data
+class GroupedDebtData {
+  final String customerId;
+  final String customerName;
+  final List<Debt> debts;
+  final double totalAmount;
+  final double totalPaidAmount;
+  final double totalRemainingAmount;
+  final int totalDebts;
+  final int pendingDebts;
+  final int paidDebts;
+  final int partiallyPaidDebts;
+
+  const GroupedDebtData({
+    required this.customerId,
+    required this.customerName,
+    required this.debts,
+    required this.totalAmount,
+    required this.totalPaidAmount,
+    required this.totalRemainingAmount,
+    required this.totalDebts,
+    required this.pendingDebts,
+    required this.paidDebts,
+    required this.partiallyPaidDebts,
+  });
+
+  bool get hasPendingDebts => pendingDebts > 0;
+  bool get hasPartiallyPaidDebts => partiallyPaidDebts > 0;
+  bool get isAllPaid => paidDebts == totalDebts;
+}
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -21,7 +46,7 @@ class DebtsScreen extends StatefulWidget {
 }
 
 class _DebtsScreenState extends State<DebtsScreen> {
-  List<Map<String, dynamic>> _groupedDebts = [];
+  List<GroupedDebtData> _groupedDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
   Set<String> _lastKnownDebtIds = {};
@@ -72,7 +97,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       groupedMap[debt.customerId]!.add(debt);
     }
     
-    // Convert to list of maps for easier handling
+    // Convert to list of GroupedDebtData for better type safety
     _groupedDebts = groupedMap.entries.map((entry) {
       final customerDebts = entry.value;
       final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
@@ -83,18 +108,18 @@ class _DebtsScreenState extends State<DebtsScreen> {
       final paidDebts = customerDebts.where((d) => d.isFullyPaid).toList();
       final partiallyPaidDebts = customerDebts.where((d) => d.isPartiallyPaid).toList();
       
-      return {
-        'customerId': entry.key,
-        'customerName': customerDebts.first.customerName,
-        'debts': customerDebts,
-        'totalAmount': totalAmount,
-        'totalPaidAmount': totalPaidAmount,
-        'totalRemainingAmount': totalRemainingAmount,
-        'totalDebts': customerDebts.length,
-        'pendingDebts': pendingDebts.length,
-        'paidDebts': paidDebts.length,
-        'partiallyPaidDebts': partiallyPaidDebts.length,
-      };
+      return GroupedDebtData(
+        customerId: entry.key,
+        customerName: customerDebts.first.customerName,
+        debts: customerDebts,
+        totalAmount: totalAmount,
+        totalPaidAmount: totalPaidAmount,
+        totalRemainingAmount: totalRemainingAmount,
+        totalDebts: customerDebts.length,
+        pendingDebts: pendingDebts.length,
+        paidDebts: paidDebts.length,
+        partiallyPaidDebts: partiallyPaidDebts.length,
+      );
     }).toList();
     
     // Sort grouped debts
@@ -104,9 +129,9 @@ class _DebtsScreenState extends State<DebtsScreen> {
   void _sortGroupedDebts() {
     // Sort by the most recent debt date (newest first by default, oldest first when ascending)
     _groupedDebts.sort((a, b) {
-      final aLatestDebt = (a['debts'] as List<Debt>).reduce((curr, next) => 
+      final aLatestDebt = a.debts.reduce((curr, next) => 
           curr.createdAt.isAfter(next.createdAt) ? curr : next);
-      final bLatestDebt = (b['debts'] as List<Debt>).reduce((curr, next) => 
+      final bLatestDebt = b.debts.reduce((curr, next) => 
           curr.createdAt.isAfter(next.createdAt) ? curr : next);
       
       return _sortAscending 
@@ -116,106 +141,112 @@ class _DebtsScreenState extends State<DebtsScreen> {
   }
 
   Future<void> _markAsPaid(Debt debt) async {
-    final appState = Provider.of<AppState>(context, listen: false);
-    
     try {
-      await appState.updateDebt(debt);
-      _filterDebts(); // Re-filter after status change
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(debt.isFullyPaid ? 'Debt marked as paid successfully' : 'Payment applied successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.markDebtAsPaid(debt.id);
+      
+      // Refresh the list
+      _filterDebts();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update debt: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+      // Show error notification
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Error',
+        body: 'Failed to mark debt as paid: $e',
+      );
     }
   }
 
   Future<void> _deleteDebt(Debt debt) async {
-    final appState = Provider.of<AppState>(context, listen: false);
-    
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await appState.deleteDebt(debt.id);
-                  _filterDebts(); // Re-filter after deletion
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Debt deleted successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to delete debt: $e'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
-            ),
-          ],
-        );
-      },
-    );
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.deleteDebt(debt.id);
+      
+      // Refresh the list
+      _filterDebts();
+    } catch (e) {
+      // Show error notification
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Error',
+        body: 'Failed to delete debt: $e',
+      );
+    }
+  }
+
+  void _exportDebts() async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.exportData();
+      
+      // Show success notification
+      final notificationService = NotificationService();
+      await notificationService.showSuccessNotification(
+        title: 'Export Complete',
+        body: 'Debts data has been exported successfully',
+      );
+    } catch (e) {
+      // Show error notification
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Export Failed',
+        body: 'Failed to export debts: $e',
+      );
+    }
+  }
+
+  String _getEmptyStateMessage() {
+    if (_searchController.text.isNotEmpty) {
+      return 'No debts found matching "${_searchController.text}"';
+    }
+    if (_selectedStatus != 'All') {
+      return 'No ${_selectedStatus.toLowerCase()} debts found';
+    }
+    return 'No debts found';
+  }
+
+  String _getEmptyStateSubMessage() {
+    if (_searchController.text.isNotEmpty) {
+      return 'Try adjusting your search terms';
+    }
+    if (_selectedStatus != 'All') {
+      return 'Add some debts or change the status filter';
+    }
+    return 'Add your first debt to get started';
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Update filtered debts when app state changes
-        final currentDebtIds = appState.debts.map((d) => '${d.id}_${d.status}').toSet();
-        if (_lastKnownDebtIds != currentDebtIds) {
+        // Check if we need to refresh the list
+        final currentDebtIds = Set<String>.from(appState.debts.map((d) => d.id));
+        if (currentDebtIds != _lastKnownDebtIds) {
           _lastKnownDebtIds = currentDebtIds;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _filterDebts();
-          });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _filterDebts());
         }
 
-        final l10n = AppLocalizations.of(context);
-        
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.grey[50],
           appBar: AppBar(
-            title: Text(
-              'Debt History',
-              style: AppTheme.getDynamicHeadline(context),
-            ),
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            title: const Text('Debts'),
+            backgroundColor: Colors.grey[50],
+            elevation: 0,
             actions: [
               IconButton(
+                icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
+                onPressed: () {
+                  setState(() {
+                    _sortAscending = !_sortAscending;
+                    _sortGroupedDebts();
+                  });
+                },
+                tooltip: 'Sort by date',
+              ),
+              IconButton(
+                icon: const Icon(Icons.file_download),
                 onPressed: _exportDebts,
-                icon: const Icon(Icons.download),
-                tooltip: 'Export Report',
+                tooltip: 'Export debts',
               ),
             ],
           ),
@@ -226,68 +257,32 @@ class _DebtsScreenState extends State<DebtsScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // Search field
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: l10n.searchByNameDescription,
-                        prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                },
-                                icon: Icon(Icons.clear, color: Theme.of(context).iconTheme.color),
-                              )
-                            : null,
+                        hintText: 'Search debts...',
+                        prefixIcon: const Icon(Icons.search),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                        fillColor: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Status Filter Chips
+                    // Status filter
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: ['All', 'Pending', 'Paid'].map((status) {
-                          final isSelected = _selectedStatus == status;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(status),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedStatus = status;
-                                });
-                                _filterDebts();
-                              },
-                              backgroundColor: Colors.grey[200],
-                              selectedColor: AppColors.primary.withOpacity(0.2),
-                              checkmarkColor: AppColors.primary,
-                            ),
-                          );
-                        }).toList(),
+                        children: [
+                          _buildFilterChip('All', _selectedStatus == 'All'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Pending', _selectedStatus == 'Pending'),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('Paid', _selectedStatus == 'Paid'),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Sort Direction Toggle
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _sortAscending = !_sortAscending;
-                            });
-                            _filterDebts();
-                          },
-                          icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
-                          tooltip: _sortAscending ? 'Oldest first' : 'Newest first',
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -299,16 +294,24 @@ class _DebtsScreenState extends State<DebtsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).textTheme.bodySmall?.color),
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               _getEmptyStateMessage(),
-                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 18, fontWeight: FontWeight.w600)
+                              style: AppTheme.getDynamicTitle3(context).copyWith(
+                                color: Colors.black,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               _getEmptyStateSubMessage(),
-                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)
+                              style: AppTheme.getDynamicCallout(context).copyWith(
+                                color: Colors.grey[600],
+                              ),
                             ),
                           ],
                         ),
@@ -320,9 +323,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
                           final group = _groupedDebts[index];
                           return _GroupedDebtCard(
                             group: group,
-                            onMarkAsPaid: (debt) => _markAsPaid(debt),
-                            onDelete: (debt) => _deleteDebt(debt),
-                            onViewCustomer: () => _viewCustomerDetails(group['customerId'] as String),
+                            onMarkAsPaid: _markAsPaid,
+                            onDelete: _deleteDebt,
+                            onViewCustomer: () {
+                              // Navigate to customer details
+                              // This would be implemented based on your navigation structure
+                            },
                             selectedStatus: _selectedStatus,
                           );
                         },
@@ -332,111 +338,39 @@ class _DebtsScreenState extends State<DebtsScreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddDebtScreen(),
-                ),
-              );
-              // No need to manually refresh - AppState handles it
+              await Navigator.pushNamed(context, '/add-debt');
+              _filterDebts(); // Refresh the list when returning
             },
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-            ),
+            backgroundColor: AppColors.primary,
+            child: const Icon(Icons.add, color: Colors.white),
           ),
         );
       },
     );
   }
 
-  void _viewCustomerDetails(String customerId) async {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final customer = appState.customers.firstWhere((c) => c.id == customerId);
-    
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CustomerDetailsScreen(
-          customer: customer,
-          showDebtsSection: false,
-        ),
+  Widget _buildFilterChip(String label, bool isSelected) {
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedStatus = selected ? label : 'All';
+          _filterDebts();
+        });
+      },
+      selectedColor: AppColors.primary.withAlpha(51), // 0.2 * 255
+      checkmarkColor: AppColors.primary,
+      labelStyle: TextStyle(
+        color: isSelected ? AppColors.primary : Colors.grey[600],
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
-    // No need to manually refresh - AppState handles it
-  }
-
-  String _getEmptyStateMessage() {
-    switch (_selectedStatus) {
-      case 'Pending':
-        return 'No pending debts';
-      case 'Paid':
-        return 'No paid debts';
-      case 'All':
-      default:
-        return 'No debts found';
-    }
-  }
-
-  String _getEmptyStateSubMessage() {
-    switch (_selectedStatus) {
-      case 'Pending':
-        return 'All debts have been paid';
-      case 'Paid':
-        return 'No debts have been marked as paid yet';
-      case 'All':
-      default:
-        return 'Add a new debt to get started';
-    }
-  }
-
-  Future<void> _exportDebts() async {
-    try {
-      final appState = Provider.of<AppState>(context, listen: false);
-      final debts = appState.debts;
-      
-      // Create CSV content
-      final csvContent = StringBuffer();
-      csvContent.writeln('Customer Name,Description,Amount,Status,Payment Date,Notes');
-      
-      for (final debt in debts) {
-        final paymentDate = debt.paidAt != null ? debt.paidAt!.toString().split(' ')[0] : '';
-        final notes = debt.notes ?? '';
-        csvContent.writeln('${debt.customerName},"${debt.description}",${debt.amount},${debt.statusText},$paymentDate,"$notes"');
-      }
-      
-      // Get temporary directory
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/debts_report.csv');
-      await file.writeAsString(csvContent.toString());
-      
-      // Share the file
-      await Share.shareXFiles([XFile(file.path)], text: 'Debts Report');
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debts report exported successfully'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to export debts: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
   }
 }
 
 class _GroupedDebtCard extends StatelessWidget {
-  final Map<String, dynamic> group;
+  final GroupedDebtData group;
   final Function(Debt) onMarkAsPaid;
   final Function(Debt) onDelete;
   final VoidCallback onViewCustomer;
@@ -451,12 +385,9 @@ class _GroupedDebtCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
-    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
-    
-    if (pendingDebts > 0 && partiallyPaidDebts > 0) {
+    if (group.hasPendingDebts && group.hasPartiallyPaidDebts) {
       return Colors.blue; // Mixed status
-    } else if (pendingDebts > 0) {
+    } else if (group.hasPendingDebts) {
       return Colors.orange; // All pending
     } else {
       return Colors.green; // All paid
@@ -464,12 +395,9 @@ class _GroupedDebtCard extends StatelessWidget {
   }
 
   String _getStatusText() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
-    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
-    
-    if (pendingDebts == 0) {
+    if (group.isAllPaid) {
       return 'All Paid';
-    } else if (partiallyPaidDebts > 0) {
+    } else if (group.hasPartiallyPaidDebts) {
       return 'Partially Paid';
     } else {
       return 'Pending';
@@ -478,13 +406,6 @@ class _GroupedDebtCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalRemainingAmount = group['totalRemainingAmount'] as double;
-    final totalPaidAmount = group['totalPaidAmount'] as double;
-    final totalAmount = group['totalAmount'] as double;
-    final pendingDebts = group['pendingDebts'] as int;
-    final paidDebts = group['paidDebts'] as int;
-    final partiallyPaidDebts = group['partiallyPaidDebts'] as int;
-    
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -498,7 +419,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
+                    color: _getStatusColor().withAlpha(26), // 0.1 * 255
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -513,7 +434,7 @@ class _GroupedDebtCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        group['customerName'] as String,
+                        group.customerName,
                         style: AppTheme.getDynamicCallout(context).copyWith(
                           color: Colors.black,
                         ),
@@ -521,27 +442,27 @@ class _GroupedDebtCard extends StatelessWidget {
                       // Show different subtitle based on filter
                       if (selectedStatus == 'All') ...[
                         Text(
-                          totalRemainingAmount > 0 
-                              ? '${CurrencyFormatter.formatAmount(context, totalRemainingAmount)} remaining'
+                          group.totalRemainingAmount > 0 
+                              ? '${CurrencyFormatter.formatAmount(context, group.totalRemainingAmount)} remaining'
                               : 'All paid',
                           style: TextStyle(
-                            color: totalRemainingAmount > 0 ? Colors.red[600] : Colors.green[600],
+                            color: group.totalRemainingAmount > 0 ? Colors.red[600] : Colors.green[600],
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ] else if (selectedStatus == 'Pending') ...[
                         Text(
-                          '${group['totalDebts']} debts • ${CurrencyFormatter.formatAmount(context, totalRemainingAmount)} remaining',
+                          '${group.pendingDebts} pending debt${group.pendingDebts == 1 ? '' : 's'}',
                           style: TextStyle(
-                            color: Colors.red[600],
+                            color: Colors.orange[600],
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ] else if (selectedStatus == 'Paid') ...[
                         Text(
-                          '${CurrencyFormatter.formatAmount(context, totalPaidAmount)} paid',
+                          '${group.paidDebts} paid debt${group.paidDebts == 1 ? '' : 's'}',
                           style: TextStyle(
                             color: Colors.green[600],
                             fontSize: 14,
@@ -552,368 +473,141 @@ class _GroupedDebtCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        // Show different main amount based on filter
-                        if (selectedStatus == 'All') ...[
-                          if (totalRemainingAmount > 0) ...[
-                            Text(
-                              CurrencyFormatter.formatAmount(context, totalRemainingAmount),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.red,
-                              ),
-                            ),
-                            Text(
-                              'Remaining',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ] else ...[
-                            Text(
-                              'All Paid',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            Text(
-                              'No debt',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.green[600],
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ] else ...[
-                          Text(
-                            CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double),
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          if ((group['totalPaidAmount'] as double) > 0) ...[
-                            Text(
-                              'Paid: ${CurrencyFormatter.formatAmount(context, group['totalPaidAmount'] as double)}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.green[600],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ],
+                // Status badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor().withAlpha(26), // 0.1 * 255
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: _getStatusColor().withAlpha(77), // 0.3 * 255
                     ),
-                    // Show status badge only when not "All", "Pending", or "Paid"
-                    if (selectedStatus != 'All' && selectedStatus != 'Pending' && selectedStatus != 'Paid') ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor().withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _getStatusColor().withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          _getStatusText(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: _getStatusColor(),
-                          ),
+                  ),
+                  child: Text(
+                    _getStatusText(),
+                    style: TextStyle(
+                      color: _getStatusColor(),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Debt details
+            ...group.debts.map((debt) => _buildDebtItem(debt)).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebtItem(Debt debt) {
+    final isFullyPaid = debt.isFullyPaid;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.grey[200]!,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  debt.description,
+                  style: AppTheme.getDynamicCallout(context).copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      CurrencyFormatter.formatAmount(context, debt.amount),
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (debt.paidAmount > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${CurrencyFormatter.formatAmount(context, debt.paidAmount)} paid)',
+                        style: TextStyle(
+                          color: Colors.green[600],
+                          fontSize: 12,
                         ),
                       ),
                     ],
                   ],
                 ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Date information
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 8),
+                const SizedBox(height: 4),
                 Text(
-                  'Latest: ${_formatDate(_getLatestDebt().createdAt)}',
+                  'Created: ${_formatDate(debt.createdAt)}',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: Colors.grey[500],
                     fontSize: 12,
                   ),
                 ),
-                // Show paid debts count only when not "All" or "Paid"
-                if (group['paidDebts'] > 0 && selectedStatus != 'All' && selectedStatus != 'Paid') ...[
-                  const SizedBox(width: 16),
-                  Icon(Icons.check_circle, size: 16, color: Colors.green),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${group['paidDebts']} paid',
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
               ],
             ),
-            
-            // Action buttons
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if ((group['totalRemainingAmount'] as double) > 0) ...[
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showPaymentDialog(context),
-                      icon: const Icon(Icons.payment, size: 16),
-                      label: const Text('Make Payment'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onViewCustomer,
-                    icon: const Icon(Icons.person, size: 16),
-                    label: const Text('View Customer Debts'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                  ),
-                ),
-              ],
+          ),
+          if (!isFullyPaid) ...[
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => onMarkAsPaid(debt),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                minimumSize: const Size(0, 32),
+              ),
+              child: const Text('Mark Paid'),
             ),
           ],
-        ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () => onDelete(debt),
+            icon: const Icon(Icons.delete, color: Colors.red),
+            iconSize: 20,
+          ),
+        ],
       ),
     );
   }
 
   IconData _getStatusIcon() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => d.status == DebtStatus.pending).length;
-    return pendingDebts > 0 ? Icons.pending : Icons.check_circle;
-  }
-
-  Debt _getLatestDebt() {
-    final debts = group['debts'] as List<Debt>;
-    return debts.reduce((curr, next) => 
-        curr.createdAt.isAfter(next.createdAt) ? curr : next);
-  }
-
-  void _showPaymentDialog(BuildContext context) {
-    final unpaidDebts = (group['debts'] as List<Debt>)
-        .where((d) => !d.isFullyPaid)
-        .toList();
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: Text('Payment for ${group['customerName']}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)}'),
-              const SizedBox(height: 16),
-              const Text('Payment Options:', style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              _PaymentOption(
-                title: 'Pay All Remaining',
-                subtitle: 'Mark all debts as fully paid',
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _payAllRemaining(unpaidDebts);
-                },
-              ),
-              const SizedBox(height: 8),
-
-              _PaymentOption(
-                title: 'Partial Payment',
-                subtitle: 'Enter amount to pay',
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _showPartialPaymentDialog(context, unpaidDebts);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _payAllRemaining(List<Debt> unpaidDebts) {
-    for (final debt in unpaidDebts) {
-      final updatedDebt = debt.copyWith(
-        paidAmount: debt.amount,
-        status: DebtStatus.paid,
-        paidAt: DateTime.now(),
-      );
-      onMarkAsPaid(updatedDebt);
-    }
-  }
-
-
-
-  void _showPartialPaymentDialog(BuildContext context, List<Debt> unpaidDebts) {
-    final TextEditingController amountController = TextEditingController();
-    final totalRemaining = unpaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Partial Payment'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Payment Amount',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final amount = double.tryParse(amountController.text) ?? 0;
-                if (amount > 0 && amount <= totalRemaining) {
-                  Navigator.of(dialogContext).pop();
-                  _applyPartialPayment(unpaidDebts, amount);
-                }
-              },
-              child: const Text('Apply Payment'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _applyPartialPayment(List<Debt> unpaidDebts, double paymentAmount) {
-    double remainingPayment = paymentAmount;
-    
-    for (final debt in unpaidDebts) {
-      if (remainingPayment <= 0) break;
-      
-      final debtRemaining = debt.remainingAmount;
-      final paymentForThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
-      
-      final updatedDebt = debt.copyWith(
-        paidAmount: debt.paidAmount + paymentForThisDebt,
-        status: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-        paidAt: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DateTime.now() : debt.paidAt,
-      );
-      
-      onMarkAsPaid(updatedDebt);
-      remainingPayment -= paymentForThisDebt;
+    if (group.hasPendingDebts && group.hasPartiallyPaidDebts) {
+      return Icons.pending; // Use pending instead of mixed_status
+    } else if (group.hasPendingDebts) {
+      return Icons.pending;
+    } else {
+      return Icons.check_circle;
     }
   }
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final difference = now.difference(date).inDays;
-    
-    if (difference == 0) {
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
       return 'Today';
-    } else if (difference == 1) {
+    } else if (difference.inDays == 1) {
       return 'Yesterday';
-    } else if (difference < 7) {
-      return '$difference days ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
-  }
-}
-
-class _PaymentOption extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _PaymentOption({
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
-          ],
-        ),
-      ),
-    );
   }
 }

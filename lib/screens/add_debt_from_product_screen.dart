@@ -6,6 +6,7 @@ import '../models/debt.dart';
 import '../models/category.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../services/notification_service.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 
 class AddDebtFromProductScreen extends StatefulWidget {
@@ -141,9 +142,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
+          color: Colors.orange.withAlpha(26), // 0.1 * 255
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          border: Border.all(color: Colors.orange.withAlpha(77)), // 0.3 * 255
         ),
         child: const Row(
           children: [
@@ -181,9 +182,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
+          color: Colors.orange.withAlpha(26), // 0.1 * 255
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          border: Border.all(color: Colors.orange.withAlpha(77)), // 0.3 * 255
         ),
         child: const Row(
           children: [
@@ -305,9 +306,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withAlpha(26), // 0.1 * 255
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+            border: Border.all(color: AppColors.primary.withAlpha(77)), // 0.3 * 255
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -340,9 +341,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26), // 0.1 * 255
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withAlpha(77)), // 0.3 * 255
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -397,21 +398,15 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       await appState.addDebt(debt);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Debt added successfully for ${_selectedCustomer!.name}'),
-            backgroundColor: AppColors.success,
-          ),
-        );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add debt: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to add debt: $e',
         );
       }
     } finally {

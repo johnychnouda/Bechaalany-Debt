@@ -41,7 +41,7 @@ class DataService {
     try {
       return _customerBoxSafe.values.toList();
     } catch (e) {
-      print('Error accessing customers box: $e');
+      // print('Error accessing customers box: $e');
       return [];
     }
   }
@@ -49,9 +49,9 @@ class DataService {
   Future<void> addCustomer(Customer customer) async {
     try {
       _customerBoxSafe.put(customer.id, customer);
-      print('Customer added successfully to local storage');
+      // print('Customer added successfully to local storage');
     } catch (e) {
-      print('Error adding customer: $e');
+      // print('Error adding customer: $e');
       rethrow;
     }
   }
@@ -59,9 +59,9 @@ class DataService {
   Future<void> updateCustomer(Customer customer) async {
     try {
       _customerBoxSafe.put(customer.id, customer);
-      print('Customer updated successfully in local storage');
+      // print('Customer updated successfully in local storage');
     } catch (e) {
-      print('Error updating customer: $e');
+      // print('Error updating customer: $e');
       rethrow;
     }
   }
@@ -73,9 +73,9 @@ class DataService {
       _debtBoxSafe.values.where((d) => d.customerId == customerId).toList().forEach((d) {
         _debtBoxSafe.delete(d.id);
       });
-      print('Customer and related debts deleted successfully from local storage');
+      // print('Customer and related debts deleted successfully from local storage');
     } catch (e) {
-      print('Error deleting customer: $e');
+      // print('Error deleting customer: $e');
       rethrow;
     }
   }
@@ -84,7 +84,7 @@ class DataService {
     try {
       return _customerBoxSafe.get(customerId);
     } catch (e) {
-      print('Error getting customer: $e');
+      // print('Error getting customer: $e');
       return null;
     }
   }
@@ -94,7 +94,7 @@ class DataService {
     try {
       return _debtBoxSafe.values.toList();
     } catch (e) {
-      print('Error accessing debts box: $e');
+      // print('Error accessing debts box: $e');
       return [];
     }
   }
@@ -103,7 +103,7 @@ class DataService {
     try {
       return _debtBoxSafe.values.where((d) => d.customerId == customerId).toList();
     } catch (e) {
-      print('Error getting customer debts: $e');
+      // print('Error getting customer debts: $e');
       return [];
     }
   }
@@ -111,9 +111,9 @@ class DataService {
   Future<void> addDebt(Debt debt) async {
     try {
       _debtBoxSafe.put(debt.id, debt);
-      print('Debt added successfully to local storage');
+      // print('Debt added successfully to local storage');
     } catch (e) {
-      print('Error adding debt: $e');
+      // print('Error adding debt: $e');
       rethrow;
     }
   }
@@ -121,9 +121,9 @@ class DataService {
     Future<void> updateDebt(Debt debt) async {
     try {
       _debtBoxSafe.put(debt.id, debt);
-      print('Debt updated successfully in local storage');
+      // print('Debt updated successfully in local storage');
     } catch (e) {
-      print('Error updating debt: $e');
+      // print('Error updating debt: $e');
       rethrow;
     }
   }
@@ -131,9 +131,9 @@ class DataService {
   Future<void> deleteDebt(String debtId) async {
     try {
       _debtBoxSafe.delete(debtId);
-      print('Debt deleted successfully from local storage');
+      // print('Debt deleted successfully from local storage');
     } catch (e) {
-      print('Error deleting debt: $e');
+      // print('Error deleting debt: $e');
       rethrow;
     }
   }
@@ -148,10 +148,10 @@ class DataService {
           paidAt: DateTime.now(),
         );
         _debtBoxSafe.put(debtId, updated);
-        print('Debt marked as paid in local storage');
+        // print('Debt marked as paid in local storage');
       }
     } catch (e) {
-      print('Error marking debt as paid: $e');
+      // print('Error marking debt as paid: $e');
       rethrow;
     }
   }
@@ -200,7 +200,7 @@ class DataService {
     try {
       return _categoryBoxSafe.values.toList();
     } catch (e) {
-      print('Error accessing categories box: $e');
+      // print('Error accessing categories box: $e');
       return [];
     }
   }
@@ -208,9 +208,9 @@ class DataService {
   Future<void> addCategory(ProductCategory category) async {
     try {
       _categoryBoxSafe.put(category.id, category);
-      print('Category added successfully to local storage');
+      // print('Category added successfully to local storage');
     } catch (e) {
-      print('Error adding category: $e');
+      // print('Error adding category: $e');
       rethrow;
     }
   }
@@ -218,9 +218,9 @@ class DataService {
   Future<void> updateCategory(ProductCategory category) async {
     try {
       _categoryBoxSafe.put(category.id, category);
-      print('Category updated successfully in local storage');
+      // print('Category updated successfully in local storage');
     } catch (e) {
-      print('Error updating category: $e');
+      // print('Error updating category: $e');
       rethrow;
     }
   }
@@ -228,9 +228,9 @@ class DataService {
   Future<void> deleteCategory(String categoryId) async {
     try {
       _categoryBoxSafe.delete(categoryId);
-      print('Category deleted successfully from local storage');
+      // print('Category deleted successfully from local storage');
     } catch (e) {
-      print('Error deleting category: $e');
+      // print('Error deleting category: $e');
       rethrow;
     }
   }
@@ -239,7 +239,7 @@ class DataService {
     try {
       return _categoryBoxSafe.get(categoryId);
     } catch (e) {
-      print('Error getting category: $e');
+      // print('Error getting category: $e');
       return null;
     }
   }
@@ -249,7 +249,7 @@ class DataService {
     try {
       return _productPurchaseBoxSafe.values.toList();
     } catch (e) {
-      print('Error accessing product purchases box: $e');
+      // print('Error accessing product purchases box: $e');
       return [];
     }
   }
@@ -258,7 +258,7 @@ class DataService {
     try {
       return _productPurchaseBoxSafe.values.where((p) => p.customerId == customerId).toList();
     } catch (e) {
-      print('Error getting customer product purchases: $e');
+      // print('Error getting customer product purchases: $e');
       return [];
     }
   }
@@ -266,9 +266,9 @@ class DataService {
   Future<void> addProductPurchase(ProductPurchase purchase) async {
     try {
       _productPurchaseBoxSafe.put(purchase.id, purchase);
-      print('Product purchase added successfully to local storage');
+      // print('Product purchase added successfully to local storage');
     } catch (e) {
-      print('Error adding product purchase: $e');
+      // print('Error adding product purchase: $e');
       rethrow;
     }
   }
@@ -276,9 +276,9 @@ class DataService {
   Future<void> updateProductPurchase(ProductPurchase purchase) async {
     try {
       _productPurchaseBoxSafe.put(purchase.id, purchase);
-      print('Product purchase updated successfully in local storage');
+      // print('Product purchase updated successfully in local storage');
     } catch (e) {
-      print('Error updating product purchase: $e');
+      // print('Error updating product purchase: $e');
       rethrow;
     }
   }
@@ -286,9 +286,9 @@ class DataService {
   Future<void> deleteProductPurchase(String purchaseId) async {
     try {
       _productPurchaseBoxSafe.delete(purchaseId);
-      print('Product purchase deleted successfully from local storage');
+      // print('Product purchase deleted successfully from local storage');
     } catch (e) {
-      print('Error deleting product purchase: $e');
+      // print('Error deleting product purchase: $e');
       rethrow;
     }
   }
@@ -300,10 +300,10 @@ class DataService {
         purchase.isPaid = true;
         purchase.paidAt = DateTime.now();
         _productPurchaseBoxSafe.put(purchaseId, purchase);
-        print('Product purchase marked as paid successfully');
+        // print('Product purchase marked as paid successfully');
       }
     } catch (e) {
-      print('Error marking product purchase as paid: $e');
+      // print('Error marking product purchase as paid: $e');
       rethrow;
     }
   }
@@ -312,7 +312,7 @@ class DataService {
     try {
       return _productPurchaseBoxSafe.get(purchaseId);
     } catch (e) {
-      print('Error getting product purchase: $e');
+      // print('Error getting product purchase: $e');
       return null;
     }
   }
@@ -348,7 +348,7 @@ class DataService {
       }
       return settings;
     } catch (e) {
-      print('Error accessing currency settings: $e');
+      // print('Error accessing currency settings: $e');
       return null;
     }
   }
@@ -357,9 +357,9 @@ class DataService {
     try {
       _currencySettingsBoxSafe.clear(); // Clear existing settings
       _currencySettingsBoxSafe.put('default', settings);
-      print('Currency settings updated successfully');
+      // print('Currency settings updated successfully');
     } catch (e) {
-      print('Error updating currency settings: $e');
+      // print('Error updating currency settings: $e');
       rethrow;
     }
   }
@@ -393,9 +393,9 @@ class DataService {
       
       // Don't clear currency settings as they are app configuration
       
-      print('All data cleared successfully from local storage');
+      // print('All data cleared successfully from local storage');
     } catch (e) {
-      print('Error clearing all data: $e');
+      // print('Error clearing all data: $e');
       rethrow;
     }
   }
@@ -410,9 +410,9 @@ class DataService {
       await _productPurchaseBoxSafe.compact();
       await _currencySettingsBoxSafe.compact();
       
-      print('Cache cleared successfully');
+      // print('Cache cleared successfully');
     } catch (e) {
-      print('Error clearing cache: $e');
+      // print('Error clearing cache: $e');
       rethrow;
     }
   }
@@ -443,7 +443,7 @@ class DataService {
         'items': totalItems,
       };
     } catch (e) {
-      print('Error getting cache info: $e');
+      // print('Error getting cache info: $e');
       return {'size': 0, 'items': 0};
     }
   }

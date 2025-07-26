@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
-import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
@@ -69,18 +68,18 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.dynamicSurface(context).withOpacity(0.8),
-                    AppColors.dynamicSurface(context).withOpacity(0.6),
+                    AppColors.dynamicSurface(context).withAlpha(204), // 0.8 * 255
+                    AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withAlpha(26), // 0.1 * 255
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withAlpha(13), // 0.05 * 255
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -94,7 +93,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withAlpha(26), // 0.1 * 255
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -133,14 +132,14 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: netProfit >= 0
-                            ? [AppColors.success.withOpacity(0.1), AppColors.success.withOpacity(0.05)]
-                            : [AppColors.error.withOpacity(0.1), AppColors.error.withOpacity(0.05)],
+                            ? [AppColors.success.withAlpha(26), AppColors.success.withAlpha(13)] // 0.1 * 255, 0.05 * 255
+                            : [AppColors.error.withAlpha(26), AppColors.error.withAlpha(13)], // 0.1 * 255, 0.05 * 255
                       ),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: netProfit >= 0
-                            ? AppColors.success.withOpacity(0.3)
-                            : AppColors.error.withOpacity(0.3),
+                            ? AppColors.success.withAlpha(77) // 0.3 * 255
+                            : AppColors.error.withAlpha(77), // 0.3 * 255
                       ),
                     ),
                     child: Row(
@@ -201,10 +200,10 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context).withOpacity(0.5),
+        color: AppColors.dynamicSurface(context).withAlpha(128), // 0.5 * 255
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withOpacity(0.1),
+          color: color.withAlpha(26), // 0.1 * 255
         ),
       ),
       child: Row(

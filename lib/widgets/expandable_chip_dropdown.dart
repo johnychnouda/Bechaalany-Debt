@@ -121,7 +121,7 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
               border: Border.all(color: Colors.grey[300]!),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withAlpha(26), // 0.1 * 255
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -171,7 +171,7 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? AppColors.primary.withAlpha(26) : Colors.transparent, // 0.1 * 255
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(

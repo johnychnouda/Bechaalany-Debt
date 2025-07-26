@@ -31,7 +31,7 @@ class TotalDebtorsWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -79,10 +79,10 @@ class TotalDebtorsWidget extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withOpacity(0.1),
+                      color: AppColors.info.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.info.withOpacity(0.3),
+                        color: AppColors.info.withAlpha(77), // 0.3 * 255
                       ),
                     ),
                     child: Row(
@@ -111,10 +111,10 @@ class TotalDebtorsWidget extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withOpacity(0.1),
+                      color: AppColors.warning.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.warning.withOpacity(0.3),
+                        color: AppColors.warning.withAlpha(77), // 0.3 * 255
                       ),
                     ),
                     child: Row(
@@ -143,10 +143,10 @@ class TotalDebtorsWidget extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withAlpha(26), // 0.1 * 255
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: AppColors.success.withOpacity(0.3),
+                        color: AppColors.success.withAlpha(77), // 0.3 * 255
                       ),
                     ),
                     child: Row(
@@ -183,7 +183,7 @@ class TotalDebtorsWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withAlpha(26), // 0.1 * 255
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(

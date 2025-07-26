@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
+import '../services/notification_service.dart';
 
 class AddDebtScreen extends StatefulWidget {
   final Customer? customer;
@@ -116,14 +117,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           _isLoading = false;
         });
         
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debt added successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        
         // Navigate back with result
         Navigator.pop(context, true);
       } catch (e) {
@@ -131,12 +124,11 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           _isLoading = false;
         });
         
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add debt: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to add debt: $e',
         );
       }
     }

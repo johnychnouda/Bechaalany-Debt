@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class AppLocalizations {
   final Locale locale;
@@ -24,7 +22,7 @@ class AppLocalizations {
       }
       return true;
     } catch (e) {
-      print('Error loading localization: $e');
+      // print('Error loading localization: $e');
       return false;
     }
   }

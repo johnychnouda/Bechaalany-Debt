@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/currency_formatter.dart';
+import '../services/notification_service.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -106,12 +107,14 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                 try {
                   await appState.deleteCustomer(customer.id);
                   _filterCustomers(); // Re-filter after deletion
-                  if (mounted) {
-                    _showSuccessSnackBar('Customer deleted successfully');
-                  }
                 } catch (e) {
                   if (mounted) {
-                    _showErrorSnackBar('Failed to delete customer: $e');
+                    // Show error notification
+                    final notificationService = NotificationService();
+                    await notificationService.showErrorNotification(
+                      title: 'Error',
+                      body: 'Failed to delete customer: $e',
+                    );
                   }
                 }
               },
@@ -123,29 +126,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     );
   }
 
-  void _showSuccessSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-                            backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-                            backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -159,12 +140,12 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
         }
 
         final groupedCustomers = _groupCustomersByFirstLetter();
-        final l10n = AppLocalizations.of(context);
+        // final l10n = AppLocalizations.of(context); // Unused variable removed
         
         return Scaffold(
           backgroundColor: Colors.grey[50],
           appBar: AppBar(
-            title: Text(l10n.customers),
+            title: Text(AppLocalizations.of(context).customers),
             backgroundColor: Colors.grey[50],
             elevation: 0,
           ),
@@ -203,14 +184,14 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  l10n.noCustomersFound,
+                                  AppLocalizations.of(context).noCustomersFound,
                                   style: AppTheme.getDynamicTitle3(context).copyWith(
                                     color: Colors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  l10n.addNewCustomerToGetStarted,
+                                  AppLocalizations.of(context).addNewCustomerToGetStarted,
                                   style: AppTheme.getDynamicCallout(context).copyWith(
                                     color: Colors.grey[600],
                                   ),
@@ -219,7 +200,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                 const SizedBox(height: 24),
                                 ElevatedButton(
                                   onPressed: () async {
-                                    final result = await Navigator.push(
+                                    await Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => const AddCustomerScreen(),
@@ -273,7 +254,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                   right: 20,
                   child: FloatingActionButton(
                     onPressed: () async {
-                      final result = await Navigator.push(
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const AddCustomerScreen(),
@@ -298,7 +279,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
 
 
   void _viewCustomerDetails(Customer customer) async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerDetailsScreen(
@@ -323,7 +304,7 @@ class _CustomerListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    // final l10n = AppLocalizations.of(context); // Unused variable removed
     
     return Consumer<AppState>(
       builder: (context, appState, child) {
@@ -335,7 +316,7 @@ class _CustomerListTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.blue[600]!.withOpacity(0.1),
+              color: Colors.blue[600]!.withAlpha(26), // 0.1 * 255
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
@@ -457,7 +438,7 @@ class _CustomerListTile extends StatelessWidget {
   }
   
   void _showActionSheet(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    // final l10n = AppLocalizations.of(context); // Unused variable removed
     
     showModalBottomSheet<void>(
       context: context,
@@ -475,7 +456,7 @@ class _CustomerListTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              l10n.selectAction,
+              AppLocalizations.of(context).selectAction,
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,
@@ -484,7 +465,7 @@ class _CustomerListTile extends StatelessWidget {
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.visibility, color: Colors.blue[600]),
-              title: Text(l10n.viewDetails),
+              title: Text(AppLocalizations.of(context).viewDetails),
               onTap: () {
                 Navigator.pop(context);
                 onView();
@@ -492,7 +473,7 @@ class _CustomerListTile extends StatelessWidget {
             ),
             ListTile(
               leading: Icon(Icons.delete, color: Colors.red),
-              title: Text(l10n.delete),
+              title: Text(AppLocalizations.of(context).delete),
               onTap: () {
                 Navigator.pop(context);
                 onDelete();
@@ -503,7 +484,7 @@ class _CustomerListTile extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(l10n.cancel),
+                child: Text(AppLocalizations.of(context).cancel),
               ),
             ),
           ],

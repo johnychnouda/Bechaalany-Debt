@@ -38,7 +38,7 @@ class RecentActivityWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.1),
+                        color: AppColors.success.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -96,10 +96,10 @@ class RecentActivityWidget extends StatelessWidget {
                               height: 40,
                               decoration: BoxDecoration(
                                 color: isPaid 
-                                    ? AppColors.success.withOpacity(0.1)
+                                    ? AppColors.success.withAlpha(26) // 0.1 * 255
                                     : isNew 
-                                        ? AppColors.primary.withOpacity(0.1)
-                                        : AppColors.secondary.withOpacity(0.1),
+                                        ? AppColors.primary.withAlpha(26) // 0.1 * 255
+                                        : AppColors.secondary.withAlpha(26), // 0.1 * 255
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(

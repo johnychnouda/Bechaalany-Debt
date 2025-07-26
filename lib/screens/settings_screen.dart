@@ -10,6 +10,7 @@ import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/currency_settings.dart';
 import '../widgets/expandable_chip_dropdown.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -631,20 +632,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 await appState.clearAllData();
                 
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All data cleared successfully'),
-                      backgroundColor: AppColors.success,
-                    ),
+                  // Show success notification
+                  final notificationService = NotificationService();
+                  await notificationService.showSuccessNotification(
+                    title: 'Data Cleared',
+                    body: 'All data cleared successfully',
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to clear data: $e'),
-                      backgroundColor: AppColors.error,
-                    ),
+                  // Show error notification
+                  final notificationService = NotificationService();
+                  await notificationService.showErrorNotification(
+                    title: 'Error',
+                    body: 'Failed to clear data: $e',
                   );
                 }
               }
@@ -682,22 +683,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _performExport() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Exporting data to CSV...'),
-          backgroundColor: AppColors.primary,
-        ),
+      // Show info notification
+      final notificationService = NotificationService();
+      await notificationService.showInfoNotification(
+        title: 'Exporting',
+        body: 'Exporting data to CSV...',
       );
 
       final appState = Provider.of<AppState>(context, listen: false);
       final filePath = await appState.exportData();
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Export completed! Opening share dialog...'),
-            backgroundColor: AppColors.success,
-          ),
+        await notificationService.showSuccessNotification(
+          title: 'Export Complete',
+          body: 'Export completed! Opening share dialog...',
         );
       }
 
@@ -706,11 +705,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Export failed: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Export Failed',
+          body: 'Export failed: ${e.toString()}',
         );
       }
     }
@@ -741,22 +740,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _performImport() async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecting CSV file...'),
-          backgroundColor: AppColors.primary,
-        ),
+      // Show info notification
+      final notificationService = NotificationService();
+      await notificationService.showInfoNotification(
+        title: 'Importing',
+        body: 'Selecting CSV file...',
       );
 
       final appState = Provider.of<AppState>(context, listen: false);
       final importData = await appState.importData();
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Found ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts. Importing...'),
-            backgroundColor: AppColors.primary,
-          ),
+        await notificationService.showInfoNotification(
+          title: 'Importing',
+          body: 'Found ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts. Importing...',
         );
       }
 
@@ -764,21 +761,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await appState.applyImportedData(importData);
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import completed! ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts imported.'),
-            backgroundColor: AppColors.success,
-          ),
+        await notificationService.showSuccessNotification(
+          title: 'Import Complete',
+          body: 'Import completed! ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts imported.',
         );
       }
       
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Import failed: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Import Failed',
+          body: 'Import failed: ${e.toString()}',
         );
       }
     }
@@ -818,18 +813,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Opening email client...'),
-                  backgroundColor: AppColors.primary,
-                ),
-              );
-            },
-            child: const Text('Send Email'),
-          ),
+                      CupertinoDialogAction(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Show info notification
+                final notificationService = NotificationService();
+                await notificationService.showInfoNotification(
+                  title: 'Contact',
+                  body: 'Opening email client...',
+                );
+              },
+              child: const Text('Send Email'),
+            ),
         ],
       ),
     );
@@ -959,7 +954,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: const Text('Cancel'),
                     ),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final rate = double.tryParse(exchangeRateController.text);
                         if (rate != null && rate > 0) {
                           final settings = CurrencySettings(
@@ -973,18 +968,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           appState.updateCurrencySettings(settings);
                           Navigator.of(context).pop();
                           
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Exchange rate updated: ${settings.formattedRate}'),
-                              backgroundColor: AppColors.success,
-                            ),
+                          // Show success notification
+                          final notificationService = NotificationService();
+                          await notificationService.showSuccessNotification(
+                            title: 'Exchange Rate Updated',
+                            body: 'Exchange rate updated: ${settings.formattedRate}',
                           );
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter a valid exchange rate'),
-                              backgroundColor: AppColors.error,
-                            ),
+                          // Show error notification
+                          final notificationService = NotificationService();
+                          await notificationService.showErrorNotification(
+                            title: 'Invalid Input',
+                            body: 'Please enter a valid exchange rate',
                           );
                         }
                       },
@@ -1239,30 +1234,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context);
                 
                 try {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Clearing cache...'),
-                      backgroundColor: AppColors.primary,
-                    ),
+                  // Show info notification
+                  final notificationService = NotificationService();
+                  await notificationService.showInfoNotification(
+                    title: 'Clearing Cache',
+                    body: 'Clearing cache...',
                   );
                   
                   await appState.clearAppCache();
                   
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cache cleared successfully'),
-                        backgroundColor: AppColors.success,
-                      ),
+                    await notificationService.showSuccessNotification(
+                      title: 'Cache Cleared',
+                      body: 'Cache cleared successfully',
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to clear cache: ${e.toString()}'),
-                        backgroundColor: AppColors.error,
-                      ),
+                    // Show error notification
+                    final notificationService = NotificationService();
+                    await notificationService.showErrorNotification(
+                      title: 'Cache Error',
+                      body: 'Failed to clear cache: ${e.toString()}',
                     );
                   }
                 }
@@ -1274,11 +1267,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to get cache info: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-          ),
+        // Show error notification
+        final notificationService = NotificationService();
+        notificationService.showErrorNotification(
+          title: 'Cache Error',
+          body: 'Failed to get cache info: ${e.toString()}',
         );
       }
     }

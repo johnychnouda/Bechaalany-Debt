@@ -25,7 +25,7 @@ class RecentDebtsList extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withAlpha(26), // 0.1 * 255
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -88,23 +88,12 @@ class _DebtCard extends StatelessWidget {
     required this.debt,
   });
 
-  Color _getStatusColor() {
-    switch (debt.status) {
-      case DebtStatus.paid:
-        return AppColors.success;
-      case DebtStatus.pending:
-      default:
-        return AppColors.warning;
-    }
-  }
-
   String _getStatusText() {
     switch (debt.status) {
+      case DebtStatus.pending:
+        return 'Pending';
       case DebtStatus.paid:
         return 'Paid';
-      case DebtStatus.pending:
-      default:
-        return 'Pending';
     }
   }
 
@@ -118,7 +107,7 @@ class _DebtCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withAlpha(26), // 0.1 * 255
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(

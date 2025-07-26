@@ -29,18 +29,18 @@ class EmptyStateWidget extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.dynamicSurface(context).withOpacity(0.8),
-            AppColors.dynamicSurface(context).withOpacity(0.6),
+            AppColors.dynamicSurface(context).withAlpha(204), // 0.8 * 255
+            AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withAlpha(26), // 0.1 * 255
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13), // 0.05 * 255
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -52,7 +52,7 @@ class EmptyStateWidget extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppColors.primary).withOpacity(0.1),
+              color: (iconColor ?? AppColors.primary).withAlpha(26), // 0.1 * 255
               borderRadius: BorderRadius.circular(50),
             ),
             child: Icon(
