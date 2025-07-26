@@ -13,58 +13,47 @@ class DataExportImportService {
 
   Future<String> exportToCSV(List<Customer> customers, List<Debt> debts) async {
     try {
-      // Create CSV data for customers with better formatting
+      // Create simple, user-friendly CSV data for customers
       final customerData = [
-        ['Customer ID', 'Customer Name', 'Phone Number', 'Email Address', 'Physical Address', 'Registration Date'], // Header
+        ['Name', 'Phone', 'Email', 'Address', 'Date Added'], // Simple headers
         ...customers.map((customer) => [
-          customer.id,
           customer.name,
           customer.phone,
-          customer.email ?? 'N/A',
-          customer.address ?? 'N/A',
+          customer.email ?? '',
+          customer.address ?? '',
           _formatDate(customer.createdAt),
         ]),
       ];
 
-      // Create CSV data for debts with better formatting
+      // Create simple, user-friendly CSV data for debts
       final debtData = [
-        ['Debt ID', 'Customer ID', 'Customer Name', 'Description', 'Total Amount', 'Paid Amount', 'Remaining Amount', 'Debt Type', 'Status', 'Created Date', 'Paid Date', 'Notes'], // Header
+        ['Customer', 'Description', 'Amount', 'Paid', 'Remaining', 'Status', 'Date', 'Notes'], // Simple headers
         ...debts.map((debt) => [
-          debt.id,
-          debt.customerId,
           debt.customerName,
           debt.description,
           _formatCurrency(debt.amount),
           _formatCurrency(debt.paidAmount),
           _formatCurrency(debt.remainingAmount),
-          _formatDebtType(debt.type),
           _formatDebtStatus(debt.status),
           _formatDate(debt.createdAt),
-          debt.paidAt != null ? _formatDate(debt.paidAt!) : 'N/A',
-          debt.notes ?? 'N/A',
+          debt.notes ?? '',
         ]),
       ];
 
-      // Create a summary header
-      final summaryData = [
-        ['Bechaalany Debt App - Data Export'],
-        ['Export Date: ${_formatDate(DateTime.now())}'],
-        ['Total Customers: ${customers.length}'],
-        ['Total Debts: ${debts.length}'],
-        [''],
-        ['=== CUSTOMERS DATA ==='],
+      // Create simple combined CSV
+      final combinedData = [
         ...customerData,
-        [''],
-        ['=== DEBTS DATA ==='],
+        [''], // Empty row for separation
+        ['DEBTS'], // Simple section header
         ...debtData,
       ];
 
-      final csvString = const ListToCsvConverter().convert(summaryData);
+      final csvString = const ListToCsvConverter().convert(combinedData);
 
-      // Save to temporary file with better naming
+      // Save to temporary file with simple naming
       final directory = await getTemporaryDirectory();
       final dateStr = DateTime.now().toString().split(' ')[0].replaceAll('-', '');
-      final file = File('${directory.path}/Bechaalany_Debt_Export_$dateStr.csv');
+      final file = File('${directory.path}/Debt_Data_$dateStr.csv');
       await file.writeAsString(csvString);
 
       return file.path;
@@ -79,15 +68,6 @@ class DataExportImportService {
 
   String _formatCurrency(double amount) {
     return '\$${amount.toStringAsFixed(2)}';
-  }
-
-  String _formatDebtType(DebtType type) {
-    switch (type) {
-      case DebtType.credit:
-        return 'Credit';
-      case DebtType.payment:
-        return 'Payment';
-    }
   }
 
   String _formatDebtStatus(DebtStatus status) {
@@ -122,17 +102,6 @@ class DataExportImportService {
       return double.parse(currencyStr.replaceAll('\$', '').trim());
     } catch (e) {
       return 0.0;
-    }
-  }
-
-  DebtType _parseDebtType(String typeStr) {
-    switch (typeStr.toLowerCase()) {
-      case 'credit':
-        return DebtType.credit;
-      case 'payment':
-        return DebtType.payment;
-      default:
-        return DebtType.credit;
     }
   }
 
@@ -190,7 +159,7 @@ class DataExportImportService {
       final customers = <Customer>[];
       final debts = <Debt>[];
 
-      bool inCustomersSection = false;
+      bool inCustomersSection = true; // Start with customers section
       bool inDebtsSection = false;
 
       for (final row in csvData) {
@@ -198,30 +167,24 @@ class DataExportImportService {
 
         final firstCell = row[0].toString().trim();
         
-        if (firstCell == '=== CUSTOMERS DATA ===') {
-          inCustomersSection = true;
-          inDebtsSection = false;
-          continue;
-        }
-
-        if (firstCell == '=== DEBTS DATA ===') {
+        if (firstCell == 'DEBTS') {
           inCustomersSection = false;
           inDebtsSection = true;
           continue;
         }
 
-        if (inCustomersSection && row.length >= 6) {
+        if (inCustomersSection && row.length >= 5) {
           try {
             // Skip header row
-            if (row[0].toString().toLowerCase().contains('customer id')) continue;
+            if (row[0].toString().toLowerCase().contains('name')) continue;
             
             final customer = Customer(
-              id: row[0].toString(),
-              name: row[1].toString(),
-              phone: row[2].toString(),
-              email: row[3].toString() == 'N/A' ? null : row[3].toString(),
-              address: row[4].toString() == 'N/A' ? null : row[4].toString(),
-              createdAt: _parseDate(row[5].toString()),
+              id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
+              name: row[0].toString(),
+              phone: row[1].toString(),
+              email: row[2].toString().isEmpty ? null : row[2].toString(),
+              address: row[3].toString().isEmpty ? null : row[3].toString(),
+              createdAt: _parseDate(row[4].toString()),
             );
             customers.add(customer);
           } catch (e) {
@@ -229,23 +192,23 @@ class DataExportImportService {
           }
         }
 
-        if (inDebtsSection && row.length >= 12) {
+        if (inDebtsSection && row.length >= 8) {
           try {
             // Skip header row
-            if (row[0].toString().toLowerCase().contains('debt id')) continue;
+            if (row[0].toString().toLowerCase().contains('customer')) continue;
             
             final debt = Debt(
-              id: row[0].toString(),
-              customerId: row[1].toString(),
-              customerName: row[2].toString(),
-              description: row[3].toString(),
-              amount: _parseCurrency(row[4].toString()),
-              type: _parseDebtType(row[7].toString()),
-              status: _parseDebtStatus(row[8].toString()),
-              createdAt: _parseDate(row[9].toString()),
-              paidAt: row[10].toString() == 'N/A' ? null : _parseDate(row[10].toString()),
-              notes: row[11].toString() == 'N/A' ? null : row[11].toString(),
-              paidAmount: _parseCurrency(row[5].toString()),
+              id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
+              customerId: '', // Will be linked by customer name
+              customerName: row[0].toString(),
+              description: row[1].toString(),
+              amount: _parseCurrency(row[2].toString()),
+              type: DebtType.credit, // Default type
+              status: _parseDebtStatus(row[5].toString()),
+              createdAt: _parseDate(row[6].toString()),
+              paidAt: null,
+              notes: row[7].toString().isEmpty ? null : row[7].toString(),
+              paidAmount: _parseCurrency(row[3].toString()),
             );
             debts.add(debt);
           } catch (e) {
