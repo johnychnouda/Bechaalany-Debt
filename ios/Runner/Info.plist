@@ -80,6 +80,26 @@
 	<key>NSNearbyInteractionUsageDescription</key>
 	<string>This app uses nearby interaction for proximity-based features and secure data exchange.</string>
 	
+	<!-- iCloud & CloudKit Settings -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.com.bechaalany.debtapp</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Bechaalany Debt App</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>None</string>
+		</dict>
+	</dict>
+	<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+	<true/>
+	<key>NSUbiquitousContainerName</key>
+	<string>Bechaalany Debt App</string>
+	<key>NSUbiquitousContainerSupportedFolderLevels</key>
+	<string>None</string>
+	
 	<!-- Notifications Settings -->
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app uses notifications to remind you about pending debt payments, due dates, and daily summaries.</string>

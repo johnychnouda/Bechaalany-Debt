@@ -144,6 +144,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Provider.of<AppState>(context).iCloudSyncEnabled,
                   (value) => Provider.of<AppState>(context, listen: false).setICloudSyncEnabled(value),
                 ),
+                if (Provider.of<AppState>(context).iCloudSyncEnabled) ...[
+                  _buildInfoRow(
+                    'Sync Status',
+                    _getCloudKitStatusText(context),
+                    CupertinoIcons.info_circle,
+                  ),
+                ],
                 _buildNavigationRow(
                   'Storage Usage',
                   'Detailed storage breakdown',
@@ -1192,5 +1199,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  String _getCloudKitStatusText(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final syncStatus = appState.getSyncStatus();
+    final cloudKitStatus = syncStatus['cloudKitStatus'] as Map<String, dynamic>?;
+    
+    if (cloudKitStatus == null) {
+      return 'Initializing...';
+    }
+    
+    final isUserSignedIn = cloudKitStatus['isUserSignedIn'] as bool? ?? false;
+    final lastSyncTime = cloudKitStatus['lastSyncTime'] as String?;
+    
+    if (!isUserSignedIn) {
+      return 'Not signed in to iCloud';
+    }
+    
+    if (lastSyncTime == null) {
+      return 'Never synced';
+    }
+    
+    try {
+      final lastSync = DateTime.parse(lastSyncTime);
+      final now = DateTime.now();
+      final difference = now.difference(lastSync);
+      
+      if (difference.inMinutes < 1) {
+        return 'Synced just now';
+      } else if (difference.inHours < 1) {
+        return 'Synced ${difference.inMinutes} minutes ago';
+      } else if (difference.inDays < 1) {
+        return 'Synced ${difference.inHours} hours ago';
+      } else {
+        return 'Synced ${difference.inDays} days ago';
+      }
+    } catch (e) {
+      return 'Sync time unknown';
+    }
   }
 } 

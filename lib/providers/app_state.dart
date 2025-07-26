@@ -10,11 +10,13 @@ import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
 import '../services/localization_service.dart';
+import '../services/cloudkit_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
   final SyncService _syncService = SyncService();
+  final CloudKitService _cloudKitService = CloudKitService();
   LocalizationService? _localizationService;
   
   // Data
@@ -329,6 +331,12 @@ class AppState extends ChangeNotifier {
       await _dataService.addCustomer(customer);
       _customers.add(customer);
       _clearCache();
+      
+      // Sync to CloudKit if enabled
+      if (_iCloudSyncEnabled) {
+        await _cloudKitService.syncCustomers(_customers);
+      }
+      
       notifyListeners();
       
       if (_isOnline) {
@@ -347,6 +355,12 @@ class AppState extends ChangeNotifier {
       if (index != -1) {
         _customers[index] = customer;
         _clearCache();
+        
+        // Sync to CloudKit if enabled
+        if (_iCloudSyncEnabled) {
+          await _cloudKitService.syncCustomers(_customers);
+        }
+        
         notifyListeners();
       }
       
@@ -365,6 +379,12 @@ class AppState extends ChangeNotifier {
       _customers.removeWhere((c) => c.id == customerId);
       _debts.removeWhere((d) => d.customerId == customerId);
       _clearCache();
+      
+      // Sync to CloudKit if enabled
+      if (_iCloudSyncEnabled) {
+        await _cloudKitService.deleteCustomer(customerId);
+      }
+      
       notifyListeners();
       
       if (_isOnline) {
@@ -382,6 +402,12 @@ class AppState extends ChangeNotifier {
       await _dataService.addDebt(debt);
       _debts.add(debt);
       _clearCache();
+      
+      // Sync to CloudKit if enabled
+      if (_iCloudSyncEnabled) {
+        await _cloudKitService.syncDebts(_debts);
+      }
+      
       notifyListeners();
       
       if (_isOnline) {
@@ -403,6 +429,12 @@ class AppState extends ChangeNotifier {
       if (index != -1) {
         _debts[index] = debt;
         _clearCache();
+        
+        // Sync to CloudKit if enabled
+        if (_iCloudSyncEnabled) {
+          await _cloudKitService.syncDebts(_debts);
+        }
+        
         notifyListeners();
       }
       
@@ -710,7 +742,39 @@ class AppState extends ChangeNotifier {
   Future<void> setICloudSyncEnabled(bool enabled) async {
     _iCloudSyncEnabled = enabled;
     await _saveSettings();
+    
+    if (enabled) {
+      // Initialize CloudKit and perform initial sync
+      try {
+        await _cloudKitService.initialize();
+        await _performCloudKitSync();
+      } catch (e) {
+        print('Error enabling iCloud sync: $e');
+        // Don't disable the setting if sync fails, just log the error
+      }
+    }
+    
     notifyListeners();
+  }
+
+  Future<void> _performCloudKitSync() async {
+    if (!_iCloudSyncEnabled) return;
+    
+    try {
+      _isSyncing = true;
+      notifyListeners();
+      
+      // Sync all data to CloudKit
+      await _cloudKitService.syncData(_customers, _debts);
+      
+      print('CloudKit sync completed successfully');
+    } catch (e) {
+      print('Error performing CloudKit sync: $e');
+      rethrow;
+    } finally {
+      _isSyncing = false;
+      notifyListeners();
+    }
   }
   
   // Notification settings
@@ -845,5 +909,21 @@ class AppState extends ChangeNotifier {
       return settings.reverseFormattedRate;
     }
     return 'No exchange rate set';
+  }
+
+  // Sync status methods
+  Map<String, dynamic> getSyncStatus() {
+    return {
+      'isInitialized': _syncService.isInitialized,
+      'lastSyncTime': _syncService.lastSyncTime?.toIso8601String(),
+      'isSyncNeeded': _syncService.isSyncNeeded(),
+      'cloudKitStatus': _cloudKitService.getSyncStatus(),
+      'iCloudSyncEnabled': _iCloudSyncEnabled,
+    };
+  }
+
+  Future<void> resetSyncState() async {
+    await _syncService.resetSyncState();
+    await _cloudKitService.resetSyncState();
   }
 } 
