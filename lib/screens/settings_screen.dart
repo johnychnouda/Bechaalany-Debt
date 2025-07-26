@@ -925,11 +925,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: CupertinoColors.systemBackground,
         child: Column(
           children: [
+            // iOS 18.5 Style Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
+                color: CupertinoColors.systemBackground,
                 border: Border(
-                  bottom: BorderSide(color: CupertinoColors.separator),
+                  bottom: BorderSide(
+                    color: CupertinoColors.separator,
+                    width: 0.5,
+                  ),
                 ),
               ),
               child: Row(
@@ -937,13 +942,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   CupertinoButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: CupertinoColors.systemBlue,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                   const Text(
                     'Text Size',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.w600,
+                      color: CupertinoColors.label,
                     ),
                   ),
                   CupertinoButton(
@@ -951,11 +963,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.pop(context);
                       setState(() {});
                     },
-                    child: const Text('Done'),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: CupertinoColors.systemBlue,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
+            // iOS 18.5 Style Picker
             Expanded(
               child: CupertinoPicker(
                 itemExtent: 50,
@@ -963,10 +982,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   // Text size selection logic can be implemented here
                 },
                 children: const [
-                  Text('Small', style: TextStyle(fontSize: 14)),
-                  Text('Medium', style: TextStyle(fontSize: 16)),
-                  Text('Large', style: TextStyle(fontSize: 18)),
-                  Text('Extra Large', style: TextStyle(fontSize: 20)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'Small',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'Medium',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'Large',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Text(
+                      'Extra Large',
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: CupertinoColors.label,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
