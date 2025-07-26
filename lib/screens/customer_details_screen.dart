@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
@@ -184,10 +185,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           appBar: AppBar(
             title: Text(
               _currentCustomer.name,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTheme.getDynamicHeadline(context),
             ),
             backgroundColor: Colors.grey[50],
             elevation: 0,
@@ -247,9 +245,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'CUSTOMER INFORMATION',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                          style: AppTheme.getDynamicCaption1(context).copyWith(
                             color: Colors.grey[600],
                             letterSpacing: 0.5,
                           ),
@@ -261,17 +257,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           Icons.tag,
                           color: Colors.grey[600],
                         ),
-                        title: const Text(
+                        title: Text(
                           'Customer ID',
-                          style: TextStyle(
-                            fontSize: 17,
+                          style: AppTheme.getDynamicBody(context).copyWith(
                             color: Colors.black,
                           ),
                         ),
                         subtitle: Text(
                           _currentCustomer.id,
-                          style: TextStyle(
-                            fontSize: 15,
+                          style: AppTheme.getDynamicCallout(context).copyWith(
                             color: Colors.grey[600],
                           ),
                         ),

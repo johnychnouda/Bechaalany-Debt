@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
@@ -205,7 +206,10 @@ class _DebtsScreenState extends State<DebtsScreen> {
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: const Text('Debt History'),
+            title: Text(
+              'Debt History',
+              style: AppTheme.getDynamicHeadline(context),
+            ),
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             actions: [
               IconButton(
@@ -510,9 +514,7 @@ class _GroupedDebtCard extends StatelessWidget {
                     children: [
                       Text(
                         group['customerName'] as String,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+                        style: AppTheme.getDynamicCallout(context).copyWith(
                           color: Colors.black,
                         ),
                       ),

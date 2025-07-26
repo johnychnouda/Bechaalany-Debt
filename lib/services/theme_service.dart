@@ -29,7 +29,7 @@ class ThemeService {
     
     return TextStyle(
       fontSize: baseSize,
-      fontWeight: fontWeight ?? (isBold ? FontWeight.w600 : FontWeight.normal),
+      fontWeight: fontWeight ?? (isBold ? FontWeight.w700 : FontWeight.normal),
       color: color,
     );
   }
