@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
 import '../services/data_service.dart';
 import '../services/localization_service.dart';
 
@@ -226,8 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.only(left: 16, bottom: 8),
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 13,
+              style: AppTheme.getDynamicCaption1(context).copyWith(
                 fontWeight: FontWeight.w600,
                 color: CupertinoColors.systemGrey,
                 letterSpacing: 0.5,

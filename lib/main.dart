@@ -11,6 +11,7 @@ import 'models/currency_settings.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'services/localization_service.dart';
+import 'services/theme_service.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/splash_screen.dart';
 
@@ -94,10 +95,10 @@ class BechaalanyDebtApp extends StatelessWidget {
             home: const SplashScreen(),
             debugShowCheckedModeBanner: false,
             builder: (context, child) {
-              // Add system UI overlay style for iOS look
+              // Apply custom theme based on app state
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
-                  textScaleFactor: appState.largeTextEnabled ? 1.2 : 1.0,
+                  textScaler: TextScaler.linear(1.0), // Use our custom text scaling
                 ),
                 child: child!,
               );

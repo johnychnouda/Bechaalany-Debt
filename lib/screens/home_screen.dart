@@ -107,16 +107,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   'Dashboard',
-                  style: AppTheme.title3.copyWith(
+                  style: AppTheme.getDynamicTitle3(context).copyWith(
                     color: AppColors.dynamicTextPrimary(context),
-                    fontSize: _getResponsiveFontSize(context, 20),
                   ),
                 ),
                 Text(
                   'Welcome back',
-                  style: AppTheme.footnote.copyWith(
+                  style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
-                    fontSize: _getResponsiveFontSize(context, 13),
                   ),
                 ),
               ],
@@ -175,9 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Text(
             'Overview',
-            style: AppTheme.title2.copyWith(
+            style: AppTheme.getDynamicTitle2(context).copyWith(
               color: AppColors.dynamicTextPrimary(context),
-              fontSize: _getResponsiveFontSize(context, 22),
             ),
           ),
           SizedBox(height: spacing),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'app_colors.dart';
+import '../providers/app_state.dart';
+import '../services/theme_service.dart';
 
 class AppTheme {
   // iOS-style Typography
@@ -79,6 +82,86 @@ class AppTheme {
     letterSpacing: 0.07,
     height: 1.45,
   );
+
+  // Dynamic theme methods that use ThemeService
+  static TextStyle getDynamicLargeTitle(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) + 20,
+      fontWeight: FontWeight.bold,
+    );
+  }
+
+  static TextStyle getDynamicTitle1(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) + 14,
+      fontWeight: FontWeight.bold,
+    );
+  }
+
+  static TextStyle getDynamicTitle2(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) + 8,
+      fontWeight: FontWeight.bold,
+    );
+  }
+
+  static TextStyle getDynamicTitle3(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) + 6,
+      fontWeight: FontWeight.w600,
+    );
+  }
+
+  static TextStyle getDynamicHeadline(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) + 3,
+      fontWeight: FontWeight.w600,
+    );
+  }
+
+  static TextStyle getDynamicBody(BuildContext context) {
+    return ThemeService.getTextStyle(context);
+  }
+
+  static TextStyle getDynamicCallout(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) - 1,
+    );
+  }
+
+  static TextStyle getDynamicSubheadline(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) - 2,
+    );
+  }
+
+  static TextStyle getDynamicFootnote(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) - 4,
+    );
+  }
+
+  static TextStyle getDynamicCaption1(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) - 5,
+    );
+  }
+
+  static TextStyle getDynamicCaption2(BuildContext context) {
+    return ThemeService.getTextStyle(
+      context,
+      fontSize: ThemeService.getTextSize(Provider.of<AppState>(context, listen: false).textSize) - 6,
+    );
+  }
   
   // iOS-style Spacing
   static const double spacing4 = 4.0;

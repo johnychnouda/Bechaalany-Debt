@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
@@ -203,17 +204,14 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                 const SizedBox(height: 16),
                                 Text(
                                   l10n.noCustomersFound,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w600,
+                                  style: AppTheme.getDynamicTitle3(context).copyWith(
                                     color: Colors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   l10n.addNewCustomerToGetStarted,
-                                  style: TextStyle(
-                                    fontSize: 16,
+                                  style: AppTheme.getDynamicCallout(context).copyWith(
                                     color: Colors.grey[600],
                                   ),
                                   textAlign: TextAlign.center,
@@ -249,9 +247,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                     color: Colors.grey[50],
                                     child: Text(
                                       letter,
-                                      style: const TextStyle(
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w700,
+                                      style: AppTheme.getDynamicTitle2(context).copyWith(
                                         color: Colors.black,
                                         letterSpacing: 0.5,
                                       ),
