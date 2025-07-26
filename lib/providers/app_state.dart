@@ -62,6 +62,7 @@ class AppState extends ChangeNotifier {
   // Accessibility Settings
   bool _largeTextEnabled = false;
   bool _reduceMotionEnabled = false;
+  String _textSize = 'Medium'; // Small, Medium, Large, Extra Large
   
   // Cached calculations
   double? _cachedTotalDebt;
@@ -116,6 +117,7 @@ class AppState extends ChangeNotifier {
   // Accessibility Settings Getters
   bool get largeTextEnabled => _largeTextEnabled;
   bool get reduceMotionEnabled => _reduceMotionEnabled;
+  String get textSize => _textSize;
   
   // Cached getters
   double get totalDebt {
@@ -224,6 +226,7 @@ class AppState extends ChangeNotifier {
       // Accessibility settings
       _largeTextEnabled = prefs.getBool('largeTextEnabled') ?? false;
       _reduceMotionEnabled = prefs.getBool('reduceMotionEnabled') ?? false;
+      _textSize = prefs.getString('textSize') ?? 'Medium';
       
     } catch (e) {
       print('Error loading settings: $e');
@@ -265,6 +268,7 @@ class AppState extends ChangeNotifier {
       // Accessibility settings
       await prefs.setBool('largeTextEnabled', _largeTextEnabled);
       await prefs.setBool('reduceMotionEnabled', _reduceMotionEnabled);
+      await prefs.setString('textSize', _textSize);
       
     } catch (e) {
       print('Error saving settings: $e');
@@ -798,6 +802,12 @@ class AppState extends ChangeNotifier {
   
   Future<void> setReduceMotionEnabled(bool enabled) async {
     _reduceMotionEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+  
+  Future<void> setTextSize(String size) async {
+    _textSize = size;
     await _saveSettings();
     notifyListeners();
   }

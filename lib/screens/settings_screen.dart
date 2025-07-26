@@ -59,11 +59,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.globe,
                   () => _showLanguagePicker(),
                 ),
-                _buildNavigationRow(
-                  'Text Size',
-                  'Dynamic Type',
-                  CupertinoIcons.textformat_size,
-                  () => _showTextSizeSettings(),
+                Consumer<AppState>(
+                  builder: (context, appState, child) {
+                    return _buildNavigationRow(
+                      'Text Size',
+                      appState.textSize,
+                      CupertinoIcons.textformat_size,
+                      () => _showTextSizeSettings(),
+                    );
+                  },
                 ),
                 _buildSwitchRow(
                   'Bold Text',
@@ -1017,53 +1021,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             // iOS 18.5 Style Picker
             Expanded(
-              child: CupertinoPicker(
-                itemExtent: 50,
-                onSelectedItemChanged: (index) {
-                  // Text size selection logic can be implemented here
+              child: Consumer<AppState>(
+                builder: (context, appState, child) {
+                  final textSizes = ['Small', 'Medium', 'Large', 'Extra Large'];
+                  final currentIndex = textSizes.indexOf(appState.textSize);
+                  
+                  return CupertinoPicker(
+                    itemExtent: 50,
+                    scrollController: FixedExtentScrollController(initialItem: currentIndex),
+                    onSelectedItemChanged: (index) {
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      appState.setTextSize(textSizes[index]);
+                    },
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'Small',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'Medium',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'Large',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Text(
+                          'Extra Large',
+                          style: TextStyle(
+                            fontSize: 20,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
                 },
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'Small',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'Medium',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'Large',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'Extra Large',
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
