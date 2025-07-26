@@ -343,4 +343,44 @@ class CloudKitService {
       await _auth!.signOut();
     }
   }
+
+  Future<void> clearAllData() async {
+    try {
+      if (!_isInitialized || _userId == null) {
+        await initialize();
+      }
+      
+      final batch = _firestore!.batch();
+      
+      // Clear customers
+      final customersQuery = await _firestore!
+          .collection('users')
+          .doc(_userId)
+          .collection('customers')
+          .get();
+      
+      for (final doc in customersQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear debts
+      final debtsQuery = await _firestore!
+          .collection('users')
+          .doc(_userId)
+          .collection('debts')
+          .get();
+      
+      for (final doc in debtsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+      _lastSyncTime = DateTime.now();
+      
+      print('All data cleared from CloudKit successfully');
+    } catch (e) {
+      print('Error clearing data from CloudKit: $e');
+      rethrow;
+    }
+  }
 } 

@@ -381,4 +381,22 @@ class DataService {
     }
     return amount; // Return original amount if no settings
   }
+
+  // Clear all data method
+  Future<void> clearAllData() async {
+    try {
+      // Clear all boxes
+      await _customerBoxSafe.clear();
+      await _debtBoxSafe.clear();
+      await _categoryBoxSafe.clear();
+      await _productPurchaseBoxSafe.clear();
+      
+      // Don't clear currency settings as they are app configuration
+      
+      print('All data cleared successfully from local storage');
+    } catch (e) {
+      print('Error clearing all data: $e');
+      rethrow;
+    }
+  }
 } 

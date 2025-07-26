@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
-import '../services/data_service.dart';
+
 import '../services/localization_service.dart';
 
 import '../providers/app_state.dart';
@@ -627,17 +627,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final dataService = DataService();
-                
-                // Clear all customers
-                for (final customer in dataService.customers) {
-                  await dataService.deleteCustomer(customer.id);
-                }
-                
-                // Clear all debts
-                for (final debt in dataService.debts) {
-                  await dataService.deleteDebt(debt.id);
-                }
+                final appState = Provider.of<AppState>(context, listen: false);
+                await appState.clearAllData();
                 
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -646,7 +637,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       backgroundColor: AppColors.success,
                     ),
                   );
-                  setState(() {});
                 }
               } catch (e) {
                 if (context.mounted) {

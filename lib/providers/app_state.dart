@@ -993,4 +993,30 @@ class AppState extends ChangeNotifier {
       rethrow;
     }
   }
+
+  // Clear all data method
+  Future<void> clearAllData() async {
+    try {
+      // Clear from data service
+      await _dataService.clearAllData();
+      
+      // Clear local lists
+      _customers.clear();
+      _debts.clear();
+      
+      // Clear cache
+      _clearCache();
+      
+      // Notify listeners
+      notifyListeners();
+      
+      // Clear from CloudKit if enabled
+      if (_iCloudSyncEnabled) {
+        await _cloudKitService.clearAllData();
+      }
+    } catch (e) {
+      print('Error clearing all data: $e');
+      rethrow;
+    }
+  }
 } 
