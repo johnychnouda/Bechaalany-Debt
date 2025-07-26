@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../services/data_service.dart';
 import '../services/localization_service.dart';
-import '../services/system_settings_service.dart';
 
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
@@ -123,39 +122,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       CupertinoIcons.clock,
                     );
                   },
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // System Settings Links (iOS 18.5 Standards)
-            _buildSection(
-              'System Settings',
-              [
-                _buildSystemLinkRow(
-                  'Privacy & Security',
-                  'Face ID, Location, Camera access',
-                  CupertinoIcons.shield,
-                  () => _openSystemPrivacySettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Notifications',
-                  'Push notifications, badges, sounds',
-                  CupertinoIcons.bell,
-                  () => _openSystemNotificationSettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Accessibility',
-                  'VoiceOver, Dynamic Type, Reduce Motion',
-                  CupertinoIcons.person_2,
-                  () => _openSystemAccessibilitySettings(),
-                ),
-                _buildSystemLinkRow(
-                  'Storage',
-                  'iCloud storage and app data',
-                  CupertinoIcons.chart_bar,
-                  () => _openSystemStorageSettings(),
                 ),
               ],
             ),
@@ -1111,134 +1077,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
-  }
-
-  // iOS 18.5 New Widget - System Link Row
-  Widget _buildSystemLinkRow(String title, String subtitle, IconData icon, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-      ),
-      child: CupertinoButton(
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey6,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: CupertinoColors.systemGrey,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      text: title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: CupertinoColors.black,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
-                    ),
-                  ),
-                  if (subtitle.isNotEmpty)
-                    RichText(
-                      text: TextSpan(
-                        text: subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: CupertinoColors.systemGrey,
-                          decoration: TextDecoration.none,
-                          decorationColor: Colors.transparent,
-                          decorationThickness: 0,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Icon(
-              CupertinoIcons.arrow_up_right_square,
-              size: 16,
-              color: CupertinoColors.systemGrey3,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // iOS 18.5 New Methods - System Settings
-  void _openSystemPrivacySettings() async {
-    try {
-      await SystemSettingsService().openPrivacySettings();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot open Privacy Settings. Please go to iOS Settings manually.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  void _openSystemNotificationSettings() async {
-    try {
-      await SystemSettingsService().openNotificationSettings();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot open Notification Settings. Please go to iOS Settings manually.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  void _openSystemAccessibilitySettings() async {
-    try {
-      await SystemSettingsService().openAccessibilitySettings();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot open Accessibility Settings. Please go to iOS Settings manually.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  void _openSystemStorageSettings() async {
-    try {
-      await SystemSettingsService().openStorageSettings();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot open Storage Settings. Please go to iOS Settings manually.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
   }
 } 
