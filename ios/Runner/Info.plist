@@ -46,33 +46,99 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	
-	<!-- iOS Settings Integration -->
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>This app uses notifications to remind you about pending debt payments and daily summaries.</string>
-	
 	<!-- Privacy & Security Settings -->
 	<key>NSFaceIDUsageDescription</key>
-	<string>This app uses Face ID to securely access your debt data.</string>
-	
-	<!-- Location Services (if needed for future features) -->
+	<string>This app uses Face ID to securely access your debt data and protect sensitive financial information.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app may use location services for enhanced features.</string>
-	
-	<!-- Camera & Photo Library (if needed for future features) -->
+	<string>This app uses location services to provide location-based debt tracking and customer management features.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app uses location services to provide location-based debt tracking and customer management features.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>This app may use camera to scan documents or take photos.</string>
+	<string>This app uses camera to scan documents, capture receipts, and take photos for debt documentation.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app may access photo library to save or import documents.</string>
-	
-	<!-- Microphone (if needed for future features) -->
+	<string>This app accesses photo library to save and import debt documents, receipts, and customer photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app saves debt documents and receipts to your photo library for backup and sharing.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app may use microphone for voice notes or audio features.</string>
+	<string>This app uses microphone for voice notes, audio recordings, and voice-to-text features for debt documentation.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>This app accesses contacts to import customer information and manage debt relationships.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>This app accesses calendar to set debt due date reminders and payment schedules.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>This app may access health data for comprehensive financial wellness tracking.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>This app may update health data for comprehensive financial wellness tracking.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>This app uses motion and fitness data for activity-based debt management features.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>This app uses Bluetooth for device connectivity and data synchronization.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>This app uses Bluetooth for device connectivity and data synchronization.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app uses local network for secure data synchronization between devices.</string>
+	<key>NSNearbyInteractionUsageDescription</key>
+	<string>This app uses nearby interaction for proximity-based features and secure data exchange.</string>
+	
+	<!-- Notifications Settings -->
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app uses notifications to remind you about pending debt payments, due dates, and daily summaries.</string>
+	
+	<!-- Accessibility Settings -->
+	<key>UIAccessibilityIsVoiceOverRunning</key>
+	<true/>
+	<key>UIAccessibilityIsReduceMotionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsReduceTransparencyEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsBoldTextEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsGrayscaleEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsInvertColorsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsOnOffSwitchLabelsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsShakeToUndoEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakScreenEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakSelectionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSwitchControlRunning</key>
+	<true/>
+	<key>UIAccessibilityIsAssistiveTouchRunning</key>
+	<true/>
+	
+	<!-- Storage & iCloud Settings -->
+	<key>NSUbiquitousContainers</key>
+	<dict>
+		<key>iCloud.$(CFBundleIdentifier)</key>
+		<dict>
+			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+			<true/>
+			<key>NSUbiquitousContainerName</key>
+			<string>Bechaalany Debt App</string>
+			<key>NSUbiquitousContainerSupportedFolderLevels</key>
+			<string>None</string>
+		</dict>
+	</dict>
+	<key>NSUbiquitousContainerIsDocumentScopePublic</key>
+	<true/>
+	<key>NSUbiquitousContainerName</key>
+	<string>Bechaalany Debt App</string>
+	<key>NSUbiquitousContainerSupportedFolderLevels</key>
+	<string>None</string>
 	
 	<!-- Background App Refresh -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>background-processing</string>
 		<string>background-fetch</string>
+		<string>remote-notification</string>
+		<string>location</string>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
 	</array>
 	
 	<!-- App Transport Security -->
@@ -89,5 +155,63 @@
 			</dict>
 		</dict>
 	</dict>
+	
+	<!-- Siri Integration -->
+	<key>NSSiriUsageDescription</key>
+	<string>This app integrates with Siri to provide voice commands for debt management and quick actions.</string>
+	
+	<!-- Spotlight Search -->
+	<key>CSSearchableItemActionIdentifier</key>
+	<string>com.bechaalany.debt.searchable</string>
+	<key>CSSearchableItemActivityIdentifier</key>
+	<string>com.bechaalany.debt.activity</string>
+	
+	<!-- Live Activities -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
+	
+	<!-- Focus Mode Integration -->
+	<key>NSFocusStatusUsageDescription</key>
+	<string>This app integrates with Focus mode to provide distraction-free debt management.</string>
+	
+	<!-- Screen Time -->
+	<key>NSScreenTimeUsageDescription</key>
+	<string>This app may access Screen Time data for usage analytics and productivity features.</string>
+	
+	<!-- VPN -->
+	<key>NSVPNUsageDescription</key>
+	<string>This app may use VPN for secure data transmission and privacy protection.</string>
+	
+	<!-- Cellular Data -->
+	<key>NSAllowsArbitraryLoadsInWebContent</key>
+	<false/>
+	
+	<!-- SharePlay -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
+	
+	<!-- Display & Brightness -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Automatic</string>
+	<key>UIUserInterfaceIdiom</key>
+	<string>Universal</string>
+	
+	<!-- Sound & Haptics -->
+	<key>UISoundEffectsEnabled</key>
+	<true/>
+	<key>UIHapticFeedbackEnabled</key>
+	<true/>
+	
+	<!-- Auto-Lock -->
+	<key>UIApplicationExitsOnSuspend</key>
+	<false/>
+	
+	<!-- True Tone -->
+	<key>UIWhitePointAdaptivityStyle</key>
+	<string>UIWhitePointAdaptivityStyleReading</string>
 </dict>
 </plist>
