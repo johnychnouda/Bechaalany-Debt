@@ -94,6 +94,12 @@ class AppColors {
         : textSecondary;
   }
   
+  static Color dynamicBorder(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF38383A) 
+        : border;
+  }
+  
   // iOS-style Gradients
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF007AFF), Color(0xFF0056CC)],

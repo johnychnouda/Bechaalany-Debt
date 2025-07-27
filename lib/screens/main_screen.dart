@@ -28,6 +28,57 @@ class _MainScreenState extends State<MainScreen> {
     const ProductsScreen(),
   ];
 
+  Widget _buildNavigationItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+        // Force refresh when switching tabs
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {});
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected 
+              ? AppColors.primary.withOpacity(0.1)
+              : Colors.transparent,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected 
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                color: isSelected 
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,55 +88,48 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+          color: AppColors.dynamicBackground(context),
+          border: Border(
+            top: BorderSide(
+              color: AppColors.dynamicBorder(context),
+              width: 0.5,
             ),
-          ],
+          ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-            // Force refresh when switching tabs
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              setState(() {});
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
+        child: SafeArea(
+          child: Container(
+            height: 88,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavigationItem(
+                  index: 0,
+                  icon: Icons.dashboard_rounded,
+                  label: 'Dashboard',
+                  isSelected: _currentIndex == 0,
+                ),
+                _buildNavigationItem(
+                  index: 1,
+                  icon: Icons.people_rounded,
+                  label: 'Customers',
+                  isSelected: _currentIndex == 1,
+                ),
+                _buildNavigationItem(
+                  index: 2,
+                  icon: Icons.account_balance_wallet_rounded,
+                  label: 'Debts',
+                  isSelected: _currentIndex == 2,
+                ),
+                _buildNavigationItem(
+                  index: 3,
+                  icon: Icons.inventory_2_rounded,
+                  label: 'Products',
+                  isSelected: _currentIndex == 3,
+                ),
+              ],
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.normal,
-            fontSize: 12,
-          ),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Customers',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet),
-              label: 'Debts',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.inventory_2),
-              label: 'Products',
-            ),
-          ],
         ),
       ),
     );
