@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/debt.dart';
+import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-
-enum ActivityView { daily, weekly, monthly }
+import '../models/debt.dart';
+import '../screens/full_activity_list_screen.dart';
 
 enum ActivityType { newDebt, payment, statusChange }
 
@@ -38,7 +38,8 @@ class WeeklyActivityWidget extends StatefulWidget {
   State<WeeklyActivityWidget> createState() => _WeeklyActivityWidgetState();
 }
 
-class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
+class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
+    with TickerProviderStateMixin {
   ActivityView _currentView = ActivityView.daily;
 
   void _cycleView() {
@@ -155,6 +156,20 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FullActivityListScreen(
+                              initialView: _currentView,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.list_alt_outlined),
+                      color: AppColors.secondary,
                     ),
                   ],
                 ),
