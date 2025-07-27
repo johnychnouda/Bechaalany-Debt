@@ -290,9 +290,13 @@ class AppState extends ChangeNotifier {
     _currencySettings = _dataService.currencySettings;
     
     // Add mock data if no data exists
+    // Temporarily force mock data loading for testing
     if (_customers.isEmpty && _debts.isEmpty && _categories.isEmpty) {
       await _loadMockData();
     }
+    
+    // Force mock data loading for testing (comment out in production)
+    await _loadMockData();
     
     _clearCache();
     notifyListeners();
@@ -301,6 +305,7 @@ class AppState extends ChangeNotifier {
   // Load mock data for testing
   Future<void> _loadMockData() async {
     try {
+      print('Starting mock data loading...');
       // Mock Customers
       final mockCustomers = [
         Customer(
@@ -540,19 +545,38 @@ class AppState extends ChangeNotifier {
         ),
       ];
       
+      // Clear existing data first
+      print('Clearing existing data...');
+      for (final customer in _customers) {
+        await _dataService.deleteCustomer(customer.id);
+      }
+      for (final debt in _debts) {
+        await _dataService.deleteDebt(debt.id);
+      }
+      for (final category in _categories) {
+        await _dataService.deleteCategory(category.id);
+      }
+      for (final purchase in _productPurchases) {
+        await _dataService.deleteProductPurchase(purchase.id);
+      }
+      
+      print('Adding mock customers...');
       // Add mock data to data service
       for (final customer in mockCustomers) {
         await _dataService.addCustomer(customer);
       }
       
+      print('Adding mock categories...');
       for (final category in mockCategories) {
         await _dataService.addCategory(category);
       }
       
+      print('Adding mock debts...');
       for (final debt in mockDebts) {
         await _dataService.addDebt(debt);
       }
       
+      print('Adding mock purchases...');
       for (final purchase in mockPurchases) {
         await _dataService.addProductPurchase(purchase);
       }
@@ -564,9 +588,18 @@ class AppState extends ChangeNotifier {
       _productPurchases = _dataService.productPurchases;
       
       print('Mock data loaded successfully!');
+      print('Customers loaded: ${_customers.length}');
+      print('Debts loaded: ${_debts.length}');
+      print('Categories loaded: ${_categories.length}');
+      print('Product purchases loaded: ${_productPurchases.length}');
     } catch (e) {
       print('Error loading mock data: $e');
     }
+  }
+  
+  // Public method to load mock data (for testing)
+  Future<void> loadMockData() async {
+    await _loadMockData();
   }
   
   // Setup connectivity monitoring
