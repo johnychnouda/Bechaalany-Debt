@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
@@ -7,14 +8,11 @@ import '../utils/logo_utils.dart';
 import '../utils/currency_formatter.dart';
 import '../screens/settings_screen.dart';
 import 'dashboard_card.dart';
-import 'todays_summary_widget.dart';
 import 'weekly_activity_widget.dart';
 import 'top_debtors_widget.dart';
 import 'recent_activity_widget.dart';
 import 'profit_loss_widget.dart';
-import 'customer_payment_history_widget.dart';
 import 'total_debtors_widget.dart';
-import 'recent_debts_list.dart';
 
 class CustomizableDashboardWidget extends StatefulWidget {
   const CustomizableDashboardWidget({super.key});
@@ -31,28 +29,12 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
   @override
   void initState() {
     super.initState();
-    _loadWidgetPreferences();
     _initializeWidgets();
+    _loadWidgetPreferences();
   }
 
   void _initializeWidgets() {
     _availableWidgets = [
-      DashboardWidget(
-        id: 'todays_summary',
-        title: 'Today\'s Summary',
-        icon: Icons.today,
-        color: AppColors.primary,
-        widget: const TodaysSummaryWidget(),
-        isEnabled: true,
-      ),
-      DashboardWidget(
-        id: 'recent_debts',
-        title: 'Recent Debts',
-        icon: Icons.receipt_long,
-        color: AppColors.secondary,
-        widget: const RecentDebtsList(),
-        isEnabled: true,
-      ),
       DashboardWidget(
         id: 'weekly_activity',
         title: 'Weekly Activity',
@@ -86,14 +68,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         isEnabled: true,
       ),
       DashboardWidget(
-        id: 'customer_payment_history',
-        title: 'Payment History',
-        icon: Icons.payment,
-        color: AppColors.success,
-        widget: const CustomerPaymentHistoryWidget(),
-        isEnabled: true,
-      ),
-      DashboardWidget(
         id: 'total_debtors',
         title: 'Total Debtors',
         icon: Icons.group,
@@ -105,19 +79,83 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
     // Enable all widgets by default
     _enabledWidgets = List.from(_availableWidgets);
-    setState(() {
-      _isLoading = false;
-    });
   }
 
   void _loadWidgetPreferences() {
-    // For now, just initialize with default preferences
-    // In a real app, this would load from SharedPreferences
+    SharedPreferences.getInstance().then((prefs) {
+      final enabledWidgetIds = prefs.getStringList('dashboard_widget_order') ?? [];
+      print('Loading saved widget order: $enabledWidgetIds');
+      print('Available widgets: ${_availableWidgets.map((w) => w.id).toList()}');
+      
+      if (enabledWidgetIds.isNotEmpty) {
+        // Filter available widgets based on saved order
+        final orderedWidgets = <DashboardWidget>[];
+        for (final widgetId in enabledWidgetIds) {
+          try {
+            final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
+            orderedWidgets.add(widget);
+          } catch (e) {
+            // Widget not found, skip it
+            print('Widget not found: $widgetId');
+          }
+        }
+        
+        print('Filtered ordered widgets: ${orderedWidgets.map((w) => w.id).toList()}');
+        print('Available widgets count: ${_availableWidgets.length}');
+        print('Ordered widgets count: ${orderedWidgets.length}');
+        
+        // If we have a valid saved order and it matches our available widgets, use it
+        if (orderedWidgets.isNotEmpty && orderedWidgets.length == _availableWidgets.length) {
+          print('Using saved widget order');
+          setState(() {
+            _enabledWidgets = orderedWidgets;
+            _isLoading = false;
+          });
+        } else {
+          // If saved order doesn't match current widgets, clear it and use default
+          print('Clearing saved preferences and using default order');
+          _clearWidgetPreferences();
+          setState(() {
+            _enabledWidgets = List.from(_availableWidgets);
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Default order - all widgets enabled
+        print('No saved preferences, using default order');
+        setState(() {
+          _enabledWidgets = List.from(_availableWidgets);
+          _isLoading = false;
+        });
+      }
+    }).catchError((e) {
+      // Fallback to default order
+      print('Error loading preferences: $e');
+      setState(() {
+        _enabledWidgets = List.from(_availableWidgets);
+        _isLoading = false;
+      });
+    });
   }
 
-  void _saveWidgetPreferences() {
-    // For now, just a placeholder
-    // In a real app, this would save to SharedPreferences
+  void _saveWidgetPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final widgetIds = _enabledWidgets.map((w) => w.id).toList();
+      await prefs.setStringList('dashboard_widget_order', widgetIds);
+      print('Saved widget order: $widgetIds');
+    } catch (e) {
+      print('Error saving widget preferences: $e');
+    }
+  }
+
+  void _clearWidgetPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('dashboard_widget_order');
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   void _reorderWidgets(int oldIndex, int newIndex) {

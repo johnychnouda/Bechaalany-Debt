@@ -389,7 +389,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         customerId: _selectedCustomer!.id,
         customerName: _selectedCustomer!.name,
         amount: totalAmount,
-        description: '${_selectedSubcategory!.name} (${_selectedCategory!.name}) - Qty: $quantity',
+        description: '${_selectedSubcategory!.name} (${_selectedCategory!.name})',
         type: DebtType.credit,
         status: DebtStatus.pending,
         createdAt: DateTime.now(),

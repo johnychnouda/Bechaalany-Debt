@@ -135,7 +135,7 @@ class _DebtCard extends StatelessWidget {
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(

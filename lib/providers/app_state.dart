@@ -178,6 +178,9 @@ class AppState extends ChangeNotifier {
       // Load data
       await _loadData();
       
+      // Clean up existing debt descriptions (remove "Qty: x" text)
+      await cleanUpDebtDescriptions();
+      
       // Setup connectivity listener
       _setupConnectivityListener();
       
@@ -289,28 +292,13 @@ class AppState extends ChangeNotifier {
     _productPurchases = _dataService.productPurchases;
     _currencySettings = _dataService.currencySettings;
     
-    // Add mock data if no data exists
-    // Temporarily force mock data loading for testing
-    // if (_customers.isEmpty && _debts.isEmpty && _categories.isEmpty) {
-    //   await _loadMockData();
-    // }
-    
-    // Force mock data loading for testing (comment out in production)
-    // await _loadMockData();
+
     
     _clearCache();
     notifyListeners();
   }
   
-  // Load mock data for testing (removed)
-  // Future<void> _loadMockData() async {
-  //   // Mock data functionality removed
-  // }
-  
-  // Public method to load mock data (for testing)
-  // Future<void> loadMockData() async {
-  //   await _loadMockData();
-  // }
+
   
   // Setup connectivity monitoring
   void _setupConnectivityListener() {
@@ -543,11 +531,24 @@ class AppState extends ChangeNotifier {
   // Apply partial payment to a debt
   Future<void> applyPartialPayment(String debtId, double paymentAmount) async {
     try {
+      print('=== DEBUG: applyPartialPayment called ===');
+      print('Debt ID: $debtId');
+      print('Payment Amount: $paymentAmount');
+      
       final index = _debts.indexWhere((d) => d.id == debtId);
+      print('Found debt at index: $index');
+      
       if (index != -1) {
         final originalDebt = _debts[index];
+        print('Original debt amount: ${originalDebt.amount}');
+        print('Original paid amount: ${originalDebt.paidAmount}');
+        print('Original remaining amount: ${originalDebt.remainingAmount}');
+        
         final newPaidAmount = originalDebt.paidAmount + paymentAmount;
         final isFullyPaid = newPaidAmount >= originalDebt.amount;
+        
+        print('New paid amount: $newPaidAmount');
+        print('Is fully paid: $isFullyPaid');
         
         _debts[index] = originalDebt.copyWith(
           paidAmount: newPaidAmount,
@@ -555,9 +556,14 @@ class AppState extends ChangeNotifier {
           paidAt: isFullyPaid ? DateTime.now() : originalDebt.paidAt,
         );
         
+        print('Updated debt - New paid amount: ${_debts[index].paidAmount}');
+        print('Updated debt - New status: ${_debts[index].status}');
+        
         await _dataService.updateDebt(_debts[index]);
         _clearCache();
         notifyListeners();
+        
+        print('Debt updated in data service and cache cleared');
         
         // Show system notification for partial payment
         await _notificationService.showPaymentAppliedNotification(originalDebt, paymentAmount);
@@ -568,6 +574,10 @@ class AppState extends ChangeNotifier {
         
         // Reschedule notifications
         await _scheduleNotifications();
+        
+        print('=== DEBUG: applyPartialPayment completed ===');
+      } else {
+        print('ERROR: Debt not found with ID: $debtId');
       }
     } catch (e) {
       print('Error applying partial payment: $e');
@@ -726,6 +736,78 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  // Debug method to check current data state
+  void debugPrintDataState() {
+    print('=== DEBUG: Current Data State ===');
+    print('Total customers: ${_customers.length}');
+    print('Total debts: ${_debts.length}');
+    
+    final pendingDebts = _debts.where((d) => d.status == DebtStatus.pending).toList();
+    final paidDebts = _debts.where((d) => d.status == DebtStatus.paid).toList();
+    final partiallyPaidDebts = _debts.where((d) => d.isPartiallyPaid).toList();
+    
+    print('Pending debts: ${pendingDebts.length}');
+    print('Paid debts: ${paidDebts.length}');
+    print('Partially paid debts: ${partiallyPaidDebts.length}');
+    
+    double totalPending = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    double totalPaid = paidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+    double totalPartiallyPaid = partiallyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+    
+    print('Total pending amount: $totalPending');
+    print('Total paid amount: $totalPaid');
+    print('Total partially paid amount: $totalPartiallyPaid');
+    
+    // Print details of partially paid debts
+    if (partiallyPaidDebts.isNotEmpty) {
+      print('=== Partially Paid Debts Details ===');
+      for (final debt in partiallyPaidDebts) {
+        print('Debt ID: ${debt.id}');
+        print('Customer: ${debt.customerName}');
+        print('Original Amount: ${debt.amount}');
+        print('Paid Amount: ${debt.paidAmount}');
+        print('Remaining Amount: ${debt.remainingAmount}');
+        print('Status: ${debt.status}');
+        print('---');
+      }
+    }
+    print('=== END DEBUG ===');
+  }
+
+  // Clean up existing debt descriptions by removing "Qty: x" text
+  Future<void> cleanUpDebtDescriptions() async {
+    try {
+      print('=== Cleaning up debt descriptions ===');
+      int updatedCount = 0;
+      
+      for (final debt in _debts) {
+        if (debt.description.contains(' - Qty:')) {
+          // Remove the " - Qty: x" part from the description
+          final cleanDescription = debt.description.replaceAll(RegExp(r' - Qty:\s*\d+'), '');
+          
+          final updatedDebt = debt.copyWith(description: cleanDescription);
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update in local list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+          }
+          
+          updatedCount++;
+          print('Updated debt ${debt.id}: "${debt.description}" → "${cleanDescription}"');
+        }
+      }
+      
+      _clearCache();
+      notifyListeners();
+      
+      print('=== Cleanup complete: $updatedCount debts updated ===');
+    } catch (e) {
+      print('Error cleaning up debt descriptions: $e');
+    }
+  }
+
   // Generate IDs
   String generateCustomerId() {
     return _dataService.generateCustomerId();
@@ -756,13 +838,13 @@ class AppState extends ChangeNotifier {
   double _calculateTotalDebt() {
     return _debts
         .where((d) => d.status == DebtStatus.pending)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
+        .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
   }
   
   double _calculateTotalPaid() {
     return _debts
         .where((d) => d.status == DebtStatus.paid)
-        .fold(0.0, (sum, debt) => sum + debt.amount);
+        .fold(0.0, (sum, debt) => sum + debt.paidAmount);
   }
   
   int _calculatePendingCount() {
@@ -781,7 +863,7 @@ class AppState extends ChangeNotifier {
       final customerDebtsList = _debts.where((debt) => 
         debt.customerId == customer.id && debt.status != DebtStatus.paid
       ).toList();
-      final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
       if (totalDebt > 0) {
         customerDebts[customer.id] = totalDebt;
       }

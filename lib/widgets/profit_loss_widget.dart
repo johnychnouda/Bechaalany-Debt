@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../models/debt.dart';
 
 class ProfitLossWidget extends StatefulWidget {
   const ProfitLossWidget({super.key});
@@ -52,10 +53,26 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        final totalIncome = appState.totalPaid;
-        final totalDebt = appState.totalDebt;
-        final netProfit = totalIncome - totalDebt;
-        final profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+        // Calculate revenue from product sales + customer payments
+        final productRevenue = appState.productPurchases.fold<double>(0.0, (sum, purchase) => sum + purchase.totalAmount);
+        final paymentRevenue = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
+        final totalRevenue = productRevenue + paymentRevenue;
+        
+        // Calculate total outstanding debts
+        final totalDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).fold<double>(0.0, (sum, debt) => sum + debt.remainingAmount);
+        final netProfit = totalRevenue - totalDebts;
+        final profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        
+        // Debug information
+        print('=== Profit/Loss Analysis ===');
+        print('Total Product Purchases: ${appState.productPurchases.length}');
+        print('Product Revenue: $productRevenue');
+        print('Payment Revenue: $paymentRevenue');
+        print('Total Revenue: $totalRevenue');
+        print('Total Outstanding Debts: $totalDebts');
+        print('Net Profit: $netProfit');
+        print('Profit Margin: ${profitMargin.toStringAsFixed(1)}%');
+        print('=======================');
 
         return SlideTransition(
           position: _slideAnimation,
@@ -114,15 +131,15 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                   ),
                   const SizedBox(height: 20),
                   _buildProfitLossCard(
-                    'Total Income',
-                    totalIncome,
+                    'Total Revenue',
+                    totalRevenue,
                     Icons.arrow_upward,
                     AppColors.success,
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
-                    'Total Debt',
-                    totalDebt,
+                    'Total Debts',
+                    totalDebts,
                     Icons.arrow_downward,
                     AppColors.error,
                   ),

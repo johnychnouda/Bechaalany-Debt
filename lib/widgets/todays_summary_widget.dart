@@ -13,7 +13,7 @@ class TodaysSummaryWidget extends StatelessWidget {
     return Consumer<AppState>(
       builder: (context, appState, child) {
         final pendingDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).toList();
-        final totalPending = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final totalPending = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
 
         return Card(
           child: Padding(

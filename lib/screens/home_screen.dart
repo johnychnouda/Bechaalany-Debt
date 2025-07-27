@@ -25,6 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final appState = Provider.of<AppState>(context, listen: false);
       if (!appState.isLoading) {
         appState.refresh();
+        // Debug: Print current data state
+        appState.debugPrintDataState();
       }
     });
   }

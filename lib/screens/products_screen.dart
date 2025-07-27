@@ -228,16 +228,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 color: Theme.of(context).textTheme.bodySmall?.color,
                               ),
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              '💡 Tap + to add or delete categories and products',
-                              style: TextStyle(
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+
                           ],
                         ),
                       )

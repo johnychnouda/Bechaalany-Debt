@@ -21,7 +21,7 @@ class TopDebtorsWidget extends StatelessWidget {
           final customerDebtsList = debts.where((debt) => 
             debt.customerId == customer.id && debt.status != DebtStatus.paid
           ).toList();
-          final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.amount);
+          final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
           if (totalDebt > 0) {
             customerDebts[customer.id] = totalDebt;
           }

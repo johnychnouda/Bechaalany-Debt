@@ -176,12 +176,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.square_arrow_down,
                   () => _showImportDialog(),
                 ),
-                // _buildNavigationRow(
-                //   'Load Mock Data',
-                //   'Load sample data for testing',
-                //   CupertinoIcons.doc_on_doc,
-                //   () => _showLoadMockDataDialog(),
-                // ),
+
                 _buildActionRow(
                   'Clear All Data',
                   'Delete all data permanently',
@@ -785,59 +780,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
   
-  // void _showLoadMockDataDialog() {
-  //   showCupertinoDialog(
-  //     context: context,
-  //     builder: (context) => CupertinoAlertDialog(
-  //       title: const Text('Load Mock Data'),
-  //       content: const Text('This will clear existing data and load sample customers, debts, and products for testing. Continue?'),
-  //       actions: [
-  //         CupertinoDialogAction(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: const Text('Cancel'),
-  //         ),
-  //         CupertinoDialogAction(
-  //           onPressed: () {
-  //             Navigator.pop(context);
-  //             _performLoadMockData();
-  //           },
-  //           child: const Text('Load Mock Data'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
-  
-  // Future<void> _performLoadMockData() async {
-  //   try {
-  //     // Show info notification
-  //     final notificationService = NotificationService();
-  //     await notificationService.showInfoNotification(
-  //       title: 'Loading Mock Data',
-  //       body: 'Loading sample data...',
-  //     );
 
-  //     final appState = Provider.of<AppState>(context, listen: false);
-  //     await appState.loadMockData();
-  //     // await appState.loadMockData();
-  //     
-  //     if (context.mounted) {
-  //       await notificationService.showSuccessNotification(
-  //         title: 'Mock Data Loaded',
-  //         body: 'Sample data loaded successfully! You can now test the app features.',
-  //       );
-  //     }
-  //   } catch (e) {
-  //     if (context.mounted) {
-  //       // Show error notification
-  //       final notificationService = NotificationService();
-  //       await notificationService.showErrorNotification(
-  //         title: 'Mock Data Error',
-  //         body: 'Failed to load mock data: ${e.toString()}',
-  //     //   }
-  //     // }
-  //   }
-  // }
 
   void _showHelpSupportDialog() {
     showCupertinoDialog(
