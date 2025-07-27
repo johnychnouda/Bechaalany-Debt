@@ -120,11 +120,38 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        'Profit/Loss Analysis',
-                        style: AppTheme.title3.copyWith(
-                          color: AppColors.dynamicTextPrimary(context),
-                          fontWeight: FontWeight.w600,
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Revenue',
+                              style: AppTheme.title3.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '/',
+                              style: AppTheme.title3.copyWith(
+                                color: AppColors.dynamicTextPrimary(context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'Debts',
+                              style: AppTheme.title3.copyWith(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' Analysis',
+                              style: AppTheme.title3.copyWith(
+                                color: AppColors.dynamicTextPrimary(context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

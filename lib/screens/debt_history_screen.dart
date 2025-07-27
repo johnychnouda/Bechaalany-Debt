@@ -234,36 +234,10 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Status Filter Chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: ['All', 'Pending', 'Paid'].map((status) {
-                          final isSelected = _selectedStatus == status;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(status),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedStatus = status;
-                                });
-                                _filterDebts();
-                              },
-                              backgroundColor: Colors.grey[200],
-                              selectedColor: AppColors.primary.withOpacity(0.2),
-                              checkmarkColor: AppColors.primary,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Sort Direction Toggle
+                    // Status Filter Chips with Sort Toggle
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        // Sort Direction Toggle
                         IconButton(
                           onPressed: () {
                             setState(() {
@@ -273,6 +247,60 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                           },
                           icon: Icon(_sortAscending ? Icons.arrow_upward : Icons.arrow_downward),
                           tooltip: _sortAscending ? 'Oldest first' : 'Newest first',
+                        ),
+                        // Status Filter Chips
+                        Expanded(
+                          child: Center(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: ['All', 'Pending', 'Paid'].map((status) {
+                                  final isSelected = _selectedStatus == status;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: FilterChip(
+                                      label: Text(
+                                        status,
+                                        style: TextStyle(
+                                          color: isSelected 
+                                              ? (status == 'Pending' 
+                                                  ? Colors.orange[700] 
+                                                  : status == 'Paid' 
+                                                      ? Colors.green[700] 
+                                                      : AppColors.primary)
+                                              : null,
+                                          fontWeight: isSelected ? FontWeight.w600 : null,
+                                        ),
+                                      ),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setState(() {
+                                          _selectedStatus = status;
+                                        });
+                                        _filterDebts();
+                                      },
+                                      backgroundColor: Colors.grey[200],
+                                      selectedColor: isSelected 
+                                          ? (status == 'Pending' 
+                                              ? Colors.orange[50] 
+                                              : status == 'Paid' 
+                                                  ? Colors.green[50] 
+                                                  : AppColors.primary.withOpacity(0.2))
+                                          : Colors.grey[200],
+                                      checkmarkColor: isSelected 
+                                          ? (status == 'Pending' 
+                                              ? Colors.orange[700] 
+                                              : status == 'Paid' 
+                                                  ? Colors.green[700] 
+                                                  : AppColors.primary)
+                                          : AppColors.primary,
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -328,6 +356,14 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     
     // Get all debts for this customer
     final customerDebts = appState.debts.where((debt) => debt.customerId == customerId).toList();
+    
+    print('Debt History Debug: Total appState.debts: ${appState.debts.length}');
+    print('Debt History Debug: customerId: $customerId');
+    print('Debt History Debug: customerDebts.length: ${customerDebts.length}');
+    for (int i = 0; i < customerDebts.length; i++) {
+      final debt = customerDebts[i];
+      print('Debt History Debug: Debt ${i + 1}: ${debt.description} - \$${debt.amount} - ${debt.createdAt}');
+    }
     
     await Navigator.push(
       context,
@@ -532,7 +568,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 8),
                 Text(
-                  'Latest: ${_formatDate(_getLatestDebt().createdAt)}',
+                  'Latest: ${_formatDate(_getLatestActivityDate())}',
                   style: TextStyle(
                     color: Colors.grey[600],
                     fontSize: 12,
@@ -610,8 +646,19 @@ class _GroupedDebtCard extends StatelessWidget {
 
   Debt _getLatestDebt() {
     final debts = group['debts'] as List<Debt>;
-    return debts.reduce((curr, next) => 
-        curr.createdAt.isAfter(next.createdAt) ? curr : next);
+    return debts.reduce((curr, next) {
+      // Get the most recent activity date for each debt
+      final currLatestDate = curr.paidAt ?? curr.createdAt;
+      final nextLatestDate = next.paidAt ?? next.createdAt;
+      
+      return currLatestDate.isAfter(nextLatestDate) ? curr : next;
+    });
+  }
+
+  DateTime _getLatestActivityDate() {
+    final latestDebt = _getLatestDebt();
+    // Return the most recent activity date (paidAt if available, otherwise createdAt)
+    return latestDebt.paidAt ?? latestDebt.createdAt;
   }
 
   void _showPaymentDialog(BuildContext context) {
@@ -736,16 +783,30 @@ class _GroupedDebtCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final difference = now.difference(date).inDays;
+    
+    // Compare only the date part (without time)
+    final today = DateTime(now.year, now.month, now.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final difference = today.difference(dateOnly).inDays;
+    
+    // Format time in 12-hour format
+    final hour = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'pm' : 'am';
+    final timeString = 'at $hour:$minute $period';
+    
+
     
     if (difference == 0) {
-      return 'Today';
+      return 'Today $timeString';
     } else if (difference == 1) {
-      return 'Yesterday';
-    } else if (difference < 7) {
-      return '$difference days ago';
+      return 'Yesterday $timeString';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      // For 3rd day and above, show date in format: 3-12-2024 at 3:45 pm
+      final day = date.day;
+      final month = date.month;
+      final year = date.year;
+      return '$day-$month-$year $timeString';
     }
   }
 }

@@ -6,6 +6,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../utils/pdf_icon_utils.dart';
+import '../utils/pdf_font_utils.dart';
 
 class PaymentReminderService {
   static const String _whatsappBaseUrl = 'https://wa.me/';
@@ -60,21 +62,17 @@ class PaymentReminderService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfFontUtils.createGracefulText(
                         'Payment Reminder',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 24,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                        fontSize: 24,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
                       ),
                       pw.SizedBox(height: 8),
-                      pw.Text(
+                      PdfFontUtils.createGracefulText(
                         'Generated on ${DateTime.now().toString().split(' ')[0]}',
-                        style: pw.TextStyle(
-                          color: PdfColors.white,
-                          fontSize: 12,
-                        ),
+                        fontSize: 12,
+                        color: PdfColors.white,
                       ),
                     ],
                   ),
@@ -91,30 +89,26 @@ class PaymentReminderService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfFontUtils.createGracefulText(
                         'Customer Information',
-                        style: pw.TextStyle(
-                          fontSize: 16,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
                       ),
                       pw.SizedBox(height: 8),
-                      pw.Text('Name: ${customer.name}'),
-                      pw.Text('Phone: ${customer.phone}'),
-                      if (customer.email != null) pw.Text('Email: ${customer.email}'),
-                      if (customer.address != null) pw.Text('Address: ${customer.address}'),
+                      PdfFontUtils.createGracefulText('Name: ${customer.name}'),
+                      PdfFontUtils.createGracefulText('Phone: ${customer.phone}'),
+                      if (customer.email != null) PdfFontUtils.createGracefulText('Email: ${customer.email}'),
+                      if (customer.address != null) PdfFontUtils.createGracefulText('Address: ${customer.address}'),
                     ],
                   ),
                 ),
                 pw.SizedBox(height: 20),
                 
                 // Outstanding Debts
-                pw.Text(
+                PdfFontUtils.createGracefulText(
                   'Outstanding Debts',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
                 ),
                 pw.SizedBox(height: 12),
                 ...debts.map((debt) => pw.Container(
@@ -127,9 +121,9 @@ class PaymentReminderService {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
+                      PdfFontUtils.createGracefulText(
                         debt.description,
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                        fontWeight: pw.FontWeight.bold,
                       ),
                       pw.SizedBox(height: 4),
                       pw.Row(
