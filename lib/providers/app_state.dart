@@ -647,9 +647,9 @@ class AppState extends ChangeNotifier {
       _clearCache();
       
       // Sync to CloudKit if enabled
-      if (_iCloudSyncEnabled) {
-        await _cloudKitService.syncCustomers(_customers);
-      }
+      // if (_iCloudSyncEnabled) {
+      //   await _cloudKitService.syncCustomers(_customers);
+      // }
       
       notifyListeners();
       
@@ -674,9 +674,9 @@ class AppState extends ChangeNotifier {
         _clearCache();
         
         // Sync to CloudKit if enabled
-        if (_iCloudSyncEnabled) {
-          await _cloudKitService.syncCustomers(_customers);
-        }
+        // if (_iCloudSyncEnabled) {
+        //   await _cloudKitService.syncCustomers(_customers);
+        // }
         
         notifyListeners();
         
