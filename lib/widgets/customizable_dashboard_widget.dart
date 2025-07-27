@@ -10,7 +10,6 @@ import '../screens/settings_screen.dart';
 import 'dashboard_card.dart';
 import 'weekly_activity_widget.dart';
 import 'top_debtors_widget.dart';
-import 'recent_activity_widget.dart';
 import 'profit_loss_widget.dart';
 import 'total_debtors_widget.dart';
 
@@ -31,13 +30,22 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
     super.initState();
     _initializeWidgets();
     _loadWidgetPreferences();
+    
+    // Ensure preferences are saved after a short delay to handle any initialization issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_enabledWidgets.isNotEmpty) {
+          _saveWidgetPreferences();
+        }
+      });
+    });
   }
 
   void _initializeWidgets() {
     _availableWidgets = [
       DashboardWidget(
         id: 'weekly_activity',
-        title: 'Weekly Activity',
+        title: 'Activity Overview',
         icon: Icons.trending_up,
         color: AppColors.success,
         widget: const WeeklyActivityWidget(),
@@ -49,14 +57,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         icon: Icons.people,
         color: AppColors.warning,
         widget: const TopDebtorsWidget(),
-        isEnabled: true,
-      ),
-      DashboardWidget(
-        id: 'recent_activity',
-        title: 'Recent Activity',
-        icon: Icons.history,
-        color: AppColors.info,
-        widget: const RecentActivityWidget(),
         isEnabled: true,
       ),
       DashboardWidget(
@@ -90,12 +90,13 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       if (enabledWidgetIds.isNotEmpty) {
         // Filter available widgets based on saved order
         final orderedWidgets = <DashboardWidget>[];
+        final availableWidgetIds = _availableWidgets.map((w) => w.id).toSet();
+        
         for (final widgetId in enabledWidgetIds) {
-          try {
+          if (availableWidgetIds.contains(widgetId)) {
             final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
             orderedWidgets.add(widget);
-          } catch (e) {
-            // Widget not found, skip it
+          } else {
             print('Widget not found: $widgetId');
           }
         }
@@ -104,17 +105,16 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         print('Available widgets count: ${_availableWidgets.length}');
         print('Ordered widgets count: ${orderedWidgets.length}');
         
-        // If we have a valid saved order and it matches our available widgets, use it
-        if (orderedWidgets.isNotEmpty && orderedWidgets.length == _availableWidgets.length) {
+        // If we have a valid saved order, use it (even if some widgets are missing)
+        if (orderedWidgets.isNotEmpty) {
           print('Using saved widget order');
           setState(() {
             _enabledWidgets = orderedWidgets;
             _isLoading = false;
           });
         } else {
-          // If saved order doesn't match current widgets, clear it and use default
-          print('Clearing saved preferences and using default order');
-          _clearWidgetPreferences();
+          // If no valid widgets in saved order, use default
+          print('No valid widgets in saved order, using default order');
           setState(() {
             _enabledWidgets = List.from(_availableWidgets);
             _isLoading = false;
@@ -144,6 +144,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       final widgetIds = _enabledWidgets.map((w) => w.id).toList();
       await prefs.setStringList('dashboard_widget_order', widgetIds);
       print('Saved widget order: $widgetIds');
+      print('Current enabled widgets count: ${_enabledWidgets.length}');
     } catch (e) {
       print('Error saving widget preferences: $e');
     }
@@ -167,6 +168,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       _enabledWidgets.insert(newIndex, item);
     });
     
+    print('Widget reordered: ${_enabledWidgets.map((w) => w.id).toList()}');
     _saveWidgetPreferences();
   }
 

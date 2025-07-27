@@ -506,82 +506,84 @@ class _GroupedDebtCard extends StatelessWidget {
   Widget _buildDebtItem(Debt debt) {
     final isFullyPaid = debt.isFullyPaid;
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.grey[200]!,
+    return Builder(
+      builder: (context) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.grey[200]!,
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  debt.description,
-                  style: AppTheme.getDynamicCallout(context).copyWith(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      CurrencyFormatter.formatAmount(context, debt.amount),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    debt.description,
+                    style: AppTheme.getDynamicCallout(context).copyWith(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (debt.paidAmount > 0) ...[
-                      const SizedBox(width: 8),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
                       Text(
-                        '(${CurrencyFormatter.formatAmount(context, debt.paidAmount)} paid)',
+                        CurrencyFormatter.formatAmount(context, debt.amount),
                         style: TextStyle(
-                          color: Colors.green[600],
-                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontSize: 14,
                         ),
                       ),
+                      if (debt.paidAmount > 0) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '(${CurrencyFormatter.formatAmount(context, debt.paidAmount)} paid)',
+                          style: TextStyle(
+                            color: Colors.green[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Created: ${_formatDate(debt.createdAt)}',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 12,
                   ),
-                ),
-              ],
-            ),
-          ),
-          if (!isFullyPaid) ...[
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () => onMarkAsPaid(debt),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                minimumSize: const Size(0, 32),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Created: ${_formatDate(debt.createdAt)}',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
-              child: const Text('Mark Paid'),
+            ),
+            if (!isFullyPaid) ...[
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => onMarkAsPaid(debt),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 32),
+                ),
+                child: const Text('Mark Paid'),
+              ),
+            ],
+            const SizedBox(width: 8),
+            IconButton(
+              onPressed: () => onDelete(debt),
+              icon: const Icon(Icons.delete, color: Colors.red),
+              iconSize: 20,
             ),
           ],
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: () => onDelete(debt),
-            icon: const Icon(Icons.delete, color: Colors.red),
-            iconSize: 20,
-          ),
-        ],
+        ),
       ),
     );
   }

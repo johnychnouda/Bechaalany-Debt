@@ -143,67 +143,6 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                     Icons.arrow_downward,
                     AppColors.error,
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: netProfit >= 0
-                            ? [AppColors.success.withAlpha(26), AppColors.success.withAlpha(13)] // 0.1 * 255, 0.05 * 255
-                            : [AppColors.error.withAlpha(26), AppColors.error.withAlpha(13)], // 0.1 * 255, 0.05 * 255
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: netProfit >= 0
-                            ? AppColors.success.withAlpha(77) // 0.3 * 255
-                            : AppColors.error.withAlpha(77), // 0.3 * 255
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          netProfit >= 0 ? Icons.trending_up : Icons.trending_down,
-                          color: netProfit >= 0 ? AppColors.success : AppColors.error,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Net Profit',
-                                style: AppTheme.footnote.copyWith(
-                                  color: AppColors.dynamicTextSecondary(context),
-                                ),
-                              ),
-                              Text(
-                                CurrencyFormatter.formatAmount(context, netProfit),
-                                style: AppTheme.title1.copyWith(
-                                  color: netProfit >= 0 ? AppColors.success : AppColors.error,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: netProfit >= 0 ? AppColors.success : AppColors.error,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${profitMargin.toStringAsFixed(1)}%',
-                            style: AppTheme.footnote.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

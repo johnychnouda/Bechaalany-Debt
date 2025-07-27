@@ -33,8 +33,8 @@ class TopDebtorsWidget extends StatelessWidget {
         ).toList()
           ..sort((a, b) => customerDebts[b.id]!.compareTo(customerDebts[a.id]!));
         
-        // Take top 5
-        final topDebtors = sortedCustomers.take(5).toList();
+        // Take top 3
+        final topDebtors = sortedCustomers.take(3).toList();
 
         return Card(
           child: Padding(
