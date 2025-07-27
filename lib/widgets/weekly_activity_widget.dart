@@ -134,15 +134,15 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                     GestureDetector(
                       onTap: _cycleView,
                       child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
                           color: AppColors.secondary.withAlpha(26),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.calendar_today,
-                          color: AppColors.secondary,
-                          size: 20,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.calendar_today,
+                        color: AppColors.secondary,
+                        size: 20,
                         ),
                       ),
                     ),
@@ -151,8 +151,8 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                       child: Text(
                         _getViewTitle(),
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -423,28 +423,31 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     required IconData emptyIcon,
     bool showNewBadge = false,
   }) {
-    if (activities.isEmpty) {
+    // Limit to latest 3 activities
+    final limitedActivities = activities.take(3).toList();
+    
+    if (limitedActivities.isEmpty) {
       return Container(
         height: 120,
         child: Center(
-          child: Column(
+                    child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
+                      children: [
+                        Icon(
                 emptyIcon,
-                size: 32,
-                color: AppColors.textLight,
-              ),
+                          size: 32,
+                          color: AppColors.textLight,
+                        ),
               const SizedBox(height: 8),
-              Text(
+                        Text(
                 emptyMessage,
                 style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+                            color: AppColors.textSecondary,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
         ),
       );
     }
@@ -452,8 +455,8 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Activity List
-        ...activities.map((activity) => _buildActivityItem(activity, showNewBadge: showNewBadge)).toList(),
+        // Activity List (limited to 3)
+        ...limitedActivities.map((activity) => _buildActivityItem(activity, showNewBadge: showNewBadge)).toList(),
       ],
     );
   }
@@ -489,15 +492,15 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
         typeColor = AppColors.warning;
         break;
     }
-
-    return Padding(
+                      
+                      return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
+                        child: Row(
+                          children: [
+                            Container(
             width: 32,
             height: 32,
-            decoration: BoxDecoration(
+                              decoration: BoxDecoration(
               color: iconColor.withAlpha(26),
               borderRadius: BorderRadius.circular(6),
             ),
@@ -505,13 +508,13 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
               icon,
               color: iconColor,
               size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                 Row(
                   children: [
                     Expanded(
@@ -539,9 +542,9 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                             color: AppColors.primary,
                             fontWeight: FontWeight.w600,
                           ),
-                        ),
-                      ),
-                  ],
+                                    ),
+                                  ),
+                                ],
                 ),
               ],
             ),
@@ -557,20 +560,20 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                   ),
                 ),
               if (activity.paymentAmount != null && activity.paymentAmount! > 0)
-                Text(
+                            Text(
                   activity.paymentAmount == activity.amount 
                     ? 'Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
                     : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                  style: TextStyle(
+                              style: TextStyle(
                     fontSize: 14,
                     color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
                     fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                   ),
-                ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
     );
   }
 } 

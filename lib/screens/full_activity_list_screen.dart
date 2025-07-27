@@ -242,6 +242,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     style: AppTheme.body.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.dynamicTextPrimary(context),
+                      fontSize: 13,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
@@ -266,16 +267,18 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     style: AppTheme.body.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary,
+                      fontSize: 13,
                     ),
                   ),
                 if (activity.paymentAmount != null && activity.paymentAmount! > 0)
                   Text(
                     activity.paymentAmount == activity.amount 
-                      ? 'Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                      : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                      ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                      : 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
                     style: AppTheme.body.copyWith(
                       color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
                       fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
               ],
