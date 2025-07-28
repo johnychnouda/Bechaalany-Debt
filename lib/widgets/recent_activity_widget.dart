@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
@@ -12,20 +13,17 @@ class RecentActivityWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        final allDebts = appState.debts;
-        
         // Get recent activities (last 7 days)
         final now = DateTime.now();
         final sevenDaysAgo = now.subtract(const Duration(days: 7));
         
-        final recentDebts = allDebts.where((debt) => 
-          debt.createdAt.isAfter(sevenDaysAgo) || 
-          (debt.status == DebtStatus.paid && debt.paidAt != null && debt.paidAt!.isAfter(sevenDaysAgo))
+        final recentActivities = appState.activities.where((activity) => 
+          activity.date.isAfter(sevenDaysAgo)
         ).toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          ..sort((a, b) => b.date.compareTo(a.date));
         
         // Take the most recent 5 activities
-        final recentActivities = recentDebts.take(5).toList();
+        final recentActivitiesList = recentActivities.take(5).toList();
 
         return Card(
           child: Padding(
@@ -59,7 +57,7 @@ class RecentActivityWidget extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 
-                if (recentActivities.isEmpty)
+                if (recentActivitiesList.isEmpty)
                   const Center(
                     child: Column(
                       children: [
@@ -81,11 +79,11 @@ class RecentActivityWidget extends StatelessWidget {
                   )
                 else
                   Column(
-                    children: recentActivities.map((debt) {
-                      final isPaid = debt.status == DebtStatus.paid;
-                      final isNew = debt.createdAt.isAfter(now.subtract(const Duration(days: 1)));
-                      final isRecentlyPaid = debt.paidAt != null && 
-                                           debt.paidAt!.isAfter(now.subtract(const Duration(days: 1)));
+                    children: recentActivitiesList.map((activity) {
+                      final isPaid = activity.type == ActivityType.payment;
+                      final isNew = activity.type == ActivityType.newDebt;
+                      final isRecentlyPaid = activity.type == ActivityType.payment && 
+                                           activity.date.isAfter(now.subtract(const Duration(days: 1)));
                       
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -122,7 +120,7 @@ class RecentActivityWidget extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    debt.customerName,
+                                    activity.customerName,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -130,24 +128,19 @@ class RecentActivityWidget extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    debt.description,
+                                    activity.description,
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: AppColors.textSecondary,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    _getActivityText(debt, isNew, isRecentlyPaid),
+                                    _getActivityText(activity, isNew, isRecentlyPaid),
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: isPaid 
                                           ? AppColors.success
-                                          : isNew 
-                                              ? AppColors.primary
-                                              : AppColors.textSecondary,
-                                      fontWeight: FontWeight.w500,
+                                          : AppColors.textLight,
                                     ),
                                   ),
                                 ],
@@ -157,7 +150,7 @@ class RecentActivityWidget extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  CurrencyFormatter.formatAmount(context, debt.amount),
+                                  CurrencyFormatter.formatAmount(context, activity.amount),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -167,7 +160,7 @@ class RecentActivityWidget extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  _getTimeAgo(isPaid ? debt.paidAt! : debt.createdAt),
+                                  _getTimeAgo(activity.date),
                                   style: const TextStyle(
                                     fontSize: 10,
                                     color: AppColors.textLight,
@@ -188,15 +181,14 @@ class RecentActivityWidget extends StatelessWidget {
     );
   }
 
-  String _getActivityText(Debt debt, bool isNew, bool isRecentlyPaid) {
-    if (debt.status == DebtStatus.paid) {
-      return 'Payment completed';
-    } else if (isNew) {
-      return 'New debt added';
-    } else if (isRecentlyPaid) {
-      return 'Recently paid';
-    } else {
-      return 'Debt created';
+  String _getActivityText(Activity activity, bool isNew, bool isRecentlyPaid) {
+    switch (activity.type) {
+      case ActivityType.payment:
+        return 'Payment completed';
+      case ActivityType.newDebt:
+        return 'New debt added';
+      case ActivityType.debtCleared:
+        return 'Debt cleared';
     }
   }
 

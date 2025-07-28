@@ -5,6 +5,8 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../models/debt.dart';
+import '../models/customer.dart';
+import '../models/activity.dart';
 
 enum ActivityView { daily, weekly, monthly }
 
@@ -41,6 +43,22 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         _currentView = ActivityView.values[_tabController.index];
       });
     });
+    
+    // Add sample data for testing if no debts exist
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _addSampleDataIfNeeded();
+    });
+  }
+
+  void _addSampleDataIfNeeded() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    print('Activity Debug: Current debts count: ${appState.debts.length}');
+    if (appState.debts.isNotEmpty) {
+      print('Activity Debug: Found existing debts, no need for sample data');
+      for (final debt in appState.debts) {
+        print('Activity Debug: Existing debt - ${debt.customerName}: ${debt.description} (${debt.amount})');
+      }
+    }
   }
 
   @override
@@ -190,7 +208,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     );
   }
 
-  Widget _buildActivityItem(ActivityItem activity) {
+  Widget _buildActivityItem(Activity activity) {
     IconData icon;
     Color iconColor;
 
@@ -201,35 +219,30 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         break;
       case ActivityType.payment:
         icon = Icons.payment;
-        if (activity.paymentAmount != null && activity.paymentAmount! < activity.amount) {
-          iconColor = AppColors.warning; // Orange for partial payments
-        } else {
-          iconColor = AppColors.success; // Green for full payments
-        }
+        iconColor = AppColors.success;
         break;
-      case ActivityType.statusChange:
-        icon = Icons.update;
+      case ActivityType.debtCleared:
+        icon = Icons.delete_forever;
         iconColor = AppColors.warning;
         break;
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: iconColor.withAlpha(26),
-                borderRadius: BorderRadius.circular(6),
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
                 color: iconColor,
-                size: 18,
+                size: 20,
               ),
             ),
             const SizedBox(width: 12),
@@ -242,46 +255,55 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     style: AppTheme.body.copyWith(
                       fontWeight: FontWeight.w600,
                       color: AppColors.dynamicTextPrimary(context),
-                      fontSize: 13,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
-                    _formatActivityDate(activity.date),
-                    style: AppTheme.footnote.copyWith(
+                    activity.description,
+                    style: AppTheme.caption1.copyWith(
                       color: AppColors.textSecondary,
-                      fontSize: 11,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(
+                        _formatActivityDate(activity.date),
+                        style: AppTheme.caption1.copyWith(
+                          color: AppColors.textLight,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (activity.type == ActivityType.newDebt)
+                        Text(
+                          CurrencyFormatter.formatAmount(context, activity.amount),
+                          style: AppTheme.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      if (activity.type == ActivityType.payment && activity.paymentAmount != null)
+                        Text(
+                          activity.paymentAmount == activity.amount
+                              ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                              : 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                          style: AppTheme.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
+                          ),
+                        ),
+                      if (activity.type == ActivityType.debtCleared)
+                        Text(
+                          'Cleared: ${CurrencyFormatter.formatAmount(context, activity.amount)}',
+                          style: AppTheme.body.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.warning,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (activity.type == ActivityType.newDebt)
-                  Text(
-                    CurrencyFormatter.formatAmount(context, activity.amount),
-                    style: AppTheme.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                      fontSize: 13,
-                    ),
-                  ),
-                if (activity.paymentAmount != null && activity.paymentAmount! > 0)
-                  Text(
-                    activity.paymentAmount == activity.amount 
-                      ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                      : 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                    style: AppTheme.body.copyWith(
-                      color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-              ],
             ),
           ],
         ),
@@ -400,7 +422,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }
   }
 
-  List<ActivityItem> _getActivitiesForView(AppState appState, ActivityView view) {
+  List<Activity> _getActivitiesForView(AppState appState, ActivityView view) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
@@ -413,7 +435,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
         break;
       case ActivityView.weekly:
-        startDate = today.subtract(Duration(days: today.weekday - 1));
+        // Start from Monday of current week
+        final daysFromMonday = now.weekday - 1;
+        startDate = today.subtract(Duration(days: daysFromMonday));
         endDate = startDate.add(const Duration(days: 7)).subtract(const Duration(milliseconds: 1));
         break;
       case ActivityView.monthly:
@@ -422,73 +446,38 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         break;
     }
 
+    print('Activity Debug: View: $view, Today: $today');
+    print('Activity Debug: Calculated startDate: $startDate, endDate: $endDate');
+    
     return _getActivitiesForPeriod(appState, startDate, endDate);
   }
 
-  List<ActivityItem> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
-    final activities = <ActivityItem>[];
-
-    // Add pending debt activities
-    for (final debt in appState.debts) {
-      if (debt.status == DebtStatus.pending) {
-        final createdAt = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
-        if ((createdAt.isAtSameMomentAs(startDate) || createdAt.isAfter(startDate)) && 
-            (createdAt.isAtSameMomentAs(endDate) || createdAt.isBefore(endDate))) {
-          activities.add(ActivityItem(
-            date: debt.createdAt,
-            type: ActivityType.newDebt,
-            customerName: debt.customerName,
-            customerId: debt.customerId,
-            description: debt.description,
-            amount: debt.amount,
-          ));
-        }
-      }
-    }
+  List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
+    final activities = <Activity>[];
     
-    // Add payment activities
-    for (final debt in appState.debts) {
-      if (debt.paidAmount > 0) {
-        final paymentDate = debt.createdAt;
-        final paymentDay = DateTime(paymentDate.year, paymentDate.month, paymentDate.day);
-        
-        if ((paymentDay.isAtSameMomentAs(startDate) || paymentDay.isAfter(startDate)) && 
-            (paymentDay.isAtSameMomentAs(endDate) || paymentDay.isBefore(endDate))) {
-          
-          if (debt.status == DebtStatus.paid) {
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              customerId: debt.customerId,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.paid,
-            ));
-          } else if (debt.paidAmount > 0 && debt.paidAmount < debt.amount) {
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              customerId: debt.customerId,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.pending,
-            ));
-          }
-        }
+    // Debug: Print total activities and date range
+    print('Activity Debug: Total activities in appState: ${appState.activities.length}');
+    print('Activity Debug: Date range - Start: $startDate, End: $endDate');
+
+    // Show ALL activities for the period (activities persist even after debts are deleted)
+    for (final activity in appState.activities) {
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      print('Activity Debug: Checking activity ${activity.id} - Date: $activityDate, Type: ${activity.type}');
+      
+      // Check if activity falls within the period
+      if (activityDate.isAfter(startDate.subtract(const Duration(days: 1))) && 
+          activityDate.isBefore(endDate.add(const Duration(days: 1)))) {
+        print('Activity Debug: Adding activity for ${activity.customerName} - Type: ${activity.type}');
+        activities.add(activity);
       }
     }
 
+    print('Activity Debug: Total activities found for period: ${activities.length}');
     activities.sort((a, b) => b.date.compareTo(a.date));
     return activities;
   }
 
-  List<ActivityItem> _filterActivities(List<ActivityItem> activities) {
+  List<Activity> _filterActivities(List<Activity> activities) {
     if (_searchQuery.isEmpty) {
       return activities;
     }
@@ -503,30 +492,4 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
              customerId == searchQuery; // Exact match for ID
     }).toList();
   }
-}
-
-class ActivityItem {
-  final DateTime date;
-  final ActivityType type;
-  final String customerName;
-  final String customerId;
-  final String description;
-  final double amount;
-  final double? paymentAmount;
-  final DebtStatus? oldStatus;
-  final DebtStatus? newStatus;
-
-  ActivityItem({
-    required this.date,
-    required this.type,
-    required this.customerName,
-    required this.customerId,
-    required this.description,
-    required this.amount,
-    this.paymentAmount,
-    this.oldStatus,
-    this.newStatus,
-  });
-}
-
-enum ActivityType { newDebt, payment, statusChange } 
+} 

@@ -5,9 +5,8 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 import '../screens/full_activity_list_screen.dart';
-
-enum ActivityType { newDebt, payment, statusChange }
 
 class ActivityItem {
   final DateTime date;
@@ -202,71 +201,31 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     print('=== DEBUG: _getActivitiesForPeriod ===');
     print('Start date: $startDate');
     print('End date: $endDate');
-    print('Total debts: ${appState.debts.length}');
+    print('Total activities in appState: ${appState.activities.length}');
 
-    // Add pending debt activities (debts created in the period that are still pending)
-    for (final debt in appState.debts) {
-      print('Checking debt: ${debt.customerName} - Created: ${debt.createdAt} - Status: ${debt.status}');
+    // Get activities from the new Activity model
+    for (final activity in appState.activities) {
+      print('Checking activity ${activity.id} - Date: ${activity.date} - Type: ${activity.type}');
       
-      if (debt.status == DebtStatus.pending) {
-        final createdAt = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
-        // Check if created date is within the period (inclusive)
-        if ((createdAt.isAtSameMomentAs(startDate) || createdAt.isAfter(startDate)) && 
-            (createdAt.isAtSameMomentAs(endDate) || createdAt.isBefore(endDate))) {
-          print('✅ Adding pending debt: ${debt.customerName}');
-          activities.add(ActivityItem(
-            date: debt.createdAt,
-            type: ActivityType.newDebt,
-            customerName: debt.customerName,
-            description: debt.description,
-            amount: debt.amount,
-          ));
-        } else {
-          print('❌ Debt not in period: ${debt.customerName}');
-        }
-      }
-    }
-    
-    // Add payment activities (when debts are marked as paid or partially paid)
-    for (final debt in appState.debts) {
-      if (debt.paidAmount > 0) {
-        // Check if this debt has any payment activity in the period
-        // For now, we'll use the debt creation date as a proxy for payment date
-        // In a real app, you'd track payment dates separately
-        final paymentDate = debt.createdAt; // This should be replaced with actual payment date
-        final paymentDay = DateTime(paymentDate.year, paymentDate.month, paymentDate.day);
+      // Check if activity date is within the period (inclusive)
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
         
-        if ((paymentDay.isAtSameMomentAs(startDate) || paymentDay.isAfter(startDate)) && 
-            (paymentDay.isAtSameMomentAs(endDate) || paymentDay.isBefore(endDate))) {
-          
-          if (debt.status == DebtStatus.paid) {
-            // Full payment
-            print('✅ Adding full payment: ${debt.customerName} - ${debt.paidAmount}');
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.paid,
-            ));
-          } else if (debt.paidAmount > 0 && debt.paidAmount < debt.amount) {
-            // Partial payment
-            print('✅ Adding partial payment: ${debt.customerName} - ${debt.paidAmount}');
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.pending, // Still pending after partial payment
-            ));
-          }
-        }
+        print('✅ Adding activity for ${activity.customerName} - Type: ${activity.type}');
+        
+        activities.add(ActivityItem(
+          date: activity.date,
+          type: activity.type,
+          customerName: activity.customerName,
+          description: activity.description,
+          amount: activity.amount,
+          paymentAmount: activity.paymentAmount,
+          oldStatus: activity.oldStatus,
+          newStatus: activity.newStatus,
+        ));
+      } else {
+        print('❌ Activity not in period: ${activity.customerName}');
       }
     }
 
@@ -284,71 +243,31 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     print('=== DEBUG: _getActivitiesForDailyPeriod ===');
     print('Start date: $startDate');
     print('End date: $endDate');
-    print('Total debts: ${appState.debts.length}');
+    print('Total activities in appState: ${appState.activities.length}');
 
-    // Add pending debt activities (debts created in the period that are still pending)
-    for (final debt in appState.debts) {
-      print('Checking debt: ${debt.customerName} - Created: ${debt.createdAt} - Status: ${debt.status}');
+    // Get activities from the new Activity model
+    for (final activity in appState.activities) {
+      print('Checking activity ${activity.id} - Date: ${activity.date} - Type: ${activity.type}');
       
-      if (debt.status == DebtStatus.pending) {
-        final createdAt = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
-        // Check if created date is within the period (inclusive)
-        if ((createdAt.isAtSameMomentAs(startDate) || createdAt.isAfter(startDate)) && 
-            (createdAt.isAtSameMomentAs(endDate) || createdAt.isBefore(endDate))) {
-          print('✅ Adding pending debt: ${debt.customerName}');
-          activities.add(ActivityItem(
-            date: debt.createdAt,
-            type: ActivityType.newDebt,
-            customerName: debt.customerName,
-            description: debt.description,
-            amount: debt.amount,
-          ));
-        } else {
-          print('❌ Debt not in period: ${debt.customerName}');
-        }
-      }
-    }
-    
-    // Add payment activities (when debts are marked as paid or partially paid)
-    for (final debt in appState.debts) {
-      if (debt.paidAmount > 0) {
-        // Check if this debt has any payment activity in the period
-        // For now, we'll use the debt creation date as a proxy for payment date
-        // In a real app, you'd track payment dates separately
-        final paymentDate = debt.createdAt; // This should be replaced with actual payment date
-        final paymentDay = DateTime(paymentDate.year, paymentDate.month, paymentDate.day);
+      // Check if activity date is within the period (inclusive)
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
         
-        if ((paymentDay.isAtSameMomentAs(startDate) || paymentDay.isAfter(startDate)) && 
-            (paymentDay.isAtSameMomentAs(endDate) || paymentDay.isBefore(endDate))) {
-          
-          if (debt.status == DebtStatus.paid) {
-            // Full payment
-            print('✅ Adding full payment: ${debt.customerName} - ${debt.paidAmount}');
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.paid,
-            ));
-          } else if (debt.paidAmount > 0 && debt.paidAmount < debt.amount) {
-            // Partial payment
-            print('✅ Adding partial payment: ${debt.customerName} - ${debt.paidAmount}');
-            activities.add(ActivityItem(
-              date: paymentDate,
-              type: ActivityType.payment,
-              customerName: debt.customerName,
-              description: debt.description,
-              amount: debt.amount,
-              paymentAmount: debt.paidAmount,
-              oldStatus: DebtStatus.pending,
-              newStatus: DebtStatus.pending, // Still pending after partial payment
-            ));
-          }
-        }
+        print('✅ Adding activity for ${activity.customerName} - Type: ${activity.type}');
+        
+        activities.add(ActivityItem(
+          date: activity.date,
+          type: activity.type,
+          customerName: activity.customerName,
+          description: activity.description,
+          amount: activity.amount,
+          paymentAmount: activity.paymentAmount,
+          oldStatus: activity.oldStatus,
+          newStatus: activity.newStatus,
+        ));
+      } else {
+        print('❌ Activity not in period: ${activity.customerName}');
       }
     }
 
@@ -485,7 +404,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
         typeText = 'Paid';
         typeColor = AppColors.success;
         break;
-      case ActivityType.statusChange:
+      case ActivityType.debtCleared:
         icon = Icons.update;
         iconColor = AppColors.warning;
         typeText = 'Status';

@@ -6,6 +6,7 @@ import '../models/debt.dart';
 import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
+import '../models/activity.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
@@ -28,6 +29,7 @@ class AppState extends ChangeNotifier {
   List<Debt> _debts = [];
   List<ProductCategory> _categories = [];
   List<ProductPurchase> _productPurchases = [];
+  List<Activity> _activities = [];
   CurrencySettings? _currencySettings;
   
   // Loading states
@@ -82,6 +84,7 @@ class AppState extends ChangeNotifier {
   List<Debt> get debts => _debts;
   List<ProductCategory> get categories => _categories;
   List<ProductPurchase> get productPurchases => _productPurchases;
+  List<Activity> get activities => _activities;
   CurrencySettings? get currencySettings => _currencySettings;
   bool get isLoading => _isLoading;
   bool get isSyncing => _isSyncing;
@@ -290,6 +293,7 @@ class AppState extends ChangeNotifier {
     _debts = _dataService.debts;
     _categories = _dataService.categories;
     _productPurchases = _dataService.productPurchases;
+    _activities = _dataService.activities;
     _currencySettings = _dataService.currencySettings;
     
 
@@ -425,6 +429,9 @@ class AppState extends ChangeNotifier {
       _debts.add(debt);
       _clearCache();
       
+      // Track activity
+      await addDebtActivity(debt);
+      
       // Sync to CloudKit if enabled
       if (_iCloudSyncEnabled) {
         await _cloudKitService.syncDebts(_debts);
@@ -486,6 +493,9 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
+      // Track debt cleared activity
+      await addDebtClearedActivity(debt);
+      
       // Show system notification
       await _notificationService.showDebtDeletedNotification(debt.customerName, debt.amount);
       
@@ -511,6 +521,9 @@ class AppState extends ChangeNotifier {
         );
         _clearCache();
         notifyListeners();
+        
+        // Track payment activity
+        await addPaymentActivity(originalDebt, originalDebt.amount, DebtStatus.pending, DebtStatus.paid);
         
         // Show system notification
         await _notificationService.showDebtPaidNotification(originalDebt);
@@ -562,6 +575,9 @@ class AppState extends ChangeNotifier {
         await _dataService.updateDebt(_debts[index]);
         _clearCache();
         notifyListeners();
+        
+        // Track payment activity
+        await addPaymentActivity(originalDebt, paymentAmount, originalDebt.status, _debts[index].status);
         
         print('Debt updated in data service and cache cleared');
         
@@ -1286,5 +1302,62 @@ class AppState extends ChangeNotifier {
       print('Error getting temporary files info: $e');
       return {'size': 0, 'items': 0};
     }
+  }
+
+  // Activity tracking methods
+  Future<void> _addActivity(Activity activity) async {
+    try {
+      await _dataService.addActivity(activity);
+      _activities.add(activity);
+      notifyListeners();
+    } catch (e) {
+      print('Error adding activity: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> addDebtActivity(Debt debt) async {
+    final activity = Activity(
+      id: 'activity_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+      date: debt.createdAt,
+      type: ActivityType.newDebt,
+      customerName: debt.customerName,
+      customerId: debt.customerId,
+      description: debt.description,
+      amount: debt.amount,
+      debtId: debt.id,
+    );
+    await _addActivity(activity);
+  }
+
+  Future<void> addPaymentActivity(Debt debt, double paymentAmount, DebtStatus oldStatus, DebtStatus newStatus) async {
+    final activity = Activity(
+      id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+      date: DateTime.now(),
+      type: ActivityType.payment,
+      customerName: debt.customerName,
+      customerId: debt.customerId,
+      description: debt.description,
+      amount: debt.amount,
+      paymentAmount: paymentAmount,
+      oldStatus: oldStatus,
+      newStatus: newStatus,
+      debtId: debt.id,
+    );
+    await _addActivity(activity);
+  }
+
+  Future<void> addDebtClearedActivity(Debt debt) async {
+    final activity = Activity(
+      id: 'activity_cleared_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+      date: DateTime.now(),
+      type: ActivityType.debtCleared,
+      customerName: debt.customerName,
+      customerId: debt.customerId,
+      description: debt.description,
+      amount: debt.amount,
+      debtId: debt.id,
+    );
+    await _addActivity(activity);
   }
 } 

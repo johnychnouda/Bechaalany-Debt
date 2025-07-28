@@ -4,6 +4,7 @@ import '../models/debt.dart';
 import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
+import '../models/activity.dart';
 
 class DataService {
   static final DataService _instance = DataService._internal();
@@ -15,6 +16,7 @@ class DataService {
   Box<ProductCategory>? _categoryBox;
   Box<ProductPurchase>? _productPurchaseBox;
   Box<CurrencySettings>? _currencySettingsBox;
+  Box<Activity>? _activityBox;
   
   Box<Customer> get _customerBoxSafe {
     _customerBox ??= Hive.box<Customer>('customers');
@@ -36,6 +38,16 @@ class DataService {
     return _productPurchaseBox!;
   }
 
+  Box<CurrencySettings> get _currencySettingsBoxSafe {
+    _currencySettingsBox ??= Hive.box<CurrencySettings>('currency_settings');
+    return _currencySettingsBox!;
+  }
+
+  Box<Activity> get _activityBoxSafe {
+    _activityBox ??= Hive.box<Activity>('activities');
+    return _activityBox!;
+  }
+  
   // Customer methods
   List<Customer> get customers {
     try {
@@ -326,11 +338,6 @@ class DataService {
   }
 
   // Currency Settings methods
-  Box<CurrencySettings> get _currencySettingsBoxSafe {
-    _currencySettingsBox ??= Hive.box<CurrencySettings>('currency_settings');
-    return _currencySettingsBox!;
-  }
-
   CurrencySettings? get currencySettings {
     try {
       final settings = _currencySettingsBoxSafe.values.firstOrNull;
@@ -461,6 +468,39 @@ class DataService {
       return size;
     } catch (e) {
       return 0;
+    }
+  }
+
+  // Activity methods
+  List<Activity> get activities {
+    try {
+      return _activityBoxSafe.values.toList();
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  Future<void> addActivity(Activity activity) async {
+    try {
+      _activityBoxSafe.put(activity.id, activity);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  Future<void> deleteActivity(String activityId) async {
+    try {
+      _activityBoxSafe.delete(activityId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  Activity? getActivity(String activityId) {
+    try {
+      return _activityBoxSafe.get(activityId);
+    } catch (e) {
+      return null;
     }
   }
 } 

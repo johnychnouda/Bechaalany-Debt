@@ -45,7 +45,8 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
                              debt.customerId.toLowerCase().contains(query);
         
-        final matchesStatus = _selectedStatus == 'All' ||
+        // Only show debts based on status filter
+        final matchesStatus = (_selectedStatus == 'All' && !debt.isFullyPaid) || // "All" excludes fully paid debts
                              (_selectedStatus == 'Pending' && !debt.isFullyPaid) ||
                              (_selectedStatus == 'Paid' && debt.isFullyPaid);
         
@@ -131,6 +132,18 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
 
   Future<void> _deleteDebt(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
+    
+    // Don't allow deletion of fully paid debts
+    if (debt.isFullyPaid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     
     return showDialog(
       context: context,
@@ -596,6 +609,7 @@ class _GroupedDebtCard extends StatelessWidget {
             Row(
               children: [
                 if ((group['totalRemainingAmount'] as double) > 0) ...[
+                  // Show "Make Payment" button when there are remaining debts
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => _showPaymentDialog(context),
@@ -603,6 +617,21 @@ class _GroupedDebtCard extends StatelessWidget {
                       label: const Text('Make Payment'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else ...[
+                  // Show "Clear" button when all debts are fully paid
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showClearDialog(context),
+                      icon: const Icon(Icons.delete_forever, size: 16),
+                      label: const Text('Clear'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
@@ -779,6 +808,76 @@ class _GroupedDebtCard extends StatelessWidget {
       appState.applyPartialPayment(debt.id, paymentForThisDebt);
       remainingPayment -= paymentForThisDebt;
     }
+  }
+
+  void _showClearDialog(BuildContext context) {
+    final customerName = group['customerName'] as String;
+    final debts = group['debts'] as List<Debt>;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear Completed Debts'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to clear all completed debts for $customerName?'),
+              const SizedBox(height: 16),
+              const Text(
+                'This action will permanently delete all fully paid debts for this customer. This action cannot be undone.',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (debts.isNotEmpty) ...[
+                Text(
+                  'Debts to be cleared: ${debts.length}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _clearCompletedDebts(context, debts);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Clear All'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _clearCompletedDebts(BuildContext context, List<Debt> debts) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    for (final debt in debts) {
+      await appState.deleteDebt(debt.id);
+    }
+    // Show success notification
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Cleared ${debts.length} completed debts for ${group['customerName']}'),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   String _formatDate(DateTime date) {

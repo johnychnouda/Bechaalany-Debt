@@ -7,6 +7,7 @@ import 'models/debt.dart';
 import 'models/category.dart';
 import 'models/product_purchase.dart';
 import 'models/currency_settings.dart';
+import 'models/activity.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'services/localization_service.dart';
@@ -19,6 +20,8 @@ void main() async {
   try {
     // Initialize Hive
     await Hive.initFlutter();
+    
+    // Register all adapters
     Hive.registerAdapter(CustomerAdapter());
     Hive.registerAdapter(DebtAdapter());
     Hive.registerAdapter(DebtStatusAdapter());
@@ -28,32 +31,61 @@ void main() async {
     Hive.registerAdapter(PriceHistoryAdapter());
     Hive.registerAdapter(ProductPurchaseAdapter());
     Hive.registerAdapter(CurrencySettingsAdapter());
+    Hive.registerAdapter(ActivityAdapter());
     
-    // Open Hive boxes with error handling
+    // Open Hive boxes with better error handling
     try {
       await Hive.openBox<Customer>('customers');
       await Hive.openBox<Debt>('debts');
       await Hive.openBox<ProductCategory>('categories');
       await Hive.openBox<ProductPurchase>('product_purchases');
       await Hive.openBox<CurrencySettings>('currency_settings');
-      // print('Hive boxes opened successfully');
+      await Hive.openBox<Activity>('activities');
+      print('Hive boxes opened successfully');
     } catch (e) {
-      // print('Error opening Hive boxes: $e');
-      // Try to delete and recreate boxes if they're corrupted
-      await Hive.deleteBoxFromDisk('customers');
-      await Hive.deleteBoxFromDisk('debts');
-      await Hive.deleteBoxFromDisk('categories');
-      await Hive.deleteBoxFromDisk('product_purchases');
-      await Hive.deleteBoxFromDisk('currency_settings');
-      await Hive.openBox<Customer>('customers');
-      await Hive.openBox<Debt>('debts');
-      await Hive.openBox<ProductCategory>('categories');
-      await Hive.openBox<ProductPurchase>('product_purchases');
-      await Hive.openBox<CurrencySettings>('currency_settings');
-      // print('Hive boxes recreated successfully');
+      print('Error opening Hive boxes: $e');
+      print('Attempting to recreate boxes...');
+      
+      // Close any open boxes first
+      try {
+        await Hive.close();
+        await Hive.initFlutter();
+        
+        // Re-register adapters
+        Hive.registerAdapter(CustomerAdapter());
+        Hive.registerAdapter(DebtAdapter());
+        Hive.registerAdapter(DebtStatusAdapter());
+        Hive.registerAdapter(DebtTypeAdapter());
+        Hive.registerAdapter(ProductCategoryAdapter());
+        Hive.registerAdapter(SubcategoryAdapter());
+        Hive.registerAdapter(PriceHistoryAdapter());
+        Hive.registerAdapter(ProductPurchaseAdapter());
+        Hive.registerAdapter(CurrencySettingsAdapter());
+        Hive.registerAdapter(ActivityAdapter());
+        
+        // Delete and recreate boxes
+        await Hive.deleteBoxFromDisk('customers');
+        await Hive.deleteBoxFromDisk('debts');
+        await Hive.deleteBoxFromDisk('categories');
+        await Hive.deleteBoxFromDisk('product_purchases');
+        await Hive.deleteBoxFromDisk('currency_settings');
+        await Hive.deleteBoxFromDisk('activities');
+        
+        // Open boxes again
+        await Hive.openBox<Customer>('customers');
+        await Hive.openBox<Debt>('debts');
+        await Hive.openBox<ProductCategory>('categories');
+        await Hive.openBox<ProductPurchase>('product_purchases');
+        await Hive.openBox<CurrencySettings>('currency_settings');
+        await Hive.openBox<Activity>('activities');
+        
+        print('Hive boxes recreated successfully');
+      } catch (recreateError) {
+        print('Failed to recreate Hive boxes: $recreateError');
+      }
     }
   } catch (e) {
-    // print('Error during initialization: $e');
+    print('Error during Hive initialization: $e');
   }
   
   runApp(const BechaalanyDebtApp());

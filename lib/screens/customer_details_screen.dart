@@ -99,6 +99,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   Future<void> _deleteDebt(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
     
+    // Don't allow deletion of fully paid debts
+    if (debt.isFullyPaid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
