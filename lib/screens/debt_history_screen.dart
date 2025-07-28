@@ -48,8 +48,8 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         // Only show debts based on status filter
         final matchesStatus = (_selectedStatus == 'All') || // "All" shows all debts
                              (_selectedStatus == 'Pending' && debt.paidAmount == 0) || // Pending: no payments made
-                             (_selectedStatus == 'Partially Paid' && debt.isPartiallyPaid) ||
-                             (_selectedStatus == 'Fully Paid' && debt.isFullyPaid);
+                             (_selectedStatus == 'Partially Paid' && debt.paidAmount > 0 && debt.paidAmount < debt.amount) || // Partially Paid: some payment but not full
+                             (_selectedStatus == 'Fully Paid' && debt.paidAmount >= debt.amount); // Fully Paid: paid in full
         
         return matchesSearch && matchesStatus;
       }).toList();
@@ -73,9 +73,33 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     // Convert to list of maps for easier handling
     _groupedDebts = groupedMap.entries.map((entry) {
       final customerDebts = entry.value;
-      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-      final totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      
+      // Calculate amounts based on the current filter
+      double totalAmount = 0;
+      double totalPaidAmount = 0;
+      double totalRemainingAmount = 0;
+      
+      if (_selectedStatus == 'Pending') {
+        final pendingDebts = customerDebts.where((d) => d.paidAmount == 0).toList();
+        totalAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        totalPaidAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        totalRemainingAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      } else if (_selectedStatus == 'Partially Paid') {
+        final partiallyPaidDebts = customerDebts.where((d) => d.paidAmount > 0 && d.paidAmount < d.amount).toList();
+        totalAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        totalPaidAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        totalRemainingAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      } else if (_selectedStatus == 'Fully Paid') {
+        final fullyPaidDebts = customerDebts.where((d) => d.paidAmount >= d.amount).toList();
+        totalAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        totalPaidAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        totalRemainingAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      } else {
+        // 'All' filter - use all debts
+        totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      }
       
       final pendingDebts = customerDebts.where((d) => !d.isFullyPaid).toList();
       final paidDebts = customerDebts.where((d) => d.isFullyPaid).toList();
@@ -377,6 +401,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
           customerDebts: customerDebts,
+          partialPayments: appState.partialPayments,
         ),
       ),
     );

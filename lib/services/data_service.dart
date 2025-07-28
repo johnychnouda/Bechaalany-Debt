@@ -1,10 +1,13 @@
 import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
 import '../models/activity.dart';
+import '../models/partial_payment.dart';
 
 class DataService {
   static final DataService _instance = DataService._internal();
@@ -17,6 +20,11 @@ class DataService {
   Box<ProductPurchase>? _productPurchaseBox;
   Box<CurrencySettings>? _currencySettingsBox;
   Box<Activity>? _activityBox;
+  Box<PartialPayment>? _partialPaymentBox;
+  
+  // Backup and recovery
+  static const String _backupDirName = 'backups';
+  static const int _maxBackups = 5;
   
   Box<Customer> get _customerBoxSafe {
     _customerBox ??= Hive.box<Customer>('customers');
@@ -47,6 +55,147 @@ class DataService {
     _activityBox ??= Hive.box<Activity>('activities');
     return _activityBox!;
   }
+
+  Box<PartialPayment> get _partialPaymentBoxSafe {
+    try {
+      if (!Hive.isBoxOpen('partial_payments')) {
+        throw Exception('Partial payments box is not open');
+      }
+      _partialPaymentBox ??= Hive.box<PartialPayment>('partial_payments');
+      return _partialPaymentBox!;
+    } catch (e) {
+      print('Error accessing partial payments box: $e');
+      rethrow;
+    }
+  }
+  
+  // Create backup of all data
+  Future<void> createBackup() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final backupDir = Directory('${directory.path}/$_backupDirName');
+      if (!await backupDir.exists()) {
+        await backupDir.create(recursive: true);
+      }
+      
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final backupPath = '${backupDir.path}/backup_$timestamp';
+      final backupDirPath = Directory(backupPath);
+      await backupDirPath.create();
+      
+      // Copy all Hive files
+      final hiveFiles = [
+        'customers.hive', 'debts.hive', 'categories.hive', 
+        'product_purchases.hive', 'currency_settings.hive', 
+        'activities.hive', 'partial_payments.hive'
+      ];
+      
+      for (final fileName in hiveFiles) {
+        final sourceFile = File('${directory.path}/$fileName');
+        if (await sourceFile.exists()) {
+          final destFile = File('$backupPath/$fileName');
+          await sourceFile.copy(destFile.path);
+        }
+      }
+      
+      print('Backup created at: $backupPath');
+      
+      // Clean up old backups
+      await _cleanupOldBackups(backupDir);
+      
+    } catch (e) {
+      print('Error creating backup: $e');
+    }
+  }
+  
+  // Restore from backup
+  Future<bool> restoreFromBackup(String backupPath) async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final backupDir = Directory(backupPath);
+      
+      if (!await backupDir.exists()) {
+        print('Backup directory does not exist: $backupPath');
+        return false;
+      }
+      
+      // Close all boxes first
+      await Hive.close();
+      
+      // Copy backup files
+      final hiveFiles = [
+        'customers.hive', 'debts.hive', 'categories.hive', 
+        'product_purchases.hive', 'currency_settings.hive', 
+        'activities.hive', 'partial_payments.hive'
+      ];
+      
+      for (final fileName in hiveFiles) {
+        final backupFile = File('$backupPath/$fileName');
+        if (await backupFile.exists()) {
+          final destFile = File('${directory.path}/$fileName');
+          await backupFile.copy(destFile.path);
+        }
+      }
+      
+      print('Data restored from backup: $backupPath');
+      return true;
+      
+    } catch (e) {
+      print('Error restoring from backup: $e');
+      return false;
+    }
+  }
+  
+  // Get list of available backups
+  Future<List<String>> getAvailableBackups() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final backupDir = Directory('${directory.path}/$_backupDirName');
+      
+      if (!await backupDir.exists()) {
+        return [];
+      }
+      
+      final backupDirs = await backupDir.list().where((entity) => 
+        entity is Directory && entity.path.contains('backup_')
+      ).toList();
+      
+      return backupDirs.map((dir) => dir.path).toList()..sort((a, b) => b.compareTo(a));
+      
+    } catch (e) {
+      print('Error getting backups: $e');
+      return [];
+    }
+  }
+  
+  // Clean up old backups
+  Future<void> _cleanupOldBackups(Directory backupDir) async {
+    try {
+      final backupDirs = await backupDir.list().where((entity) => 
+        entity is Directory && entity.path.contains('backup_')
+      ).toList();
+      
+      if (backupDirs.length > _maxBackups) {
+        backupDirs.sort((a, b) => a.path.compareTo(b.path));
+        final toDelete = backupDirs.take(backupDirs.length - _maxBackups);
+        
+        for (final dir in toDelete) {
+          await dir.delete(recursive: true);
+        }
+      }
+    } catch (e) {
+      print('Error cleaning up backups: $e');
+    }
+  }
+  
+  // Auto-backup before major operations
+  Future<void> _autoBackup() async {
+    try {
+      await createBackup();
+    } catch (e) {
+      print('Auto-backup failed: $e');
+    }
+  }
   
   // Customer methods
   List<Customer> get customers {
@@ -59,6 +208,7 @@ class DataService {
   
   Future<void> addCustomer(Customer customer) async {
     try {
+      await _autoBackup(); // Create backup before adding
       _customerBoxSafe.put(customer.id, customer);
     } catch (e) {
       rethrow;
@@ -101,6 +251,20 @@ class DataService {
       return [];
     }
   }
+
+  List<PartialPayment> get partialPayments {
+    try {
+      // Check if the box is open
+      if (!Hive.isBoxOpen('partial_payments')) {
+        print('Partial payments box is not open, returning empty list');
+        return [];
+      }
+      return _partialPaymentBoxSafe.values.toList();
+    } catch (e) {
+      print('Error accessing partial payments box: $e');
+      return [];
+    }
+  }
   
   List<Debt> getDebtsByCustomer(String customerId) {
     try {
@@ -112,6 +276,7 @@ class DataService {
   
   Future<void> addDebt(Debt debt) async {
     try {
+      await _autoBackup(); // Create backup before adding
       _debtBoxSafe.put(debt.id, debt);
     } catch (e) {
       rethrow;
@@ -129,6 +294,36 @@ class DataService {
   Future<void> deleteDebt(String debtId) async {
     try {
       _debtBoxSafe.delete(debtId);
+      // Also delete related partial payments
+      final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
+      for (final payment in partialPayments) {
+        _partialPaymentBoxSafe.delete(payment.id);
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Partial Payment methods
+  List<PartialPayment> getPartialPaymentsByDebt(String debtId) {
+    try {
+      return _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<void> addPartialPayment(PartialPayment payment) async {
+    try {
+      _partialPaymentBoxSafe.put(payment.id, payment);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deletePartialPayment(String paymentId) async {
+    try {
+      _partialPaymentBoxSafe.delete(paymentId);
     } catch (e) {
       rethrow;
     }

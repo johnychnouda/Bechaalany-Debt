@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../constants/app_colors.dart';
@@ -122,8 +123,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark 
+            ? Brightness.light 
+            : Brightness.dark,
+          statusBarBrightness: Theme.of(context).brightness,
+        ),
       ),
       body: Consumer<AppState>(
         builder: (context, appState, child) {

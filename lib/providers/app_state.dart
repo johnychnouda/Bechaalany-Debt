@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
 import '../models/activity.dart';
+import '../models/partial_payment.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
@@ -28,6 +29,7 @@ class AppState extends ChangeNotifier {
   List<ProductCategory> _categories = [];
   List<ProductPurchase> _productPurchases = [];
   List<Activity> _activities = [];
+  List<PartialPayment> _partialPayments = [];
   CurrencySettings? _currencySettings;
   
   // Loading states
@@ -80,6 +82,8 @@ class AppState extends ChangeNotifier {
   // Getters
   List<Customer> get customers => _customers;
   List<Debt> get debts => _debts;
+
+  List<PartialPayment> get partialPayments => _partialPayments;
   List<ProductCategory> get categories => _categories;
   List<ProductPurchase> get productPurchases => _productPurchases;
   List<Activity> get activities => _activities;
@@ -287,12 +291,25 @@ class AppState extends ChangeNotifier {
   
   // Load data from local storage
   Future<void> _loadData() async {
-    _customers = _dataService.customers;
-    _debts = _dataService.debts;
-    _categories = _dataService.categories;
-    _productPurchases = _dataService.productPurchases;
-    _activities = _dataService.activities;
-    _currencySettings = _dataService.currencySettings;
+    try {
+      _customers = _dataService.customers;
+      _debts = _dataService.debts;
+      _categories = _dataService.categories;
+      _productPurchases = _dataService.productPurchases;
+      _activities = _dataService.activities;
+      _partialPayments = _dataService.partialPayments;
+      _currencySettings = _dataService.currencySettings;
+    } catch (e) {
+      print('Error loading data: $e');
+      // Initialize with empty lists if there's an error
+      _customers = [];
+      _debts = [];
+      _categories = [];
+      _productPurchases = [];
+      _activities = [];
+      _partialPayments = [];
+      _currencySettings = null;
+    }
     
     // Debug: Print data counts
     print('Loaded data:');
@@ -301,6 +318,7 @@ class AppState extends ChangeNotifier {
     print('- Activities: ${_activities.length}');
     print('- Categories: ${_categories.length}');
     print('- Product Purchases: ${_productPurchases.length}');
+    print('- Partial Payments: ${_partialPayments.length}');
     
     _clearCache();
     notifyListeners();
@@ -616,16 +634,29 @@ class AppState extends ChangeNotifier {
 
       final originalDebt = _debts[index];
       
-      final newPaidAmount = originalDebt.paidAmount + paymentAmount;
-      final isFullyPaid = newPaidAmount >= originalDebt.amount;
+      // Create a new partial payment record
+      final partialPayment = PartialPayment(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        debtId: debtId,
+        amount: paymentAmount,
+        paidAt: DateTime.now(),
+      );
       
-      // Always update paidAt timestamp on every payment (partial or full)
-      final newPaidAt = DateTime.now();
+      // Add the partial payment to storage
+      await _dataService.addPartialPayment(partialPayment);
+      _partialPayments.add(partialPayment);
       
+      // Calculate total paid amount from all partial payments
+      final allPartialPayments = _dataService.getPartialPaymentsByDebt(debtId);
+      final totalPaidAmount = allPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+      
+      final isFullyPaid = totalPaidAmount >= originalDebt.amount;
+      
+      // Update the debt with the new total paid amount
       _debts[index] = originalDebt.copyWith(
-        paidAmount: newPaidAmount,
+        paidAmount: totalPaidAmount,
         status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
-        paidAt: newPaidAt,
+        paidAt: DateTime.now(), // Update to latest payment time
       );
       
       await _dataService.updateDebt(_debts[index]);

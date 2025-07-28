@@ -69,7 +69,7 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
 
   void _selectCustomer(Customer customer) {
     widget.onCustomerSelected(customer);
-    _searchController.text = customer.name;
+    _searchController.clear();
     _searchFocusNode.unfocus();
     setState(() {
       _filteredCustomers = [];
@@ -78,7 +78,7 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
 
   void _updateSelectedCustomer() {
     if (widget.selectedCustomer != null) {
-      _searchController.text = widget.selectedCustomer!.name;
+      _searchController.clear();
       setState(() {
         _filteredCustomers = [];
       });
@@ -107,138 +107,186 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
         ),
         const SizedBox(height: 8),
         
-        // Search Text Field Container
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(12),
-              topRight: const Radius.circular(12),
-              bottomLeft: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
-                  ? Radius.zero 
-                  : const Radius.circular(12),
-              bottomRight: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
-                  ? Radius.zero 
-                  : const Radius.circular(12),
-            ),
-          ),
-          child: TextField(
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            decoration: InputDecoration(
-              hintText: widget.placeholder,
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: widget.selectedCustomer != null
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: _clearSelection,
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-            onChanged: _filterCustomers,
-            onTap: () {
-              // Don't show suggestions until user starts typing
-            },
-          ),
-        ),
-        
-
-        
-        // Search Results Dropdown
-        if (_searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty && widget.selectedCustomer == null)
+        // Show selected customer card if customer is selected
+        if (widget.selectedCustomer != null) ...[
           Container(
-            constraints: BoxConstraints(
-              maxHeight: _filteredCustomers.length == 1 ? 48.0 : (_filteredCustomers.length * 48.0).clamp(48.0, 200.0),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
-              ),
-              border: Border(
-                left: BorderSide(color: Colors.grey.shade300),
-                right: BorderSide(color: Colors.grey.shade300),
-                bottom: BorderSide(color: Colors.grey.shade300),
+              color: Colors.grey[50],
+              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.person, size: 20, color: Colors.grey),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.selectedCustomer!.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'ID: ${widget.selectedCustomer!.id}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: _clearSelection,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          // Search Text Field Container
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(12),
+                topRight: const Radius.circular(12),
+                bottomLeft: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
+                    ? Radius.zero 
+                    : const Radius.circular(12),
+                bottomRight: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
+                    ? Radius.zero 
+                    : const Radius.circular(12),
               ),
             ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: _filteredCustomers.length,
-              itemBuilder: (context, index) {
-                final customer = _filteredCustomers[index];
-                return Container(
-                  decoration: BoxDecoration(
-                    border: index < _filteredCustomers.length - 1 
-                        ? Border(bottom: BorderSide(color: Colors.grey.shade200))
-                        : null,
-                  ),
-                  child: GestureDetector(
-                    onTap: () => _selectCustomer(customer),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.person, size: 18, color: Colors.grey),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                Text(
-                                  customer.name,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'ID: ${customer.id}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: widget.placeholder,
+                prefixIcon: const Icon(Icons.search),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: _filterCustomers,
+              onTap: () {
+                // Don't show suggestions until user starts typing
               },
             ),
           ),
-        
-        // No Results Message
-        if (_searchController.text.isNotEmpty && _filteredCustomers.isEmpty && widget.selectedCustomer == null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(12),
-                bottomRight: Radius.circular(12),
+          
+          // Search Results Dropdown
+          if (_searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(26), // 0.1 * 255
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: _filteredCustomers.map((customer) => InkWell(
+                  onTap: () => _selectCustomer(customer),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person, size: 20, color: Colors.grey),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                customer.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ID: ${customer.id}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )).toList(),
               ),
             ),
-            child: Text(
-              'No customers found matching "${_searchController.text}"',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
+          
+          // No Results Message
+          if (_searchController.text.isNotEmpty && _filteredCustomers.isEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[300]!),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(26), // 0.1 * 255
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.search_off,
+                    size: 20,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No customers found matching "${_searchController.text}"',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
+        ],
       ],
     );
   }

@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
+import 'data_recovery_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -174,6 +175,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Import from Files app',
                   CupertinoIcons.square_arrow_down,
                   () => _showImportDialog(),
+                ),
+                _buildNavigationRow(
+                  'Data Recovery',
+                  'Backup and restore data',
+                  CupertinoIcons.arrow_clockwise,
+                  () => Navigator.of(context).push(
+                    CupertinoPageRoute(
+                      builder: (context) => const DataRecoveryScreen(),
+                    ),
+                  ),
                 ),
                 _buildActionRow(
                   'Clear All Data',

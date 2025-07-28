@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'models/category.dart';
 import 'models/product_purchase.dart';
 import 'models/currency_settings.dart';
 import 'models/activity.dart';
+import 'models/partial_payment.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'services/localization_service.dart';
@@ -16,6 +18,17 @@ import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Configure status bar for light theme (default)
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
   
   try {
     // Initialize Hive
@@ -33,6 +46,7 @@ void main() async {
     Hive.registerAdapter(CurrencySettingsAdapter());
     Hive.registerAdapter(ActivityAdapter());
     Hive.registerAdapter(ActivityTypeAdapter());
+    Hive.registerAdapter(PartialPaymentAdapter());
     
     // Open Hive boxes with better error handling
     try {
@@ -42,15 +56,32 @@ void main() async {
       await Hive.openBox<ProductPurchase>('product_purchases');
       await Hive.openBox<CurrencySettings>('currency_settings');
       await Hive.openBox<Activity>('activities');
+      await Hive.openBox<PartialPayment>('partial_payments');
       print('Hive boxes opened successfully');
+      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
     } catch (e) {
       print('Error opening Hive boxes: $e');
-      print('Attempting to recreate boxes...');
+      print('Attempting to fix problematic boxes...');
       
-      // Close any open boxes first
       try {
-        await Hive.close();
-        await Hive.initFlutter();
+        // Only delete and recreate boxes that might be corrupted
+        // Check which boxes are missing or corrupted
+        final boxesToCheck = [
+          'customers', 'debts', 'categories', 'product_purchases', 
+          'currency_settings', 'activities', 'partial_payments'
+        ];
+        
+        for (final boxName in boxesToCheck) {
+          if (!Hive.isBoxOpen(boxName)) {
+            try {
+              // Try to delete and recreate only the problematic box
+              await Hive.deleteBoxFromDisk(boxName);
+              print('Recreated box: $boxName');
+            } catch (deleteError) {
+              print('Could not delete box $boxName: $deleteError');
+            }
+          }
+        }
         
         // Re-register adapters
         Hive.registerAdapter(CustomerAdapter());
@@ -64,14 +95,7 @@ void main() async {
         Hive.registerAdapter(CurrencySettingsAdapter());
         Hive.registerAdapter(ActivityAdapter());
         Hive.registerAdapter(ActivityTypeAdapter());
-        
-        // Delete and recreate boxes
-        await Hive.deleteBoxFromDisk('customers');
-        await Hive.deleteBoxFromDisk('debts');
-        await Hive.deleteBoxFromDisk('categories');
-        await Hive.deleteBoxFromDisk('product_purchases');
-        await Hive.deleteBoxFromDisk('currency_settings');
-        await Hive.deleteBoxFromDisk('activities');
+        Hive.registerAdapter(PartialPaymentAdapter());
         
         // Open boxes again
         await Hive.openBox<Customer>('customers');
@@ -80,10 +104,12 @@ void main() async {
         await Hive.openBox<ProductPurchase>('product_purchases');
         await Hive.openBox<CurrencySettings>('currency_settings');
         await Hive.openBox<Activity>('activities');
+        await Hive.openBox<PartialPayment>('partial_payments');
         
-        print('Hive boxes recreated successfully');
+        print('Hive boxes fixed successfully');
+        print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
       } catch (recreateError) {
-        print('Failed to recreate Hive boxes: $recreateError');
+        print('Failed to fix Hive boxes: $recreateError');
       }
     }
   } catch (e) {
@@ -132,7 +158,24 @@ class BechaalanyDebtApp extends StatelessWidget {
                 data: MediaQuery.of(context).copyWith(
                   textScaler: TextScaler.linear(1.0), // Use our custom text scaling
                 ),
-                child: child!,
+                child: AnnotatedRegion<SystemUiOverlayStyle>(
+                  value: appState.isDarkMode 
+                    ? const SystemUiOverlayStyle(
+                        statusBarColor: Colors.transparent,
+                        statusBarIconBrightness: Brightness.light,
+                        statusBarBrightness: Brightness.dark,
+                        systemNavigationBarColor: Colors.black,
+                        systemNavigationBarIconBrightness: Brightness.light,
+                      )
+                    : const SystemUiOverlayStyle(
+                        statusBarColor: Colors.transparent,
+                        statusBarIconBrightness: Brightness.dark,
+                        statusBarBrightness: Brightness.light,
+                        systemNavigationBarColor: Colors.white,
+                        systemNavigationBarIconBrightness: Brightness.dark,
+                      ),
+                  child: child!,
+                ),
               );
             },
           );

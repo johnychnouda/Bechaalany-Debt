@@ -11,6 +11,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/partial_payment.dart';
 import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
@@ -19,11 +20,13 @@ import '../utils/logo_utils.dart';
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
   final List<Debt> customerDebts;
+  final List<PartialPayment> partialPayments;
 
   const CustomerDebtReceiptScreen({
     super.key,
     required this.customer,
     required this.customerDebts,
+    required this.partialPayments,
   });
 
   @override
@@ -36,7 +39,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final sortedDebts = List<Debt>.from(widget.customerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final totalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    // Calculate remaining amount instead of total original amount
+    final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -71,7 +75,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             const SizedBox(height: 24),
             
             // Total Amount (last element)
-            _buildTotalAmount(totalAmount),
+            _buildTotalAmount(remainingAmount),
           ],
         ),
       ),
@@ -204,6 +208,22 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
 
   Widget _buildDebtDetails(List<Debt> sortedDebts) {
+    // Create a list of all items to display (debts + partial payments)
+    List<Widget> allItems = [];
+    
+    for (Debt debt in sortedDebts) {
+      // Add the debt item
+      allItems.add(_buildDebtItem(debt));
+      
+      // Get all partial payments for this debt
+      final partialPayments = _getPartialPaymentsForDebt(debt.id);
+      
+      // Add each partial payment as a separate item
+      for (PartialPayment payment in partialPayments) {
+        allItems.add(_buildPartialPaymentItem(payment));
+      }
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -248,7 +268,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          ...sortedDebts.map((debt) => _buildDebtItem(debt)).toList(),
+          ...allItems,
         ],
       ),
     );
@@ -272,6 +292,19 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           // Description and Amount on same line
           Row(
             children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(26), // Light blue background
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.add,
+                  size: 14,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   _cleanDescription(debt.description),
@@ -296,20 +329,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           const SizedBox(height: 12),
           
           // Date with time at the bottom
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              _formatDateTime(debt.createdAt),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
-                letterSpacing: 0.5,
-              ),
+          Text(
+            _formatDateTime(debt.createdAt),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.blue[600],
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -317,13 +343,109 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
+  List<PartialPayment> _getPartialPaymentsForDebt(String debtId) {
+    return widget.partialPayments
+        .where((payment) => payment.debtId == debtId)
+        .toList()
+      ..sort((a, b) => b.paidAt.compareTo(a.paidAt)); // Sort by date, newest first
+  }
+
+  Widget _buildPartialPaymentItem(PartialPayment payment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Partial Payment and Amount on same line
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.green[600]!.withAlpha(26), // Light green background
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.payment,
+                  size: 14,
+                  color: Colors.green[600],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Partial Payment',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                CurrencyFormatter.formatAmount(context, payment.amount),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // Date with time at the bottom
+          Text(
+            _formatDateTime(payment.paidAt),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.green[600],
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
   String _cleanDescription(String description) {
     // Remove category information in parentheses
     // This will remove "(Mobile internet)" or any other category in parentheses
     return description.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
   }
 
-  Widget _buildTotalAmount(double totalAmount) {
+  Widget _buildTotalAmount(double remainingAmount) {
+    // Calculate partially paid amount
+    final partiallyPaidAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+    
+    // Check if there are any pending or partially paid debts
+    final hasPendingOrPartiallyPaid = widget.customerDebts.any((debt) => !debt.isFullyPaid);
+    
+    // Check if all debts are fully paid
+    final allDebtsFullyPaid = remainingAmount == 0 && widget.customerDebts.isNotEmpty;
+    
+    // Get the latest payment date when all debts were paid
+    DateTime? latestPaymentDate;
+    if (allDebtsFullyPaid) {
+      latestPaymentDate = widget.customerDebts
+          .where((debt) => debt.paidAt != null)
+          .map((debt) => debt.paidAt!)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -337,25 +459,88 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           ),
         ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          Text(
-            'Total Amount:',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+          // Partially Paid Amount - only show if there are pending/partially paid debts
+          if (partiallyPaidAmount > 0 && hasPendingOrPartiallyPaid) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Partially Paid Amount:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(context, partiallyPaidAmount),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green[600],
+                  ),
+                ),
+              ],
             ),
-          ),
-          Text(
-            CurrencyFormatter.formatAmount(context, totalAmount),
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.red[600],
+            const SizedBox(height: 12),
+          ],
+          
+          // Show "Debts Fully Paid" when remaining amount is 0, otherwise show total amount
+          if (allDebtsFullyPaid) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Debts Fully Paid',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green[600],
+                  ),
+                ),
+                Icon(
+                  Icons.check_circle,
+                  color: Colors.green[600],
+                  size: 24,
+                ),
+              ],
             ),
-          ),
+            if (latestPaymentDate != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Paid on ${_formatDateTime(latestPaymentDate)}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ] else ...[
+            // Total Amount
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total Amount:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(context, remainingAmount),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -469,8 +654,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final sortedDebts = widget.customerDebts.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    // Calculate total amount
-    final totalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    // Calculate remaining amount instead of total original amount
+    final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
     // Create pages with debts (max 10 debts per page)
     final debtPages = <List<Debt>>[];
@@ -548,24 +733,91 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                         color: const PdfColor(0.95, 0.95, 0.95),
                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                       ),
-                      child: pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      child: pw.Column(
                         children: [
-                          pw.Text(
-                            'Total Outstanding Debts:',
-                            style: pw.TextStyle(
-                              fontSize: 14,
-                              fontWeight: pw.FontWeight.bold,
+                          // Partially Paid Amount - only show if there are pending/partially paid debts
+                          if (sortedDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount) > 0 && 
+                              sortedDebts.any((debt) => !debt.isFullyPaid)) ...[
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text(
+                                  'Partially Paid Amount:',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '\$${sortedDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount).toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: const PdfColor(0.2, 0.8, 0.2), // Green
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          pw.Text(
-                            '\$${totalAmount.toStringAsFixed(2)}',
-                            style: pw.TextStyle(
-                              fontSize: 16,
-                              fontWeight: pw.FontWeight.bold,
-                              color: const PdfColor(0.8, 0.2, 0.2),
+                            pw.SizedBox(height: 8),
+                          ],
+                          
+                                                    // Show "Debts Fully Paid" when remaining amount is 0, otherwise show total outstanding debts
+                          if (remainingAmount == 0 && sortedDebts.isNotEmpty) ...[
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text(
+                                  'Debts Fully Paid',
+                                  style: pw.TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: const PdfColor(0.2, 0.8, 0.2), // Green
+                                  ),
+                                ),
+                                pw.Text(
+                                  '✓',
+                                  style: pw.TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: const PdfColor(0.2, 0.8, 0.2), // Green
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
+                            // Get the latest payment date when all debts were paid
+                            if (sortedDebts.any((debt) => debt.paidAt != null)) ...[
+                              pw.SizedBox(height: 4),
+                              pw.Text(
+                                'Paid on ${_formatDateTime(sortedDebts.where((debt) => debt.paidAt != null).map((debt) => debt.paidAt!).reduce((a, b) => a.isAfter(b) ? a : b))}',
+                                style: pw.TextStyle(
+                                  fontSize: 10,
+                                  color: const PdfColor(0.4, 0.4, 0.4),
+                                ),
+                              ),
+                            ],
+                          ] else ...[
+                            // Total Outstanding Debts
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text(
+                                  'Total Outstanding Debts:',
+                                  style: pw.TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: pw.FontWeight.bold,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '\$${remainingAmount.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: const PdfColor(0.8, 0.2, 0.2),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -678,7 +930,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   Future<void> _buildMultiPagePDF(pw.Document pdf) async {
     final sortedDebts = List<Debt>.from(widget.customerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final totalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    // Calculate remaining amount instead of total original amount
+    final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
     // Sanitize customer data to avoid Unicode issues
     final sanitizedCustomerName = PdfFontUtils.sanitizeText(widget.customer.name);
@@ -705,10 +958,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
-            return _buildPDFPage(
+            return             _buildPDFPage(
               pageDebts: pageDebts,
               allDebts: sortedDebts,
-              totalAmount: totalAmount,
+              remainingAmount: remainingAmount,
               sanitizedCustomerName: sanitizedCustomerName,
               sanitizedCustomerPhone: sanitizedCustomerPhone,
               sanitizedCustomerId: sanitizedCustomerId,
@@ -725,7 +978,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   pw.Widget _buildPDFPage({
     required List<Debt> pageDebts,
     required List<Debt> allDebts,
-    required double totalAmount,
+    required double remainingAmount,
     required String sanitizedCustomerName,
     required String sanitizedCustomerPhone,
     required String sanitizedCustomerId,
@@ -899,22 +1152,66 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ],
               ),
               pw.SizedBox(height: 12),
-              pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: pw.BoxDecoration(
-                  color: PdfColor.fromInt(0xFFE0E0E0), // Colors.grey[200]
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-                ),
-                child: PdfFontUtils.createGracefulText(
-                  _formatDateTime(debt.createdAt),
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.normal,
-                  color: PdfColors.grey,
-                ),
+              PdfFontUtils.createGracefulText(
+                _formatDateTime(debt.createdAt),
+                fontSize: 12,
+                fontWeight: pw.FontWeight.normal,
+                color: PdfColor.fromInt(0xFF1976D2), // Colors.blue[600]
               ),
             ],
           ),
         )).toList(),
+        
+        // Partial Payment Items for this page
+        ...pageDebts
+            .expand((debt) => _getPartialPaymentsForDebt(debt.id))
+            .map((payment) => pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 12),
+              padding: const pw.EdgeInsets.all(16),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFF5F5F5), // Colors.grey[50]
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+                border: pw.Border.all(
+                  color: PdfColor.fromInt(0xFFE0E0E0), // Colors.grey[200]
+                  width: 0.5,
+                ),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Row(
+                    children: [
+                      pw.Text(
+                        'Partial Payment',
+                        style: pw.TextStyle(
+                          fontSize: 15,
+                          fontWeight: pw.FontWeight.normal,
+                          color: PdfColors.black, // Colors.black87
+                        ),
+                      ),
+                      pw.Spacer(),
+                      pw.Text(
+                        _formatCurrency(payment.amount),
+                        style: pw.TextStyle(
+                          fontSize: 15,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromInt(0xFF4CAF50), // Colors.green[600]
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    _formatDateTime(payment.paidAt),
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.normal,
+                      color: PdfColor.fromInt(0xFF4CAF50), // Colors.green[600]
+                    ),
+                  ),
+                ],
+              ),
+            )).toList(),
         
         // Total Amount (only on last page)
         if (isLastPage) ...[
@@ -925,21 +1222,83 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               color: PdfColors.white,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
             ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            child: pw.Column(
               children: [
-                PdfFontUtils.createGracefulText(
-                  'Total Amount:',
-                  fontSize: 18,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.grey,
-                ),
-                PdfFontUtils.createGracefulText(
-                  _formatCurrency(totalAmount),
-                  fontSize: 20,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromInt(0xFFD32F2F), // Colors.red[600]
-                ),
+                // Partially Paid Amount - only show if there are pending/partially paid debts
+                if (allDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount) > 0 && 
+                    allDebts.any((debt) => !debt.isFullyPaid)) ...[
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      PdfFontUtils.createGracefulText(
+                        'Partially Paid Amount:',
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF666666),
+                      ),
+                      PdfFontUtils.createGracefulText(
+                        _formatCurrency(allDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount)),
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF4CAF50), // Colors.green[600]
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 12),
+                ],
+                
+                // Show "Debts Fully Paid" when remaining amount is 0, otherwise show total amount
+                if (remainingAmount == 0 && allDebts.isNotEmpty) ...[
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      PdfFontUtils.createGracefulText(
+                        'Debts Fully Paid',
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF4CAF50), // Colors.green[600]
+                      ),
+                      pw.Text(
+                        '✓',
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromInt(0xFF4CAF50), // Colors.green[600]
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Get the latest payment date when all debts were paid
+                  if (allDebts.any((debt) => debt.paidAt != null)) ...[
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Paid on ${_formatDateTime(allDebts.where((debt) => debt.paidAt != null).map((debt) => debt.paidAt!).reduce((a, b) => a.isAfter(b) ? a : b))}',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        color: PdfColor.fromInt(0xFF666666),
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  // Total Amount
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      PdfFontUtils.createGracefulText(
+                        'Total Amount:',
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey,
+                      ),
+                      PdfFontUtils.createGracefulText(
+                        _formatCurrency(remainingAmount),
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFFD32F2F), // Colors.red[600]
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
