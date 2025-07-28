@@ -34,84 +34,172 @@ void main() async {
     // Initialize Hive
     await Hive.initFlutter();
     
-    // Register all adapters
-    Hive.registerAdapter(CustomerAdapter());
-    Hive.registerAdapter(DebtAdapter());
-    Hive.registerAdapter(DebtStatusAdapter());
-    Hive.registerAdapter(DebtTypeAdapter());
-    Hive.registerAdapter(ProductCategoryAdapter());
-    Hive.registerAdapter(SubcategoryAdapter());
-    Hive.registerAdapter(PriceHistoryAdapter());
-    Hive.registerAdapter(ProductPurchaseAdapter());
-    Hive.registerAdapter(CurrencySettingsAdapter());
-    Hive.registerAdapter(ActivityAdapter());
-    Hive.registerAdapter(ActivityTypeAdapter());
-    Hive.registerAdapter(PartialPaymentAdapter());
+    // Register all adapters with error handling
+    try {
+      Hive.registerAdapter(CustomerAdapter());
+      Hive.registerAdapter(DebtAdapter());
+      Hive.registerAdapter(DebtStatusAdapter());
+      Hive.registerAdapter(DebtTypeAdapter());
+      Hive.registerAdapter(ProductCategoryAdapter());
+      Hive.registerAdapter(SubcategoryAdapter());
+      Hive.registerAdapter(PriceHistoryAdapter());
+      Hive.registerAdapter(ProductPurchaseAdapter());
+      Hive.registerAdapter(CurrencySettingsAdapter());
+      Hive.registerAdapter(ActivityAdapter());
+      Hive.registerAdapter(ActivityTypeAdapter());
+      Hive.registerAdapter(PartialPaymentAdapter());
+      print('All adapters registered successfully');
+    } catch (e) {
+      print('Error registering adapters: $e');
+      // Continue anyway, some adapters might already be registered
+    }
     
     // Open Hive boxes with better error handling
+    print('Starting Hive box initialization...');
+    
+    // Open each box individually with proper error handling
     try {
-      await Hive.openBox<Customer>('customers');
-      await Hive.openBox<Debt>('debts');
-      await Hive.openBox<ProductCategory>('categories');
-      await Hive.openBox<ProductPurchase>('product_purchases');
-      await Hive.openBox<CurrencySettings>('currency_settings');
-      await Hive.openBox<Activity>('activities');
-      await Hive.openBox<PartialPayment>('partial_payments');
-      print('Hive boxes opened successfully');
-      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
-    } catch (e) {
-      print('Error opening Hive boxes: $e');
-      print('Attempting to fix problematic boxes...');
-      
-      try {
-        // Only delete and recreate boxes that might be corrupted
-        // Check which boxes are missing or corrupted
-        final boxesToCheck = [
-          'customers', 'debts', 'categories', 'product_purchases', 
-          'currency_settings', 'activities', 'partial_payments'
-        ];
-        
-        for (final boxName in boxesToCheck) {
-          if (!Hive.isBoxOpen(boxName)) {
-            try {
-              // Try to delete and recreate only the problematic box
-              await Hive.deleteBoxFromDisk(boxName);
-              print('Recreated box: $boxName');
-            } catch (deleteError) {
-              print('Could not delete box $boxName: $deleteError');
-            }
-          }
-        }
-        
-        // Re-register adapters
-        Hive.registerAdapter(CustomerAdapter());
-        Hive.registerAdapter(DebtAdapter());
-        Hive.registerAdapter(DebtStatusAdapter());
-        Hive.registerAdapter(DebtTypeAdapter());
-        Hive.registerAdapter(ProductCategoryAdapter());
-        Hive.registerAdapter(SubcategoryAdapter());
-        Hive.registerAdapter(PriceHistoryAdapter());
-        Hive.registerAdapter(ProductPurchaseAdapter());
-        Hive.registerAdapter(CurrencySettingsAdapter());
-        Hive.registerAdapter(ActivityAdapter());
-        Hive.registerAdapter(ActivityTypeAdapter());
-        Hive.registerAdapter(PartialPaymentAdapter());
-        
-        // Open boxes again
+      if (!Hive.isBoxOpen('customers')) {
+        print('Opening box: customers');
         await Hive.openBox<Customer>('customers');
-        await Hive.openBox<Debt>('debts');
-        await Hive.openBox<ProductCategory>('categories');
-        await Hive.openBox<ProductPurchase>('product_purchases');
-        await Hive.openBox<CurrencySettings>('currency_settings');
-        await Hive.openBox<Activity>('activities');
-        await Hive.openBox<PartialPayment>('partial_payments');
-        
-        print('Hive boxes fixed successfully');
-        print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
+        print('Successfully opened box: customers');
+      } else {
+        print('Box already open: customers');
+      }
+    } catch (e) {
+      print('Error opening box customers: $e');
+      try {
+        await Hive.deleteBoxFromDisk('customers');
+        await Hive.openBox<Customer>('customers');
+        print('Successfully recreated box: customers');
       } catch (recreateError) {
-        print('Failed to fix Hive boxes: $recreateError');
+        print('Failed to recreate box customers: $recreateError');
       }
     }
+
+    try {
+      if (!Hive.isBoxOpen('debts')) {
+        print('Opening box: debts');
+        await Hive.openBox<Debt>('debts');
+        print('Successfully opened box: debts');
+      } else {
+        print('Box already open: debts');
+      }
+    } catch (e) {
+      print('Error opening box debts: $e');
+      try {
+        await Hive.deleteBoxFromDisk('debts');
+        await Hive.openBox<Debt>('debts');
+        print('Successfully recreated box: debts');
+      } catch (recreateError) {
+        print('Failed to recreate box debts: $recreateError');
+      }
+    }
+
+    try {
+      if (!Hive.isBoxOpen('categories')) {
+        print('Opening box: categories');
+        await Hive.openBox<ProductCategory>('categories');
+        print('Successfully opened box: categories');
+      } else {
+        print('Box already open: categories');
+      }
+    } catch (e) {
+      print('Error opening box categories: $e');
+      try {
+        await Hive.deleteBoxFromDisk('categories');
+        await Hive.openBox<ProductCategory>('categories');
+        print('Successfully recreated box: categories');
+      } catch (recreateError) {
+        print('Failed to recreate box categories: $recreateError');
+      }
+    }
+
+    try {
+      if (!Hive.isBoxOpen('product_purchases')) {
+        print('Opening box: product_purchases');
+        await Hive.openBox<ProductPurchase>('product_purchases');
+        print('Successfully opened box: product_purchases');
+      } else {
+        print('Box already open: product_purchases');
+      }
+    } catch (e) {
+      print('Error opening box product_purchases: $e');
+      try {
+        await Hive.deleteBoxFromDisk('product_purchases');
+        await Hive.openBox<ProductPurchase>('product_purchases');
+        print('Successfully recreated box: product_purchases');
+      } catch (recreateError) {
+        print('Failed to recreate box product_purchases: $recreateError');
+      }
+    }
+
+    try {
+      if (!Hive.isBoxOpen('currency_settings')) {
+        print('Opening box: currency_settings');
+        await Hive.openBox<CurrencySettings>('currency_settings');
+        print('Successfully opened box: currency_settings');
+      } else {
+        print('Box already open: currency_settings');
+      }
+    } catch (e) {
+      print('Error opening box currency_settings: $e');
+      try {
+        await Hive.deleteBoxFromDisk('currency_settings');
+        await Hive.openBox<CurrencySettings>('currency_settings');
+        print('Successfully recreated box: currency_settings');
+      } catch (recreateError) {
+        print('Failed to recreate box currency_settings: $recreateError');
+      }
+    }
+
+    try {
+      if (!Hive.isBoxOpen('activities')) {
+        print('Opening box: activities');
+        await Hive.openBox<Activity>('activities');
+        print('Successfully opened box: activities');
+      } else {
+        print('Box already open: activities');
+      }
+    } catch (e) {
+      print('Error opening box activities: $e');
+      try {
+        await Hive.deleteBoxFromDisk('activities');
+        await Hive.openBox<Activity>('activities');
+        print('Successfully recreated box: activities');
+      } catch (recreateError) {
+        print('Failed to recreate box activities: $recreateError');
+      }
+    }
+
+    try {
+      if (!Hive.isBoxOpen('partial_payments')) {
+        print('Opening box: partial_payments');
+        await Hive.openBox<PartialPayment>('partial_payments');
+        print('Successfully opened box: partial_payments');
+      } else {
+        print('Box already open: partial_payments');
+      }
+    } catch (e) {
+      print('Error opening box partial_payments: $e');
+      try {
+        await Hive.deleteBoxFromDisk('partial_payments');
+        await Hive.openBox<PartialPayment>('partial_payments');
+        print('Successfully recreated box: partial_payments');
+      } catch (recreateError) {
+        print('Failed to recreate box partial_payments: $recreateError');
+      }
+    }
+    
+    // Verify all boxes are open
+    print('Verifying all boxes are open...');
+    print('Box customers is open: ${Hive.isBoxOpen('customers')}');
+    print('Box debts is open: ${Hive.isBoxOpen('debts')}');
+    print('Box categories is open: ${Hive.isBoxOpen('categories')}');
+    print('Box product_purchases is open: ${Hive.isBoxOpen('product_purchases')}');
+    print('Box currency_settings is open: ${Hive.isBoxOpen('currency_settings')}');
+    print('Box activities is open: ${Hive.isBoxOpen('activities')}');
+    print('Box partial_payments is open: ${Hive.isBoxOpen('partial_payments')}');
   } catch (e) {
     print('Error during Hive initialization: $e');
   }

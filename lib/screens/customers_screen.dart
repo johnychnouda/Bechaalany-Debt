@@ -143,6 +143,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
         // final l10n = AppLocalizations.of(context); // Unused variable removed
         
         return Scaffold(
+          key: const Key('customers_screen'),
           backgroundColor: Colors.grey[50],
           appBar: AppBar(
             title: Text(AppLocalizations.of(context).customers),
@@ -252,8 +253,9 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                 Positioned(
                   bottom: 20,
                   right: 20,
-                  child: FloatingActionButton(
-                    onPressed: () async {
+                          child: FloatingActionButton(
+          heroTag: 'customers_fab_hero',
+          onPressed: () async {
                       await Navigator.push(
                         context,
                         MaterialPageRoute(

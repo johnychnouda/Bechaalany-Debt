@@ -40,18 +40,45 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     final query = _searchController.text.toLowerCase();
     
     setState(() {
-      // Filter debts first
+      // First, group all debts by customer to determine customer-level status
+      final Map<String, List<Debt>> customerDebtsMap = {};
+      for (final debt in debts) {
+        if (!customerDebtsMap.containsKey(debt.customerId)) {
+          customerDebtsMap[debt.customerId] = [];
+        }
+        customerDebtsMap[debt.customerId]!.add(debt);
+      }
+      
+      // Determine which customers match the status filter
+      final Set<String> matchingCustomerIds = {};
+      for (final entry in customerDebtsMap.entries) {
+        final customerDebts = entry.value;
+        final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        
+        String customerStatus;
+        if (totalPaidAmount >= totalAmount) {
+          customerStatus = 'fully paid';
+        } else if (totalPaidAmount > 0) {
+          customerStatus = 'partially paid';
+        } else {
+          customerStatus = 'pending';
+        }
+        
+        final matchesStatus = _selectedStatus == 'All' ||
+                             customerStatus == _selectedStatus.toLowerCase();
+        
+        if (matchesStatus) {
+          matchingCustomerIds.add(entry.key);
+        }
+      }
+      
+      // Filter debts to only include customers that match the status
       final filteredDebts = debts.where((debt) {
         final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
                              debt.customerId.toLowerCase().contains(query);
         
-        // Only show debts based on status filter
-        final matchesStatus = (_selectedStatus == 'All') || // "All" shows all debts
-                             (_selectedStatus == 'Pending' && debt.paidAmount == 0) || // Pending: no payments made
-                             (_selectedStatus == 'Partially Paid' && debt.paidAmount > 0 && debt.paidAmount < debt.amount) || // Partially Paid: some payment but not full
-                             (_selectedStatus == 'Fully Paid' && debt.paidAmount >= debt.amount); // Fully Paid: paid in full
-        
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchingCustomerIds.contains(debt.customerId);
       }).toList();
       
       // Group debts by customer
@@ -74,36 +101,29 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     _groupedDebts = groupedMap.entries.map((entry) {
       final customerDebts = entry.value;
       
-      // Calculate amounts based on the current filter
-      double totalAmount = 0;
-      double totalPaidAmount = 0;
-      double totalRemainingAmount = 0;
+      // Calculate customer-level amounts (all debts combined)
+      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      final totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
       
-      if (_selectedStatus == 'Pending') {
-        final pendingDebts = customerDebts.where((d) => d.paidAmount == 0).toList();
-        totalAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        totalPaidAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        totalRemainingAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-      } else if (_selectedStatus == 'Partially Paid') {
-        final partiallyPaidDebts = customerDebts.where((d) => d.paidAmount > 0 && d.paidAmount < d.amount).toList();
-        totalAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        totalPaidAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        totalRemainingAmount = partiallyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-      } else if (_selectedStatus == 'Fully Paid') {
-        final fullyPaidDebts = customerDebts.where((d) => d.paidAmount >= d.amount).toList();
-        totalAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        totalPaidAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        totalRemainingAmount = fullyPaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      // Determine customer-level status
+      int pendingDebts, paidDebts, partiallyPaidDebts;
+      if (totalPaidAmount >= totalAmount) {
+        // All debts are fully paid
+        pendingDebts = 0;
+        paidDebts = customerDebts.length;
+        partiallyPaidDebts = 0;
+      } else if (totalPaidAmount > 0) {
+        // Customer has some payments but not fully paid
+        pendingDebts = 0;
+        paidDebts = customerDebts.where((d) => d.isFullyPaid).length;
+        partiallyPaidDebts = customerDebts.length - paidDebts;
       } else {
-        // 'All' filter - use all debts
-        totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+        // No payments made
+        pendingDebts = customerDebts.length;
+        paidDebts = 0;
+        partiallyPaidDebts = 0;
       }
-      
-      final pendingDebts = customerDebts.where((d) => !d.isFullyPaid).toList();
-      final paidDebts = customerDebts.where((d) => d.isFullyPaid).toList();
-      final partiallyPaidDebts = customerDebts.where((d) => d.isPartiallyPaid).toList();
       
       return {
         'customerId': entry.key,
@@ -113,9 +133,9 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         'totalPaidAmount': totalPaidAmount,
         'totalRemainingAmount': totalRemainingAmount,
         'totalDebts': customerDebts.length,
-        'pendingDebts': pendingDebts.length,
-        'paidDebts': paidDebts.length,
-        'partiallyPaidDebts': partiallyPaidDebts.length,
+        'pendingDebts': pendingDebts,
+        'paidDebts': paidDebts,
+        'partiallyPaidDebts': partiallyPaidDebts,
       };
     }).toList();
     
@@ -232,12 +252,15 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         }
         
         return Scaffold(
+          key: const Key('debt_history_screen'),
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: const Text('Debt History'),
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           ),
           floatingActionButton: FloatingActionButton(
+            key: const Key('debt_history_fab'),
+            heroTag: 'debt_history_fab_hero',
             onPressed: () async {
               await Navigator.push(
                 context,

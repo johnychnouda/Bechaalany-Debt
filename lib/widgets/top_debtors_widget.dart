@@ -19,7 +19,7 @@ class TopDebtorsWidget extends StatelessWidget {
         final Map<String, double> customerDebts = {};
         for (final customer in customers) {
           final customerDebtsList = debts.where((debt) => 
-            debt.customerId == customer.id && debt.status != DebtStatus.paid
+            debt.customerId == customer.id && debt.paidAmount < debt.amount
           ).toList();
           final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
           if (totalDebt > 0) {
@@ -95,7 +95,7 @@ class TopDebtorsWidget extends StatelessWidget {
                       final customer = entry.value;
                       final totalDebt = customerDebts[customer.id]!;
                       final customerDebtsList = debts.where((debt) => 
-                        debt.customerId == customer.id && debt.status != DebtStatus.paid
+                        debt.customerId == customer.id && debt.paidAmount < debt.amount
                       ).toList();
                       
                       return Padding(

@@ -13,7 +13,7 @@ class TotalDebtorsWidget extends StatelessWidget {
       builder: (context, appState, child) {
         // Get unique customers with pending debts
         final customersWithPendingDebts = appState.debts
-            .where((debt) => debt.status == DebtStatus.pending)
+            .where((debt) => debt.paidAmount == 0)
             .map((debt) => debt.customerId)
             .toSet()
             .length;

@@ -36,6 +36,11 @@ class GroupedDebtData {
   bool get hasPendingDebts => pendingDebts > 0;
   bool get hasPartiallyPaidDebts => partiallyPaidDebts > 0;
   bool get isAllPaid => paidDebts == totalDebts;
+  
+  // Customer-level status based on total amounts
+  bool get isCustomerFullyPaid => totalPaidAmount >= totalAmount;
+  bool get isCustomerPartiallyPaid => totalPaidAmount > 0 && totalPaidAmount < totalAmount;
+  bool get isCustomerPending => totalPaidAmount == 0;
 }
 
 class DebtsScreen extends StatefulWidget {
@@ -70,15 +75,45 @@ class _DebtsScreenState extends State<DebtsScreen> {
     final query = _searchController.text.toLowerCase();
     
     setState(() {
-      // Filter debts first
+      // First, group all debts by customer to determine customer-level status
+      final Map<String, List<Debt>> customerDebtsMap = {};
+      for (final debt in debts) {
+        if (!customerDebtsMap.containsKey(debt.customerId)) {
+          customerDebtsMap[debt.customerId] = [];
+        }
+        customerDebtsMap[debt.customerId]!.add(debt);
+      }
+      
+      // Determine which customers match the status filter
+      final Set<String> matchingCustomerIds = {};
+      for (final entry in customerDebtsMap.entries) {
+        final customerDebts = entry.value;
+        final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        
+        String customerStatus;
+        if (totalPaidAmount >= totalAmount) {
+          customerStatus = 'paid';
+        } else if (totalPaidAmount > 0) {
+          customerStatus = 'partially paid';
+        } else {
+          customerStatus = 'pending';
+        }
+        
+        final matchesStatus = _selectedStatus == 'All' ||
+                             customerStatus == _selectedStatus.toLowerCase();
+        
+        if (matchesStatus) {
+          matchingCustomerIds.add(entry.key);
+        }
+      }
+      
+      // Filter debts to only include customers that match the status
       final filteredDebts = debts.where((debt) {
         final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
                              debt.description.toLowerCase().contains(query);
         
-        final matchesStatus = _selectedStatus == 'All' ||
-                             debt.status.toString().split('.').last == _selectedStatus.toLowerCase();
-        
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchingCustomerIds.contains(debt.customerId);
       }).toList();
       
       // Group debts by customer
@@ -104,9 +139,24 @@ class _DebtsScreenState extends State<DebtsScreen> {
       final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
       final totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
       
-      final pendingDebts = customerDebts.where((d) => !d.isFullyPaid).toList();
-      final paidDebts = customerDebts.where((d) => d.isFullyPaid).toList();
-      final partiallyPaidDebts = customerDebts.where((d) => d.isPartiallyPaid).toList();
+      // Determine customer-level status
+      int pendingDebts, paidDebts, partiallyPaidDebts;
+      if (totalPaidAmount >= totalAmount) {
+        // All debts are fully paid
+        pendingDebts = 0;
+        paidDebts = customerDebts.length;
+        partiallyPaidDebts = 0;
+      } else if (totalPaidAmount > 0) {
+        // Customer has some payments but not fully paid
+        pendingDebts = 0;
+        paidDebts = customerDebts.where((d) => d.isFullyPaid).length;
+        partiallyPaidDebts = customerDebts.length - paidDebts;
+      } else {
+        // No payments made
+        pendingDebts = customerDebts.length;
+        paidDebts = 0;
+        partiallyPaidDebts = 0;
+      }
       
       return GroupedDebtData(
         customerId: entry.key,
@@ -116,9 +166,9 @@ class _DebtsScreenState extends State<DebtsScreen> {
         totalPaidAmount: totalPaidAmount,
         totalRemainingAmount: totalRemainingAmount,
         totalDebts: customerDebts.length,
-        pendingDebts: pendingDebts.length,
-        paidDebts: paidDebts.length,
-        partiallyPaidDebts: partiallyPaidDebts.length,
+        pendingDebts: pendingDebts,
+        paidDebts: paidDebts,
+        partiallyPaidDebts: partiallyPaidDebts,
       );
     }).toList();
     
@@ -227,6 +277,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
         }
 
         return Scaffold(
+          key: const Key('debts_screen'),
           backgroundColor: Colors.grey[50],
           appBar: AppBar(
             title: const Text('Debts'),
@@ -337,6 +388,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton(
+            key: const Key('debts_fab'),
+            heroTag: 'debts_fab_hero',
             onPressed: () async {
               await Navigator.pushNamed(context, '/add-debt');
               _filterDebts(); // Refresh the list when returning
@@ -385,19 +438,19 @@ class _GroupedDebtCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    if (group.hasPendingDebts && group.hasPartiallyPaidDebts) {
-      return Colors.blue; // Mixed status
-    } else if (group.hasPendingDebts) {
-      return Colors.orange; // All pending
-    } else {
+    if (group.isCustomerFullyPaid) {
       return Colors.green; // All paid
+    } else if (group.isCustomerPartiallyPaid) {
+      return Colors.orange; // Partially paid
+    } else {
+      return Colors.red; // Pending
     }
   }
 
   String _getStatusText() {
-    if (group.isAllPaid) {
-      return 'All Paid';
-    } else if (group.hasPartiallyPaidDebts) {
+    if (group.isCustomerFullyPaid) {
+      return 'Fully Paid';
+    } else if (group.isCustomerPartiallyPaid) {
       return 'Partially Paid';
     } else {
       return 'Pending';
@@ -589,12 +642,12 @@ class _GroupedDebtCard extends StatelessWidget {
   }
 
   IconData _getStatusIcon() {
-    if (group.hasPendingDebts && group.hasPartiallyPaidDebts) {
-      return Icons.pending; // Use pending instead of mixed_status
-    } else if (group.hasPendingDebts) {
-      return Icons.pending;
-    } else {
+    if (group.isCustomerFullyPaid) {
       return Icons.check_circle;
+    } else if (group.isCustomerPartiallyPaid) {
+      return Icons.payment;
+    } else {
+      return Icons.pending;
     }
   }
 

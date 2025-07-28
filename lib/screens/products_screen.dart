@@ -114,6 +114,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final l10n = AppLocalizations.of(context);
     
     return Scaffold(
+      key: const Key('products_screen'),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
@@ -270,8 +271,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
+              floatingActionButton: FloatingActionButton(
+          heroTag: 'products_fab_hero',
+          onPressed: () async {
           _showAddChoiceDialog(context);
         },
         backgroundColor: Theme.of(context).colorScheme.primary,

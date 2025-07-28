@@ -151,7 +151,7 @@ class AppState extends ChangeNotifier {
   }
   
   double get averageDebtAmount {
-    final pendingDebts = _debts.where((d) => d.status == DebtStatus.pending).toList();
+    final pendingDebts = _debts.where((d) => d.paidAmount == 0).toList();
     if (pendingDebts.isEmpty) return 0.0;
     final totalAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
     return totalAmount / pendingDebts.length;
@@ -179,6 +179,12 @@ class AppState extends ChangeNotifier {
       // Initialize services
       await _notificationService.initialize();
       await _syncService.initialize();
+      
+      // Ensure all Hive boxes are open
+      await _dataService.ensureBoxesOpen();
+      
+      // Wait a moment to ensure boxes are fully initialized
+      await Future.delayed(const Duration(milliseconds: 100));
       
       // Load data
       await _loadData();
@@ -358,7 +364,7 @@ class AppState extends ChangeNotifier {
   Future<void> _scheduleNotifications() async {
     if (!_notificationsEnabled) return;
     
-    final pendingDebts = _debts.where((debt) => debt.status == DebtStatus.pending).toList();
+    final pendingDebts = _debts.where((debt) => debt.paidAmount == 0).toList();
     
     await _notificationService.scheduleDebtReminders(pendingDebts);
   }
@@ -642,19 +648,27 @@ class AppState extends ChangeNotifier {
         paidAt: DateTime.now(),
       );
       
+      print('=== ADDING PARTIAL PAYMENT ===');
+      print('Payment ID: ${partialPayment.id}');
+      print('Debt ID: ${partialPayment.debtId}');
+      print('Amount: ${partialPayment.amount}');
+      print('Paid At: ${partialPayment.paidAt}');
+      
       // Add the partial payment to storage
       await _dataService.addPartialPayment(partialPayment);
       _partialPayments.add(partialPayment);
       
-      // Calculate total paid amount from all partial payments
-      final allPartialPayments = _dataService.getPartialPaymentsByDebt(debtId);
-      final totalPaidAmount = allPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+      print('Partial payment added successfully');
+      print('Total partial payments now: ${_partialPayments.length}');
       
-      final isFullyPaid = totalPaidAmount >= originalDebt.amount;
+      // Calculate new total paid amount by adding to existing paidAmount
+      final newTotalPaidAmount = originalDebt.paidAmount + paymentAmount;
+      
+      final isFullyPaid = newTotalPaidAmount >= originalDebt.amount;
       
       // Update the debt with the new total paid amount
       _debts[index] = originalDebt.copyWith(
-        paidAmount: totalPaidAmount,
+        paidAmount: newTotalPaidAmount,
         status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
         paidAt: DateTime.now(), // Update to latest payment time
       );
@@ -1083,18 +1097,18 @@ class AppState extends ChangeNotifier {
   // Calculation methods
   double _calculateTotalDebt() {
     return _debts
-        .where((d) => d.status == DebtStatus.pending)
+        .where((d) => d.paidAmount < d.amount)
         .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
   }
   
   double _calculateTotalPaid() {
     return _debts
-        .where((d) => d.status == DebtStatus.paid)
+        .where((d) => d.paidAmount >= d.amount)
         .fold(0.0, (sum, debt) => sum + debt.paidAmount);
   }
   
   int _calculatePendingCount() {
-    return _debts.where((d) => d.status == DebtStatus.pending).length;
+    return _debts.where((d) => d.paidAmount == 0).length;
   }
   
   List<Debt> _calculateRecentDebts() {
@@ -1107,7 +1121,7 @@ class AppState extends ChangeNotifier {
     final Map<String, double> customerDebts = {};
     for (final customer in _customers) {
       final customerDebtsList = _debts.where((debt) => 
-        debt.customerId == customer.id && debt.status != DebtStatus.paid
+        debt.customerId == customer.id && debt.paidAmount < debt.amount
       ).toList();
       final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
       if (totalDebt > 0) {

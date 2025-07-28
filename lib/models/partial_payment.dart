@@ -1,7 +1,7 @@
 import 'package:hive/hive.dart';
 part 'partial_payment.g.dart';
 
-@HiveType(typeId: 4)
+@HiveType(typeId: 8)
 class PartialPayment extends HiveObject {
   @HiveField(0)
   final String id;
