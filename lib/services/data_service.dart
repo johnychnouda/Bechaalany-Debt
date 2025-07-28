@@ -53,7 +53,6 @@ class DataService {
     try {
       return _customerBoxSafe.values.toList();
     } catch (e) {
-      // print('Error accessing customers box: $e');
       return [];
     }
   }
@@ -61,9 +60,7 @@ class DataService {
   Future<void> addCustomer(Customer customer) async {
     try {
       _customerBoxSafe.put(customer.id, customer);
-      // print('Customer added successfully to local storage');
     } catch (e) {
-      // print('Error adding customer: $e');
       rethrow;
     }
   }
@@ -71,9 +68,7 @@ class DataService {
   Future<void> updateCustomer(Customer customer) async {
     try {
       _customerBoxSafe.put(customer.id, customer);
-      // print('Customer updated successfully in local storage');
     } catch (e) {
-      // print('Error updating customer: $e');
       rethrow;
     }
   }
@@ -85,9 +80,7 @@ class DataService {
       _debtBoxSafe.values.where((d) => d.customerId == customerId).toList().forEach((d) {
         _debtBoxSafe.delete(d.id);
       });
-      // print('Customer and related debts deleted successfully from local storage');
     } catch (e) {
-      // print('Error deleting customer: $e');
       rethrow;
     }
   }
@@ -96,7 +89,6 @@ class DataService {
     try {
       return _customerBoxSafe.get(customerId);
     } catch (e) {
-      // print('Error getting customer: $e');
       return null;
     }
   }
@@ -106,7 +98,6 @@ class DataService {
     try {
       return _debtBoxSafe.values.toList();
     } catch (e) {
-      // print('Error accessing debts box: $e');
       return [];
     }
   }
@@ -115,7 +106,6 @@ class DataService {
     try {
       return _debtBoxSafe.values.where((d) => d.customerId == customerId).toList();
     } catch (e) {
-      // print('Error getting customer debts: $e');
       return [];
     }
   }
@@ -123,19 +113,15 @@ class DataService {
   Future<void> addDebt(Debt debt) async {
     try {
       _debtBoxSafe.put(debt.id, debt);
-      // print('Debt added successfully to local storage');
     } catch (e) {
-      // print('Error adding debt: $e');
       rethrow;
     }
   }
   
-    Future<void> updateDebt(Debt debt) async {
+  Future<void> updateDebt(Debt debt) async {
     try {
       _debtBoxSafe.put(debt.id, debt);
-      // print('Debt updated successfully in local storage');
     } catch (e) {
-      // print('Error updating debt: $e');
       rethrow;
     }
   }
@@ -143,9 +129,7 @@ class DataService {
   Future<void> deleteDebt(String debtId) async {
     try {
       _debtBoxSafe.delete(debtId);
-      // print('Debt deleted successfully from local storage');
     } catch (e) {
-      // print('Error deleting debt: $e');
       rethrow;
     }
   }
@@ -154,57 +138,24 @@ class DataService {
     try {
       final debt = _debtBoxSafe.get(debtId);
       if (debt != null) {
-        final updated = debt.copyWith(
+        final updatedDebt = Debt(
+          id: debt.id,
+          customerId: debt.customerId,
+          customerName: debt.customerName,
+          amount: debt.amount,
+          description: debt.description,
+          type: debt.type,
           status: DebtStatus.paid,
-          paidAmount: debt.amount,
+          createdAt: debt.createdAt,
           paidAt: DateTime.now(),
+          notes: debt.notes,
+          paidAmount: debt.amount,
         );
-        _debtBoxSafe.put(debtId, updated);
-        // print('Debt marked as paid in local storage');
+        _debtBoxSafe.put(debtId, updatedDebt);
       }
     } catch (e) {
-      // print('Error marking debt as paid: $e');
       rethrow;
     }
-  }
-
-  // Statistics methods
-  double get totalDebt {
-    return debts
-        .where((d) => !d.isFullyPaid)
-        .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-  }
-  
-  double get totalPaid {
-    return debts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-  }
-  
-  int get pendingDebtsCount {
-    return debts.where((d) => !d.isFullyPaid).length;
-  }
-  
-  int get paidDebtsCount {
-    return debts.where((d) => d.isFullyPaid).length;
-  }
-
-  int get partiallyPaidDebtsCount {
-    return debts.where((d) => d.isPartiallyPaid).length;
-  }
-
-  // Recent debts (last 5)
-  List<Debt> get recentDebts {
-    final sortedDebts = List<Debt>.from(debts);
-    sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return sortedDebts.take(5).toList();
-  }
-
-  // Generate unique IDs
-  String generateCustomerId() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
-  }
-  
-  String generateDebtId() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
   // Category methods
@@ -212,47 +163,31 @@ class DataService {
     try {
       return _categoryBoxSafe.values.toList();
     } catch (e) {
-      // print('Error accessing categories box: $e');
       return [];
     }
   }
-
+  
   Future<void> addCategory(ProductCategory category) async {
     try {
       _categoryBoxSafe.put(category.id, category);
-      // print('Category added successfully to local storage');
     } catch (e) {
-      // print('Error adding category: $e');
       rethrow;
     }
   }
-
+  
   Future<void> updateCategory(ProductCategory category) async {
     try {
       _categoryBoxSafe.put(category.id, category);
-      // print('Category updated successfully in local storage');
     } catch (e) {
-      // print('Error updating category: $e');
       rethrow;
     }
   }
-
+  
   Future<void> deleteCategory(String categoryId) async {
     try {
       _categoryBoxSafe.delete(categoryId);
-      // print('Category deleted successfully from local storage');
     } catch (e) {
-      // print('Error deleting category: $e');
       rethrow;
-    }
-  }
-
-  ProductCategory? getCategory(String categoryId) {
-    try {
-      return _categoryBoxSafe.get(categoryId);
-    } catch (e) {
-      // print('Error getting category: $e');
-      return null;
     }
   }
 
@@ -261,46 +196,30 @@ class DataService {
     try {
       return _productPurchaseBoxSafe.values.toList();
     } catch (e) {
-      // print('Error accessing product purchases box: $e');
       return [];
     }
   }
-
-  List<ProductPurchase> getProductPurchasesByCustomer(String customerId) {
-    try {
-      return _productPurchaseBoxSafe.values.where((p) => p.customerId == customerId).toList();
-    } catch (e) {
-      // print('Error getting customer product purchases: $e');
-      return [];
-    }
-  }
-
+  
   Future<void> addProductPurchase(ProductPurchase purchase) async {
     try {
       _productPurchaseBoxSafe.put(purchase.id, purchase);
-      // print('Product purchase added successfully to local storage');
     } catch (e) {
-      // print('Error adding product purchase: $e');
       rethrow;
     }
   }
-
+  
   Future<void> updateProductPurchase(ProductPurchase purchase) async {
     try {
       _productPurchaseBoxSafe.put(purchase.id, purchase);
-      // print('Product purchase updated successfully in local storage');
     } catch (e) {
-      // print('Error updating product purchase: $e');
       rethrow;
     }
   }
-
+  
   Future<void> deleteProductPurchase(String purchaseId) async {
     try {
       _productPurchaseBoxSafe.delete(purchaseId);
-      // print('Product purchase deleted successfully from local storage');
     } catch (e) {
-      // print('Error deleting product purchase: $e');
       rethrow;
     }
   }
@@ -309,178 +228,58 @@ class DataService {
     try {
       final purchase = _productPurchaseBoxSafe.get(purchaseId);
       if (purchase != null) {
-        purchase.isPaid = true;
-        purchase.paidAt = DateTime.now();
-        _productPurchaseBoxSafe.put(purchaseId, purchase);
-        // print('Product purchase marked as paid successfully');
+        final updatedPurchase = purchase.copyWith(
+          isPaid: true,
+          paidAt: DateTime.now(),
+        );
+        _productPurchaseBoxSafe.put(purchaseId, updatedPurchase);
       }
     } catch (e) {
-      // print('Error marking product purchase as paid: $e');
       rethrow;
     }
-  }
-
-  ProductPurchase? getProductPurchase(String purchaseId) {
-    try {
-      return _productPurchaseBoxSafe.get(purchaseId);
-    } catch (e) {
-      // print('Error getting product purchase: $e');
-      return null;
-    }
-  }
-
-  String generateCategoryId() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
-  }
-
-  String generateProductPurchaseId() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
   // Currency Settings methods
   CurrencySettings? get currencySettings {
     try {
-      final settings = _currencySettingsBoxSafe.values.firstOrNull;
-      if (settings == null) {
-        // Create default settings if none exist
-        final defaultSettings = CurrencySettings(
-          baseCurrency: 'USD',
-          targetCurrency: 'LBP',
-          exchangeRate: 89500.0, // Default rate for Lebanon
-          lastUpdated: DateTime.now(),
-          notes: 'Default settings for Lebanon',
-        );
-        _currencySettingsBoxSafe.put('default', defaultSettings);
-        return defaultSettings;
-      }
-      return settings;
+      final settings = _currencySettingsBoxSafe.values.toList();
+      return settings.isNotEmpty ? settings.first : null;
     } catch (e) {
-      // print('Error accessing currency settings: $e');
       return null;
     }
   }
-
-  Future<void> updateCurrencySettings(CurrencySettings settings) async {
+  
+  Future<void> saveCurrencySettings(CurrencySettings settings) async {
     try {
-      _currencySettingsBoxSafe.clear(); // Clear existing settings
+      // Clear existing settings and save new ones
+      await _currencySettingsBoxSafe.clear();
       _currencySettingsBoxSafe.put('default', settings);
-      // print('Currency settings updated successfully');
     } catch (e) {
-      // print('Error updating currency settings: $e');
       rethrow;
-    }
-  }
-
-  // Convert amount using current exchange rate
-  double convertAmount(double amount) {
-    final settings = currencySettings;
-    if (settings != null) {
-      return settings.convertAmount(amount);
-    }
-    return amount; // Return original amount if no settings
-  }
-
-  // Convert amount back to base currency
-  double convertBack(double amount) {
-    final settings = currencySettings;
-    if (settings != null) {
-      return settings.convertBack(amount);
-    }
-    return amount; // Return original amount if no settings
-  }
-
-  // Clear all data method
-  Future<void> clearAllData() async {
-    try {
-      // Clear all boxes
-      await _customerBoxSafe.clear();
-      await _debtBoxSafe.clear();
-      await _categoryBoxSafe.clear();
-      await _productPurchaseBoxSafe.clear();
-      
-      // Don't clear currency settings as they are app configuration
-      
-      // print('All data cleared successfully from local storage');
-    } catch (e) {
-      // print('Error clearing all data: $e');
-      rethrow;
-    }
-  }
-
-  // Cache management methods
-  Future<void> clearCache() async {
-    try {
-      // Clear Hive cache by compacting boxes
-      await _customerBoxSafe.compact();
-      await _debtBoxSafe.compact();
-      await _categoryBoxSafe.compact();
-      await _productPurchaseBoxSafe.compact();
-      await _currencySettingsBoxSafe.compact();
-      
-      // print('Cache cleared successfully');
-    } catch (e) {
-      // print('Error clearing cache: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> getCacheInfo() async {
-    try {
-      int totalSize = 0;
-      int totalItems = 0;
-      
-      // Calculate size for each box
-      totalSize += await _getBoxSize(_customerBoxSafe);
-      totalItems += _customerBoxSafe.length;
-      
-      totalSize += await _getBoxSize(_debtBoxSafe);
-      totalItems += _debtBoxSafe.length;
-      
-      totalSize += await _getBoxSize(_categoryBoxSafe);
-      totalItems += _categoryBoxSafe.length;
-      
-      totalSize += await _getBoxSize(_productPurchaseBoxSafe);
-      totalItems += _productPurchaseBoxSafe.length;
-      
-      totalSize += await _getBoxSize(_currencySettingsBoxSafe);
-      totalItems += _currencySettingsBoxSafe.length;
-      
-      return {
-        'size': totalSize,
-        'items': totalItems,
-      };
-    } catch (e) {
-      // print('Error getting cache info: $e');
-      return {'size': 0, 'items': 0};
-    }
-  }
-
-  Future<int> _getBoxSize(Box box) async {
-    try {
-      int size = 0;
-      for (final key in box.keys) {
-        final value = box.get(key);
-        if (value != null) {
-          // Estimate size by converting to string (rough approximation)
-          size += value.toString().length;
-        }
-      }
-      return size;
-    } catch (e) {
-      return 0;
     }
   }
 
   // Activity methods
   List<Activity> get activities {
     try {
-      return _activityBoxSafe.values.toList();
+      final activities = _activityBoxSafe.values.toList();
+      print('DataService: Retrieved ${activities.length} activities');
+      return activities;
     } catch (e) {
+      print('DataService: Error retrieving activities: $e');
       return [];
     }
   }
   
   Future<void> addActivity(Activity activity) async {
+    try {
+      _activityBoxSafe.put(activity.id, activity);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  Future<void> updateActivity(Activity activity) async {
     try {
       _activityBoxSafe.put(activity.id, activity);
     } catch (e) {
@@ -495,12 +294,18 @@ class DataService {
       rethrow;
     }
   }
-  
-  Activity? getActivity(String activityId) {
+
+  // Clear all data (for testing/reset)
+  Future<void> clearAllData() async {
     try {
-      return _activityBoxSafe.get(activityId);
+      await _customerBoxSafe.clear();
+      await _debtBoxSafe.clear();
+      await _categoryBoxSafe.clear();
+      await _productPurchaseBoxSafe.clear();
+      await _currencySettingsBoxSafe.clear();
+      await _activityBoxSafe.clear();
     } catch (e) {
-      return null;
+      rethrow;
     }
   }
 } 

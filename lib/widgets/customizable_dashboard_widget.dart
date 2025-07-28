@@ -84,8 +84,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
   void _loadWidgetPreferences() {
     SharedPreferences.getInstance().then((prefs) {
       final enabledWidgetIds = prefs.getStringList('dashboard_widget_order') ?? [];
-      print('Loading saved widget order: $enabledWidgetIds');
-      print('Available widgets: ${_availableWidgets.map((w) => w.id).toList()}');
       
       if (enabledWidgetIds.isNotEmpty) {
         // Filter available widgets based on saved order
@@ -96,45 +94,25 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
           if (availableWidgetIds.contains(widgetId)) {
             final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
             orderedWidgets.add(widget);
-          } else {
-            print('Widget not found: $widgetId');
           }
         }
         
-        print('Filtered ordered widgets: ${orderedWidgets.map((w) => w.id).toList()}');
-        print('Available widgets count: ${_availableWidgets.length}');
-        print('Ordered widgets count: ${orderedWidgets.length}');
-        
-        // If we have a valid saved order, use it (even if some widgets are missing)
-        if (orderedWidgets.isNotEmpty) {
-          print('Using saved widget order');
-          setState(() {
-            _enabledWidgets = orderedWidgets;
-            _isLoading = false;
-          });
-        } else {
-          // If no valid widgets in saved order, use default
-          print('No valid widgets in saved order, using default order');
-          setState(() {
-            _enabledWidgets = List.from(_availableWidgets);
-            _isLoading = false;
-          });
+        // Add any remaining widgets that weren't in the saved order
+        for (final widget in _availableWidgets) {
+          if (!orderedWidgets.any((w) => w.id == widget.id)) {
+            orderedWidgets.add(widget);
+          }
         }
-      } else {
-        // Default order - all widgets enabled
-        print('No saved preferences, using default order');
+        
         setState(() {
-          _enabledWidgets = List.from(_availableWidgets);
+          _enabledWidgets = orderedWidgets;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
           _isLoading = false;
         });
       }
-    }).catchError((e) {
-      // Fallback to default order
-      print('Error loading preferences: $e');
-      setState(() {
-        _enabledWidgets = List.from(_availableWidgets);
-        _isLoading = false;
-      });
     });
   }
 
@@ -143,8 +121,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       final prefs = await SharedPreferences.getInstance();
       final widgetIds = _enabledWidgets.map((w) => w.id).toList();
       await prefs.setStringList('dashboard_widget_order', widgetIds);
-      print('Saved widget order: $widgetIds');
-      print('Current enabled widgets count: ${_enabledWidgets.length}');
     } catch (e) {
       print('Error saving widget preferences: $e');
     }
@@ -168,7 +144,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       _enabledWidgets.insert(newIndex, item);
     });
     
-    print('Widget reordered: ${_enabledWidgets.map((w) => w.id).toList()}');
     _saveWidgetPreferences();
   }
 

@@ -8,28 +8,6 @@ import '../models/debt.dart';
 import '../models/activity.dart';
 import '../screens/full_activity_list_screen.dart';
 
-class ActivityItem {
-  final DateTime date;
-  final ActivityType type;
-  final String customerName;
-  final String description;
-  final double amount;
-  final DebtStatus? oldStatus;
-  final DebtStatus? newStatus;
-  final double? paymentAmount;
-
-  ActivityItem({
-    required this.date,
-    required this.type,
-    required this.customerName,
-    required this.description,
-    required this.amount,
-    this.oldStatus,
-    this.newStatus,
-    this.paymentAmount,
-  });
-}
-
 class WeeklyActivityWidget extends StatefulWidget {
   const WeeklyActivityWidget({super.key});
 
@@ -135,7 +113,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                       child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                          color: AppColors.secondary.withAlpha(26),
+                          color: AppColors.secondary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -195,84 +173,38 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     }
   }
 
-  List<ActivityItem> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
-    final activities = <ActivityItem>[];
-
-    print('=== DEBUG: _getActivitiesForPeriod ===');
-    print('Start date: $startDate');
-    print('End date: $endDate');
-    print('Total activities in appState: ${appState.activities.length}');
+  List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
+    final activities = <Activity>[];
 
     // Get activities from the new Activity model
     for (final activity in appState.activities) {
-      print('Checking activity ${activity.id} - Date: ${activity.date} - Type: ${activity.type}');
-      
       // Check if activity date is within the period (inclusive)
       final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
       if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
           (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
         
-        print('✅ Adding activity for ${activity.customerName} - Type: ${activity.type}');
-        
-        activities.add(ActivityItem(
-          date: activity.date,
-          type: activity.type,
-          customerName: activity.customerName,
-          description: activity.description,
-          amount: activity.amount,
-          paymentAmount: activity.paymentAmount,
-          oldStatus: activity.oldStatus,
-          newStatus: activity.newStatus,
-        ));
-      } else {
-        print('❌ Activity not in period: ${activity.customerName}');
+        activities.add(activity);
       }
     }
-
-    print('Total activities found: ${activities.length}');
-    print('=== END DEBUG ===');
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));
     return activities;
   }
 
-  List<ActivityItem> _getActivitiesForDailyPeriod(AppState appState, DateTime startDate, DateTime endDate) {
-    final activities = <ActivityItem>[];
-
-    print('=== DEBUG: _getActivitiesForDailyPeriod ===');
-    print('Start date: $startDate');
-    print('End date: $endDate');
-    print('Total activities in appState: ${appState.activities.length}');
+  List<Activity> _getActivitiesForDailyPeriod(AppState appState, DateTime startDate, DateTime endDate) {
+    final activities = <Activity>[];
 
     // Get activities from the new Activity model
     for (final activity in appState.activities) {
-      print('Checking activity ${activity.id} - Date: ${activity.date} - Type: ${activity.type}');
-      
       // Check if activity date is within the period (inclusive)
       final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
       if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
           (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
         
-        print('✅ Adding activity for ${activity.customerName} - Type: ${activity.type}');
-        
-        activities.add(ActivityItem(
-          date: activity.date,
-          type: activity.type,
-          customerName: activity.customerName,
-          description: activity.description,
-          amount: activity.amount,
-          paymentAmount: activity.paymentAmount,
-          oldStatus: activity.oldStatus,
-          newStatus: activity.newStatus,
-        ));
-      } else {
-        print('❌ Activity not in period: ${activity.customerName}');
+        activities.add(activity);
       }
     }
-
-    print('Total activities found: ${activities.length}');
-    print('=== END DEBUG ===');
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));
@@ -302,15 +234,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     final startOfWeek = DateTime(now.year, now.month, now.day - now.weekday + 1);
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
     
-    print('=== DEBUG: Weekly View ===');
-    print('Current date: $now');
-    print('Start of week: $startOfWeek');
-    print('End of week: $endOfWeek');
-    
     final activities = _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
-    
-    print('Activities found for weekly view: ${activities.length}');
-    print('=== END DEBUG ===');
     
     return _buildActivityContent(
       activities: activities,
@@ -337,7 +261,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
   }
 
   Widget _buildActivityContent({
-    required List<ActivityItem> activities,
+    required List<Activity> activities,
     required String emptyMessage,
     required IconData emptyIcon,
     bool showNewBadge = false,
@@ -380,7 +304,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     );
   }
 
-  Widget _buildActivityItem(ActivityItem activity, {bool showNewBadge = false}) {
+  Widget _buildActivityItem(Activity activity, {bool showNewBadge = false}) {
     IconData icon;
     Color iconColor;
     String typeText;

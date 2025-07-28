@@ -34,10 +34,7 @@ class SyncService {
       _lastSyncTime = DateTime.now();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_sync_time', _lastSyncTime!.toIso8601String());
-      
-      // print('Data synced successfully with cloud');
     } catch (e) {
-      // print('Error syncing data: $e');
       rethrow;
     }
   }
@@ -48,9 +45,7 @@ class SyncService {
     try {
       // Simulate customer sync
       await _simulateCustomerSync(customers);
-      // print('Customers synced successfully');
     } catch (e) {
-      // print('Error syncing customers: $e');
       rethrow;
     }
   }
@@ -61,9 +56,7 @@ class SyncService {
     try {
       // Simulate debt sync
       await _simulateDebtSync(debts);
-      // print('Debts synced successfully');
     } catch (e) {
-      // print('Error syncing debts: $e');
       rethrow;
     }
   }
@@ -74,9 +67,7 @@ class SyncService {
     try {
       // Simulate customer deletion from cloud
       await _simulateCustomerDeletion(customerId);
-      // print('Customer deleted from cloud successfully');
     } catch (e) {
-      // print('Error deleting customer from cloud: $e');
       rethrow;
     }
   }
@@ -87,9 +78,7 @@ class SyncService {
     try {
       // Simulate debt deletion from cloud
       await _simulateDebtDeletion(debtId);
-      // print('Debt deleted from cloud successfully');
     } catch (e) {
-      // print('Error deleting debt from cloud: $e');
       rethrow;
     }
   }
@@ -102,7 +91,6 @@ class SyncService {
       final cloudData = await _simulateCloudFetch();
       return cloudData;
     } catch (e) {
-      // print('Error fetching cloud data: $e');
       return null;
     }
   }
@@ -121,28 +109,22 @@ class SyncService {
     // 2. Upload debts to cloud storage
     // 3. Handle conflicts and merge data
     // 4. Update timestamps
-    
-    // print('Simulated cloud sync completed');
   }
 
   Future<void> _simulateCustomerSync(List<Customer> customers) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    // print('Simulated customer sync completed');
   }
 
   Future<void> _simulateDebtSync(List<Debt> debts) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    // print('Simulated debt sync completed');
   }
 
   Future<void> _simulateCustomerDeletion(String customerId) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    // print('Simulated customer deletion completed');
   }
 
   Future<void> _simulateDebtDeletion(String debtId) async {
     await Future.delayed(const Duration(milliseconds: 100));
-    // print('Simulated debt deletion completed');
   }
 
   Future<Map<String, dynamic>> _simulateCloudFetch() async {

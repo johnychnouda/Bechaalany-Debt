@@ -4,59 +4,45 @@ part 'product_purchase.g.dart';
 
 @HiveType(typeId: 7)
 class ProductPurchase extends HiveObject {
+  // Define all required fields
   @HiveField(0)
-  String id;
-
+  final String id;
   @HiveField(1)
-  String customerId;
-
+  final String customerId;
   @HiveField(2)
-  String subcategoryId;
-
+  final String categoryName;
   @HiveField(3)
-  String categoryName;
-
+  final String subcategoryId;
   @HiveField(4)
-  String subcategoryName;
-
+  final String subcategoryName;
   @HiveField(5)
-  int quantity;
-
+  final double costPrice;
   @HiveField(6)
-  double costPrice; // Fixed at purchase time
-
+  final double sellingPrice;
   @HiveField(7)
-  double sellingPrice; // Fixed at purchase time
-
+  final int quantity;
   @HiveField(8)
-  double totalAmount; // quantity * sellingPrice
-
+  final double totalAmount;
   @HiveField(9)
-  DateTime purchaseDate;
-
+  final DateTime purchaseDate;
   @HiveField(10)
-  String? notes;
-
-  @HiveField(11)
   bool isPaid;
 
-  @HiveField(12)
-  DateTime? paidAt;
+  // Add ProductPurchaseStatus enum if missing
+  // enum ProductPurchaseStatus { pending, paid }
 
   ProductPurchase({
     required this.id,
     required this.customerId,
-    required this.subcategoryId,
     required this.categoryName,
+    required this.subcategoryId,
     required this.subcategoryName,
-    required this.quantity,
     required this.costPrice,
     required this.sellingPrice,
+    required this.quantity,
     required this.totalAmount,
     required this.purchaseDate,
-    this.notes,
     this.isPaid = false,
-    this.paidAt,
   });
 
   double get profit => (sellingPrice - costPrice) * quantity;
@@ -73,7 +59,6 @@ class ProductPurchase extends HiveObject {
     double? sellingPrice,
     double? totalAmount,
     DateTime? purchaseDate,
-    String? notes,
     bool? isPaid,
     DateTime? paidAt,
   }) {
@@ -88,9 +73,7 @@ class ProductPurchase extends HiveObject {
       sellingPrice: sellingPrice ?? this.sellingPrice,
       totalAmount: totalAmount ?? this.totalAmount,
       purchaseDate: purchaseDate ?? this.purchaseDate,
-      notes: notes ?? this.notes,
       isPaid: isPaid ?? this.isPaid,
-      paidAt: paidAt ?? this.paidAt,
     );
   }
 
@@ -106,9 +89,7 @@ class ProductPurchase extends HiveObject {
       'sellingPrice': sellingPrice,
       'totalAmount': totalAmount,
       'purchaseDate': purchaseDate.toIso8601String(),
-      'notes': notes,
       'isPaid': isPaid,
-      'paidAt': paidAt?.toIso8601String(),
     };
   }
 
@@ -124,9 +105,7 @@ class ProductPurchase extends HiveObject {
       sellingPrice: json['sellingPrice'].toDouble(),
       totalAmount: json['totalAmount'].toDouble(),
       purchaseDate: DateTime.parse(json['purchaseDate']),
-      notes: json['notes'],
       isPaid: json['isPaid'] ?? false,
-      paidAt: json['paidAt'] != null ? DateTime.parse(json['paidAt']) : null,
     );
   }
 } 

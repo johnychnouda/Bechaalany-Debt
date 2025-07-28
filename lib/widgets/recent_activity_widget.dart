@@ -17,10 +17,16 @@ class RecentActivityWidget extends StatelessWidget {
         final now = DateTime.now();
         final sevenDaysAgo = now.subtract(const Duration(days: 7));
         
+        // Debug: Print total activities count
+        print('Total activities in appState: ${appState.activities.length}');
+        
         final recentActivities = appState.activities.where((activity) => 
           activity.date.isAfter(sevenDaysAgo)
         ).toList()
           ..sort((a, b) => b.date.compareTo(a.date));
+        
+        // Debug: Print recent activities count
+        print('Recent activities count: ${recentActivities.length}');
         
         // Take the most recent 5 activities
         final recentActivitiesList = recentActivities.take(5).toList();
@@ -36,7 +42,7 @@ class RecentActivityWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withAlpha(26), // 0.1 * 255
+                        color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -94,10 +100,10 @@ class RecentActivityWidget extends StatelessWidget {
                               height: 40,
                               decoration: BoxDecoration(
                                 color: isPaid 
-                                    ? AppColors.success.withAlpha(26) // 0.1 * 255
+                                    ? AppColors.success.withValues(alpha: 0.1)
                                     : isNew 
-                                        ? AppColors.primary.withAlpha(26) // 0.1 * 255
-                                        : AppColors.secondary.withAlpha(26), // 0.1 * 255
+                                        ? AppColors.primary.withValues(alpha: 0.1)
+                                        : AppColors.secondary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(

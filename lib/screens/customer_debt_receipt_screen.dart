@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
-import '../utils/logo_utils.dart';
 import '../utils/pdf_font_utils.dart';
+import '../utils/logo_utils.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -367,11 +368,28 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   String _formatDateTime(DateTime date) {
     final hour = date.hour;
     final minute = date.minute;
-    final period = hour >= 12 ? 'pm' : 'am';
+    final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     final displayMinute = minute.toString().padLeft(2, '0');
     
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} at $displayHour:$displayMinute $period';
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${difference.inDays ~/ 7}w ago';
+    }
   }
 
   void _shareReceipt() async {
@@ -444,21 +462,223 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     }
   }
 
-  Future<void> _buildMultiPagePDF(pw.Document pdf) async {
-    print('PDF Debug: widget.customerDebts.length: ${widget.customerDebts.length}');
+  Future<Uint8List> _generatePDF() async {
+    final pdf = pw.Document();
     
+    // Get customer debts and sort by creation date
+    final sortedDebts = widget.customerDebts.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    // Calculate total amount
+    final totalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    
+    // Create pages with debts (max 10 debts per page)
+    final debtPages = <List<Debt>>[];
+    for (int i = 0; i < sortedDebts.length; i += 10) {
+      final end = (i + 10 < sortedDebts.length) ? i + 10 : sortedDebts.length;
+      debtPages.add(sortedDebts.sublist(i, end));
+    }
+    
+    // Add pages to PDF
+    for (int pageIndex = 0; pageIndex < debtPages.length; pageIndex++) {
+      final pageDebts = debtPages[pageIndex];
+      final isFirstPage = pageIndex == 0;
+      
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Container(
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  if (isFirstPage) ...[
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text(
+                          'DEBT RECEIPT',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.Text(
+                          'Date: ${_formatDate(DateTime.now())}',
+                          style: const pw.TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 20),
+                    
+                    // Customer Information
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(15),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(width: 1),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'Customer Information',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.SizedBox(height: 10),
+                          pw.Text('Name: ${widget.customer.name}'),
+                          pw.Text('Phone: ${widget.customer.phone}'),
+                          if (widget.customer.email?.isNotEmpty == true)
+                            pw.Text('Email: ${widget.customer.email}'),
+                          pw.Text('Address: ${widget.customer.address}'),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(height: 20),
+                    
+                    // Summary
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(15),
+                      decoration: pw.BoxDecoration(
+                        color: const PdfColor(0.95, 0.95, 0.95),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                      ),
+                      child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                          pw.Text(
+                            'Total Outstanding Debts:',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Text(
+                            '\$${totalAmount.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: const PdfColor(0.8, 0.2, 0.2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    pw.SizedBox(height: 20),
+                  ],
+                  
+                  // Debts List
+                  pw.Text(
+                    'Debts List',
+                    style: pw.TextStyle(
+                      fontSize: 18,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                  pw.SizedBox(height: 10),
+                  
+                  // Table Header
+                  pw.Container(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: pw.BoxDecoration(
+                      color: const PdfColor(0.9, 0.9, 0.9),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(
+                            'Description',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            'Amount',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            'Date',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
+                  
+                  // Debts
+                  ...pageDebts.map((debt) => pw.Container(
+                    margin: const pw.EdgeInsets.only(bottom: 5),
+                    padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(width: 0.5),
+                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    ),
+                    child: pw.Row(
+                      children: [
+                        pw.Expanded(
+                          flex: 3,
+                          child: pw.Text(
+                            debt.description,
+                            style: const pw.TextStyle(fontSize: 11),
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            '\$${debt.amount.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: pw.FontWeight.bold,
+                              color: const PdfColor(0.8, 0.2, 0.2),
+                            ),
+                          ),
+                        ),
+                        pw.Expanded(
+                          flex: 2,
+                          child: pw.Text(
+                            _formatDate(debt.createdAt),
+                            style: const pw.TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+    }
+    
+    return pdf.save();
+  }
+
+  Future<void> _buildMultiPagePDF(pw.Document pdf) async {
     final sortedDebts = List<Debt>.from(widget.customerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final totalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-    
-    print('PDF Debug: Total debts: ${sortedDebts.length}');
-    print('PDF Debug: Total amount: $totalAmount');
-    
-    // Debug: Print all debts
-    for (int i = 0; i < sortedDebts.length; i++) {
-      final debt = sortedDebts[i];
-      print('PDF Debug: Debt ${i + 1}: ${debt.description} - \$${debt.amount} - ${debt.createdAt}');
-    }
     
     // Sanitize customer data to avoid Unicode issues
     final sanitizedCustomerName = PdfFontUtils.sanitizeText(widget.customer.name);
@@ -476,17 +696,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       debtPages.add(sortedDebts.skip(i).take(maxDebtsPerPage).toList());
     }
     
-    print('PDF Debug: Number of pages: ${debtPages.length}');
-    for (int i = 0; i < debtPages.length; i++) {
-      print('PDF Debug: Page ${i + 1} has ${debtPages[i].length} debts');
-    }
-    
     // Generate pages
     for (int pageIndex = 0; pageIndex < debtPages.length; pageIndex++) {
       final pageDebts = debtPages[pageIndex];
       final isLastPage = pageIndex == debtPages.length - 1;
-      
-      print('PDF Debug: Adding page ${pageIndex + 1} with ${pageDebts.length} debts');
       
       pdf.addPage(
         pw.Page(

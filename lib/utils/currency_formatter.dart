@@ -1,46 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import '../models/currency_settings.dart';
 
 class CurrencyFormatter {
-  static String formatAmount(BuildContext context, double amount) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
-    
-    if (settings != null) {
-      // Display in Base Currency (not Target Currency)
-      final decimals = _getDecimalPlaces(settings.baseCurrency);
-      return '${amount.toStringAsFixed(decimals)} ${settings.baseCurrency}';
-    }
-    
-    // Fallback to base currency if no settings
-    return '\$${amount.toStringAsFixed(2)}';
+  static String formattedExchangeRate(CurrencySettings settings) {
+    return settings != null ? settings.exchangeRate.toStringAsFixed(2) : '1.00';
+  }
+  static String reverseFormattedExchangeRate(CurrencySettings settings) {
+    return settings != null ? (1 / settings.exchangeRate).toStringAsFixed(2) : '1.00';
   }
 
-  static String formatAmountWithBase(BuildContext context, double amount) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
-    
-    if (settings != null) {
-      final convertedAmount = settings.convertAmount(amount);
-      final baseDecimals = _getDecimalPlaces(settings.baseCurrency);
-      final targetDecimals = _getDecimalPlaces(settings.targetCurrency);
-      return '${amount.toStringAsFixed(baseDecimals)} ${settings.baseCurrency} (${convertedAmount.toStringAsFixed(targetDecimals)} ${settings.targetCurrency})';
-    }
-    
-    return '\$${amount.toStringAsFixed(2)}';
+  static String formatAmount(BuildContext context, double amount) {
+    // Always display in USD with 2 decimal places
+    return '${amount.toStringAsFixed(2)}\$';
+  }
+
+  static String formatAmountWithCurrency(BuildContext context, double amount) {
+    // Always display in USD with 2 decimal places
+    return '${amount.toStringAsFixed(2)}\$ (USD)';
   }
 
   static String formatAmountOnly(BuildContext context, double amount) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
-    
-    if (settings != null) {
-      // Display in Base Currency (not Target Currency)
-      final decimals = _getDecimalPlaces(settings.baseCurrency);
-      return amount.toStringAsFixed(decimals);
-    }
-    
+    // Always display in USD with 2 decimal places
     return amount.toStringAsFixed(2);
   }
 
@@ -64,24 +46,12 @@ class CurrencyFormatter {
   }
 
   static String getCurrencySymbol(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
-    
-    if (settings != null) {
-      return settings.baseCurrency;
-    }
-    
+    // Always return USD symbol
     return '\$';
   }
 
   static String getBaseCurrencySymbol(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
-    
-    if (settings != null) {
-      return settings.baseCurrency;
-    }
-    
+    // Always return USD symbol
     return '\$';
   }
 
@@ -100,12 +70,44 @@ class CurrencyFormatter {
   // Get formatted exchange rate for display
   static String getFormattedExchangeRate(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    return appState.formattedExchangeRate;
+    final settings = appState.currencySettings;
+    if (settings != null) {
+      return settings.formattedRate;
+    }
+    return '1 USD = 1.00 USD';
   }
 
   // Get reverse formatted exchange rate for display
   static String getReverseFormattedExchangeRate(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    return appState.reverseFormattedExchangeRate;
+    final settings = appState.currencySettings;
+    if (settings != null) {
+      return settings.reverseFormattedRate;
+    }
+    return '1 USD = 1.00 USD';
+  }
+
+
+
+  // Helper method to get currency symbol
+  static String _getCurrencySymbol(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'JPY':
+        return '¥';
+      case 'LBP':
+        return 'L.L.';
+      case 'IQD':
+        return 'ع.د';
+      case 'IRR':
+        return 'ریال';
+      default:
+        return currency; // Return currency code if no symbol is defined
+    }
   }
 } 

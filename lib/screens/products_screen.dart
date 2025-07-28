@@ -532,8 +532,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
     final nameController = TextEditingController(text: subcategory.name);
-    final costPriceController = TextEditingController(text: subcategory.costPrice.toString());
-    final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toString());
+            final costPriceController = TextEditingController(text: subcategory.costPrice.toStringAsFixed(2));
+        final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toStringAsFixed(2));
     String selectedCurrency = subcategory.costPriceCurrency; // Use same currency for both
 
     showDialog(
@@ -1233,6 +1233,7 @@ class _ProductCard extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 2),
@@ -1245,6 +1246,7 @@ class _ProductCard extends StatelessWidget {
                 color: color,
               ),
               overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ),
         ],

@@ -32,6 +32,7 @@ void main() async {
     Hive.registerAdapter(ProductPurchaseAdapter());
     Hive.registerAdapter(CurrencySettingsAdapter());
     Hive.registerAdapter(ActivityAdapter());
+    Hive.registerAdapter(ActivityTypeAdapter());
     
     // Open Hive boxes with better error handling
     try {
@@ -62,6 +63,7 @@ void main() async {
         Hive.registerAdapter(ProductPurchaseAdapter());
         Hive.registerAdapter(CurrencySettingsAdapter());
         Hive.registerAdapter(ActivityAdapter());
+        Hive.registerAdapter(ActivityTypeAdapter());
         
         // Delete and recreate boxes
         await Hive.deleteBoxFromDisk('customers');

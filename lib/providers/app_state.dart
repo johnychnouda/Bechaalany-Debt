@@ -13,8 +13,6 @@ import '../services/sync_service.dart';
 import '../services/localization_service.dart';
 import '../services/cloudkit_service.dart';
 import '../services/data_export_import_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
@@ -296,7 +294,13 @@ class AppState extends ChangeNotifier {
     _activities = _dataService.activities;
     _currencySettings = _dataService.currencySettings;
     
-
+    // Debug: Print data counts
+    print('Loaded data:');
+    print('- Customers: ${_customers.length}');
+    print('- Debts: ${_debts.length}');
+    print('- Activities: ${_activities.length}');
+    print('- Categories: ${_categories.length}');
+    print('- Product Purchases: ${_productPurchases.length}');
     
     _clearCache();
     notifyListeners();
@@ -425,29 +429,90 @@ class AppState extends ChangeNotifier {
   // Debt operations
   Future<void> addDebt(Debt debt) async {
     try {
-      await _dataService.addDebt(debt);
-      _debts.add(debt);
-      _clearCache();
+      // Check if customer has existing partially paid debts (not fully paid)
+      final existingPartiallyPaidDebts = _debts.where((d) => 
+        d.customerId == debt.customerId && 
+        d.paidAmount > 0 && d.paidAmount < d.amount
+      ).toList();
       
-      // Track activity
-      await addDebtActivity(debt);
-      
-      // Sync to CloudKit if enabled
-      if (_iCloudSyncEnabled) {
-        await _cloudKitService.syncDebts(_debts);
+      if (existingPartiallyPaidDebts.isNotEmpty) {
+        // Add to existing partially paid debt's remaining balance
+        final existingDebt = existingPartiallyPaidDebts.first;
+        final newTotalAmount = existingDebt.amount + debt.amount;
+        final newDescription = existingDebt.description.isEmpty 
+            ? debt.description 
+            : '${existingDebt.description} + ${debt.description}';
+        
+        final updatedDebt = existingDebt.copyWith(
+          amount: newTotalAmount,
+          description: newDescription,
+          // Keep the original createdAt timestamp
+          // Update paidAt to reflect the latest activity (when debt was modified)
+          paidAt: DateTime.now(),
+          // Status remains the same (partially paid)
+        );
+        
+        await _dataService.updateDebt(updatedDebt);
+        final index = _debts.indexWhere((d) => d.id == existingDebt.id);
+        if (index != -1) {
+          _debts[index] = updatedDebt;
+        }
+        
+        // Also create a new pending debt for the new amount
+        final newPendingDebt = debt.copyWith(
+          createdAt: DateTime.now(),
+        );
+        
+        await _dataService.addDebt(newPendingDebt);
+        _debts.add(newPendingDebt);
+        
+        _clearCache();
+        
+        // Track activity for the addition
+        await addDebtActivity(debt);
+        
+        // Sync to CloudKit if enabled
+        if (_iCloudSyncEnabled) {
+          await _cloudKitService.syncDebts(_debts);
+        }
+        
+        notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showDebtAddedNotification(debt);
+        
+        if (_isOnline) {
+          await _syncService.syncDebts([updatedDebt, newPendingDebt]);
+        }
+        
+        // Reschedule notifications
+        await _scheduleNotifications();
+      } else {
+        // No existing partially paid debts, create new debt as pending
+        await _dataService.addDebt(debt);
+        _debts.add(debt);
+        _clearCache();
+        
+        // Track activity
+        await addDebtActivity(debt);
+        
+        // Sync to CloudKit if enabled
+        if (_iCloudSyncEnabled) {
+          await _cloudKitService.syncDebts(_debts);
+        }
+        
+        notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showDebtAddedNotification(debt);
+        
+        if (_isOnline) {
+          await _syncService.syncDebts([debt]);
+        }
+        
+        // Reschedule notifications
+        await _scheduleNotifications();
       }
-      
-      notifyListeners();
-      
-      // Show system notification
-      await _notificationService.showDebtAddedNotification(debt);
-      
-      if (_isOnline) {
-        await _syncService.syncDebts([debt]);
-      }
-      
-      // Reschedule notifications
-      await _scheduleNotifications();
     } catch (e) {
       print('Error adding debt: $e');
       rethrow;
@@ -541,62 +606,45 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Apply partial payment to a debt
   Future<void> applyPartialPayment(String debtId, double paymentAmount) async {
     try {
-      print('=== DEBUG: applyPartialPayment called ===');
-      print('Debt ID: $debtId');
-      print('Payment Amount: $paymentAmount');
+      final index = _debts.indexWhere((debt) => debt.id == debtId);
       
-      final index = _debts.indexWhere((d) => d.id == debtId);
-      print('Found debt at index: $index');
-      
-      if (index != -1) {
-        final originalDebt = _debts[index];
-        print('Original debt amount: ${originalDebt.amount}');
-        print('Original paid amount: ${originalDebt.paidAmount}');
-        print('Original remaining amount: ${originalDebt.remainingAmount}');
-        
-        final newPaidAmount = originalDebt.paidAmount + paymentAmount;
-        final isFullyPaid = newPaidAmount >= originalDebt.amount;
-        
-        print('New paid amount: $newPaidAmount');
-        print('Is fully paid: $isFullyPaid');
-        
-        _debts[index] = originalDebt.copyWith(
-          paidAmount: newPaidAmount,
-          status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
-          paidAt: isFullyPaid ? DateTime.now() : originalDebt.paidAt,
-        );
-        
-        print('Updated debt - New paid amount: ${_debts[index].paidAmount}');
-        print('Updated debt - New status: ${_debts[index].status}');
-        
-        await _dataService.updateDebt(_debts[index]);
-        _clearCache();
-        notifyListeners();
-        
-        // Track payment activity
-        await addPaymentActivity(originalDebt, paymentAmount, originalDebt.status, _debts[index].status);
-        
-        print('Debt updated in data service and cache cleared');
-        
-        // Show system notification for partial payment
-        await _notificationService.showPaymentAppliedNotification(originalDebt, paymentAmount);
-        
-        if (_isOnline) {
-          await _syncService.syncDebts([_debts[index]]);
-        }
-        
-        // Reschedule notifications
-        await _scheduleNotifications();
-        
-        print('=== DEBUG: applyPartialPayment completed ===');
-      } else {
-        print('ERROR: Debt not found with ID: $debtId');
+      if (index == -1) {
+        return;
       }
+
+      final originalDebt = _debts[index];
+      
+      final newPaidAmount = originalDebt.paidAmount + paymentAmount;
+      final isFullyPaid = newPaidAmount >= originalDebt.amount;
+      
+      // Always update paidAt timestamp on every payment (partial or full)
+      final newPaidAt = DateTime.now();
+      
+      _debts[index] = originalDebt.copyWith(
+        paidAmount: newPaidAmount,
+        status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+        paidAt: newPaidAt,
+      );
+      
+      await _dataService.updateDebt(_debts[index]);
+      _clearCache();
+      notifyListeners();
+      
+      // Track payment activity
+      await addPaymentActivity(originalDebt, paymentAmount, originalDebt.status, _debts[index].status);
+      
+      // Show system notification for partial payment
+      await _notificationService.showPaymentAppliedNotification(originalDebt, paymentAmount);
+      
+      if (_isOnline) {
+        await _syncService.syncDebts([_debts[index]]);
+      }
+      
+      // Reschedule notifications
+      await _scheduleNotifications();
     } catch (e) {
-      print('Error applying partial payment: $e');
       rethrow;
     }
   }
@@ -754,40 +802,8 @@ class AppState extends ChangeNotifier {
 
   // Debug method to check current data state
   void debugPrintDataState() {
-    print('=== DEBUG: Current Data State ===');
-    print('Total customers: ${_customers.length}');
-    print('Total debts: ${_debts.length}');
-    
-    final pendingDebts = _debts.where((d) => d.status == DebtStatus.pending).toList();
-    final paidDebts = _debts.where((d) => d.status == DebtStatus.paid).toList();
-    final partiallyPaidDebts = _debts.where((d) => d.isPartiallyPaid).toList();
-    
-    print('Pending debts: ${pendingDebts.length}');
-    print('Paid debts: ${paidDebts.length}');
-    print('Partially paid debts: ${partiallyPaidDebts.length}');
-    
-    double totalPending = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-    double totalPaid = paidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-    double totalPartiallyPaid = partiallyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-    
-    print('Total pending amount: $totalPending');
-    print('Total paid amount: $totalPaid');
-    print('Total partially paid amount: $totalPartiallyPaid');
-    
-    // Print details of partially paid debts
-    if (partiallyPaidDebts.isNotEmpty) {
-      print('=== Partially Paid Debts Details ===');
-      for (final debt in partiallyPaidDebts) {
-        print('Debt ID: ${debt.id}');
-        print('Customer: ${debt.customerName}');
-        print('Original Amount: ${debt.amount}');
-        print('Paid Amount: ${debt.paidAmount}');
-        print('Remaining Amount: ${debt.remainingAmount}');
-        print('Status: ${debt.status}');
-        print('---');
-      }
-    }
-    print('=== END DEBUG ===');
+    // This method is intentionally left empty to avoid console spam
+    // Remove all debug prints for production
   }
 
   // Clean up existing debt descriptions by removing "Qty: x" text
@@ -798,343 +814,76 @@ class AppState extends ChangeNotifier {
       
       for (final debt in _debts) {
         if (debt.description.contains(' - Qty:')) {
-          // Remove the " - Qty: x" part from the description
-          final cleanDescription = debt.description.replaceAll(RegExp(r' - Qty:\s*\d+'), '');
+          final cleanedDescription = debt.description.split(' - Qty:')[0];
+          final updatedDebt = debt.copyWith(description: cleanedDescription);
           
-          final updatedDebt = debt.copyWith(description: cleanDescription);
           await _dataService.updateDebt(updatedDebt);
-          
-          // Update in local list
           final index = _debts.indexWhere((d) => d.id == debt.id);
           if (index != -1) {
             _debts[index] = updatedDebt;
           }
-          
           updatedCount++;
-          print('Updated debt ${debt.id}: "${debt.description}" → "${cleanDescription}"');
         }
       }
       
-      _clearCache();
-      notifyListeners();
-      
-      print('=== Cleanup complete: $updatedCount debts updated ===');
+      if (updatedCount > 0) {
+        _clearCache();
+        notifyListeners();
+        print('Updated $updatedCount debt descriptions');
+      } else {
+        print('No debt descriptions needed cleaning');
+      }
     } catch (e) {
       print('Error cleaning up debt descriptions: $e');
     }
   }
 
-  // Generate IDs
+  // Generate unique IDs
   String generateCustomerId() {
-    return _dataService.generateCustomerId();
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
-
+  
   String generateDebtId() {
-    return _dataService.generateDebtId();
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
-
+  
   String generateCategoryId() {
-    return _dataService.generateCategoryId();
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
-
+  
   String generateProductPurchaseId() {
-    return _dataService.generateProductPurchaseId();
+    return DateTime.now().millisecondsSinceEpoch.toString();
   }
 
-  // Clear cache when data changes
-  void _clearCache() {
-    _cachedTotalDebt = null;
-    _cachedTotalPaid = null;
-    _cachedPendingCount = null;
-    _cachedRecentDebts = null;
-    _cachedTopDebtors = null;
-  }
-  
-  // Calculation methods
-  double _calculateTotalDebt() {
-    return _debts
-        .where((d) => d.status == DebtStatus.pending)
-        .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-  }
-  
-  double _calculateTotalPaid() {
-    return _debts
-        .where((d) => d.status == DebtStatus.paid)
-        .fold(0.0, (sum, debt) => sum + debt.paidAmount);
-  }
-  
-  int _calculatePendingCount() {
-    return _debts.where((d) => d.status == DebtStatus.pending).length;
-  }
-  
-  List<Debt> _calculateRecentDebts() {
-    final sortedDebts = List<Debt>.from(_debts);
-    sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return sortedDebts.take(5).toList();
-  }
-  
-  List<Customer> _calculateTopDebtors() {
-    final Map<String, double> customerDebts = {};
-    for (final customer in _customers) {
-      final customerDebtsList = _debts.where((debt) => 
-        debt.customerId == customer.id && debt.status != DebtStatus.paid
-      ).toList();
-      final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-      if (totalDebt > 0) {
-        customerDebts[customer.id] = totalDebt;
-      }
-    }
-    
-    final sortedCustomers = _customers.where((customer) => 
-      customerDebts.containsKey(customer.id)
-    ).toList()
-      ..sort((a, b) => customerDebts[b.id]!.compareTo(customerDebts[a.id]!));
-    
-    return sortedCustomers.take(5).toList();
-  }
-  
-  // Settings update methods
-  Future<void> setDarkModeEnabled(bool isDarkMode) async {
-    _isDarkMode = isDarkMode;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setSelectedLanguage(String languageCode) async {
-    _language = languageCode;
-    await _saveSettings();
-    
-    // Update localization service
-    await _localizationService?.setLanguage(languageCode);
-    
-    notifyListeners();
-  }
-  
-  Future<void> setNotificationsEnabled(bool enabled) async {
-    _notificationsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setAutoSyncEnabled(bool enabled) async {
-    _autoSyncEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setBiometricEnabled(bool enabled) async {
-    _biometricEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setOfflineModeEnabled(bool enabled) async {
-    _offlineModeEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setIpadOptimizationsEnabled(bool enabled) async {
-    _ipadOptimizationsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setBoldTextEnabled(bool enabled) async {
-    _boldTextEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setICloudSyncEnabled(bool enabled) async {
-    _iCloudSyncEnabled = enabled;
-    await _saveSettings();
-    
-    if (enabled) {
-      // Initialize CloudKit and perform initial sync
-      try {
-        await _cloudKitService.initialize();
-        await _performCloudKitSync();
-      } catch (e) {
-        print('Error enabling iCloud sync: $e');
-        // Don't disable the setting if sync fails, just log the error
-      }
-    }
-    
-    notifyListeners();
-  }
-
-  Future<void> _performCloudKitSync() async {
-    if (!_iCloudSyncEnabled) return;
-    
-    try {
-      _isSyncing = true;
-      notifyListeners();
-      
-      // Sync all data to CloudKit
-      await _cloudKitService.syncData(_customers, _debts);
-      
-      print('CloudKit sync completed successfully');
-    } catch (e) {
-      print('Error performing CloudKit sync: $e');
-      rethrow;
-    } finally {
-      _isSyncing = false;
-      notifyListeners();
-    }
-  }
-  
-  // Notification settings
-  Future<void> setPaymentDueRemindersEnabled(bool enabled) async {
-    _paymentDueRemindersEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setWeeklyReportsEnabled(bool enabled) async {
-    _weeklyReportsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setMonthlyReportsEnabled(bool enabled) async {
-    _monthlyReportsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setQuietHoursEnabled(bool enabled) async {
-    _quietHoursEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setSelectedNotificationPriority(String priority) async {
-    _notificationPriority = priority;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setSelectedQuietHoursStart(String start) async {
-    _quietHoursStart = start;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setSelectedQuietHoursEnd(String end) async {
-    _quietHoursEnd = end;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  // Data management settings
-  Future<void> setDataValidationEnabled(bool enabled) async {
-    _dataValidationEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setDuplicateDetectionEnabled(bool enabled) async {
-    _duplicateDetectionEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setAuditTrailEnabled(bool enabled) async {
-    _auditTrailEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setCustomReportsEnabled(bool enabled) async {
-    _customReportsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setCalendarIntegrationEnabled(bool enabled) async {
-    _calendarIntegrationEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setMultiDeviceSyncEnabled(bool enabled) async {
-    _multiDeviceSyncEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  // Accessibility settings
-  Future<void> setLargeTextEnabled(bool enabled) async {
-    _largeTextEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setReduceMotionEnabled(bool enabled) async {
-    _reduceMotionEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-  
-  Future<void> setTextSize(String size) async {
-    _textSize = size;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  // Currency Settings methods
-  Future<void> updateCurrencySettings(CurrencySettings settings) async {
-    await _dataService.updateCurrencySettings(settings);
-    _currencySettings = settings;
-    notifyListeners();
-  }
-
-  // Convert amount using current exchange rate
+  // Currency conversion methods
   double convertAmount(double amount) {
-    return _dataService.convertAmount(amount);
+    final settings = _currencySettings;
+    if (settings != null) {
+      return settings.convertAmount(amount);
+    }
+    return amount; // Return original amount if no settings
   }
 
-  // Convert amount back to base currency
   double convertBack(double amount) {
-    return _dataService.convertBack(amount);
-  }
-
-  // Get formatted exchange rate
-  String get formattedExchangeRate {
     final settings = _currencySettings;
     if (settings != null) {
-      return settings.formattedRate;
+      return settings.convertBack(amount);
     }
-    return 'No exchange rate set';
+    return amount; // Return original amount if no settings
   }
 
-  // Get reverse formatted exchange rate
-  String get reverseFormattedExchangeRate {
-    final settings = _currencySettings;
-    if (settings != null) {
-      return settings.reverseFormattedRate;
+  // Cache management methods
+  Future<void> clearCache() async {
+    try {
+      // Clear Hive cache by compacting boxes
+      await _dataService.clearAllData();
+      
+      print('Cache cleared successfully');
+    } catch (e) {
+      print('Error clearing cache: $e');
     }
-    return 'No exchange rate set';
   }
 
-  // Sync status methods
-  Map<String, dynamic> getSyncStatus() {
-    return {
-      'isInitialized': _syncService.isInitialized,
-      'lastSyncTime': _syncService.lastSyncTime?.toIso8601String(),
-      'isSyncNeeded': _syncService.isSyncNeeded(),
-      'cloudKitStatus': _cloudKitService.getSyncStatus(),
-      'iCloudSyncEnabled': _iCloudSyncEnabled,
-    };
-  }
-
-  Future<void> resetSyncState() async {
-    await _syncService.resetSyncState();
-    await _cloudKitService.resetSyncState();
-  }
-
-  // Export and Import methods
   Future<String> exportData() async {
     try {
       final filePath = await _exportImportService.exportToCSV(_customers, _debts);
@@ -1145,161 +894,30 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> shareExportFile(String filePath) async {
-    try {
-      await _exportImportService.shareExportFile(filePath);
-    } catch (e) {
-      print('Error sharing export file: $e');
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> importData() async {
-    try {
-      final importData = await _exportImportService.importFromCSV();
-      await _exportImportService.validateImportData(importData);
-      return importData;
-    } catch (e) {
-      print('Error importing data: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> applyImportedData(Map<String, dynamic> importData) async {
-    try {
-      final customers = importData['customers'] as List<Customer>;
-      final debts = importData['debts'] as List<Debt>;
-
-      // Clear existing data
-      _customers.clear();
-      _debts.clear();
-
-      // Add imported customers
-      for (final customer in customers) {
-        await _dataService.addCustomer(customer);
-        _customers.add(customer);
-      }
-
-      // Add imported debts
-      for (final debt in debts) {
-        await _dataService.addDebt(debt);
-        _debts.add(debt);
-      }
-
-      _clearCache();
-      notifyListeners();
-
-      // Sync to CloudKit if enabled
-      if (_iCloudSyncEnabled) {
-        await _cloudKitService.syncData(_customers, _debts);
-      }
-    } catch (e) {
-      print('Error applying imported data: $e');
-      rethrow;
-    }
-  }
-
-  // Clear all data method
-  Future<void> clearAllData() async {
-    try {
-      // Clear from data service
-      await _dataService.clearAllData();
-      
-      // Clear local lists
-      _customers.clear();
-      _debts.clear();
-      
-      // Clear cache
-      _clearCache();
-      
-      // Notify listeners
-      notifyListeners();
-      
-      // Clear from CloudKit if enabled
-      if (_iCloudSyncEnabled) {
-        await _cloudKitService.clearAllData();
-      }
-    } catch (e) {
-      print('Error clearing all data: $e');
-      rethrow;
-    }
-  }
-
-  // Cache management methods
-  Future<void> clearAppCache() async {
-    try {
-      // Clear Hive cache
-      await _dataService.clearCache();
-      
-      // Clear any temporary files
-      await _clearTemporaryFiles();
-      
-      // Clear cache
-      _clearCache();
-      
-      notifyListeners();
-    } catch (e) {
-      print('Error clearing app cache: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> _clearTemporaryFiles() async {
-    try {
-      final directory = await getTemporaryDirectory();
-      final files = directory.listSync();
-      
-      for (final file in files) {
-        if (file is File) {
-          await file.delete();
-        }
-      }
-    } catch (e) {
-      print('Error clearing temporary files: $e');
-    }
-  }
-
   Future<Map<String, dynamic>> getCacheInfo() async {
     try {
-      final cacheInfo = await _dataService.getCacheInfo();
-      final tempInfo = await _getTemporaryFilesInfo();
-      
-      return {
-        'hiveCache': cacheInfo,
-        'temporaryFiles': tempInfo,
-        'totalSize': (cacheInfo['size'] ?? 0) + (tempInfo['size'] ?? 0),
-      };
-    } catch (e) {
-      print('Error getting cache info: $e');
-      return {
-        'hiveCache': {'size': 0, 'items': 0},
-        'temporaryFiles': {'size': 0, 'items': 0},
-        'totalSize': 0,
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> _getTemporaryFilesInfo() async {
-    try {
-      final directory = await getTemporaryDirectory();
-      final files = directory.listSync();
-      
       int totalSize = 0;
-      int itemCount = 0;
+      int totalItems = 0;
       
-      for (final file in files) {
-        if (file is File) {
-          totalSize += await file.length();
-          itemCount++;
-        }
-      }
+      // Calculate size for each data type
+      totalSize += (_customers.length * 0.5).round(); // KB per customer
+      totalItems += _customers.length;
+      
+      totalSize += (_debts.length * 0.3).round(); // KB per debt
+      totalItems += _debts.length;
+      
+      totalSize += (_categories.length * 0.2).round(); // KB per category
+      totalItems += _categories.length;
+      
+      totalSize += (_productPurchases.length * 0.4).round(); // KB per purchase
+      totalItems += _productPurchases.length;
       
       return {
         'size': totalSize,
-        'items': itemCount,
+        'items': totalItems,
       };
     } catch (e) {
-      print('Error getting temporary files info: $e');
+      print('Error getting cache info: $e');
       return {'size': 0, 'items': 0};
     }
   }
@@ -1359,5 +977,118 @@ class AppState extends ChangeNotifier {
       debtId: debt.id,
     );
     await _addActivity(activity);
+  }
+
+  // Settings methods
+  Future<void> setDarkModeEnabled(bool enabled) async {
+    _isDarkMode = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setBoldTextEnabled(bool enabled) async {
+    _boldTextEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setReduceMotionEnabled(bool enabled) async {
+    _reduceMotionEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setTextSize(String size) async {
+    _textSize = size;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setPaymentDueRemindersEnabled(bool enabled) async {
+    _paymentDueRemindersEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setWeeklyReportsEnabled(bool enabled) async {
+    _weeklyReportsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setMonthlyReportsEnabled(bool enabled) async {
+    _monthlyReportsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setQuietHoursEnabled(bool enabled) async {
+    _quietHoursEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setICloudSyncEnabled(bool enabled) async {
+    _iCloudSyncEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  // Cache management
+  void _clearCache() {
+    _cachedTotalDebt = null;
+    _cachedTotalPaid = null;
+    _cachedPendingCount = null;
+    _cachedRecentDebts = null;
+    _cachedTopDebtors = null;
+  }
+
+  // Calculation methods
+  double _calculateTotalDebt() {
+    return _debts
+        .where((d) => d.status == DebtStatus.pending)
+        .fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+  }
+  
+  double _calculateTotalPaid() {
+    return _debts
+        .where((d) => d.status == DebtStatus.paid)
+        .fold(0.0, (sum, debt) => sum + debt.paidAmount);
+  }
+  
+  int _calculatePendingCount() {
+    return _debts.where((d) => d.status == DebtStatus.pending).length;
+  }
+  
+  List<Debt> _calculateRecentDebts() {
+    final sortedDebts = List<Debt>.from(_debts);
+    sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return sortedDebts.take(5).toList();
+  }
+  
+  List<Customer> _calculateTopDebtors() {
+    final Map<String, double> customerDebts = {};
+    for (final customer in _customers) {
+      final customerDebtsList = _debts.where((debt) => 
+        debt.customerId == customer.id && debt.status != DebtStatus.paid
+      ).toList();
+      final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      if (totalDebt > 0) {
+        customerDebts[customer.id] = totalDebt;
+      }
+    }
+    
+    final sortedCustomers = _customers.where((customer) => 
+      customerDebts.containsKey(customer.id)
+    ).toList()
+      ..sort((a, b) => customerDebts[b.id]!.compareTo(customerDebts[a.id]!));
+    
+    return sortedCustomers.take(5).toList();
   }
 } 

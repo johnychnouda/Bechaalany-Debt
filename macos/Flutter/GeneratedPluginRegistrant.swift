@@ -9,7 +9,7 @@ import connectivity_plus
 import flutter_local_notifications
 import local_auth_darwin
 import path_provider_foundation
-import share_plus
+import share_plus_macos
 import shared_preferences_foundation
 import url_launcher_macos
 

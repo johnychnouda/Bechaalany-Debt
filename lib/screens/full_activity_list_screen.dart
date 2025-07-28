@@ -3,10 +3,8 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
-import '../utils/currency_formatter.dart';
-import '../models/debt.dart';
-import '../models/customer.dart';
 import '../models/activity.dart';
+import '../utils/currency_formatter.dart';
 
 enum ActivityView { daily, weekly, monthly }
 
@@ -52,11 +50,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
 
   void _addSampleDataIfNeeded() {
     final appState = Provider.of<AppState>(context, listen: false);
-    print('Activity Debug: Current debts count: ${appState.debts.length}');
     if (appState.debts.isNotEmpty) {
-      print('Activity Debug: Found existing debts, no need for sample data');
       for (final debt in appState.debts) {
-        print('Activity Debug: Existing debt - ${debt.customerName}: ${debt.description} (${debt.amount})');
       }
     }
   }
@@ -426,53 +421,39 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
-    DateTime startDate;
-    DateTime endDate;
-
     switch (view) {
       case ActivityView.daily:
-        startDate = today;
-        endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
-        break;
+        final startDate = today;
+        final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        return _getActivitiesForPeriod(appState, startDate, endDate);
+        
       case ActivityView.weekly:
-        // Start from Monday of current week
-        final daysFromMonday = now.weekday - 1;
-        startDate = today.subtract(Duration(days: daysFromMonday));
-        endDate = startDate.add(const Duration(days: 7)).subtract(const Duration(milliseconds: 1));
-        break;
+        final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        return _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
+        
       case ActivityView.monthly:
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month + 1, 1).subtract(const Duration(milliseconds: 1));
-        break;
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        return _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
     }
-
-    print('Activity Debug: View: $view, Today: $today');
-    print('Activity Debug: Calculated startDate: $startDate, endDate: $endDate');
-    
-    return _getActivitiesForPeriod(appState, startDate, endDate);
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
     final activities = <Activity>[];
-    
-    // Debug: Print total activities and date range
-    print('Activity Debug: Total activities in appState: ${appState.activities.length}');
-    print('Activity Debug: Date range - Start: $startDate, End: $endDate');
 
-    // Show ALL activities for the period (activities persist even after debts are deleted)
+    // Get activities from the new Activity model
     for (final activity in appState.activities) {
+      // Check if activity date is within the period (inclusive)
       final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      print('Activity Debug: Checking activity ${activity.id} - Date: $activityDate, Type: ${activity.type}');
-      
-      // Check if activity falls within the period
-      if (activityDate.isAfter(startDate.subtract(const Duration(days: 1))) && 
-          activityDate.isBefore(endDate.add(const Duration(days: 1)))) {
-        print('Activity Debug: Adding activity for ${activity.customerName} - Type: ${activity.type}');
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+        
         activities.add(activity);
       }
     }
 
-    print('Activity Debug: Total activities found for period: ${activities.length}');
+    // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));
     return activities;
   }

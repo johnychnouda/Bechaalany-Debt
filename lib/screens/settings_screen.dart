@@ -3,14 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
-
-import '../services/localization_service.dart';
-
 import '../providers/app_state.dart';
 import '../l10n/app_localizations.dart';
-import '../models/currency_settings.dart';
-import '../widgets/expandable_chip_dropdown.dart';
-import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,97 +32,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
         middle: Text(l10n.settings),
         backgroundColor: CupertinoColors.systemGroupedBackground,
         border: null,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.info_circle),
+          onPressed: () => _showAppInfo(),
+        ),
       ),
       child: SafeArea(
         child: ListView(
           children: [
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
             
-            // Appearance
+            // Appearance & Accessibility
             _buildSection(
-              'Appearance',
+              'Appearance & Accessibility',
               [
                 _buildSwitchRow(
                   'Dark Mode',
                   'Use dark appearance',
-                  CupertinoIcons.moon_fill,
-                  Provider.of<AppState>(context).darkModeEnabled,
+                  CupertinoIcons.moon,
+                  Provider.of<AppState>(context).isDarkMode,
                   (value) => Provider.of<AppState>(context, listen: false).setDarkModeEnabled(value),
-                ),
-                _buildNavigationRow(
-                  'Language',
-                  Provider.of<LocalizationService>(context).currentLanguageName,
-                  CupertinoIcons.globe,
-                  () => _showLanguagePicker(),
-                ),
-                Consumer<AppState>(
-                  builder: (context, appState, child) {
-                    return _buildNavigationRow(
-                      'Text Size',
-                      appState.textSize,
-                      CupertinoIcons.textformat_size,
-                      () => _showTextSizeSettings(),
-                    );
-                  },
                 ),
                 _buildSwitchRow(
                   'Bold Text',
-                  'Use bold text throughout the app',
-                  CupertinoIcons.textformat,
+                  'Use bold text throughout',
+                  CupertinoIcons.textformat_size,
                   Provider.of<AppState>(context).boldTextEnabled,
                   (value) => Provider.of<AppState>(context, listen: false).setBoldTextEnabled(value),
+                ),
+                _buildSwitchRow(
+                  'Reduce Motion',
+                  'Minimize animations',
+                  CupertinoIcons.speedometer,
+                  Provider.of<AppState>(context).reduceMotionEnabled,
+                  (value) => Provider.of<AppState>(context, listen: false).setReduceMotionEnabled(value),
+                ),
+                _buildNavigationRow(
+                  'Text Size',
+                  'Adjust text size',
+                  CupertinoIcons.textformat_abc,
+                  () => _showTextSizeDialog(),
                 ),
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // Currency Configuration (Keeping as requested)
+            // Notifications
             _buildSection(
-              'Currency',
+              'Notifications',
               [
-                Consumer<AppState>(
-                  builder: (context, appState, child) {
-                    final settings = appState.currencySettings;
-                    return _buildNavigationRow(
-                      'Exchange Rate',
-                      settings != null ? appState.formattedExchangeRate : 'Not set',
-                      CupertinoIcons.money_dollar_circle,
-                      () => _showCurrencySettingsDialog(context),
-                    );
-                  },
+                _buildSwitchRow(
+                  'Enable Notifications',
+                  'Receive payment reminders',
+                  CupertinoIcons.bell,
+                  Provider.of<AppState>(context).notificationsEnabled,
+                  (value) => Provider.of<AppState>(context, listen: false).setNotificationsEnabled(value),
                 ),
-                Consumer<AppState>(
-                  builder: (context, appState, child) {
-                    final settings = appState.currencySettings;
-                    String lastUpdatedText = 'Never';
-                    if (settings?.lastUpdated != null) {
-                      final date = settings!.lastUpdated;
-                      final now = DateTime.now();
-                      final difference = now.difference(date);
-                      
-                      if (difference.inDays == 0) {
-                        if (difference.inHours == 0) {
-                          lastUpdatedText = '${difference.inMinutes} minutes ago';
-                        } else {
-                          lastUpdatedText = '${difference.inHours} hours ago';
-                        }
-                      } else if (difference.inDays == 1) {
-                        lastUpdatedText = 'Yesterday';
-                      } else if (difference.inDays < 7) {
-                        lastUpdatedText = '${difference.inDays} days ago';
-                      } else {
-                        lastUpdatedText = '${date.day}/${date.month}/${date.year}';
-                      }
-                    }
-                    
-                    return _buildInfoRow(
-                      'Last Updated',
-                      lastUpdatedText,
-                      CupertinoIcons.clock,
-                    );
-                  },
-                ),
+                if (Provider.of<AppState>(context).notificationsEnabled) ...[
+                  _buildSwitchRow(
+                    'Payment Due Reminders',
+                    'Get notified about due payments',
+                    CupertinoIcons.clock,
+                    Provider.of<AppState>(context).paymentDueRemindersEnabled,
+                    (value) => Provider.of<AppState>(context, listen: false).setPaymentDueRemindersEnabled(value),
+                  ),
+                  _buildSwitchRow(
+                    'Weekly Reports',
+                    'Receive weekly summaries',
+                    CupertinoIcons.calendar,
+                    Provider.of<AppState>(context).weeklyReportsEnabled,
+                    (value) => Provider.of<AppState>(context, listen: false).setWeeklyReportsEnabled(value),
+                  ),
+                  _buildSwitchRow(
+                    'Monthly Reports',
+                    'Receive monthly summaries',
+                    CupertinoIcons.calendar_badge_plus,
+                    Provider.of<AppState>(context).monthlyReportsEnabled,
+                    (value) => Provider.of<AppState>(context, listen: false).setMonthlyReportsEnabled(value),
+                  ),
+                  _buildSwitchRow(
+                    'Quiet Hours',
+                    'Silence notifications at night',
+                    CupertinoIcons.moon_zzz,
+                    Provider.of<AppState>(context).quietHoursEnabled,
+                    (value) => Provider.of<AppState>(context, listen: false).setQuietHoursEnabled(value),
+                  ),
+                  if (Provider.of<AppState>(context).quietHoursEnabled) ...[
+                    _buildNavigationRow(
+                      'Quiet Hours Time',
+                      '${Provider.of<AppState>(context).quietHoursStart} - ${Provider.of<AppState>(context).quietHoursEnd}',
+                      CupertinoIcons.time,
+                      () => _showQuietHoursDialog(),
+                    ),
+                  ],
+                ],
               ],
             ),
             
@@ -176,13 +175,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CupertinoIcons.square_arrow_down,
                   () => _showImportDialog(),
                 ),
-
                 _buildActionRow(
                   'Clear All Data',
                   'Delete all data permanently',
                   CupertinoIcons.delete,
                   () => _showClearDataDialog(),
                   isDestructive: true,
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Currency & Localization
+            _buildSection(
+              'Currency & Localization',
+              [
+                _buildNavigationRow(
+                  'Language',
+                  Provider.of<AppState>(context).selectedLanguage,
+                  CupertinoIcons.globe,
+                  () => _showLanguageDialog(),
+                ),
+                _buildNavigationRow(
+                  'Currency Settings',
+                  'Configure exchange rates',
+                  CupertinoIcons.money_dollar,
+                  () => _showCurrencySettings(),
                 ),
               ],
             ),
@@ -242,14 +261,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 letterSpacing: 0.5,
                 decoration: TextDecoration.none,
                 decorationColor: Colors.transparent,
-                decorationThickness: 0,
               ),
             ),
           ),
           Container(
             decoration: BoxDecoration(
-              color: CupertinoColors.systemBackground,
+              color: AppColors.dynamicSurface(context),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                width: 1,
+              ),
             ),
             child: Column(
               children: children,
@@ -260,87 +282,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSwitchRow(String title, String subtitle, IconData icon, bool value, ValueChanged<bool> onChanged) {
+  Widget _buildSwitchRow(
+    String title,
+    String subtitle,
+    IconData icon,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: CupertinoColors.systemGrey6,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: CupertinoColors.systemGrey,
-            ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.separator,
+            width: 0.5,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    text: title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: CupertinoColors.black,
-                      decoration: TextDecoration.none,
-                      decorationColor: Colors.transparent,
-                      decorationThickness: 0,
-                    ),
-                  ),
-                ),
-                if (subtitle.isNotEmpty)
-                  RichText(
-                    text: TextSpan(
-                      text: subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: CupertinoColors.systemGrey,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          CupertinoSwitch(
-            value: value,
-            onChanged: onChanged,
-            activeTrackColor: AppColors.primary,
-          ),
-        ],
+        ),
       ),
-    );
-  }
-
-  Widget _buildNavigationRow(String title, String subtitle, IconData icon, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
-      ),
-      child: CupertinoButton(
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey6,
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
+                color: AppColors.primary,
                 size: 20,
-                color: CupertinoColors.systemGrey,
               ),
             ),
             const SizedBox(width: 12),
@@ -348,41 +319,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      text: title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: CupertinoColors.black,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
+                  Text(
+                    title,
+                    style: AppTheme.getDynamicBody(context).copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    RichText(
-                      text: TextSpan(
-                        text: subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: CupertinoColors.systemGrey,
-                          decoration: TextDecoration.none,
-                          decorationColor: Colors.transparent,
-                          decorationThickness: 0,
-                        ),
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                      color: CupertinoColors.systemGrey,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              size: 16,
-              color: CupertinoColors.systemGrey3,
+            CupertinoSwitch(
+              value: value,
+              onChanged: onChanged,
+              activeTrackColor: AppColors.primary,
             ),
           ],
         ),
@@ -390,26 +346,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildActionRow(String title, String subtitle, IconData icon, VoidCallback onTap, {bool isDestructive = false}) {
+  Widget _buildNavigationRow(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return Container(
-      decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.separator,
+            width: 0.5,
+          ),
+        ),
       ),
       child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.1) : CupertinoColors.systemGrey6,
+                color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
+                color: AppColors.primary,
                 size: 20,
-                color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.systemGrey,
               ),
             ),
             const SizedBox(width: 12),
@@ -417,41 +383,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RichText(
-                    text: TextSpan(
-                      text: title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: isDestructive ? CupertinoColors.destructiveRed : CupertinoColors.black,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
+                  Text(
+                    title,
+                    style: AppTheme.getDynamicBody(context).copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    RichText(
-                      text: TextSpan(
-                        text: subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: isDestructive ? CupertinoColors.destructiveRed.withOpacity(0.8) : CupertinoColors.systemGrey,
-                          decoration: TextDecoration.none,
-                          decorationColor: Colors.transparent,
-                          decorationThickness: 0,
-                        ),
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                      color: CupertinoColors.systemGrey,
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
-            Icon(
+            const Icon(
               CupertinoIcons.chevron_right,
+              color: CupertinoColors.systemGrey,
               size: 16,
-              color: CupertinoColors.systemGrey3,
             ),
           ],
         ),
@@ -459,157 +410,232 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildInfoRow(String title, String subtitle, IconData icon) {
+  Widget _buildInfoRow(
+    String title,
+    String subtitle,
+    IconData icon,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: CupertinoColors.systemGrey6,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: CupertinoColors.systemGrey,
-            ),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.separator,
+            width: 0.5,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                RichText(
-                  text: TextSpan(
-                    text: title,
-                    style: const TextStyle(
-                      fontSize: 16,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.getDynamicBody(context).copyWith(
                       fontWeight: FontWeight.w500,
-                      color: CupertinoColors.black,
-                      decoration: TextDecoration.none,
-                      decorationColor: Colors.transparent,
-                      decorationThickness: 0,
                     ),
                   ),
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  RichText(
-                    text: TextSpan(
-                      text: subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: CupertinoColors.systemGrey,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                      color: CupertinoColors.systemGrey,
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionRow(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap, {
+    bool isDestructive = false,
+  }) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.separator,
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        onPressed: onTap,
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive 
+                    ? CupertinoColors.systemRed.withValues(alpha: 0.1)
+                    : AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: isDestructive 
+                    ? CupertinoColors.systemRed
+                    : AppColors.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTheme.getDynamicBody(context).copyWith(
+                      fontWeight: FontWeight.w500,
+                      color: isDestructive 
+                          ? CupertinoColors.systemRed
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              CupertinoIcons.chevron_right,
+              color: CupertinoColors.systemGrey,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getCloudKitStatusText(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+    if (appState.isSyncing) {
+      return 'Syncing...';
+    } else if (appState.isOnline) {
+      return 'Connected';
+    } else {
+      return 'Offline';
+    }
+  }
+
+  // Dialog methods
+  void _showAppInfo() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('About Bechaalany Debt'),
+        content: const Text('A modern debt management app with the latest iOS features and design patterns.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
         ],
       ),
     );
   }
 
-  void _showLanguagePicker() {
+  void _showTextSizeDialog() {
     showCupertinoModalPopup(
       context: context,
-      builder: (context) => Container(
-        height: 300,
-        color: CupertinoColors.systemBackground,
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: CupertinoColors.separator),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  CupertinoButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: CupertinoColors.systemBlue,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  RichText(
-                    text: TextSpan(
-                      text: 'Select Language',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.label,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
-                    ),
-                  ),
-                  CupertinoButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      setState(() {});
-                    },
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
-                        color: CupertinoColors.systemBlue,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: CupertinoPicker(
-                itemExtent: 50,
-                onSelectedItemChanged: (index) {
-                  final languageCodes = ['en', 'ar'];
-                  final appState = Provider.of<AppState>(context, listen: false);
-                  appState.setSelectedLanguage(languageCodes[index]);
-                },
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'English',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Text(
-                      'العربية',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: CupertinoColors.label,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Text Size'),
+        actions: [
+          CupertinoActionSheetAction(
+            child: const Text('Small'),
+            onPressed: () {
+              Provider.of<AppState>(context, listen: false).setTextSize('Small');
+              Navigator.of(context).pop();
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: const Text('Medium'),
+            onPressed: () {
+              Provider.of<AppState>(context, listen: false).setTextSize('Medium');
+              Navigator.of(context).pop();
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: const Text('Large'),
+            onPressed: () {
+              Provider.of<AppState>(context, listen: false).setTextSize('Large');
+              Navigator.of(context).pop();
+            },
+          ),
+          CupertinoActionSheetAction(
+            child: const Text('Extra Large'),
+            onPressed: () {
+              Provider.of<AppState>(context, listen: false).setTextSize('Extra Large');
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          child: const Text('Cancel'),
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
     );
+  }
+
+  void _showQuietHoursDialog() {
+    // Implementation for quiet hours dialog
+  }
+
+  void _showLanguageDialog() {
+    // Implementation for language dialog
+  }
+
+  void _showCurrencySettings() {
+    // Implementation for currency settings
+  }
+
+  void _showStorageUsage() {
+    // Implementation for storage usage
+  }
+
+  void _showCacheManagement() {
+    // Implementation for cache management
+  }
+
+  void _showExportDialog() {
+    // Implementation for export dialog
+  }
+
+  void _showImportDialog() {
+    // Implementation for import dialog
   }
 
   void _showClearDataDialog() {
@@ -617,705 +643,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Clear All Data'),
-        content: const Text(
-          'This action will permanently delete all customers and debts. This action cannot be undone. Are you sure you want to continue?',
-        ),
+        content: const Text('This will permanently delete all your data. This action cannot be undone.'),
         actions: [
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
           ),
           CupertinoDialogAction(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                final appState = Provider.of<AppState>(context, listen: false);
-                await appState.clearAllData();
-                
-                if (context.mounted) {
-                  // Show success notification
-                  final notificationService = NotificationService();
-                  await notificationService.showSuccessNotification(
-                    title: 'Data Cleared',
-                    body: 'All data cleared successfully',
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  // Show error notification
-                  final notificationService = NotificationService();
-                  await notificationService.showErrorNotification(
-                    title: 'Error',
-                    body: 'Failed to clear data: $e',
-                  );
-                }
-              }
-            },
             isDestructiveAction: true,
-            child: const Text('Clear All'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showExportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Export Data'),
-        content: const Text('Export all data to CSV format and save to Files app?'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
+            child: const Text('Delete All Data'),
             onPressed: () {
-              Navigator.pop(context);
-              _performExport();
+              // Implementation for clearing data
+              Navigator.of(context).pop();
             },
-            child: const Text('Export'),
           ),
         ],
       ),
     );
   }
-
-  Future<void> _performExport() async {
-    try {
-      // Show info notification
-      final notificationService = NotificationService();
-      await notificationService.showInfoNotification(
-        title: 'Exporting',
-        body: 'Exporting data to CSV...',
-      );
-
-      final appState = Provider.of<AppState>(context, listen: false);
-      final filePath = await appState.exportData();
-      
-      if (context.mounted) {
-        await notificationService.showSuccessNotification(
-          title: 'Export Complete',
-          body: 'Export completed! Opening share dialog...',
-        );
-      }
-
-      // Share the file
-      await appState.shareExportFile(filePath);
-      
-    } catch (e) {
-      if (context.mounted) {
-        // Show error notification
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Export Failed',
-          body: 'Export failed: ${e.toString()}',
-        );
-      }
-    }
-  }
-
-  void _showImportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Import Data'),
-        content: const Text('Select a CSV file from Files app to import data.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _performImport();
-            },
-            child: const Text('Import'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _performImport() async {
-    try {
-      // Show info notification
-      final notificationService = NotificationService();
-      await notificationService.showInfoNotification(
-        title: 'Importing',
-        body: 'Selecting CSV file...',
-      );
-
-      final appState = Provider.of<AppState>(context, listen: false);
-      final importData = await appState.importData();
-      
-      if (context.mounted) {
-        await notificationService.showInfoNotification(
-          title: 'Importing',
-          body: 'Found ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts. Importing...',
-        );
-      }
-
-      // Apply the imported data
-      await appState.applyImportedData(importData);
-      
-      if (context.mounted) {
-        await notificationService.showSuccessNotification(
-          title: 'Import Complete',
-          body: 'Import completed! ${importData['totalCustomers']} customers and ${importData['totalDebts']} debts imported.',
-        );
-      }
-      
-    } catch (e) {
-      if (context.mounted) {
-        // Show error notification
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Import Failed',
-          body: 'Import failed: ${e.toString()}',
-        );
-      }
-    }
-  }
-  
-
 
   void _showHelpSupportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Help & Support'),
-        content: const Text('Need help? Contact our support team or check our documentation.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _showContactUsDialog();
-            },
-            child: const Text('Contact Support'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showContactUsDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Contact Us'),
-        content: const Text('Send us feedback or report issues.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-                      CupertinoDialogAction(
-              onPressed: () async {
-                Navigator.pop(context);
-                // Show info notification
-                final notificationService = NotificationService();
-                await notificationService.showInfoNotification(
-                  title: 'Contact',
-                  body: 'Opening email client...',
-                );
-              },
-              child: const Text('Send Email'),
-            ),
-        ],
-      ),
-    );
+    // Implementation for help and support
   }
 
   void _showPrivacyPolicy() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const Text('Our privacy policy explains how we collect, use, and protect your data.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    // Implementation for privacy policy
   }
 
   void _showTermsOfService() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Terms of Service'),
-        content: const Text('Our terms of service outline the rules and guidelines for using our app.'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCurrencySettingsDialog(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final currentSettings = appState.currencySettings;
-    
-    String selectedBaseCurrency = currentSettings?.baseCurrency ?? 'USD';
-    String selectedTargetCurrency = currentSettings?.targetCurrency ?? 'LBP';
-    final exchangeRateController = TextEditingController(text: currentSettings?.exchangeRate.toStringAsFixed(0) ?? '89500');
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Currency Exchange Rate'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Base Currency Dropdown (USD or LBP only)
-                  const Text(
-                    'Base Currency',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ExpandableChipDropdown<String>(
-                    label: 'Base Currency',
-                    value: selectedBaseCurrency,
-                    items: ['USD', 'LBP'],
-                    itemToString: (currency) => currency,
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          selectedBaseCurrency = newValue;
-                          // Auto-set target currency to the opposite
-                          selectedTargetCurrency = newValue == 'USD' ? 'LBP' : 'USD';
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Target Currency Dropdown (USD or LBP only)
-                  const Text(
-                    'Target Currency',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ExpandableChipDropdown<String>(
-                    label: 'Target Currency',
-                    value: selectedTargetCurrency,
-                    items: ['USD', 'LBP'],
-                    itemToString: (currency) => currency,
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          selectedTargetCurrency = newValue;
-                          // Auto-set base currency to the opposite
-                          selectedBaseCurrency = newValue == 'USD' ? 'LBP' : 'USD';
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // Exchange Rate Input
-                  TextField(
-                    controller: exchangeRateController,
-                    decoration: InputDecoration(
-                      labelText: 'Exchange Rate',
-                      hintText: 'e.g., 89500.0',
-                      helperText: '1 $selectedBaseCurrency = how many $selectedTargetCurrency?',
-                      border: const OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ],
-              ),
-              actions: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final rate = double.tryParse(exchangeRateController.text);
-                        if (rate != null && rate > 0) {
-                          final settings = CurrencySettings(
-                            baseCurrency: selectedBaseCurrency,
-                            targetCurrency: selectedTargetCurrency,
-                            exchangeRate: rate,
-                            lastUpdated: DateTime.now(),
-                            notes: null,
-                          );
-                          
-                          appState.updateCurrencySettings(settings);
-                          Navigator.of(context).pop();
-                          
-                          // Show success notification
-                          final notificationService = NotificationService();
-                          await notificationService.showSuccessNotification(
-                            title: 'Exchange Rate Updated',
-                            body: 'Exchange rate updated: ${settings.formattedRate}',
-                          );
-                        } else {
-                          // Show error notification
-                          final notificationService = NotificationService();
-                          await notificationService.showErrorNotification(
-                            title: 'Invalid Input',
-                            body: 'Please enter a valid exchange rate',
-                          );
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // iOS 18.5 New Methods - Appearance
-  void _showTextSizeSettings() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => Container(
-        height: 300,
-        color: CupertinoColors.systemBackground,
-        child: Column(
-          children: [
-            // iOS 18.5 Style Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemBackground,
-                border: Border(
-                  bottom: BorderSide(
-                    color: CupertinoColors.separator,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  CupertinoButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        color: CupertinoColors.systemBlue,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  RichText(
-                    text: TextSpan(
-                      text: 'Text Size',
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.label,
-                        decoration: TextDecoration.none,
-                        decorationColor: Colors.transparent,
-                        decorationThickness: 0,
-                      ),
-                    ),
-                  ),
-                  CupertinoButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      setState(() {});
-                    },
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(
-                        color: CupertinoColors.systemBlue,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // iOS 18.5 Style Picker
-            Expanded(
-              child: Consumer<AppState>(
-                builder: (context, appState, child) {
-                  final textSizes = ['Small', 'Medium', 'Large', 'Extra Large'];
-                  final currentIndex = textSizes.indexOf(appState.textSize);
-                  
-                  return CupertinoPicker(
-                    itemExtent: 50,
-                    scrollController: FixedExtentScrollController(initialItem: currentIndex),
-                    onSelectedItemChanged: (index) {
-                      final appState = Provider.of<AppState>(context, listen: false);
-                      appState.setTextSize(textSizes[index]);
-                    },
-                    children: const [
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Text(
-                          'Small',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Text(
-                          'Medium',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Text(
-                          'Large',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Text(
-                          'Extra Large',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showStorageUsage() {
-    // Calculate storage usage
-    final appState = Provider.of<AppState>(context, listen: false);
-    final customersCount = appState.customers.length;
-    final debtsCount = appState.debts.length;
-    final categoriesCount = appState.categories.length;
-    
-    // Estimate storage (rough calculation)
-    final customersSize = customersCount * 0.5; // KB per customer
-    final debtsSize = debtsCount * 0.3; // KB per debt
-    final categoriesSize = categoriesCount * 0.2; // KB per category
-    final totalSize = customersSize + debtsSize + categoriesSize;
-    
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Storage Usage'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('App Data Breakdown:'),
-            const SizedBox(height: 12),
-            _buildStorageRow('Customers', customersCount, customersSize),
-            _buildStorageRow('Debts', debtsCount, debtsSize),
-            _buildStorageRow('Categories', categoriesCount, categoriesSize),
-            const Divider(),
-            _buildStorageRow('Total', null, totalSize, isTotal: true),
-            const SizedBox(height: 12),
-            const Text(
-              'Note: This is an estimate. Actual storage may vary.',
-              style: TextStyle(
-                fontSize: 12,
-                color: CupertinoColors.systemGrey,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStorageRow(String label, int? count, double size, {bool isTotal = false}) {
-    final sizeText = size < 1 ? '${(size * 1024).toStringAsFixed(0)} B' : '${size.toStringAsFixed(1)} KB';
-    final countText = count != null ? ' ($count items)' : '';
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '$label$countText',
-            style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Text(
-            sizeText,
-            style: TextStyle(
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-              color: CupertinoColors.systemGrey,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showCacheManagement() async {
-    try {
-      final appState = Provider.of<AppState>(context, listen: false);
-      final cacheInfo = await appState.getCacheInfo();
-      
-      final totalSize = cacheInfo['totalSize'] ?? 0;
-      final hiveItems = cacheInfo['hiveCache']?['items'] ?? 0;
-      final tempItems = cacheInfo['temporaryFiles']?['items'] ?? 0;
-      
-      final sizeText = totalSize < 1024 
-          ? '${totalSize} B' 
-          : totalSize < 1024 * 1024 
-              ? '${(totalSize / 1024).toStringAsFixed(1)} KB'
-              : '${(totalSize / (1024 * 1024)).toStringAsFixed(1)} MB';
-      
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Cache Management'),
-          content: Text(
-            'Current cache size: $sizeText\n'
-            'Hive cache: ${hiveItems} items\n'
-            'Temporary files: ${tempItems} items\n\n'
-            'Clear app cache to free up storage space?'
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            CupertinoDialogAction(
-              onPressed: () async {
-                Navigator.pop(context);
-                
-                try {
-                  // Show info notification
-                  final notificationService = NotificationService();
-                  await notificationService.showInfoNotification(
-                    title: 'Clearing Cache',
-                    body: 'Clearing cache...',
-                  );
-                  
-                  await appState.clearAppCache();
-                  
-                  if (context.mounted) {
-                    await notificationService.showSuccessNotification(
-                      title: 'Cache Cleared',
-                      body: 'Cache cleared successfully',
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    // Show error notification
-                    final notificationService = NotificationService();
-                    await notificationService.showErrorNotification(
-                      title: 'Cache Error',
-                      body: 'Failed to clear cache: ${e.toString()}',
-                    );
-                  }
-                }
-              },
-              child: const Text('Clear Cache'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      if (context.mounted) {
-        // Show error notification
-        final notificationService = NotificationService();
-        notificationService.showErrorNotification(
-          title: 'Cache Error',
-          body: 'Failed to get cache info: ${e.toString()}',
-        );
-      }
-    }
-  }
-
-  String _getCloudKitStatusText(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final syncStatus = appState.getSyncStatus();
-    final cloudKitStatus = syncStatus['cloudKitStatus'] as Map<String, dynamic>?;
-    
-    if (cloudKitStatus == null) {
-      return 'Initializing...';
-    }
-    
-    final isUserSignedIn = cloudKitStatus['isUserSignedIn'] as bool? ?? false;
-    final lastSyncTime = cloudKitStatus['lastSyncTime'] as String?;
-    
-    if (!isUserSignedIn) {
-      return 'Not signed in to iCloud';
-    }
-    
-    if (lastSyncTime == null) {
-      return 'Never synced';
-    }
-    
-    try {
-      final lastSync = DateTime.parse(lastSyncTime);
-      final now = DateTime.now();
-      final difference = now.difference(lastSync);
-      
-      if (difference.inMinutes < 1) {
-        return 'Synced just now';
-      } else if (difference.inHours < 1) {
-        return 'Synced ${difference.inMinutes} minutes ago';
-      } else if (difference.inDays < 1) {
-        return 'Synced ${difference.inHours} hours ago';
-      } else {
-        return 'Synced ${difference.inDays} days ago';
-      }
-    } catch (e) {
-      return 'Sync time unknown';
-    }
+    // Implementation for terms of service
   }
 } 

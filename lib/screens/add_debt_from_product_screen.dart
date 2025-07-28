@@ -8,6 +8,7 @@ import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../services/notification_service.dart';
 import '../widgets/expandable_chip_dropdown.dart';
+import '../widgets/searchable_customer_field.dart';
 
 class AddDebtFromProductScreen extends StatefulWidget {
   const AddDebtFromProductScreen({super.key});
@@ -45,15 +46,17 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Customer Selection
-                const Text(
-                  'Customer',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                SearchableCustomerField(
+                  selectedCustomer: _selectedCustomer,
+                  customers: appState.customers,
+                  onCustomerSelected: (customer) {
+                    setState(() {
+                      _selectedCustomer = customer;
+                    });
+                  },
+                  label: 'Customer',
+                  placeholder: 'Search by customer name or ID...',
                 ),
-                const SizedBox(height: 8),
-                _buildExpandableCustomerSelection(appState),
                 
                 const SizedBox(height: 16),
                 
@@ -137,43 +140,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     );
   }
 
-  Widget _buildExpandableCustomerSelection(AppState appState) {
-    if (appState.customers.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.orange.withAlpha(26), // 0.1 * 255
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withAlpha(77)), // 0.3 * 255
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'No customers available. Please add customers first.',
-                style: TextStyle(color: Colors.orange),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
 
-    return ExpandableChipDropdown<Customer>(
-      label: 'Customer',
-      value: _selectedCustomer,
-      items: appState.customers,
-      itemToString: (customer) => customer.name,
-      onChanged: (customer) {
-        setState(() {
-          _selectedCustomer = customer;
-        });
-      },
-      placeholder: 'Select Customer',
-    );
-  }
 
   Widget _buildExpandableCategorySelection(AppState appState) {
     final categories = appState.categories.whereType<ProductCategory>().toList();

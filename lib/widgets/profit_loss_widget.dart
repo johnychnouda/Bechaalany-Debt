@@ -62,17 +62,6 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
         final totalDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).fold<double>(0.0, (sum, debt) => sum + debt.remainingAmount);
         final netProfit = totalRevenue - totalDebts;
         final profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-        
-        // Debug information
-        print('=== Profit/Loss Analysis ===');
-        print('Total Product Purchases: ${appState.productPurchases.length}');
-        print('Product Revenue: $productRevenue');
-        print('Payment Revenue: $paymentRevenue');
-        print('Total Revenue: $totalRevenue');
-        print('Total Outstanding Debts: $totalDebts');
-        print('Net Profit: $netProfit');
-        print('Profit Margin: ${profitMargin.toStringAsFixed(1)}%');
-        print('=======================');
 
         return SlideTransition(
           position: _slideAnimation,
@@ -85,18 +74,18 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.dynamicSurface(context).withAlpha(204), // 0.8 * 255
-                    AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
+                    AppColors.dynamicSurface(context).withValues(alpha: 0.8),
+                    AppColors.dynamicSurface(context).withValues(alpha: 0.6),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.primary.withAlpha(26), // 0.1 * 255
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   width: 1,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withAlpha(13), // 0.05 * 255
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 4),
                   ),
@@ -110,7 +99,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(26), // 0.1 * 255
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(
@@ -183,10 +172,10 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context).withAlpha(128), // 0.5 * 255
+        color: AppColors.dynamicSurface(context).withValues(alpha: 0.5), // 0.5 * 255
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: color.withAlpha(26), // 0.1 * 255
+          color: color.withValues(alpha: 0.1), // 0.1 * 255
         ),
       ),
       child: Row(

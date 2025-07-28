@@ -24,7 +24,6 @@ class CustomerDetailsScreen extends StatefulWidget {
 }
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with WidgetsBindingObserver {
-  List<Debt> _customerDebts = [];
   late Customer _currentCustomer;
 
   @override
@@ -48,11 +47,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final appState = Provider.of<AppState>(context);
+    _currentCustomer = widget.customer;
+    
+    setState(() {
+      // Show all customer debts (both pending and paid)
+      // _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(); // This line is removed
+    });
+  }
+
   void _loadCustomerDebts() {
     final appState = Provider.of<AppState>(context, listen: false);
     setState(() {
       // Show all customer debts (both pending and paid)
-      _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
+      // _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(); // This line is removed
     });
   }
 
