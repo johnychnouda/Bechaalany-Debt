@@ -860,7 +860,8 @@ class _GroupedDebtCard extends StatelessWidget {
 
   void _showClearDialog(BuildContext context) {
     final customerName = group['customerName'] as String;
-    final debts = group['debts'] as List<Debt>;
+    final allDebts = group['debts'] as List<Debt>;
+    final completedDebts = allDebts.where((debt) => debt.isFullyPaid).toList();
     
     showDialog(
       context: context,
@@ -881,31 +882,28 @@ class _GroupedDebtCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              if (debts.isNotEmpty) ...[
-                Text(
-                  'Debts to be cleared: ${debts.length}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _clearCompletedDebts(context, debts);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Clear All'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _clearCompletedDebts(context, completedDebts);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Clear All'),
+                ),
+              ],
             ),
           ],
         );
@@ -913,15 +911,15 @@ class _GroupedDebtCard extends StatelessWidget {
     );
   }
 
-  void _clearCompletedDebts(BuildContext context, List<Debt> debts) async {
+  void _clearCompletedDebts(BuildContext context, List<Debt> completedDebts) async {
     final appState = Provider.of<AppState>(context, listen: false);
-    for (final debt in debts) {
+    for (final debt in completedDebts) {
       await appState.deleteDebt(debt.id);
     }
     // Show success notification
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Cleared ${debts.length} completed debts for ${group['customerName']}'),
+        content: Text('Cleared ${completedDebts.length} completed debts for ${group['customerName']}'),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 3),
       ),

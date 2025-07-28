@@ -888,7 +888,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           pw.Container(
             padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
-              color: PdfColors.white,
+              color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
+                  ? PdfColor.fromInt(0xFFE8F5E8) // Light green background for fully paid
+                  : PdfColor.fromInt(0xFFFFEBEE), // Light red background for not fully paid
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
               border: pw.Border.all(
                 color: PdfColor.fromInt(0xFFE0E0E0),
@@ -912,46 +914,56 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                     children: [
                       PdfFontUtils.createGracefulText(
                         'Debts Fully Paid',
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFF4CAF50),
+                        color: PdfColor.fromInt(0xFF424242),
                       ),
-                      pw.Row(
-                        children: [
-                          PdfFontUtils.createGracefulText(
-                            _formatCurrency(allItems
-                                .where((item) => item['type'] == 'debt')
-                                .fold<double>(0, (sum, item) => sum + item['amount'])),
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromInt(0xFF4CAF50),
-                          ),
-                          pw.SizedBox(width: 3),
-                          PdfFontUtils.createGracefulText(
-                            'PAID',
-                            fontSize: 10,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromInt(0xFF4CAF50),
-                          ),
-                        ],
+                      PdfFontUtils.createGracefulText(
+                        _formatCurrency(allItems
+                            .where((item) => item['type'] == 'debt')
+                            .fold<double>(0, (sum, item) => sum + item['amount'])),
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFFD32F2F), // Red color for amount
                       ),
                     ],
                   ),
                 ] else ...[
+                  // Calculate partially paid amount
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      PdfFontUtils.createGracefulText(
+                        'Partially Paid Amount:',
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF424242),
+                      ),
+                      PdfFontUtils.createGracefulText(
+                        _formatCurrency(allItems
+                            .where((item) => item['type'] == 'partial_payment')
+                            .fold<double>(0, (sum, item) => sum + item['amount'])),
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF4CAF50), // Green color for partially paid
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 6),
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       PdfFontUtils.createGracefulText(
                         'Remaining Amount:',
-                        fontSize: 14,
+                        fontSize: 11,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.grey,
+                        color: PdfColor.fromInt(0xFF424242),
                       ),
                       PdfFontUtils.createGracefulText(
                         _formatCurrency(remainingAmount),
-                        fontSize: 16,
+                        fontSize: 11,
                         fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFFD32F2F),
+                        color: PdfColor.fromInt(0xFFD32F2F), // Red color for remaining amount
                       ),
                     ],
                   ),
