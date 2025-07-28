@@ -16,6 +16,7 @@ import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
+import '../utils/debt_description_utils.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 
@@ -41,7 +42,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final sortedDebts = List<Debt>.from(widget.customerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Calculate remaining amount instead of total original amount
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
 
     return Scaffold(
@@ -64,19 +64,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Receipt Header
             _buildReceiptHeader(),
             const SizedBox(height: 24),
-            
-            // Customer Information
             _buildCustomerInfo(),
             const SizedBox(height: 24),
-            
-            // Debt Details
             _buildDebtDetails(sortedDebts),
             const SizedBox(height: 24),
-            
-            // Total Amount (last element)
             _buildTotalAmount(remainingAmount),
           ],
         ),
@@ -207,33 +200,32 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
 
   Widget _buildDebtDetails(List<Debt> sortedDebts) {
-    List<Widget> allItems = [];
+    List<Map<String, dynamic>> allItems = [];
     
     for (Debt debt in sortedDebts) {
-      if (_isCombinedDebt(debt.description)) {
-        // Split combined debt into separate entries
-        final items = _splitDescription(debt.description);
-        final amountPerItem = debt.amount / items.length;
-        final paidAmountPerItem = debt.paidAmount / items.length;
-        
-        for (int i = 0; i < items.length; i++) {
-          final splitDebt = debt.copyWith(
-            id: '${debt.id}_split_$i',
-            description: items[i].trim(),
-            amount: amountPerItem,
-            paidAmount: paidAmountPerItem,
-          );
-          allItems.add(_buildDebtItem(splitDebt));
-        }
-      } else {
-        allItems.add(_buildDebtItem(debt));
-      }
+      final cleanedDescription = DebtDescriptionUtils.cleanDescription(debt.description);
+      
+      allItems.add({
+        'type': 'debt',
+        'description': cleanedDescription,
+        'amount': debt.amount,
+        'date': debt.createdAt,
+        'debt': debt,
+      });
       
       final partialPayments = _getPartialPaymentsForDebt(debt.id);
       for (PartialPayment payment in partialPayments) {
-        allItems.add(_buildPartialPaymentItem(payment));
+        allItems.add({
+          'type': 'partial_payment',
+          'description': 'Partial Payment',
+          'amount': payment.amount,
+          'date': payment.paidAt,
+          'payment': payment,
+        });
       }
     }
+    
+    allItems.sort((a, b) => b['date'].compareTo(a['date']));
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -279,7 +271,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          ...allItems,
+          ...allItems.map((item) {
+            if (item['type'] == 'debt') {
+              return _buildDebtItem(item['debt']);
+            } else {
+              return _buildPartialPaymentItem(item['payment']);
+            }
+          }).toList(),
         ],
       ),
     );
@@ -317,7 +315,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  _cleanDescription(debt.description),
+                  DebtDescriptionUtils.cleanDescription(debt.description),
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -425,42 +423,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  String _cleanDescription(String description) {
-    return description.replaceAll(RegExp(r'\s*\([^)]*\)'), '').trim();
-  }
-
-  bool _isCombinedDebt(String description) {
-    return description.contains(' + ') || description.contains(' & ') || description.contains('+');
-  }
-
-
-
-  List<String> _splitDescription(String description) {
-    if (description.contains(' + ')) {
-      return description.split(' + ');
-    } else if (description.contains(' & ')) {
-      return description.split(' & ');
-    } else if (description.contains('+')) {
-      return description.split('+');
-    } else if (description.contains('&')) {
-      return description.split('&');
-    } else {
-      final patterns = [
-        RegExp(r'([^,]+?)\s*\+\s*([^,]+)'),
-        RegExp(r'([^,]+?)\s*&\s*([^,]+)'),
-      ];
-      
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(description);
-        if (match != null) {
-          return [match.group(1)!, match.group(2)!];
-        }
-      }
-      
-      return [description];
-    }
-  }
-
   Widget _buildTotalAmount(double remainingAmount) {
     final totalOriginalAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
     final partiallyPaidAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
@@ -527,10 +489,23 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                     color: Colors.green[600],
                   ),
                 ),
-                Icon(
-                  Icons.check_circle,
-                  color: Colors.green[600],
-                  size: 24,
+                Row(
+                  children: [
+                    Text(
+                      CurrencyFormatter.formatAmount(context, totalOriginalAmount),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green[600],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.check_circle,
+                      color: Colors.green[600],
+                      size: 24,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -641,55 +616,139 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(widget.customer.phone);
     final sanitizedCustomerId = PdfFontUtils.sanitizeText(widget.customer.id);
     
-    const int maxDebtsPerPage = 4;
+    List<Map<String, dynamic>> allItems = [];
     
-    final List<List<Debt>> debtPages = [];
-    for (int i = 0; i < sortedDebts.length; i += maxDebtsPerPage) {
-      debtPages.add(sortedDebts.skip(i).take(maxDebtsPerPage).toList());
+    for (Debt debt in sortedDebts) {
+      final cleanedDescription = DebtDescriptionUtils.cleanDescription(debt.description);
+      
+      allItems.add({
+        'type': 'debt',
+        'description': cleanedDescription,
+        'amount': debt.amount,
+        'date': debt.createdAt,
+        'debt': debt,
+      });
+      
+      final partialPayments = _getPartialPaymentsForDebt(debt.id);
+      for (PartialPayment payment in partialPayments) {
+        allItems.add({
+          'type': 'partial_payment',
+          'description': 'Partial Payment',
+          'amount': payment.amount,
+          'date': payment.paidAt,
+        });
+      }
     }
     
-    for (int pageIndex = 0; pageIndex < debtPages.length; pageIndex++) {
-      final pageDebts = debtPages[pageIndex];
-      final isLastPage = pageIndex == debtPages.length - 1;
-      
+    allItems.sort((a, b) => b['date'].compareTo(a['date']));
+    
+    const int itemsPerPage = 6;
+    const int firstPageItemCount = 12;
+    
+    if (allItems.length <= firstPageItemCount) {
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(8),
           build: (pw.Context context) {
             return _buildPDFPage(
-              pageDebts: pageDebts,
-              allDebts: sortedDebts,
+              pageItems: allItems,
+              allItems: allItems,
+              remainingAmount: remainingAmount,
+              sanitizedCustomerName: sanitizedCustomerName,
+              sanitizedCustomerPhone: sanitizedCustomerPhone,
+              sanitizedCustomerId: sanitizedCustomerId,
+              pageIndex: 0,
+              totalPages: 1,
+              isFirstPage: true,
+              isLastPage: true,
+            );
+          },
+        ),
+      );
+    } else {
+      int currentIndex = 0;
+      int pageIndex = 0;
+      
+      final remainingItemsAfterFirstPage = allItems.length - firstPageItemCount;
+      final additionalPagesNeeded = (remainingItemsAfterFirstPage / itemsPerPage).ceil();
+      final totalPages = 1 + additionalPagesNeeded;
+      
+      final firstPageItems = allItems.take(firstPageItemCount).toList();
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(8),
+          build: (pw.Context context) {
+            return _buildPDFPage(
+              pageItems: firstPageItems,
+              allItems: allItems,
               remainingAmount: remainingAmount,
               sanitizedCustomerName: sanitizedCustomerName,
               sanitizedCustomerPhone: sanitizedCustomerPhone,
               sanitizedCustomerId: sanitizedCustomerId,
               pageIndex: pageIndex,
-              totalPages: debtPages.length,
-              isLastPage: isLastPage,
+              totalPages: totalPages,
+              isFirstPage: true,
+              isLastPage: totalPages == 1,
             );
           },
         ),
       );
+      
+      currentIndex = firstPageItemCount;
+      pageIndex++;
+      
+      while (currentIndex < allItems.length) {
+        final endIndex = (currentIndex + itemsPerPage).clamp(0, allItems.length);
+        final pageItems = allItems.skip(currentIndex).take(itemsPerPage).toList();
+        final isLastPage = pageIndex == totalPages - 1;
+        
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(8),
+            build: (pw.Context context) {
+              return _buildPDFPage(
+                pageItems: pageItems,
+                allItems: allItems,
+                remainingAmount: remainingAmount,
+                sanitizedCustomerName: sanitizedCustomerName,
+                sanitizedCustomerPhone: sanitizedCustomerPhone,
+                sanitizedCustomerId: sanitizedCustomerId,
+                pageIndex: pageIndex,
+                totalPages: totalPages,
+                isFirstPage: false,
+                isLastPage: isLastPage,
+              );
+            },
+          ),
+        );
+        
+        currentIndex += itemsPerPage;
+        pageIndex++;
+      }
     }
   }
 
   pw.Widget _buildPDFPage({
-    required List<Debt> pageDebts,
-    required List<Debt> allDebts,
+    required List<Map<String, dynamic>> pageItems,
+    required List<Map<String, dynamic>> allItems,
     required double remainingAmount,
     required String sanitizedCustomerName,
     required String sanitizedCustomerPhone,
     required String sanitizedCustomerId,
     required int pageIndex,
     required int totalPages,
+    required bool isFirstPage,
     required bool isLastPage,
   }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        if (pageIndex == 0) ...[
+        if (isFirstPage) ...[
           pw.Container(
-            padding: const pw.EdgeInsets.all(20),
+            padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
               color: PdfColors.white,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
@@ -699,63 +758,26 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 pw.Center(
                   child: PdfFontUtils.createGracefulText(
                     'Bechaalany Connect',
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColors.black,
                   ),
                 ),
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 3),
                 pw.Center(
                   child: PdfFontUtils.createGracefulText(
                     _formatDateTime(DateTime.now()),
-                    fontSize: 12,
+                    fontSize: 9,
                     color: PdfColor.fromInt(0xFF666666),
                   ),
                 ),
               ],
             ),
           ),
-          pw.SizedBox(height: 24),
-        ] else ...[
+          pw.SizedBox(height: 8),
+          
           pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.white,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-            ),
-            child: pw.Column(
-              children: [
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    PdfFontUtils.createGracefulText(
-                      'Bechaalany Connect',
-                      fontSize: 16,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.black,
-                    ),
-                    PdfFontUtils.createGracefulText(
-                      'Page ${pageIndex + 1} of $totalPages',
-                      fontSize: 12,
-                      color: PdfColor.fromInt(0xFF666666),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 8),
-                pw.Container(
-                  width: double.infinity,
-                  height: 2,
-                  color: PdfColor.fromInt(0xFF0175C2),
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-        ],
-        
-        if (pageIndex == 0) ...[
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
+            padding: const pw.EdgeInsets.all(8),
             decoration: pw.BoxDecoration(
               color: PdfColors.white,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
@@ -765,219 +787,169 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               children: [
                 PdfFontUtils.createGracefulText(
                   'CUSTOMER INFORMATION',
-                  fontSize: 12,
+                  fontSize: 9,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.grey,
                 ),
-                pw.SizedBox(height: 12),
+                pw.SizedBox(height: 4),
                 PdfFontUtils.createGracefulText(
                   sanitizedCustomerName,
-                  fontSize: 16,
+                  fontSize: 12,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.black,
                 ),
                 if (sanitizedCustomerPhone.isNotEmpty) ...[
-                  pw.SizedBox(height: 8),
+                  pw.SizedBox(height: 2),
                   PdfFontUtils.createGracefulText(
                     sanitizedCustomerPhone,
-                    fontSize: 13,
+                    fontSize: 10,
                     color: PdfColor.fromInt(0xFF424242),
                   ),
                 ],
-                pw.SizedBox(height: 8),
+                pw.SizedBox(height: 2),
                 PdfFontUtils.createGracefulText(
                   'ID: $sanitizedCustomerId',
-                  fontSize: 14,
+                  fontSize: 10,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColors.black,
                 ),
               ],
             ),
           ),
-          pw.SizedBox(height: 24),
-        ],
-        
-        if (pageIndex == 0) ...[
+          pw.SizedBox(height: 8),
+          
           PdfFontUtils.createGracefulText(
             'DEBT DETAILS',
-            fontSize: 16,
+            fontSize: 12,
             fontWeight: pw.FontWeight.bold,
             color: PdfColor.fromInt(0xFF424242),
           ),
-          pw.SizedBox(height: 16),
+          pw.SizedBox(height: 6),
         ],
         
-        ...pageDebts.map((debt) => pw.Container(
-          margin: const pw.EdgeInsets.only(bottom: 12),
-          padding: const pw.EdgeInsets.all(16),
-          decoration: pw.BoxDecoration(
-            color: PdfColor.fromInt(0xFFF5F5F5),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-            border: pw.Border.all(
-              color: PdfColor.fromInt(0xFFE0E0E0),
-              width: 0.5,
+        ...pageItems.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isLastItem = index == pageItems.length - 1;
+          
+          return pw.Container(
+            margin: pw.EdgeInsets.only(
+              bottom: isLastItem ? 0 : 4,
             ),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: PdfFontUtils.createGracefulText(
-                      _cleanDescription(debt.description),
-                      fontSize: 15,
-                      fontWeight: pw.FontWeight.normal,
-                      color: PdfColors.black,
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFF5F5F5),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+              border: pw.Border.all(
+                color: PdfColor.fromInt(0xFFE0E0E0),
+                width: 0.5,
+              ),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Row(
+                  children: [
+                    pw.Expanded(
+                      child: PdfFontUtils.createGracefulText(
+                        item['description'],
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.normal,
+                        color: PdfColors.black,
+                      ),
                     ),
-                  ),
-                  pw.SizedBox(width: 12),
-                  pw.Text(
-                    _formatCurrency(debt.amount),
-                    style: pw.TextStyle(
-                      fontSize: 15,
+                    pw.SizedBox(width: 4),
+                    PdfFontUtils.createGracefulText(
+                      _formatCurrency(item['amount']),
+                      fontSize: 11,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFF0175C2),
+                      color: item['type'] == 'partial_payment' 
+                          ? PdfColor.fromInt(0xFF4CAF50)
+                          : PdfColor.fromInt(0xFF0175C2),
                     ),
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 12),
-              PdfFontUtils.createGracefulText(
-                _formatDateTime(debt.createdAt),
-                fontSize: 12,
-                fontWeight: pw.FontWeight.normal,
-                color: PdfColor.fromInt(0xFF1976D2),
-              ),
-            ],
-          ),
-        )).toList(),
-        
-        ...pageDebts
-            .expand((debt) => _getPartialPaymentsForDebt(debt.id))
-            .map((payment) => pw.Container(
-              margin: const pw.EdgeInsets.only(bottom: 12),
-              padding: const pw.EdgeInsets.all(16),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFF5F5F5),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
-                border: pw.Border.all(
-                  color: PdfColor.fromInt(0xFFE0E0E0),
-                  width: 0.5,
+                  ],
                 ),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Row(
-                    children: [
-                      pw.Text(
-                        'Partial Payment',
-                        style: pw.TextStyle(
-                          fontSize: 15,
-                          fontWeight: pw.FontWeight.normal,
-                          color: PdfColors.black,
-                        ),
-                      ),
-                      pw.Spacer(),
-                      pw.Text(
-                        _formatCurrency(payment.amount),
-                        style: pw.TextStyle(
-                          fontSize: 15,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromInt(0xFF4CAF50),
-                        ),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 12),
-                  pw.Text(
-                    _formatDateTime(payment.paidAt),
-                    style: pw.TextStyle(
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.normal,
-                      color: PdfColor.fromInt(0xFF4CAF50),
-                    ),
-                  ),
-                ],
-              ),
-            )).toList(),
+                pw.SizedBox(height: 4),
+                PdfFontUtils.createGracefulText(
+                  _formatDateTime(item['date']),
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.normal,
+                  color: item['type'] == 'partial_payment' 
+                      ? PdfColor.fromInt(0xFF4CAF50)
+                      : PdfColor.fromInt(0xFF1976D2),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
         
         if (isLastPage) ...[
-          pw.SizedBox(height: 24),
+          pw.SizedBox(height: 8),
           pw.Container(
-            padding: const pw.EdgeInsets.all(20),
+            padding: const pw.EdgeInsets.all(10),
             decoration: pw.BoxDecoration(
               color: PdfColors.white,
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+              border: pw.Border.all(
+                color: PdfColor.fromInt(0xFFE0E0E0),
+                width: 1,
+              ),
             ),
             child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                if (allDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount) > 0 && 
-                    allDebts.any((debt) => !debt.isFullyPaid)) ...[
-                  pw.Row(
-                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                    children: [
-                      PdfFontUtils.createGracefulText(
-                        'Partially Paid Amount:',
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFF666666),
-                      ),
-                      PdfFontUtils.createGracefulText(
-                        _formatCurrency(allDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount)),
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColor.fromInt(0xFF4CAF50),
-                      ),
-                    ],
-                  ),
-                  pw.SizedBox(height: 12),
-                ],
+                PdfFontUtils.createGracefulText(
+                  'SUMMARY',
+                  fontSize: 12,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromInt(0xFF424242),
+                ),
+                pw.SizedBox(height: 6),
                 
-                if (remainingAmount == 0 && allDebts.isNotEmpty) ...[
+                if (remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty) ...[
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       PdfFontUtils.createGracefulText(
                         'Debts Fully Paid',
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColor.fromInt(0xFF4CAF50),
                       ),
-                      pw.Text(
-                        '✓',
-                        style: pw.TextStyle(
-                          fontSize: 20,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColor.fromInt(0xFF4CAF50),
-                        ),
+                      pw.Row(
+                        children: [
+                          PdfFontUtils.createGracefulText(
+                            _formatCurrency(allItems
+                                .where((item) => item['type'] == 'debt')
+                                .fold<double>(0, (sum, item) => sum + item['amount'])),
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF4CAF50),
+                          ),
+                          pw.SizedBox(width: 3),
+                          PdfFontUtils.createGracefulText(
+                            'PAID',
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF4CAF50),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                  if (allDebts.any((debt) => debt.paidAt != null)) ...[
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      'Paid on ${_formatDateTime(allDebts.where((debt) => debt.paidAt != null).map((debt) => debt.paidAt!).reduce((a, b) => a.isAfter(b) ? a : b))}',
-                      style: pw.TextStyle(
-                        fontSize: 12,
-                        color: PdfColor.fromInt(0xFF666666),
-                      ),
-                    ),
-                  ],
                 ] else ...[
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
                       PdfFontUtils.createGracefulText(
                         'Remaining Amount:',
-                        fontSize: 18,
+                        fontSize: 14,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.grey,
                       ),
                       PdfFontUtils.createGracefulText(
                         _formatCurrency(remainingAmount),
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColor.fromInt(0xFFD32F2F),
                       ),
@@ -987,24 +959,24 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               ],
             ),
           ),
-        ],
-        
-        pw.Spacer(),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(8),
-          child: pw.Center(
-            child: PdfFontUtils.createGracefulText(
-              'Page ${pageIndex + 1} of $totalPages',
-              fontSize: 10,
-              color: PdfColor.fromInt(0xFF999999),
+          
+          pw.SizedBox(height: 6),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(3),
+            child: pw.Center(
+              child: PdfFontUtils.createGracefulText(
+                'Page ${pageIndex + 1} of $totalPages',
+                fontSize: 7,
+                color: PdfColor.fromInt(0xFF999999),
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
 
   String _formatCurrency(double amount) {
-    return '\$${amount.toStringAsFixed(2)} USD';
+    return '${amount.toStringAsFixed(2)} USD';
   }
 } 

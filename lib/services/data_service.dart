@@ -521,8 +521,17 @@ class DataService {
   // Partial Payment methods
   List<PartialPayment> getPartialPaymentsByDebt(String debtId) {
     try {
-      return _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
+      print('=== GETTING PARTIAL PAYMENTS FOR DEBT ===');
+      print('Debt ID: $debtId');
+      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
+      print('Total partial payments in storage: ${_partialPaymentBoxSafe.length}');
+      print('All partial payments: ${_partialPaymentBoxSafe.values.toList()}');
+      
+      final payments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
+      print('Found ${payments.length} partial payments for debt $debtId');
+      return payments;
     } catch (e) {
+      print('Error getting partial payments: $e');
       return [];
     }
   }
@@ -534,10 +543,15 @@ class DataService {
       print('Debt ID: ${payment.debtId}');
       print('Amount: ${payment.amount}');
       
+      // Check if box is open
+      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
+      print('Partial payments box length before: ${_partialPaymentBoxSafe.length}');
+      
       _partialPaymentBoxSafe.put(payment.id, payment);
       
       print('Partial payment saved to storage successfully');
       print('Total partial payments in storage: ${_partialPaymentBoxSafe.length}');
+      print('Partial payments box keys: ${_partialPaymentBoxSafe.keys.toList()}');
     } catch (e) {
       print('Error saving partial payment: $e');
       rethrow;

@@ -4,6 +4,7 @@ import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/debt_description_utils.dart';
 
 class RecentDebtsList extends StatelessWidget {
   const RecentDebtsList({super.key});
@@ -130,7 +131,7 @@ class _DebtCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  debt.description,
+                  DebtDescriptionUtils.cleanDescription(debt.description),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,

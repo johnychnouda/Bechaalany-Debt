@@ -202,7 +202,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
 
   Widget _buildProductDetails() {
-    final quantity = int.tryParse(_quantityController.text) ?? 1;
+    final quantity = double.tryParse(_quantityController.text) ?? 1.0;
     final totalAmount = _selectedSubcategory?.sellingPrice ?? 0;
     final calculatedTotal = totalAmount * quantity;
 
@@ -257,9 +257,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           decoration: const InputDecoration(
             labelText: 'Quantity',
             border: OutlineInputBorder(),
-            hintText: '1',
+            hintText: '1.0',
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (value) {
             setState(() {
               // Trigger rebuild to update total
@@ -348,15 +348,25 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
     try {
       final appState = Provider.of<AppState>(context, listen: false);
-      final quantity = int.tryParse(_quantityController.text) ?? 1;
+      final quantity = double.tryParse(_quantityController.text) ?? 1.0;
       final totalAmount = _selectedSubcategory!.sellingPrice * quantity;
+      
+      // Create description with quantity if > 1
+      String description = _selectedSubcategory!.name;
+      if (quantity > 1) {
+        // Format quantity to show decimals only if needed
+        final quantityText = quantity == quantity.toInt() 
+            ? quantity.toInt().toString() 
+            : quantity.toStringAsFixed(2);
+        description = '${_selectedSubcategory!.name} (Qty: $quantityText)';
+      }
       
       final debt = Debt(
         id: appState.generateDebtId(),
         customerId: _selectedCustomer!.id,
         customerName: _selectedCustomer!.name,
         amount: totalAmount,
-        description: '${_selectedSubcategory!.name} (${_selectedCategory!.name})',
+        description: description,
         type: DebtType.credit,
         status: DebtStatus.pending,
         createdAt: DateTime.now(),

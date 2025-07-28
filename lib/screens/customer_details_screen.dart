@@ -5,6 +5,7 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
 import 'add_debt_screen.dart';
 import 'add_customer_screen.dart';
@@ -175,8 +176,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         final totalDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         final totalPaid = allCustomerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
         
-        // Get all customer debts (this will update automatically when AppState changes)
-        final customerAllDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
+        // Get all customer debts and sort by date and time in descending order (newest first)
+        final customerAllDebts = appState.debts
+            .where((d) => d.customerId == _currentCustomer.id)
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return Scaffold(
           backgroundColor: Colors.grey[50],
@@ -628,7 +632,7 @@ class _DebtCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        debt.description,
+                        DebtDescriptionUtils.cleanDescription(debt.description),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
@@ -768,7 +772,7 @@ class _DebtCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Debt: ${debt.description}'),
+              Text('Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}'),
               Text('Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
               Text('Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}'),
               const SizedBox(height: 16),

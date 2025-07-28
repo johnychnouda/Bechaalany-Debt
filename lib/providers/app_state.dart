@@ -453,27 +453,23 @@ class AppState extends ChangeNotifier {
   // Debt operations
   Future<void> addDebt(Debt debt) async {
     try {
-      // Check if customer has existing partially paid debts (not fully paid)
-      final existingPartiallyPaidDebts = _debts.where((d) => 
+      // Check for duplicate debts with same description for the same customer
+      final existingDebtsWithSameDescription = _debts.where((d) => 
         d.customerId == debt.customerId && 
-        d.paidAmount > 0 && d.paidAmount < d.amount
+        d.description == debt.description &&
+        d.paidAmount < d.amount // Only check unpaid or partially paid debts
       ).toList();
       
-      if (existingPartiallyPaidDebts.isNotEmpty) {
-        // Add to existing partially paid debt's remaining balance
-        final existingDebt = existingPartiallyPaidDebts.first;
+      if (existingDebtsWithSameDescription.isNotEmpty) {
+        // Update existing debt instead of creating a new one
+        final existingDebt = existingDebtsWithSameDescription.first;
         final newTotalAmount = existingDebt.amount + debt.amount;
-        final newDescription = existingDebt.description.isEmpty 
-            ? debt.description 
-            : '${existingDebt.description} + ${debt.description}';
         
         final updatedDebt = existingDebt.copyWith(
           amount: newTotalAmount,
-          description: newDescription,
           // Keep the original createdAt timestamp
           // Update paidAt to reflect the latest activity (when debt was modified)
           paidAt: DateTime.now(),
-          // Status remains the same (partially paid)
         );
         
         await _dataService.updateDebt(updatedDebt);
@@ -481,14 +477,6 @@ class AppState extends ChangeNotifier {
         if (index != -1) {
           _debts[index] = updatedDebt;
         }
-        
-        // Also create a new pending debt for the new amount
-        final newPendingDebt = debt.copyWith(
-          createdAt: DateTime.now(),
-        );
-        
-        await _dataService.addDebt(newPendingDebt);
-        _debts.add(newPendingDebt);
         
         _clearCache();
         
@@ -506,7 +494,42 @@ class AppState extends ChangeNotifier {
         await _notificationService.showDebtAddedNotification(debt);
         
         if (_isOnline) {
-          await _syncService.syncDebts([updatedDebt, newPendingDebt]);
+          await _syncService.syncDebts([updatedDebt]);
+        }
+        
+        // Reschedule notifications
+        await _scheduleNotifications();
+        return;
+      }
+      
+      // Check if customer has existing partially paid debts (not fully paid)
+      final existingPartiallyPaidDebts = _debts.where((d) => 
+        d.customerId == debt.customerId && 
+        d.paidAmount > 0 && d.paidAmount < d.amount
+      ).toList();
+      
+      if (existingPartiallyPaidDebts.isNotEmpty) {
+        // For product-based debts, always create a new debt instead of concatenating
+        // This prevents the "product + product + product" issue
+        await _dataService.addDebt(debt);
+        _debts.add(debt);
+        _clearCache();
+        
+        // Track activity for the addition
+        await addDebtActivity(debt);
+        
+        // Sync to CloudKit if enabled
+        if (_iCloudSyncEnabled) {
+          await _cloudKitService.syncDebts(_debts);
+        }
+        
+        notifyListeners();
+        
+        // Show system notification
+        await _notificationService.showDebtAddedNotification(debt);
+        
+        if (_isOnline) {
+          await _syncService.syncDebts([debt]);
         }
         
         // Reschedule notifications

@@ -5,6 +5,7 @@ import '../constants/app_theme.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
 
 // Type-safe class for grouped debt data
@@ -130,6 +131,11 @@ class _DebtsScreenState extends State<DebtsScreen> {
         groupedMap[debt.customerId] = [];
       }
       groupedMap[debt.customerId]!.add(debt);
+    }
+    
+    // Sort debts within each group by date and time in descending order (newest first)
+    for (final customerDebts in groupedMap.values) {
+      customerDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
     
     // Convert to list of GroupedDebtData for better type safety
@@ -577,7 +583,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    debt.description,
+                    DebtDescriptionUtils.cleanDescription(debt.description),
                     style: AppTheme.getDynamicCallout(context).copyWith(
                       color: Colors.black,
                       fontWeight: FontWeight.w600,

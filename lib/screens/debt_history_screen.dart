@@ -484,10 +484,10 @@ class _GroupedDebtCard extends StatelessWidget {
     final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
     final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
     
-    if (fullyPaidDebts > 0 && pendingDebts > 0) {
-      return Colors.blue; // Mixed status
-    } else if (partiallyPaidDebts > 0) {
-      return Colors.orange; // Partially paid - still pending
+    if (partiallyPaidDebts > 0) {
+      return Colors.orange; // Partially paid - use orange
+    } else if (fullyPaidDebts > 0 && pendingDebts > 0) {
+      return Colors.orange; // Mixed status - use orange
     } else if (pendingDebts > 0) {
       // Different color for new debts vs old pending debts
       return _isNewDebt() ? Colors.red : Colors.orange; // New debt: red, Old pending: orange

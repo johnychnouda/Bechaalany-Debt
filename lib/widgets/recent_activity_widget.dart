@@ -5,6 +5,7 @@ import '../models/debt.dart';
 import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/debt_description_utils.dart';
 
 class RecentActivityWidget extends StatelessWidget {
   const RecentActivityWidget({super.key});
@@ -134,7 +135,7 @@ class RecentActivityWidget extends StatelessWidget {
                                     ),
                                   ),
                                   Text(
-                                    activity.description,
+                                    DebtDescriptionUtils.cleanDescription(activity.description),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: AppColors.textSecondary,

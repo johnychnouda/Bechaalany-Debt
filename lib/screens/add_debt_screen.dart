@@ -40,15 +40,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     super.dispose();
   }
 
-  bool _isCombinedDescription(String description) {
-    // Check if the description contains multiple items separated by + or &
-    return description.contains(' + ') || 
-           description.contains(' & ') || 
-           description.contains('+') ||
-           description.contains('&') ||
-           description.contains(',') ||
-           description.contains(' and ');
-  }
+
 
   Future<void> _selectCustomer() async {
     final appState = Provider.of<AppState>(context, listen: false);
@@ -215,60 +207,16 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                 labelText: 'Description *',
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.description),
-                helperText: 'Enter a single item description (e.g., "alfa ushare 10gb")',
-                suffixIcon: _descriptionController.text.isNotEmpty && _isCombinedDescription(_descriptionController.text)
-                    ? Icon(
-                        Icons.warning,
-                        color: Colors.orange[600],
-                        size: 20,
-                      )
-                    : null,
+                helperText: 'Enter a description for the debt item',
               ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter a description';
                 }
                 
-                // Check for combined descriptions
-                final description = value.trim();
-                if (_isCombinedDescription(description)) {
-                  return 'Please enter only one item. Use separate debt entries for multiple items.';
-                }
-                
                 return null;
               },
             ),
-            // Warning message for combined descriptions
-            if (_descriptionController.text.isNotEmpty && _isCombinedDescription(_descriptionController.text)) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.orange[600],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Multiple items detected. Please create separate debt entries for each item.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.orange[700],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             
             // Amount field
