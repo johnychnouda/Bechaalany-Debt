@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../models/debt.dart';
 import '../models/activity.dart';
 import '../screens/full_activity_list_screen.dart';
+import '../utils/debt_description_utils.dart';
 
 class WeeklyActivityWidget extends StatefulWidget {
   const WeeklyActivityWidget({super.key});
@@ -15,9 +15,9 @@ class WeeklyActivityWidget extends StatefulWidget {
   State<WeeklyActivityWidget> createState() => _WeeklyActivityWidgetState();
 }
 
-class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
-    with TickerProviderStateMixin {
-  ActivityView _currentView = ActivityView.daily;
+class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
+  ActivityView _currentView = ActivityView.weekly;
+  Timer? _timer;
 
   void _cycleView() {
     setState(() {
@@ -35,49 +35,16 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
     });
   }
 
-  String _getDayName(DateTime date) {
-    switch (date.weekday) {
-      case 1:
-        return 'Monday';
-      case 2:
-        return 'Tuesday';
-      case 3:
-        return 'Wednesday';
-      case 4:
-        return 'Thursday';
-      case 5:
-        return 'Friday';
-      case 6:
-        return 'Saturday';
-      case 7:
-        return 'Sunday';
-      default:
-        return 'Unknown';
-    }
-  }
-
   String _getViewTitle() {
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    
     switch (_currentView) {
       case ActivityView.daily:
-        return 'Daily Activity - ${_getDayName(today)}';
+        return 'Daily Activity - ${_formatShortDate(now)}';
       case ActivityView.weekly:
-        final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        return 'Weekly Activity - ${_formatShortDate(startOfWeek)} - ${_formatShortDate(endOfWeek)}';
+        return 'Weekly Activity - ${_getWeekRange(now)}';
       case ActivityView.monthly:
         return 'Monthly Activity - ${_getMonthYear(now)}';
     }
-  }
-
-  String _formatDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatShortDate(DateTime date) {
@@ -94,6 +61,44 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '${months[date.month - 1]} ${date.year}';
+  }
+
+  String _getWeekRange(DateTime date) {
+    final startOfWeek = date.subtract(Duration(days: date.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    
+    // Use compact format with month names
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    
+    String startStr = '${months[startOfWeek.month - 1]} ${startOfWeek.day}';
+    String endStr = '${months[endOfWeek.month - 1]} ${endOfWeek.day}';
+    
+    // If same month, only show month once
+    if (startOfWeek.month == endOfWeek.month) {
+      return '$startStr - ${endOfWeek.day}';
+    } else {
+      return '$startStr - $endStr';
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Start timer to update time ago text every minute
+    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -131,11 +136,12 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        overflow: TextOverflow.visible,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () {
+                    GestureDetector(
+                      onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -145,8 +151,18 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                           ),
                         );
                       },
-                      icon: const Icon(Icons.list_alt_outlined),
-                      color: AppColors.secondary,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.list_alt_outlined,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -165,229 +181,185 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
   Widget _buildCurrentView(AppState appState) {
     switch (_currentView) {
       case ActivityView.daily:
-        return _buildDailyView(appState);
+        return _buildActivitiesList(appState, 'Today\'s Activity');
       case ActivityView.weekly:
-        return _buildWeeklyView(appState);
+        return _buildActivitiesList(appState, 'This Week\'s Activity');
       case ActivityView.monthly:
-        return _buildMonthlyView(appState);
+        return _buildActivitiesList(appState, 'This Month\'s Activity');
     }
   }
 
-  List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
-    final activities = <Activity>[];
-
-    // Get activities from the new Activity model
-    for (final activity in appState.activities) {
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
-        activities.add(activity);
-      }
-    }
-
-    // Sort by date (newest first)
-    activities.sort((a, b) => b.date.compareTo(a.date));
-    return activities;
-  }
-
-  List<Activity> _getActivitiesForDailyPeriod(AppState appState, DateTime startDate, DateTime endDate) {
-    final activities = <Activity>[];
-
-    // Get activities from the new Activity model
-    for (final activity in appState.activities) {
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
-        activities.add(activity);
-      }
-    }
-
-    // Sort by date (newest first)
-    activities.sort((a, b) => b.date.compareTo(a.date));
-    return activities;
-  }
-
-  Widget _buildDailyView(AppState appState) {
+  List<Activity> _getActivitiesForPeriod(AppState appState, ActivityView view) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final startDate = today; // Start at 12:00 AM (midnight) of today
-    final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)); // End at 11:59:59.999 PM of today
     
-    final activities = _getActivitiesForDailyPeriod(appState, startDate, endDate);
-    final emptyMessage = "No activity today";
+    DateTime startDate;
+    DateTime endDate;
+    
+    switch (view) {
+      case ActivityView.daily:
+        startDate = today;
+        endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        break;
+      case ActivityView.weekly:
+        startDate = today.subtract(Duration(days: today.weekday - 1));
+        endDate = startDate.add(const Duration(days: 6));
+        break;
+      case ActivityView.monthly:
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0);
+        break;
+    }
+    
+    final activities = <Activity>[];
 
-    return _buildActivityContent(
-      activities: activities,
-      emptyMessage: emptyMessage,
-      emptyIcon: Icons.today_outlined,
-      showNewBadge: false,
-    );
+    for (final activity in appState.activities) {
+      // Filter out debtCleared activities - only show new debts and payments
+      if (activity.type == ActivityType.debtCleared) {
+        continue;
+      }
+      
+      // Filter out activities for customers that no longer exist
+      final customerExists = appState.customers.any((customer) => 
+        customer.name.toLowerCase() == activity.customerName.toLowerCase()
+      );
+      
+      if (!customerExists) {
+        continue;
+      }
+      
+      // Add only activities for existing customers
+      activities.add(activity);
+    }
+
+    // Sort by date (newest first)
+    activities.sort((a, b) => b.date.compareTo(a.date));
+    return activities;
   }
 
-  Widget _buildWeeklyView(AppState appState) {
-    final now = DateTime.now();
-    // Get start of week (Monday) and end of week (Sunday)
-    final startOfWeek = DateTime(now.year, now.month, now.day - now.weekday + 1);
-    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+  Widget _buildActivitiesList(AppState appState, String title) {
+    final activities = _getActivitiesForPeriod(appState, _currentView);
     
-    final activities = _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
-    
-    return _buildActivityContent(
-      activities: activities,
-      emptyMessage: 'No activity this week',
-      emptyIcon: Icons.event_busy,
-      showNewBadge: false, // Don't show blue "New" badge for weekly view
-    );
-  }
-
-  Widget _buildMonthlyView(AppState appState) {
-    final now = DateTime.now();
-    // Get start of month (day 1) and end of month (last day)
-    final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0); // Last day of current month
-    
-    final activities = _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
-    
-    return _buildActivityContent(
-      activities: activities,
-      emptyMessage: 'No activity this month',
-      emptyIcon: Icons.calendar_month_outlined,
-      showNewBadge: false, // Don't show blue "New" badge for monthly view
-    );
-  }
-
-  Widget _buildActivityContent({
-    required List<Activity> activities,
-    required String emptyMessage,
-    required IconData emptyIcon,
-    bool showNewBadge = false,
-  }) {
-    // Limit to latest 3 activities
-    final limitedActivities = activities.take(3).toList();
-    
-    if (limitedActivities.isEmpty) {
-      return Container(
-        height: 120,
-        child: Center(
-                    child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                emptyIcon,
-                          size: 32,
-                          color: AppColors.textLight,
-                        ),
-              const SizedBox(height: 8),
-                        Text(
-                emptyMessage,
-                style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-        ),
+    if (activities.isEmpty) {
+      return Column(
+        children: [
+          const SizedBox(height: 20),
+          Icon(
+            Icons.inbox_outlined,
+            size: 48,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No activity found',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       );
     }
 
+    // Take the top 3 activities
+    final topActivities = activities.take(3).toList();
+
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Activity List (limited to 3)
-        ...limitedActivities.map((activity) => _buildActivityItem(activity, showNewBadge: showNewBadge)).toList(),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...topActivities.map((activity) => _buildActivityItem(activity)),
       ],
     );
   }
 
-  Widget _buildActivityItem(Activity activity, {bool showNewBadge = false}) {
+  Widget _buildActivityItem(Activity activity) {
+    // Determine if this is a full payment
+    bool isFullPayment = activity.type == ActivityType.payment && 
+                        activity.paymentAmount != null && 
+                        activity.paymentAmount == activity.amount;
+    
     IconData icon;
     Color iconColor;
-    String typeText;
-    Color typeColor;
+    Color backgroundColor;
 
     switch (activity.type) {
       case ActivityType.newDebt:
         icon = Icons.add_circle;
         iconColor = AppColors.primary;
-        typeText = 'New';
-        typeColor = AppColors.primary;
+        backgroundColor = AppColors.primary.withValues(alpha: 0.1);
         break;
       case ActivityType.payment:
-        icon = Icons.payment;
-        // Use orange for partial payments, green for full payments
-        if (activity.paymentAmount != null && activity.paymentAmount! < activity.amount) {
-          iconColor = AppColors.warning; // Orange for partial payments
+        if (isFullPayment) {
+          icon = Icons.check_circle;
+          iconColor = AppColors.success;
+          backgroundColor = AppColors.success.withValues(alpha: 0.1);
         } else {
-          iconColor = AppColors.success; // Green for full payments
+          icon = Icons.payment;
+          iconColor = AppColors.warning;
+          backgroundColor = AppColors.warning.withValues(alpha: 0.1);
         }
-        typeText = 'Paid';
-        typeColor = AppColors.success;
         break;
       case ActivityType.debtCleared:
-        icon = Icons.update;
-        iconColor = AppColors.warning;
-        typeText = 'Status';
-        typeColor = AppColors.warning;
+        // This case should not be reached since we filter out debtCleared activities
+        icon = Icons.delete_forever;
+        iconColor = Colors.red;
+        backgroundColor = Colors.red.withValues(alpha: 0.1);
         break;
     }
-                      
-                      return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Container(
-            width: 32,
-            height: 32,
-                              decoration: BoxDecoration(
-              color: iconColor.withAlpha(26),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 16,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        activity.customerName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                      ),
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity.customerName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // Only show product description for new debts, not for payments
+                if (activity.type == ActivityType.newDebt)
+                  Text(
+                    DebtDescriptionUtils.cleanDescription(activity.description),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
                     ),
-                    const SizedBox(width: 8),
-                    if (showNewBadge && activity.type == ActivityType.newDebt)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(26),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'New',
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                                    ),
-                                  ),
-                                ],
+                  ),
+                Text(
+                  _getActivityText(activity, isFullPayment),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: activity.type == ActivityType.payment 
+                        ? (isFullPayment ? AppColors.success : AppColors.warning)
+                        : AppColors.textLight,
+                  ),
                 ),
               ],
             ),
@@ -399,24 +371,73 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget>
                 Text(
                   CurrencyFormatter.formatAmount(context, activity.amount),
                   style: const TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
                   ),
                 ),
-              if (activity.paymentAmount != null && activity.paymentAmount! > 0)
-                            Text(
-                  activity.paymentAmount == activity.amount 
-                    ? 'Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                    : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                              style: TextStyle(
+              if (activity.type == ActivityType.payment && activity.paymentAmount != null)
+                Text(
+                  isFullPayment
+                      ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                      : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                  style: TextStyle(
                     fontSize: 14,
-                    color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
                     fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                    color: isFullPayment ? AppColors.success : AppColors.warning,
                   ),
-              ],
-            ),
+                ),
+              Text(
+                _getTimeAgo(activity.date),
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textLight,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  String _getActivityText(Activity activity, bool isFullPayment) {
+    switch (activity.type) {
+      case ActivityType.payment:
+        return isFullPayment ? 'Payment completed' : 'Partial payment';
+      case ActivityType.newDebt:
+        return 'New debt added';
+      case ActivityType.debtCleared:
+        return 'Debt cleared'; // This case should not be reached since we filter out debtCleared
+    }
+  }
+
+  String _getTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      // Show full date and time for activities older than 1 day
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      
+      String month = months[dateTime.month - 1];
+      String day = dateTime.day.toString().padLeft(2, '0');
+      
+      // Convert to 12-hour format with AM/PM
+      int hour12 = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+      String minute = dateTime.minute.toString().padLeft(2, '0');
+      String ampm = dateTime.hour < 12 ? 'am' : 'pm';
+      
+      return '$month $day, $hour12:$minute $ampm';
+    }
   }
 } 

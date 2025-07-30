@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
-import '../constants/app_colors.dart';
-import '../constants/app_theme.dart';
+
+
 import '../providers/app_state.dart';
-import '../l10n/app_localizations.dart';
+
 import 'data_recovery_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,14 +23,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    
     return CupertinoPageScaffold(
       backgroundColor: CupertinoColors.systemGroupedBackground,
       navigationBar: CupertinoNavigationBar(
-        middle: Text(l10n.settings),
+        middle: const Text('Settings'),
         backgroundColor: CupertinoColors.systemGroupedBackground,
         border: null,
         trailing: CupertinoButton(
@@ -44,9 +44,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             const SizedBox(height: 20),
             
-            // Appearance & Accessibility
+            // Appearance (App-specific only)
             _buildSection(
-              'Appearance & Accessibility',
+              'Appearance',
               [
                 _buildSwitchRow(
                   'Dark Mode',
@@ -55,92 +55,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Provider.of<AppState>(context).isDarkMode,
                   (value) => Provider.of<AppState>(context, listen: false).setDarkModeEnabled(value),
                 ),
-                _buildSwitchRow(
-                  'Bold Text',
-                  'Use bold text throughout',
-                  CupertinoIcons.textformat_size,
-                  Provider.of<AppState>(context).boldTextEnabled,
-                  (value) => Provider.of<AppState>(context, listen: false).setBoldTextEnabled(value),
-                ),
-                _buildSwitchRow(
-                  'Reduce Motion',
-                  'Minimize animations',
-                  CupertinoIcons.speedometer,
-                  Provider.of<AppState>(context).reduceMotionEnabled,
-                  (value) => Provider.of<AppState>(context, listen: false).setReduceMotionEnabled(value),
-                ),
-                _buildNavigationRow(
-                  'Text Size',
-                  'Adjust text size',
-                  CupertinoIcons.textformat_abc,
-                  () => _showTextSizeDialog(),
-                ),
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // Notifications
+            // Business Settings (Essential only)
             _buildSection(
-              'Notifications',
+              'Business Settings',
               [
-                _buildSwitchRow(
-                  'Enable Notifications',
-                  'Receive payment reminders',
-                  CupertinoIcons.bell,
-                  Provider.of<AppState>(context).notificationsEnabled,
-                  (value) => Provider.of<AppState>(context, listen: false).setNotificationsEnabled(value),
+                _buildNavigationRow(
+                  'Currency & Exchange Rates',
+                  'Configure currency settings and rates',
+                  CupertinoIcons.money_dollar,
+                  () => _showCurrencySettings(),
                 ),
-                if (Provider.of<AppState>(context).notificationsEnabled) ...[
-                  _buildSwitchRow(
-                    'Payment Due Reminders',
-                    'Get notified about due payments',
-                    CupertinoIcons.clock,
-                    Provider.of<AppState>(context).paymentDueRemindersEnabled,
-                    (value) => Provider.of<AppState>(context, listen: false).setPaymentDueRemindersEnabled(value),
-                  ),
-                  _buildSwitchRow(
-                    'Weekly Reports',
-                    'Receive weekly summaries',
-                    CupertinoIcons.calendar,
-                    Provider.of<AppState>(context).weeklyReportsEnabled,
-                    (value) => Provider.of<AppState>(context, listen: false).setWeeklyReportsEnabled(value),
-                  ),
-                  _buildSwitchRow(
-                    'Monthly Reports',
-                    'Receive monthly summaries',
-                    CupertinoIcons.calendar_badge_plus,
-                    Provider.of<AppState>(context).monthlyReportsEnabled,
-                    (value) => Provider.of<AppState>(context, listen: false).setMonthlyReportsEnabled(value),
-                  ),
-                  _buildSwitchRow(
-                    'Quiet Hours',
-                    'Silence notifications at night',
-                    CupertinoIcons.moon_zzz,
-                    Provider.of<AppState>(context).quietHoursEnabled,
-                    (value) => Provider.of<AppState>(context, listen: false).setQuietHoursEnabled(value),
-                  ),
-                  if (Provider.of<AppState>(context).quietHoursEnabled) ...[
-                    _buildNavigationRow(
-                      'Quiet Hours Time',
-                      '${Provider.of<AppState>(context).quietHoursStart} - ${Provider.of<AppState>(context).quietHoursEnd}',
-                      CupertinoIcons.time,
-                      () => _showQuietHoursDialog(),
-                    ),
-                  ],
-                ],
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // Data & Storage
+            // Data & Sync (Enhanced)
             _buildSection(
-              'Data & Storage',
+              'Data & Sync',
               [
                 _buildSwitchRow(
                   'iCloud Sync',
-                  'Sync data across devices',
+                  'Sync data across all your devices',
                   CupertinoIcons.cloud,
                   Provider.of<AppState>(context).iCloudSyncEnabled,
                   (value) => Provider.of<AppState>(context, listen: false).setICloudSyncEnabled(value),
@@ -153,32 +94,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
                 _buildNavigationRow(
-                  'Storage Usage',
-                  'Detailed storage breakdown',
-                  CupertinoIcons.chart_bar,
-                  () => _showStorageUsage(),
-                ),
-                _buildNavigationRow(
-                  'Cache Management',
-                  'Clear app cache',
-                  CupertinoIcons.trash,
-                  () => _showCacheManagement(),
-                ),
-                _buildNavigationRow(
                   'Export Data',
-                  'Save to Files app',
+                  'Export to PDF, CSV, or Excel formats',
                   CupertinoIcons.square_arrow_up,
                   () => _showExportDialog(),
                 ),
                 _buildNavigationRow(
                   'Import Data',
-                  'Import from Files app',
+                  'Import from other debt management apps',
                   CupertinoIcons.square_arrow_down,
                   () => _showImportDialog(),
                 ),
                 _buildNavigationRow(
                   'Data Recovery',
-                  'Backup and restore data',
+                  'Backup and restore your data',
                   CupertinoIcons.arrow_clockwise,
                   () => Navigator.of(context).push(
                     CupertinoPageRoute(
@@ -186,46 +115,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                 ),
-                _buildActionRow(
-                  'Clear All Data',
-                  'Delete all data permanently',
-                  CupertinoIcons.delete,
-                  () => _showClearDataDialog(),
-                  isDestructive: true,
-                ),
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // Currency & Localization
+            // App Info
             _buildSection(
-              'Currency & Localization',
-              [
-                _buildNavigationRow(
-                  'Language',
-                  Provider.of<AppState>(context).selectedLanguage,
-                  CupertinoIcons.globe,
-                  () => _showLanguageDialog(),
-                ),
-                _buildNavigationRow(
-                  'Currency Settings',
-                  'Configure exchange rates',
-                  CupertinoIcons.money_dollar,
-                  () => _showCurrencySettings(),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 20),
-            
-            // Support & Legal
-            _buildSection(
-              'Support & Legal',
+              'App Info',
               [
                 _buildNavigationRow(
                   'Help & Support',
-                  'Get help and contact us',
+                  'Get help and contact support',
                   CupertinoIcons.question_circle,
                   () => _showHelpSupportDialog(),
                 ),
@@ -266,7 +167,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             padding: const EdgeInsets.only(left: 16, bottom: 8),
             child: Text(
               title,
-              style: AppTheme.getDynamicCaption1(context).copyWith(
+              style: TextStyle(
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: CupertinoColors.systemGrey,
                 letterSpacing: 0.5,
@@ -277,11 +179,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Container(
             decoration: BoxDecoration(
-              color: AppColors.dynamicSurface(context),
+              color: CupertinoColors.systemBackground,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                width: 1,
+                color: CupertinoColors.separator,
+                width: 0.5,
               ),
             ),
             child: Column(
@@ -316,12 +218,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: CupertinoColors.systemBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: AppColors.primary,
+                color: CupertinoColors.systemBlue,
                 size: 20,
               ),
             ),
@@ -332,15 +234,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: AppTheme.getDynamicBody(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.w500,
+                      color: CupertinoColors.label,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 13,
                       color: CupertinoColors.systemGrey,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                 ],
@@ -349,7 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             CupertinoSwitch(
               value: value,
               onChanged: onChanged,
-              activeTrackColor: AppColors.primary,
+              activeTrackColor: CupertinoColors.systemBlue,
             ),
           ],
         ),
@@ -380,12 +289,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: CupertinoColors.systemBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: AppColors.primary,
+                color: CupertinoColors.systemBlue,
                 size: 20,
               ),
             ),
@@ -396,15 +305,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: AppTheme.getDynamicBody(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.w500,
+                      color: CupertinoColors.label,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 13,
                       color: CupertinoColors.systemGrey,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                 ],
@@ -442,12 +358,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: CupertinoColors.systemBlue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 icon,
-                color: AppColors.primary,
+                color: CupertinoColors.systemBlue,
                 size: 20,
               ),
             ),
@@ -458,15 +374,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: AppTheme.getDynamicBody(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 17,
                       fontWeight: FontWeight.w500,
+                      color: CupertinoColors.label,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                    style: TextStyle(
+                      fontSize: 13,
                       color: CupertinoColors.systemGrey,
+                      decoration: TextDecoration.none,
+                      decorationColor: Colors.transparent,
                     ),
                   ),
                 ],
@@ -478,77 +401,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildActionRow(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap, {
-    bool isDestructive = false,
-  }) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: CupertinoColors.separator,
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isDestructive 
-                    ? CupertinoColors.systemRed.withValues(alpha: 0.1)
-                    : AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: isDestructive 
-                    ? CupertinoColors.systemRed
-                    : AppColors.primary,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: AppTheme.getDynamicBody(context).copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: isDestructive 
-                          ? CupertinoColors.systemRed
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: AppTheme.getDynamicCaption1(context).copyWith(
-                      color: CupertinoColors.systemGrey,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              CupertinoIcons.chevron_right,
-              color: CupertinoColors.systemGrey,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   String _getCloudKitStatusText(BuildContext context) {
     final appState = Provider.of<AppState>(context);
@@ -578,67 +431,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showTextSizeDialog() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: const Text('Text Size'),
-        actions: [
-          CupertinoActionSheetAction(
-            child: const Text('Small'),
-            onPressed: () {
-              Provider.of<AppState>(context, listen: false).setTextSize('Small');
-              Navigator.of(context).pop();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Medium'),
-            onPressed: () {
-              Provider.of<AppState>(context, listen: false).setTextSize('Medium');
-              Navigator.of(context).pop();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Large'),
-            onPressed: () {
-              Provider.of<AppState>(context, listen: false).setTextSize('Large');
-              Navigator.of(context).pop();
-            },
-          ),
-          CupertinoActionSheetAction(
-            child: const Text('Extra Large'),
-            onPressed: () {
-              Provider.of<AppState>(context, listen: false).setTextSize('Extra Large');
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          child: const Text('Cancel'),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-    );
-  }
-
-  void _showQuietHoursDialog() {
-    // Implementation for quiet hours dialog
-  }
-
-  void _showLanguageDialog() {
-    // Implementation for language dialog
-  }
-
   void _showCurrencySettings() {
     // Implementation for currency settings
-  }
-
-  void _showStorageUsage() {
-    // Implementation for storage usage
-  }
-
-  void _showCacheManagement() {
-    // Implementation for cache management
   }
 
   void _showExportDialog() {
@@ -647,30 +441,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showImportDialog() {
     // Implementation for import dialog
-  }
-
-  void _showClearDataDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Clear All Data'),
-        content: const Text('This will permanently delete all your data. This action cannot be undone.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: const Text('Delete All Data'),
-            onPressed: () {
-              // Implementation for clearing data
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   void _showHelpSupportDialog() {

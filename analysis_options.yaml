@@ -40,7 +40,7 @@ linter:
     use_string_buffers: true
     use_test_throws_matchers: true
     use_to_and_as_if_applicable: true
-    use_utf8_encoding: true
+    # use_utf8_encoding: true  # This rule doesn't exist
 
 analyzer:
   exclude:

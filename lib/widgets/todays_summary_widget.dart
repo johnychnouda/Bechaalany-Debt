@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/debt.dart';
+
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 

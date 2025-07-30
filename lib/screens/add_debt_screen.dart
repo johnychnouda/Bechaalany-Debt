@@ -21,6 +21,13 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   final _amountController = TextEditingController();
   Customer? _selectedCustomer;
   bool _isLoading = false;
+  late ScaffoldMessengerState _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+  }
 
   @override
   void initState() {
@@ -47,7 +54,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     final customers = appState.customers;
     
     if (customers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('No customers available. Please add a customer first.'),
           backgroundColor: AppColors.warning,
@@ -70,7 +77,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                 final customer = customers[index];
                 return ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: Text(
                       customer.name.split(' ').map((e) => e[0]).join(''),
                       style: TextStyle(
@@ -98,7 +105,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   }
 
   Future<void> _saveDebt() async {
-    if (_formKey.currentState!.validate() && _selectedCustomer != null) {
+    if (_formKey.currentState?.validate() == true && _selectedCustomer != null) {
       setState(() {
         _isLoading = true;
       });
@@ -125,7 +132,9 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
         });
         
         // Navigate back with result
-        Navigator.pop(context, true);
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       } catch (e) {
         setState(() {
           _isLoading = false;

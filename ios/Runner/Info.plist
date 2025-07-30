@@ -192,6 +192,109 @@
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
 	<true/>
 	
+	<!-- Dynamic Island Support -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
+	
+	<!-- StandBy Mode Support -->
+	<key>NSSupportsStandBy</key>
+	<true/>
+	
+	<!-- iOS 18+ Features -->
+	<key>NSSupportsSmartStack</key>
+	<true/>
+	<key>NSSupportsAIFeatures</key>
+	<true/>
+	<key>NSSupportsEnhancedPrivacy</key>
+	<true/>
+	<key>NSSupportsAdvancedAccessibility</key>
+	<true/>
+	<key>NSSupportsFocusModeIntegration</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesEnhanced</key>
+	<true/>
+	<key>NSSupportsDynamicIslandEnhanced</key>
+	<true/>
+	
+	<!-- Enhanced Privacy Features -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Advanced Accessibility -->
+	<key>UIAccessibilityIsVoiceOverRunning</key>
+	<true/>
+	<key>UIAccessibilityIsReduceMotionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsReduceTransparencyEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsBoldTextEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsGrayscaleEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsInvertColorsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsOnOffSwitchLabelsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsShakeToUndoEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakScreenEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakSelectionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSwitchControlRunning</key>
+	<true/>
+	<key>UIAccessibilityIsAssistiveTouchRunning</key>
+	<true/>
+	<key>UIAccessibilityIsClosedCaptioningEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsDarkerSystemColorsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsLargerTextEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsMonoAudioEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsReduceMotionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsReduceTransparencyEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsShakeToUndoEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakScreenEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSpeakSelectionEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsSwitchControlRunning</key>
+	<true/>
+	<key>UIAccessibilityIsAssistiveTouchRunning</key>
+	<true/>
+	<key>UIAccessibilityIsClosedCaptioningEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsDarkerSystemColorsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsLargerTextEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsMonoAudioEnabled</key>
+	<true/>
+	
 	<!-- Focus Mode Integration -->
 	<key>NSFocusStatusUsageDescription</key>
 	<string>This app integrates with Focus mode to provide distraction-free debt management.</string>

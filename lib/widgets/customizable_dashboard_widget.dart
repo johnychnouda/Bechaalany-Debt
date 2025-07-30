@@ -5,9 +5,9 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/logo_utils.dart';
-import '../utils/currency_formatter.dart';
+
 import '../screens/settings_screen.dart';
-import 'dashboard_card.dart';
+
 import 'weekly_activity_widget.dart';
 import 'top_debtors_widget.dart';
 import 'profit_loss_widget.dart';
@@ -122,16 +122,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       final widgetIds = _enabledWidgets.map((w) => w.id).toList();
       await prefs.setStringList('dashboard_widget_order', widgetIds);
     } catch (e) {
-      print('Error saving widget preferences: $e');
-    }
-  }
-
-  void _clearWidgetPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('dashboard_widget_order');
-    } catch (e) {
-      // Handle error silently
+      // Error saving widget preferences
     }
   }
 

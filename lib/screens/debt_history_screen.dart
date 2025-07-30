@@ -21,6 +21,13 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   String _selectedStatus = 'All';
   Set<String> _lastKnownDebtIds = {};
   bool _sortAscending = false;
+  late ScaffoldMessengerState _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+  }
 
   @override
   void initState() {
@@ -40,108 +47,55 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     final query = _searchController.text.toLowerCase();
     
     setState(() {
-      // First, group all debts by customer to determine customer-level status
-      final Map<String, List<Debt>> customerDebtsMap = {};
-      for (final debt in debts) {
-        if (!customerDebtsMap.containsKey(debt.customerId)) {
-          customerDebtsMap[debt.customerId] = [];
-        }
-        customerDebtsMap[debt.customerId]!.add(debt);
-      }
-      
-      // Determine which customers match the status filter
-      final Set<String> matchingCustomerIds = {};
-      for (final entry in customerDebtsMap.entries) {
-        final customerDebts = entry.value;
-        final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        
-        String customerStatus;
-        if (totalPaidAmount >= totalAmount) {
-          customerStatus = 'fully paid';
-        } else if (totalPaidAmount > 0) {
-          customerStatus = 'partially paid';
-        } else {
-          customerStatus = 'pending';
-        }
-        
-        final matchesStatus = _selectedStatus == 'All' ||
-                             customerStatus == _selectedStatus.toLowerCase();
-        
-        if (matchesStatus) {
-          matchingCustomerIds.add(entry.key);
-        }
-      }
-      
-      // Filter debts to only include customers that match the status
+      // Filter debts individually based on their own status
       final filteredDebts = debts.where((debt) {
         final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
                              debt.customerId.toLowerCase().contains(query);
         
-        return matchesSearch && matchingCustomerIds.contains(debt.customerId);
+        // Determine individual debt status
+        String debtStatus;
+        if (debt.isFullyPaid) {
+          debtStatus = 'fully paid';
+        } else if (debt.paidAmount > 0) {
+          debtStatus = 'partially paid';
+        } else {
+          debtStatus = 'pending';
+        }
+        
+        final matchesStatus = _selectedStatus == 'All' ||
+                             debtStatus == _selectedStatus.toLowerCase();
+        
+        return matchesSearch && matchesStatus;
       }).toList();
       
-      // Group debts by customer
-      _groupDebtsByCustomer(filteredDebts);
+      // Always show each debt individually (not grouped by customer)
+      // This ensures each new debt creates a separate receipt
+      _groupDebtsIndividually(filteredDebts);
     });
   }
 
-  void _groupDebtsByCustomer(List<Debt> debts) {
-    final Map<String, List<Debt>> groupedMap = {};
-    
-    // Group debts by customer ID
-    for (final debt in debts) {
-      if (!groupedMap.containsKey(debt.customerId)) {
-        groupedMap[debt.customerId] = [];
-      }
-      groupedMap[debt.customerId]!.add(debt);
-    }
-    
-    // Convert to list of maps for easier handling
-    _groupedDebts = groupedMap.entries.map((entry) {
-      final customerDebts = entry.value;
-      
-      // Calculate customer-level amounts (all debts combined)
-      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-      final totalRemainingAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-      
-      // Determine customer-level status
-      int pendingDebts, paidDebts, partiallyPaidDebts;
-      if (totalPaidAmount >= totalAmount) {
-        // All debts are fully paid
-        pendingDebts = 0;
-        paidDebts = customerDebts.length;
-        partiallyPaidDebts = 0;
-      } else if (totalPaidAmount > 0) {
-        // Customer has some payments but not fully paid
-        pendingDebts = 0;
-        paidDebts = customerDebts.where((d) => d.isFullyPaid).length;
-        partiallyPaidDebts = customerDebts.length - paidDebts;
-      } else {
-        // No payments made
-        pendingDebts = customerDebts.length;
-        paidDebts = 0;
-        partiallyPaidDebts = 0;
-      }
-      
+  void _groupDebtsIndividually(List<Debt> debts) {
+    // Show each debt as a separate entry (not grouped by customer)
+    _groupedDebts = debts.map((debt) {
       return {
-        'customerId': entry.key,
-        'customerName': customerDebts.first.customerName,
-        'debts': customerDebts,
-        'totalAmount': totalAmount,
-        'totalPaidAmount': totalPaidAmount,
-        'totalRemainingAmount': totalRemainingAmount,
-        'totalDebts': customerDebts.length,
-        'pendingDebts': pendingDebts,
-        'paidDebts': paidDebts,
-        'partiallyPaidDebts': partiallyPaidDebts,
+        'customerId': debt.customerId,
+        'customerName': debt.customerName,
+        'debts': [debt], // Single debt per entry
+        'totalAmount': debt.amount,
+        'totalPaidAmount': debt.paidAmount,
+        'totalRemainingAmount': debt.remainingAmount,
+        'totalDebts': 1,
+        'pendingDebts': debt.isFullyPaid ? 0 : (debt.paidAmount > 0 ? 0 : 1),
+        'paidDebts': debt.isFullyPaid ? 1 : 0,
+        'partiallyPaidDebts': debt.isFullyPaid ? 0 : (debt.paidAmount > 0 ? 1 : 0),
       };
     }).toList();
     
-    // Sort grouped debts
+    // Sort individual debts
     _sortGroupedDebts();
   }
+
+
 
   void _sortGroupedDebts() {
     // Sort by the most recent debt date (newest first by default, oldest first when ascending)
@@ -170,7 +124,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     
     try {
-      await appState.updateDebt(debt);
+      await appState.markDebtAsPaid(debt.id);
       _filterDebts(); // Re-filter after status change
     } catch (e) {
       if (mounted) {
@@ -178,7 +132,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
           title: 'Error',
-          body: 'Failed to update debt: $e',
+          body: 'Failed to mark debt as paid: $e',
         );
       }
     }
@@ -189,7 +143,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
           backgroundColor: Colors.orange,
@@ -347,7 +301,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                                           ? Colors.orange[50] 
                                           : status == 'Fully Paid' 
                                               ? Colors.green[50] 
-                                              : AppColors.primary.withOpacity(0.2))
+                                              : AppColors.primary.withValues(alpha: 0.2))
                                   : Colors.grey[200],
                               checkmarkColor: isSelected 
                                   ? (status == 'Pending' 
@@ -398,7 +352,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                             group: group,
                             onMarkAsPaid: (debt) => _markAsPaid(debt),
                             onDelete: (debt) => _deleteDebt(debt),
-                            onViewCustomer: () => _viewCustomerDetails(group['customerId'] as String),
+                            onViewCustomer: (debt) => _viewCustomerDetails(group['customerId'] as String, debt),
                             selectedStatus: _selectedStatus,
                           );
                         },
@@ -411,19 +365,16 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     );
   }
 
-  void _viewCustomerDetails(String customerId) async {
+  void _viewCustomerDetails(String customerId, Debt specificDebt) async {
     final appState = Provider.of<AppState>(context, listen: false);
     final customer = appState.customers.firstWhere((c) => c.id == customerId);
-    
-    // Get all debts for this customer
-    final customerDebts = appState.debts.where((debt) => debt.customerId == customerId).toList();
     
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
-          customerDebts: customerDebts,
+          customerDebts: [specificDebt], // Only show this specific debt
           partialPayments: appState.partialPayments,
         ),
       ),
@@ -468,7 +419,7 @@ class _GroupedDebtCard extends StatelessWidget {
   final Map<String, dynamic> group;
   final Function(Debt) onMarkAsPaid;
   final Function(Debt) onDelete;
-  final VoidCallback onViewCustomer;
+  final Function(Debt) onViewCustomer;
   final String selectedStatus;
 
   const _GroupedDebtCard({
@@ -480,43 +431,39 @@ class _GroupedDebtCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
-    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
-    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
+    final debts = group['debts'] as List<Debt>;
     
-    if (partiallyPaidDebts > 0) {
-      return Colors.orange; // Partially paid - use orange
-    } else if (fullyPaidDebts > 0 && pendingDebts > 0) {
-      return Colors.orange; // Mixed status - use orange
-    } else if (pendingDebts > 0) {
-      // Different color for new debts vs old pending debts
-      return _isNewDebt() ? Colors.red : Colors.orange; // New debt: red, Old pending: orange
+    // Since we're filtering by status, all debts in this group should have the same status
+    // Check the first debt to determine the color
+    if (debts.isEmpty) return Colors.grey;
+    
+    final firstDebt = debts.first;
+    if (firstDebt.isFullyPaid) {
+      return Colors.green; // Fully paid
+    } else if (firstDebt.paidAmount > 0) {
+      return Colors.orange; // Partially paid
     } else {
-      return Colors.green; // All fully paid
+      return Colors.red; // Pending (new debt)
     }
   }
 
   String _getStatusText() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
-    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
-    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
+    final debts = group['debts'] as List<Debt>;
     
-    if (pendingDebts == 0) {
-      return 'All Paid';
-    } else if (partiallyPaidDebts > 0) {
+    // Since we're filtering by status, all debts in this group should have the same status
+    if (debts.isEmpty) return 'No Debts';
+    
+    final firstDebt = debts.first;
+    if (firstDebt.isFullyPaid) {
+      return 'Fully Paid';
+    } else if (firstDebt.paidAmount > 0) {
       return 'Partially Paid';
-    } else if (fullyPaidDebts > 0 && pendingDebts > 0) {
-      return 'Mixed';
     } else {
       return 'Pending';
     }
   }
 
-  bool _isNewDebt() {
-    final debts = group['debts'] as List<Debt>;
-    // Check if all debts are new (no partial payments)
-    return debts.every((debt) => debt.paidAmount == 0);
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -533,7 +480,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _getStatusColor().withOpacity(0.1),
+                    color: _getStatusColor().withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -564,51 +511,15 @@ class _GroupedDebtCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 16),
                           // Amount on the same line as customer name
-                          if (selectedStatus == 'All') ...[
-                            Text(
-                              (group['totalRemainingAmount'] as double) > 0 
-                                  ? (_isNewDebt() 
-                                      ? '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)}'
-                                      : '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining')
-                                  : '${CurrencyFormatter.formatAmount(context, group['totalPaidAmount'] as double)} paid',
-                              style: TextStyle(
-                                color: (group['totalRemainingAmount'] as double) > 0 
-                                    ? (_isNewDebt() ? Colors.red[600] : Colors.orange[600])
-                                    : Colors.green[600],
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          // Always show individual debt amount since each debt is now a separate receipt
+                          Text(
+                            _getAmountText(context),
+                            style: TextStyle(
+                              color: _getAmountColor(),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ] else if (selectedStatus == 'Pending') ...[
-                            Text(
-                              _isNewDebt() 
-                                  ? '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)}'
-                                  : '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining',
-                              style: TextStyle(
-                                color: _isNewDebt() ? Colors.red[600] : Colors.orange[600],
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ] else if (selectedStatus == 'Partially Paid') ...[
-                            Text(
-                              '${CurrencyFormatter.formatAmount(context, group['totalRemainingAmount'] as double)} remaining',
-                              style: TextStyle(
-                                color: Colors.orange[600],
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ] else if (selectedStatus == 'Fully Paid') ...[
-                            Text(
-                              '${CurrencyFormatter.formatAmount(context, group['totalPaidAmount'] as double)} paid',
-                              style: TextStyle(
-                                color: Colors.green[600],
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                          ),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -686,7 +597,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: onViewCustomer,
+                    onPressed: () => onViewCustomer((group['debts'] as List<Debt>).first),
                     icon: const Icon(Icons.receipt_long, size: 16),
                     label: const Text('View Receipt'),
                     style: OutlinedButton.styleFrom(
@@ -703,18 +614,48 @@ class _GroupedDebtCard extends StatelessWidget {
   }
 
   IconData _getStatusIcon() {
-    final pendingDebts = (group['debts'] as List<Debt>).where((d) => !d.isFullyPaid).length;
-    final partiallyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isPartiallyPaid).length;
-    final fullyPaidDebts = (group['debts'] as List<Debt>).where((d) => d.isFullyPaid).length;
+    final debts = group['debts'] as List<Debt>;
     
-    if (fullyPaidDebts > 0 && pendingDebts > 0) {
-      return Icons.payment; // Mixed status
-    } else if (partiallyPaidDebts > 0) {
-      return Icons.pending; // Partially paid - still pending
-    } else if (pendingDebts > 0) {
-      return Icons.pending; // All pending
+    // Since we're filtering by status, all debts in this group should have the same status
+    if (debts.isEmpty) return Icons.help_outline;
+    
+    final firstDebt = debts.first;
+    if (firstDebt.isFullyPaid) {
+      return Icons.check_circle; // Fully paid
+    } else if (firstDebt.paidAmount > 0) {
+      return Icons.pending; // Partially paid
     } else {
-      return Icons.check_circle; // All fully paid
+      return Icons.schedule; // Pending (new debt)
+    }
+  }
+
+  String _getAmountText(BuildContext context) {
+    final debts = group['debts'] as List<Debt>;
+    if (debts.isEmpty) return '';
+    
+    final debt = debts.first; // Since we're showing individual debts in "All" view
+    
+    if (debt.isFullyPaid) {
+      return '${CurrencyFormatter.formatAmount(context, debt.amount)} paid';
+    } else if (debt.paidAmount > 0) {
+      return '${CurrencyFormatter.formatAmount(context, debt.remainingAmount)} remaining';
+    } else {
+      return '${CurrencyFormatter.formatAmount(context, debt.amount)}';
+    }
+  }
+
+  Color _getAmountColor() {
+    final debts = group['debts'] as List<Debt>;
+    if (debts.isEmpty) return Colors.grey;
+    
+    final debt = debts.first; // Since we're showing individual debts in "All" view
+    
+    if (debt.isFullyPaid) {
+      return Colors.green[600]!;
+    } else if (debt.paidAmount > 0) {
+      return Colors.orange[600]!;
+    } else {
+      return Colors.red[600]!;
     }
   }
 
@@ -895,7 +836,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    _clearCompletedDebts(context, completedDebts);
+                    _clearCompletedDebts(context, completedDebts, group['customerName'] as String);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -911,7 +852,7 @@ class _GroupedDebtCard extends StatelessWidget {
     );
   }
 
-  void _clearCompletedDebts(BuildContext context, List<Debt> completedDebts) async {
+  void _clearCompletedDebts(BuildContext context, List<Debt> completedDebts, String customerName) async {
     final appState = Provider.of<AppState>(context, listen: false);
     for (final debt in completedDebts) {
       await appState.deleteDebt(debt.id);
@@ -919,7 +860,7 @@ class _GroupedDebtCard extends StatelessWidget {
     // Show success notification
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Cleared ${completedDebts.length} completed debts for ${group['customerName']}'),
+        content: Text('Cleared ${completedDebts.length} completed debts for $customerName'),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 3),
       ),

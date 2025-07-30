@@ -18,7 +18,7 @@ class PdfFontUtils {
         'Helvetica',
       ];
       
-      for (final fontName in fontNames) {
+      for (final _ in fontNames) {
         try {
           // For now, we'll use the default font since TTF loading requires font files
           // In a production app, you would embed font files in the assets

@@ -31,6 +31,8 @@ class ThemeService {
       fontSize: baseSize,
       fontWeight: fontWeight ?? (isBold ? FontWeight.w700 : FontWeight.normal),
       color: color,
+      decoration: TextDecoration.none,
+      decorationColor: Colors.transparent,
     );
   }
   

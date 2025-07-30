@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/debt.dart';
+
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
@@ -31,7 +31,12 @@ class TopDebtorsWidget extends StatelessWidget {
         final sortedCustomers = customers.where((customer) => 
           customerDebts.containsKey(customer.id)
         ).toList()
-          ..sort((a, b) => customerDebts[b.id]!.compareTo(customerDebts[a.id]!));
+          ..sort((a, b) {
+            final debtA = customerDebts[a.id];
+            final debtB = customerDebts[b.id];
+            if (debtA == null || debtB == null) return 0;
+            return debtB.compareTo(debtA);
+          });
         
         // Take top 3
         final topDebtors = sortedCustomers.take(3).toList();
@@ -93,7 +98,7 @@ class TopDebtorsWidget extends StatelessWidget {
                     children: topDebtors.asMap().entries.map((entry) {
                       final index = entry.key;
                       final customer = entry.value;
-                      final totalDebt = customerDebts[customer.id]!;
+                      final totalDebt = customerDebts[customer.id] ?? 0.0;
                       final customerDebtsList = debts.where((debt) => 
                         debt.customerId == customer.id && debt.paidAmount < debt.amount
                       ).toList();

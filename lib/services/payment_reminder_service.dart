@@ -1,12 +1,10 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../utils/pdf_icon_utils.dart';
 import '../utils/pdf_font_utils.dart';
 
 class PaymentReminderService {
@@ -30,7 +28,7 @@ class PaymentReminderService {
       }
       return false;
     } catch (e) {
-      debugPrint('Error sending WhatsApp reminder: $e');
+      // Handle error silently
       return false;
     }
   }
@@ -213,7 +211,7 @@ class PaymentReminderService {
       await file.writeAsBytes(await pdf.save());
       return file;
     } catch (e) {
-      debugPrint('Error generating PDF: $e');
+      // Handle error silently
       return null;
     }
   }
@@ -241,7 +239,7 @@ class PaymentReminderService {
       }
       return false;
     } catch (e) {
-      debugPrint('Error sending payment reminder with PDF: $e');
+      // Handle error silently
       return false;
     }
   }

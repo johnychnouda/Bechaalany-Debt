@@ -1,37 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/debt.dart';
+
 import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 
+enum ActivityPeriod { daily, weekly, monthly }
+
 class RecentActivityWidget extends StatelessWidget {
-  const RecentActivityWidget({super.key});
+  final ActivityPeriod period;
+  
+  const RecentActivityWidget({
+    super.key,
+    this.period = ActivityPeriod.weekly,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Get recent activities (last 7 days)
-        final now = DateTime.now();
-        final sevenDaysAgo = now.subtract(const Duration(days: 7));
+        // Get activities for the selected period
+        final activities = _getActivitiesForPeriod(appState, period);
         
-        // Debug: Print total activities count
-        print('Total activities in appState: ${appState.activities.length}');
+        // Take the top 3 activities and filter out cleared activities
+        final topActivities = activities.where((activity) => activity.type != ActivityType.debtCleared).take(3).toList();
         
-        final recentActivities = appState.activities.where((activity) => 
-          activity.date.isAfter(sevenDaysAgo)
-        ).toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
-        
-        // Debug: Print recent activities count
-        print('Recent activities count: ${recentActivities.length}');
-        
-        // Take the most recent 5 activities
-        final recentActivitiesList = recentActivities.take(5).toList();
-
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -53,18 +48,20 @@ class RecentActivityWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Recent Activity',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        _getPeriodTitle(period),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 
-                if (recentActivitiesList.isEmpty)
+                if (topActivities.isEmpty)
                   const Center(
                     child: Column(
                       children: [
@@ -86,11 +83,39 @@ class RecentActivityWidget extends StatelessWidget {
                   )
                 else
                   Column(
-                    children: recentActivitiesList.map((activity) {
-                      final isPaid = activity.type == ActivityType.payment;
-                      final isNew = activity.type == ActivityType.newDebt;
-                      final isRecentlyPaid = activity.type == ActivityType.payment && 
-                                           activity.date.isAfter(now.subtract(const Duration(days: 1)));
+                    children: topActivities.map((activity) {
+                      // Determine if this is a full payment
+                      bool isFullPayment = activity.type == ActivityType.payment && 
+                                         activity.paymentAmount != null && 
+                                         activity.paymentAmount == activity.amount;
+                      
+                      IconData icon;
+                      Color iconColor;
+                      Color backgroundColor;
+
+                      switch (activity.type) {
+                        case ActivityType.newDebt:
+                          icon = Icons.add_circle;
+                          iconColor = AppColors.primary;
+                          backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+                          break;
+                        case ActivityType.payment:
+                          if (isFullPayment) {
+                            icon = Icons.check_circle;
+                            iconColor = AppColors.success;
+                            backgroundColor = AppColors.success.withValues(alpha: 0.1);
+                          } else {
+                            icon = Icons.payment;
+                            iconColor = AppColors.warning;
+                            backgroundColor = AppColors.warning.withValues(alpha: 0.1);
+                          }
+                          break;
+                        case ActivityType.debtCleared:
+                          icon = Icons.check_circle;
+                          iconColor = AppColors.success;
+                          backgroundColor = AppColors.success.withValues(alpha: 0.1);
+                          break;
+                      }
                       
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -100,24 +125,12 @@ class RecentActivityWidget extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: isPaid 
-                                    ? AppColors.success.withValues(alpha: 0.1)
-                                    : isNew 
-                                        ? AppColors.primary.withValues(alpha: 0.1)
-                                        : AppColors.secondary.withValues(alpha: 0.1),
+                                color: backgroundColor,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
-                                isPaid 
-                                    ? Icons.check_circle
-                                    : isNew 
-                                        ? Icons.add_circle
-                                        : Icons.edit,
-                                color: isPaid 
-                                    ? AppColors.success
-                                    : isNew 
-                                        ? AppColors.primary
-                                        : AppColors.secondary,
+                                icon,
+                                color: iconColor,
                                 size: 20,
                               ),
                             ),
@@ -133,20 +146,26 @@ class RecentActivityWidget extends StatelessWidget {
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.textPrimary,
                                     ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
-                                  Text(
-                                    DebtDescriptionUtils.cleanDescription(activity.description),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
+                                  // Only show product description for new debts, not for payments
+                                  if (activity.type == ActivityType.newDebt)
+                                    Text(
+                                      DebtDescriptionUtils.cleanDescription(activity.description),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
-                                  ),
                                   Text(
-                                    _getActivityText(activity, isNew, isRecentlyPaid),
+                                    _getActivityText(activity, isFullPayment),
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: isPaid 
-                                          ? AppColors.success
+                                      color: activity.type == ActivityType.payment 
+                                          ? (isFullPayment ? AppColors.success : AppColors.warning)
                                           : AppColors.textLight,
                                     ),
                                   ),
@@ -156,16 +175,27 @@ class RecentActivityWidget extends StatelessWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(
-                                  CurrencyFormatter.formatAmount(context, activity.amount),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: isPaid 
-                                        ? AppColors.success
-                                        : AppColors.textPrimary,
+                                if (activity.type == ActivityType.newDebt)
+                                  Text(
+                                    CurrencyFormatter.formatAmount(context, activity.amount),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
                                   ),
-                                ),
+                                if (activity.type == ActivityType.payment && activity.paymentAmount != null)
+                                  Text(
+                                    isFullPayment
+                                        ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                                        : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: isFullPayment ? AppColors.success : AppColors.warning,
+                                    ),
+                                  ),
+                                // Removed debtCleared case since we filter those activities out
                                 Text(
                                   _getTimeAgo(activity.date),
                                   style: const TextStyle(
@@ -188,14 +218,70 @@ class RecentActivityWidget extends StatelessWidget {
     );
   }
 
-  String _getActivityText(Activity activity, bool isNew, bool isRecentlyPaid) {
+  String _getPeriodTitle(ActivityPeriod period) {
+    switch (period) {
+      case ActivityPeriod.daily:
+        return 'Today\'s Activity';
+      case ActivityPeriod.weekly:
+        return 'Weekly Activity';
+      case ActivityPeriod.monthly:
+        return 'Monthly Activity';
+    }
+  }
+
+  List<Activity> _getActivitiesForPeriod(AppState appState, ActivityPeriod period) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    switch (period) {
+      case ActivityPeriod.daily:
+        final startDate = today;
+        final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        return _getActivitiesForDateRange(appState, startDate, endDate);
+        
+      case ActivityPeriod.weekly:
+        final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        return _getActivitiesForDateRange(appState, startOfWeek, endOfWeek);
+        
+      case ActivityPeriod.monthly:
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        return _getActivitiesForDateRange(appState, startOfMonth, endOfMonth);
+    }
+  }
+
+  List<Activity> _getActivitiesForDateRange(AppState appState, DateTime startDate, DateTime endDate) {
+    final activities = <Activity>[];
+
+    for (final activity in appState.activities) {
+      // Filter out debtCleared activities - only show new debts and payments
+      if (activity.type == ActivityType.debtCleared) {
+        continue; // Skip cleared activities
+      }
+      
+      // Check if activity date is within the period (inclusive)
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+        
+        activities.add(activity);
+      }
+    }
+
+    // Sort by date (newest first)
+    activities.sort((a, b) => b.date.compareTo(a.date));
+    return activities;
+  }
+
+  String _getActivityText(Activity activity, bool isFullPayment) {
     switch (activity.type) {
       case ActivityType.payment:
-        return 'Payment completed';
+        return isFullPayment ? 'Payment completed' : 'Partial payment';
       case ActivityType.newDebt:
         return 'New debt added';
       case ActivityType.debtCleared:
-        return 'Debt cleared';
+        return 'Debt cleared'; // This case should not be reached since we filter out debtCleared
     }
   }
 

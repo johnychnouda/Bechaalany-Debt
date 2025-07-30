@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
-import '../l10n/app_localizations.dart';
+
 import '../services/notification_service.dart';
 
 class AddCustomerScreen extends StatefulWidget {
@@ -25,6 +25,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   bool _isLoading = false;
   bool _isIdDuplicate = false;
   bool _isPhoneDuplicate = false;
+  bool _isEmailDuplicate = false;
 
   @override
   void initState() {
@@ -66,6 +67,43 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     }
     final appState = Provider.of<AppState>(context, listen: false);
     return appState.customers.any((customer) => customer.phone == phone);
+  }
+
+  // Check for duplicate email address
+  bool _isDuplicateEmail(String email) {
+    if (widget.customer != null && email == widget.customer!.email) {
+      return false; // Same customer, not a duplicate
+    }
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.customers.any((customer) => customer.email == email && customer.email != null);
+  }
+
+  // Get customer with duplicate email
+  Customer? _getCustomerWithEmail(String email) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.customers.firstWhere(
+      (customer) => customer.email == email && customer.email != null,
+      orElse: () => Customer(
+        id: '',
+        name: '',
+        phone: '',
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  // Get customer with duplicate phone number
+  Customer? _getCustomerWithPhone(String phone) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    return appState.customers.firstWhere(
+      (customer) => customer.phone == phone,
+      orElse: () => Customer(
+        id: '',
+        name: '',
+        phone: '',
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 
   // Validate phone number format
@@ -110,8 +148,32 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   }
 
   Future<void> _saveCustomer() async {
-    if (!_formKey.currentState!.validate()) {
+          if (_formKey.currentState?.validate() != true) {
       return;
+    }
+
+    // Check for duplicate email and show confirmation dialog
+    final email = _emailController.text.trim();
+    if (email.isNotEmpty && _isDuplicateEmail(email)) {
+      final duplicateCustomer = _getCustomerWithEmail(email);
+      if (duplicateCustomer != null && duplicateCustomer.id.isNotEmpty) {
+        final shouldContinue = await _showDuplicateEmailDialog(duplicateCustomer, email);
+        if (!shouldContinue) {
+          return;
+        }
+      }
+    }
+
+    // Check for duplicate phone number and show confirmation dialog
+    final phone = _phoneController.text.trim();
+    if (_isDuplicatePhone(phone)) {
+      final duplicateCustomer = _getCustomerWithPhone(phone);
+      if (duplicateCustomer != null && duplicateCustomer.id.isNotEmpty) {
+        final shouldContinue = await _showDuplicatePhoneDialog(duplicateCustomer, phone);
+        if (!shouldContinue) {
+          return;
+        }
+      }
     }
 
     setState(() {
@@ -123,21 +185,24 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         id: _idController.text.trim(),
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        email: email.isEmpty ? null : email,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        createdAt: DateTime.now(),
+        createdAt: widget.customer?.createdAt ?? DateTime.now(),
+        updatedAt: widget.customer != null ? DateTime.now() : null,
       );
 
       final appState = Provider.of<AppState>(context, listen: false);
       
       if (widget.customer != null) {
         await appState.updateCustomer(customer);
+        if (mounted) {
+          Navigator.pop(context, true); // Return true to indicate successful update
+        }
       } else {
         await appState.addCustomer(customer);
-      }
-
-      if (mounted) {
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -156,17 +221,65 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     }
   }
 
+  Future<bool> _showDuplicateEmailDialog(Customer existingCustomer, String email) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Duplicate Email'),
+          content: Text(
+            'The email address "$email" is already used by customer "${existingCustomer.name}" (ID: ${existingCustomer.id}).\n\nDo you want to continue with this email address?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
+  Future<bool> _showDuplicatePhoneDialog(Customer existingCustomer, String phone) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Duplicate Phone Number'),
+          content: Text(
+            'The phone number "$phone" is already used by customer "${existingCustomer.name}" (ID: ${existingCustomer.id}).\n\nDo you want to continue with this phone number?'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
 
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+
     
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: Text(
-          widget.customer != null ? l10n.editCustomer : l10n.addCustomer,
+          widget.customer != null ? 'Edit Customer' : 'Add Customer',
           style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -190,13 +303,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     controller: _idController,
                     placeholder: 'Enter customer ID',
                     icon: Icons.tag,
-                    enabled: true, // Allow editing in edit mode
+                    enabled: widget.customer == null, // Disable editing when updating existing customer
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter customer ID';
                       }
                       
-                      // Check for duplicate ID
+                      // Check for duplicate ID (always check, even when editing)
                       if (_isDuplicateId(value.trim())) {
                         return 'Customer ID already exists';
                       }
@@ -258,10 +371,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         return 'Please enter a valid phone number (7-15 digits)';
                       }
                       
-                      // Check for duplicate phone number
-                      if (_isDuplicatePhone(value.trim())) {
-                        return 'Phone number already exists';
-                      }
+                      // Note: Duplicate phone number validation is handled in _saveCustomer with confirmation dialog
                       
                       return null;
                     },
@@ -279,25 +389,37 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               const SizedBox(height: 16),
               
               // Email
-              _buildModernField(
-                label: 'Email Address',
-                controller: _emailController,
-                placeholder: 'Enter email (optional)',
-                icon: Icons.email,
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value != null && value.trim().isNotEmpty) {
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                      return 'Please enter a valid email';
-                    }
-                    
-                    // Check email domain
-                    if (!_isValidEmailDomain(value.trim())) {
-                      return 'Please enter a valid email domain';
-                    }
-                  }
-                  return null;
-                },
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildModernField(
+                    label: 'Email Address',
+                    controller: _emailController,
+                    placeholder: 'Enter email (optional)',
+                    icon: Icons.email,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value != null && value.trim().isNotEmpty) {
+                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          return 'Please enter a valid email';
+                        }
+                        
+                        // Check email domain
+                        if (!_isValidEmailDomain(value.trim())) {
+                          return 'Please enter a valid email domain';
+                        }
+                      }
+                      return null;
+                    },
+                    onChanged: (value) {
+                      setState(() {
+                        _isEmailDuplicate = _isDuplicateEmail(value.trim());
+                      });
+                    },
+                  ),
+                  if (_isEmailDuplicate && _emailController.text.trim().isNotEmpty)
+                    _buildDuplicateWarning('This email is already used by another customer'),
+                ],
               ),
               
               const SizedBox(height: 16),

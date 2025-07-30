@@ -5,12 +5,14 @@ import '../providers/app_state.dart';
 import '../services/theme_service.dart';
 
 class AppTheme {
-  // iOS-style Typography
+  // iOS 18+ Typography
   static const TextStyle largeTitle = TextStyle(
-    fontSize: 34,
+    fontSize: 36, // iOS 18+ increased size
     fontWeight: FontWeight.bold,
     letterSpacing: 0.37,
     height: 1.12,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle title1 = TextStyle(
@@ -18,6 +20,8 @@ class AppTheme {
     fontWeight: FontWeight.bold,
     letterSpacing: 0.36,
     height: 1.21,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle title2 = TextStyle(
@@ -25,6 +29,8 @@ class AppTheme {
     fontWeight: FontWeight.bold,
     letterSpacing: 0.35,
     height: 1.27,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle title3 = TextStyle(
@@ -32,6 +38,8 @@ class AppTheme {
     fontWeight: FontWeight.w600,
     letterSpacing: 0.38,
     height: 1.25,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle headline = TextStyle(
@@ -39,6 +47,8 @@ class AppTheme {
     fontWeight: FontWeight.w600,
     letterSpacing: -0.41,
     height: 1.29,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle body = TextStyle(
@@ -46,6 +56,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: -0.41,
     height: 1.29,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle callout = TextStyle(
@@ -53,6 +65,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: -0.32,
     height: 1.25,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle subheadline = TextStyle(
@@ -60,6 +74,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: -0.24,
     height: 1.33,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle footnote = TextStyle(
@@ -67,6 +83,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: -0.08,
     height: 1.38,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle caption1 = TextStyle(
@@ -74,6 +92,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: 0.0,
     height: 1.33,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
   
   static const TextStyle caption2 = TextStyle(
@@ -81,6 +101,8 @@ class AppTheme {
     fontWeight: FontWeight.normal,
     letterSpacing: 0.07,
     height: 1.45,
+    decoration: TextDecoration.none,
+    decorationColor: Colors.transparent,
   );
 
   // Dynamic theme methods that use ThemeService
@@ -163,7 +185,7 @@ class AppTheme {
     );
   }
   
-  // iOS-style Spacing
+  // iOS 18+ Spacing
   static const double spacing4 = 4.0;
   static const double spacing8 = 8.0;
   static const double spacing12 = 12.0;
@@ -176,8 +198,9 @@ class AppTheme {
   static const double spacing56 = 56.0;
   static const double spacing64 = 64.0;
   static const double spacing80 = 80.0;
+  static const double spacing96 = 96.0; // iOS 18+ new spacing
   
-  // iOS-style Border Radius
+  // iOS 18+ Border Radius
   static const double radius4 = 4.0;
   static const double radius8 = 8.0;
   static const double radius12 = 12.0;
@@ -185,22 +208,22 @@ class AppTheme {
   static const double radius20 = 20.0;
   static const double radius24 = 24.0;
   static const double radius32 = 32.0;
+  static const double radius40 = 40.0; // iOS 18+ new radius
   
-  // iOS-style Light Theme
+  // iOS 18+ Light Theme
   static ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    colorScheme: const ColorScheme.light(
+    colorScheme: ColorScheme.light(
       primary: AppColors.primary,
       secondary: AppColors.secondary,
-      surface: AppColors.surface,
-      background: AppColors.background,
+      surface: Colors.white,
+      onSurface: Colors.black87,
+      background: Colors.grey[50]!,
+      onBackground: Colors.black87,
       error: AppColors.error,
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onSurface: AppColors.textPrimary,
-      onBackground: AppColors.textPrimary,
       onError: Colors.white,
+      brightness: Brightness.light,
     ),
     scaffoldBackgroundColor: AppColors.background,
     appBarTheme: const AppBarTheme(
@@ -225,7 +248,7 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius16),
       ),
-      shadowColor: Colors.black.withOpacity(0.08),
+              shadowColor: Colors.black.withValues(alpha: 0.08),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -322,21 +345,20 @@ class AppTheme {
     ),
   );
   
-  // iOS-style Dark Theme
+  // iOS 18+ Dark Theme
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF0A84FF),
-      secondary: Color(0xFF30D158),
-      surface: Color(0xFF1C1C1E),
-      background: Color(0xFF000000),
-      error: Color(0xFFFF453A),
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
+    colorScheme: ColorScheme.dark(
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      surface: Colors.grey[900]!,
       onSurface: Colors.white,
+      background: Colors.black,
       onBackground: Colors.white,
+      error: AppColors.error,
       onError: Colors.white,
+      brightness: Brightness.dark,
     ),
     scaffoldBackgroundColor: const Color(0xFF000000),
     appBarTheme: const AppBarTheme(
@@ -361,7 +383,7 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius16),
       ),
-      shadowColor: Colors.black.withOpacity(0.3),
+              shadowColor: Colors.black.withValues(alpha: 0.3),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(

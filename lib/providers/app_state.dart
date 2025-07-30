@@ -11,9 +11,10 @@ import '../models/partial_payment.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
-import '../services/localization_service.dart';
+
 import '../services/cloudkit_service.dart';
 import '../services/data_export_import_service.dart';
+import '../services/ios18_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
@@ -21,7 +22,8 @@ class AppState extends ChangeNotifier {
   final SyncService _syncService = SyncService();
   final CloudKitService _cloudKitService = CloudKitService();
   final DataExportImportService _exportImportService = DataExportImportService();
-  LocalizationService? _localizationService;
+  final IOS18Service _ios18Service = IOS18Service();
+
   
   // Data
   List<Customer> _customers = [];
@@ -41,20 +43,31 @@ class AppState extends ChangeNotifier {
   
   // App Settings
   bool _isDarkMode = false;
-  String _language = 'en';
   bool _notificationsEnabled = true;
   bool _autoSyncEnabled = true;
   bool _biometricEnabled = false;
+  bool _appLockEnabled = false;
   bool _offlineModeEnabled = false;
   bool _ipadOptimizationsEnabled = false;
   bool _boldTextEnabled = false;
   bool _iCloudSyncEnabled = false;
+  String _accentColor = 'blue';
+  String _reminderFrequency = '3_days';
+  
+  // New Business Settings
+  String _defaultCurrency = 'USD';
+  String _receiptTemplate = 'simple';
+  String _businessHours = '9_18';
+  String _backupFrequency = 'weekly';
+  List<String> _quickActions = ['add_debt', 'add_customer'];
+  String _quietHours = '22_08';
   
   // Notification Settings
   bool _paymentDueRemindersEnabled = true;
   bool _weeklyReportsEnabled = false;
   bool _monthlyReportsEnabled = true;
   bool _quietHoursEnabled = false;
+  bool _liveActivitiesEnabled = false;
   String _notificationPriority = 'Normal';
   String _quietHoursStart = '22:00';
   String _quietHoursEnd = '08:00';
@@ -66,6 +79,14 @@ class AppState extends ChangeNotifier {
   bool _customReportsEnabled = false;
   bool _calendarIntegrationEnabled = false;
   bool _multiDeviceSyncEnabled = true;
+  
+  // iOS 18+ Integration Settings
+  bool _widgetsEnabled = false;
+  bool _focusModeEnabled = false;
+  bool _shortcutsEnabled = false;
+  bool _dynamicIslandEnabled = false;
+  bool _smartStackEnabled = false;
+  bool _aiFeaturesEnabled = false;
   
   // Accessibility Settings
   bool _largeTextEnabled = false;
@@ -95,15 +116,25 @@ class AppState extends ChangeNotifier {
   // App Settings Getters
   bool get isDarkMode => _isDarkMode;
   bool get darkModeEnabled => _isDarkMode;
-  String get language => _language;
-  String get selectedLanguage => _localizationService?.currentLanguageName ?? 'English';
+  String get selectedLanguage => 'English';
   bool get notificationsEnabled => _notificationsEnabled;
   bool get autoSyncEnabled => _autoSyncEnabled;
   bool get biometricEnabled => _biometricEnabled;
+  bool get appLockEnabled => _appLockEnabled;
   bool get offlineModeEnabled => _offlineModeEnabled;
   bool get ipadOptimizationsEnabled => _ipadOptimizationsEnabled;
   bool get boldTextEnabled => _boldTextEnabled;
   bool get iCloudSyncEnabled => _iCloudSyncEnabled;
+  String get accentColor => _accentColor;
+  String get reminderFrequency => _reminderFrequency;
+  
+  // New Business Settings Getters
+  String get defaultCurrency => _defaultCurrency;
+  String get receiptTemplate => _receiptTemplate;
+  String get businessHours => _businessHours;
+  String get backupFrequency => _backupFrequency;
+  List<String> get quickActions => _quickActions;
+  String get quietHours => _quietHours;
   
   // Notification Settings Getters
   bool get paymentDueRemindersEnabled => _paymentDueRemindersEnabled;
@@ -116,6 +147,7 @@ class AppState extends ChangeNotifier {
   String get selectedQuietHoursStart => _quietHoursStart;
   String get quietHoursEnd => _quietHoursEnd;
   String get selectedQuietHoursEnd => _quietHoursEnd;
+  bool get liveActivitiesEnabled => _liveActivitiesEnabled;
   
   // Data Management Settings Getters
   bool get dataValidationEnabled => _dataValidationEnabled;
@@ -124,6 +156,14 @@ class AppState extends ChangeNotifier {
   bool get customReportsEnabled => _customReportsEnabled;
   bool get calendarIntegrationEnabled => _calendarIntegrationEnabled;
   bool get multiDeviceSyncEnabled => _multiDeviceSyncEnabled;
+  
+  // iOS 18+ Integration Settings Getters
+  bool get widgetsEnabled => _widgetsEnabled;
+  bool get focusModeEnabled => _focusModeEnabled;
+  bool get shortcutsEnabled => _shortcutsEnabled;
+  bool get dynamicIslandEnabled => _dynamicIslandEnabled;
+  bool get smartStackEnabled => _smartStackEnabled;
+  bool get aiFeaturesEnabled => _aiFeaturesEnabled;
   
   // Accessibility Settings Getters
   bool get largeTextEnabled => _largeTextEnabled;
@@ -179,6 +219,7 @@ class AppState extends ChangeNotifier {
       // Initialize services
       await _notificationService.initialize();
       await _syncService.initialize();
+      await _ios18Service.initialize();
       
       // Ensure all Hive boxes are open
       await _dataService.ensureBoxesOpen();
@@ -192,6 +233,12 @@ class AppState extends ChangeNotifier {
       // Clean up existing debt descriptions (remove "Qty: x" text)
       await cleanUpDebtDescriptions();
       
+      // AUTOMATICALLY create missing payment activities for existing paid debts
+      await createMissingPaymentActivitiesForAllPaidDebts();
+      
+      // Clean up existing cleared activities
+      await cleanupClearedActivities();
+      
       // Setup connectivity listener
       _setupConnectivityListener();
       
@@ -199,17 +246,14 @@ class AppState extends ChangeNotifier {
       await _scheduleNotifications();
       
     } catch (e) {
-      print('Error initializing app state: $e');
+      // Handle error silently
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
   
-  // Set localization service reference
-  void setLocalizationService(LocalizationService service) {
-    _localizationService = service;
-  }
+
   
   // Load settings from SharedPreferences
   Future<void> _loadSettings() async {
@@ -217,20 +261,31 @@ class AppState extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      _language = prefs.getString('language') ?? 'en';
       _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
       _autoSyncEnabled = prefs.getBool('autoSyncEnabled') ?? true;
       _biometricEnabled = prefs.getBool('biometricEnabled') ?? false;
+      _appLockEnabled = prefs.getBool('appLockEnabled') ?? false;
       _offlineModeEnabled = prefs.getBool('offlineModeEnabled') ?? false;
       _ipadOptimizationsEnabled = prefs.getBool('ipadOptimizationsEnabled') ?? false;
       _boldTextEnabled = prefs.getBool('boldTextEnabled') ?? false;
       _iCloudSyncEnabled = prefs.getBool('iCloudSyncEnabled') ?? false;
+      _accentColor = prefs.getString('accentColor') ?? 'blue';
+      _reminderFrequency = prefs.getString('reminderFrequency') ?? '3_days';
+      
+      // New Business Settings
+      _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
+      _receiptTemplate = prefs.getString('receiptTemplate') ?? 'simple';
+      _businessHours = prefs.getString('businessHours') ?? '9_18';
+      _backupFrequency = prefs.getString('backupFrequency') ?? 'weekly';
+      _quietHours = prefs.getString('quietHours') ?? '22_08';
+      _quickActions = prefs.getStringList('quickActions') ?? ['add_debt', 'add_customer'];
       
       // Notification settings
       _paymentDueRemindersEnabled = prefs.getBool('paymentDueRemindersEnabled') ?? true;
       _weeklyReportsEnabled = prefs.getBool('weeklyReportsEnabled') ?? false;
       _monthlyReportsEnabled = prefs.getBool('monthlyReportsEnabled') ?? true;
       _quietHoursEnabled = prefs.getBool('quietHoursEnabled') ?? false;
+      _liveActivitiesEnabled = prefs.getBool('liveActivitiesEnabled') ?? false;
       _notificationPriority = prefs.getString('notificationPriority') ?? 'Normal';
       _quietHoursStart = prefs.getString('quietHoursStart') ?? '22:00';
       _quietHoursEnd = prefs.getString('quietHoursEnd') ?? '08:00';
@@ -243,13 +298,21 @@ class AppState extends ChangeNotifier {
       _calendarIntegrationEnabled = prefs.getBool('calendarIntegrationEnabled') ?? false;
       _multiDeviceSyncEnabled = prefs.getBool('multiDeviceSyncEnabled') ?? true;
       
+      // iOS 18+ Integration settings
+      _widgetsEnabled = prefs.getBool('widgetsEnabled') ?? false;
+      _focusModeEnabled = prefs.getBool('focusModeEnabled') ?? false;
+      _shortcutsEnabled = prefs.getBool('shortcutsEnabled') ?? false;
+      _dynamicIslandEnabled = prefs.getBool('dynamicIslandEnabled') ?? false;
+      _smartStackEnabled = prefs.getBool('smartStackEnabled') ?? false;
+      _aiFeaturesEnabled = prefs.getBool('aiFeaturesEnabled') ?? false;
+      
       // Accessibility settings
       _largeTextEnabled = prefs.getBool('largeTextEnabled') ?? false;
       _reduceMotionEnabled = prefs.getBool('reduceMotionEnabled') ?? false;
       _textSize = prefs.getString('textSize') ?? 'Medium';
       
     } catch (e) {
-      print('Error loading settings: $e');
+      // Handle error silently
     }
   }
   
@@ -259,20 +322,31 @@ class AppState extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       
       await prefs.setBool('isDarkMode', _isDarkMode);
-      await prefs.setString('language', _language);
       await prefs.setBool('notificationsEnabled', _notificationsEnabled);
       await prefs.setBool('autoSyncEnabled', _autoSyncEnabled);
       await prefs.setBool('biometricEnabled', _biometricEnabled);
+      await prefs.setBool('appLockEnabled', _appLockEnabled);
       await prefs.setBool('offlineModeEnabled', _offlineModeEnabled);
       await prefs.setBool('ipadOptimizationsEnabled', _ipadOptimizationsEnabled);
       await prefs.setBool('boldTextEnabled', _boldTextEnabled);
       await prefs.setBool('iCloudSyncEnabled', _iCloudSyncEnabled);
+      await prefs.setString('accentColor', _accentColor);
+      await prefs.setString('reminderFrequency', _reminderFrequency);
+      
+      // New Business Settings
+      await prefs.setString('defaultCurrency', _defaultCurrency);
+      await prefs.setString('receiptTemplate', _receiptTemplate);
+      await prefs.setString('businessHours', _businessHours);
+      await prefs.setString('backupFrequency', _backupFrequency);
+      await prefs.setString('quietHours', _quietHours);
+      await prefs.setStringList('quickActions', _quickActions);
       
       // Notification settings
       await prefs.setBool('paymentDueRemindersEnabled', _paymentDueRemindersEnabled);
       await prefs.setBool('weeklyReportsEnabled', _weeklyReportsEnabled);
       await prefs.setBool('monthlyReportsEnabled', _monthlyReportsEnabled);
       await prefs.setBool('quietHoursEnabled', _quietHoursEnabled);
+      await prefs.setBool('liveActivitiesEnabled', _liveActivitiesEnabled);
       await prefs.setString('notificationPriority', _notificationPriority);
       await prefs.setString('quietHoursStart', _quietHoursStart);
       await prefs.setString('quietHoursEnd', _quietHoursEnd);
@@ -285,13 +359,21 @@ class AppState extends ChangeNotifier {
       await prefs.setBool('calendarIntegrationEnabled', _calendarIntegrationEnabled);
       await prefs.setBool('multiDeviceSyncEnabled', _multiDeviceSyncEnabled);
       
+      // iOS 18+ Integration settings
+      await prefs.setBool('widgetsEnabled', _widgetsEnabled);
+      await prefs.setBool('focusModeEnabled', _focusModeEnabled);
+      await prefs.setBool('shortcutsEnabled', _shortcutsEnabled);
+      await prefs.setBool('dynamicIslandEnabled', _dynamicIslandEnabled);
+      await prefs.setBool('smartStackEnabled', _smartStackEnabled);
+      await prefs.setBool('aiFeaturesEnabled', _aiFeaturesEnabled);
+      
       // Accessibility settings
       await prefs.setBool('largeTextEnabled', _largeTextEnabled);
       await prefs.setBool('reduceMotionEnabled', _reduceMotionEnabled);
       await prefs.setString('textSize', _textSize);
       
     } catch (e) {
-      print('Error saving settings: $e');
+      // Handle error silently
     }
   }
   
@@ -306,7 +388,6 @@ class AppState extends ChangeNotifier {
       _partialPayments = _dataService.partialPayments;
       _currencySettings = _dataService.currencySettings;
     } catch (e) {
-      print('Error loading data: $e');
       // Initialize with empty lists if there's an error
       _customers = [];
       _debts = [];
@@ -317,17 +398,16 @@ class AppState extends ChangeNotifier {
       _currencySettings = null;
     }
     
-    // Debug: Print data counts
-    print('Loaded data:');
-    print('- Customers: ${_customers.length}');
-    print('- Debts: ${_debts.length}');
-    print('- Activities: ${_activities.length}');
-    print('- Categories: ${_categories.length}');
-    print('- Product Purchases: ${_productPurchases.length}');
-    print('- Partial Payments: ${_partialPayments.length}');
-    
     _clearCache();
     notifyListeners();
+    
+    // Create missing payment activities for fully paid debts
+    await createMissingPaymentActivitiesForAllPaidDebts();
+    
+    // Clean up old activities for deleted customers (with delay to avoid widget issues)
+    Future.delayed(const Duration(milliseconds: 1000), () async {
+      await cleanupOldActivities();
+    });
   }
   
 
@@ -353,7 +433,7 @@ class AppState extends ChangeNotifier {
     try {
       await _syncService.syncData(_customers, _debts);
     } catch (e) {
-      print('Error syncing data: $e');
+      // Handle error silently
     } finally {
       _isSyncing = false;
       notifyListeners();
@@ -390,7 +470,6 @@ class AppState extends ChangeNotifier {
         await _syncService.syncCustomers([customer]);
       }
     } catch (e) {
-      print('Error adding customer: $e');
       rethrow;
     }
   }
@@ -418,7 +497,6 @@ class AppState extends ChangeNotifier {
         await _syncService.syncCustomers([customer]);
       }
     } catch (e) {
-      print('Error updating customer: $e');
       rethrow;
     }
   }
@@ -445,7 +523,6 @@ class AppState extends ChangeNotifier {
         await _syncService.deleteCustomer(customerId);
       }
     } catch (e) {
-      print('Error deleting customer: $e');
       rethrow;
     }
   }
@@ -453,54 +530,8 @@ class AppState extends ChangeNotifier {
   // Debt operations
   Future<void> addDebt(Debt debt) async {
     try {
-      // Check for duplicate debts with same description for the same customer
-      final existingDebtsWithSameDescription = _debts.where((d) => 
-        d.customerId == debt.customerId && 
-        d.description == debt.description &&
-        d.paidAmount < d.amount // Only check unpaid or partially paid debts
-      ).toList();
-      
-      if (existingDebtsWithSameDescription.isNotEmpty) {
-        // Update existing debt instead of creating a new one
-        final existingDebt = existingDebtsWithSameDescription.first;
-        final newTotalAmount = existingDebt.amount + debt.amount;
-        
-        final updatedDebt = existingDebt.copyWith(
-          amount: newTotalAmount,
-          // Keep the original createdAt timestamp
-          // Update paidAt to reflect the latest activity (when debt was modified)
-          paidAt: DateTime.now(),
-        );
-        
-        await _dataService.updateDebt(updatedDebt);
-        final index = _debts.indexWhere((d) => d.id == existingDebt.id);
-        if (index != -1) {
-          _debts[index] = updatedDebt;
-        }
-        
-        _clearCache();
-        
-        // Track activity for the addition
-        await addDebtActivity(debt);
-        
-        // Sync to CloudKit if enabled
-        if (_iCloudSyncEnabled) {
-          await _cloudKitService.syncDebts(_debts);
-        }
-        
-        notifyListeners();
-        
-        // Show system notification
-        await _notificationService.showDebtAddedNotification(debt);
-        
-        if (_isOnline) {
-          await _syncService.syncDebts([updatedDebt]);
-        }
-        
-        // Reschedule notifications
-        await _scheduleNotifications();
-        return;
-      }
+      // Always create a new debt - no more combining debts with same description
+      // This allows multiple debts for the same product with different prices
       
       // Check if customer has existing partially paid debts (not fully paid)
       final existingPartiallyPaidDebts = _debts.where((d) => 
@@ -561,7 +592,6 @@ class AppState extends ChangeNotifier {
         await _scheduleNotifications();
       }
     } catch (e) {
-      print('Error adding debt: $e');
       rethrow;
     }
   }
@@ -592,7 +622,6 @@ class AppState extends ChangeNotifier {
       // Reschedule notifications
       await _scheduleNotifications();
     } catch (e) {
-      print('Error updating debt: $e');
       rethrow;
     }
   }
@@ -605,8 +634,8 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Track debt cleared activity
-      await addDebtClearedActivity(debt);
+      // Removed: Track debt cleared activity - no longer creating cleared activities
+      // await addDebtClearedActivity(debt);
       
       // Show system notification
       await _notificationService.showDebtDeletedNotification(debt.customerName, debt.amount);
@@ -615,17 +644,25 @@ class AppState extends ChangeNotifier {
         await _syncService.deleteDebt(debtId);
       }
     } catch (e) {
-      print('Error deleting debt: $e');
       rethrow;
     }
   }
   
   Future<void> markDebtAsPaid(String debtId) async {
     try {
+      print('markDebtAsPaid called with debtId: $debtId');
       await _dataService.markDebtAsPaid(debtId);
       final index = _debts.indexWhere((d) => d.id == debtId);
+      print('Found debt at index: $index');
       if (index != -1) {
         final originalDebt = _debts[index];
+        print('Original debt: ${originalDebt.customerName} - ${originalDebt.amount}');
+        print('Original paid amount: ${originalDebt.paidAmount}');
+        
+        // Calculate the remaining amount to be paid
+        final remainingAmount = originalDebt.amount - originalDebt.paidAmount;
+        print('Remaining amount to be paid: $remainingAmount');
+        
         _debts[index] = _debts[index].copyWith(
           status: DebtStatus.paid,
           paidAmount: _debts[index].amount,
@@ -634,8 +671,10 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
         
-        // Track payment activity
-        await addPaymentActivity(originalDebt, originalDebt.amount, DebtStatus.pending, DebtStatus.paid);
+        print('About to create payment activity for remaining amount: $remainingAmount');
+        // AUTOMATICALLY create payment activity when debt is marked as paid
+        await addPaymentActivity(originalDebt, remainingAmount, DebtStatus.pending, DebtStatus.paid);
+        print('Payment activity created for remaining amount');
         
         // Show system notification
         await _notificationService.showDebtPaidNotification(originalDebt);
@@ -648,7 +687,6 @@ class AppState extends ChangeNotifier {
       // Reschedule notifications
       await _scheduleNotifications();
     } catch (e) {
-      print('Error marking debt as paid: $e');
       rethrow;
     }
   }
@@ -671,18 +709,9 @@ class AppState extends ChangeNotifier {
         paidAt: DateTime.now(),
       );
       
-      print('=== ADDING PARTIAL PAYMENT ===');
-      print('Payment ID: ${partialPayment.id}');
-      print('Debt ID: ${partialPayment.debtId}');
-      print('Amount: ${partialPayment.amount}');
-      print('Paid At: ${partialPayment.paidAt}');
-      
       // Add the partial payment to storage
       await _dataService.addPartialPayment(partialPayment);
       _partialPayments.add(partialPayment);
-      
-      print('Partial payment added successfully');
-      print('Total partial payments now: ${_partialPayments.length}');
       
       // Calculate new total paid amount by adding to existing paidAmount
       final newTotalPaidAmount = originalDebt.paidAmount + paymentAmount;
@@ -700,7 +729,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Track payment activity
+      // AUTOMATICALLY track payment activity (for both partial and full payments)
       await addPaymentActivity(originalDebt, paymentAmount, originalDebt.status, _debts[index].status);
       
       // Show system notification for partial payment
@@ -728,7 +757,6 @@ class AppState extends ChangeNotifier {
       // Show notification
       await _notificationService.showCategoryAddedNotification(category.name);
     } catch (e) {
-      print('Error adding category: $e');
       rethrow;
     }
   }
@@ -746,7 +774,6 @@ class AppState extends ChangeNotifier {
         await _notificationService.showCategoryUpdatedNotification(category.name);
       }
     } catch (e) {
-      print('Error updating category: $e');
       rethrow;
     }
   }
@@ -765,7 +792,6 @@ class AppState extends ChangeNotifier {
       // Show notification
       await _notificationService.showCategoryDeletedNotification(categoryName);
     } catch (e) {
-      print('Error deleting category: $e');
       rethrow;
     }
   }
@@ -784,7 +810,6 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error deleting subcategory: $e');
       rethrow;
     }
   }
@@ -800,7 +825,6 @@ class AppState extends ChangeNotifier {
       // Show notification
       await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName);
     } catch (e) {
-      print('Error adding product purchase: $e');
       rethrow;
     }
   }
@@ -818,7 +842,6 @@ class AppState extends ChangeNotifier {
       await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName);
       }
     } catch (e) {
-      print('Error updating product purchase: $e');
       rethrow;
     }
   }
@@ -837,7 +860,6 @@ class AppState extends ChangeNotifier {
       // Show notification
       await _notificationService.showProductPurchaseDeletedNotification(purchaseName);
     } catch (e) {
-      print('Error deleting product purchase: $e');
       rethrow;
     }
   }
@@ -855,29 +877,33 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error marking product purchase as paid: $e');
       rethrow;
     }
   }
   
-  // Manual refresh
+  // Refresh all data and notify listeners
   Future<void> refresh() async {
-    await _loadData();
-    if (_isOnline) {
-      await _syncData();
+    try {
+      await _loadData();
+      
+      // Automatically create missing payment activities when data is refreshed
+      await createMissingPaymentActivitiesForAllPaidDebts();
+      
+      // Clean up existing cleared activities
+      await cleanupClearedActivities();
+      
+      notifyListeners();
+    } catch (e) {
+      // Handle error silently
     }
   }
 
-  // Debug method to check current data state
-  void debugPrintDataState() {
-    // This method is intentionally left empty to avoid console spam
-    // Remove all debug prints for production
-  }
+
 
   // Clean up existing debt descriptions by removing "Qty: x" text
   Future<void> cleanUpDebtDescriptions() async {
     try {
-      print('=== Cleaning up debt descriptions ===');
+      // Cleaning up debt descriptions
       int updatedCount = 0;
       
       for (final debt in _debts) {
@@ -897,12 +923,12 @@ class AppState extends ChangeNotifier {
       if (updatedCount > 0) {
         _clearCache();
         notifyListeners();
-        print('Updated $updatedCount debt descriptions');
+        // Updated $updatedCount debt descriptions
       } else {
-        print('No debt descriptions needed cleaning');
+        // No debt descriptions needed cleaning
       }
     } catch (e) {
-      print('Error cleaning up debt descriptions: $e');
+      // Error cleaning up debt descriptions
     }
   }
 
@@ -946,9 +972,9 @@ class AppState extends ChangeNotifier {
       // Clear Hive cache by compacting boxes
       await _dataService.clearAllData();
       
-      print('Cache cleared successfully');
+      // Cache cleared successfully
     } catch (e) {
-      print('Error clearing cache: $e');
+      // Error clearing cache
     }
   }
 
@@ -957,7 +983,7 @@ class AppState extends ChangeNotifier {
       final filePath = await _exportImportService.exportToCSV(_customers, _debts);
       return filePath;
     } catch (e) {
-      print('Error exporting data: $e');
+      // Error exporting data
       rethrow;
     }
   }
@@ -985,7 +1011,6 @@ class AppState extends ChangeNotifier {
         'items': totalItems,
       };
     } catch (e) {
-      print('Error getting cache info: $e');
       return {'size': 0, 'items': 0};
     }
   }
@@ -993,11 +1018,18 @@ class AppState extends ChangeNotifier {
   // Activity tracking methods
   Future<void> _addActivity(Activity activity) async {
     try {
+      // Add to data service first
       await _dataService.addActivity(activity);
+      
+      // Add to local list
       _activities.add(activity);
+      
+      // Sort activities by date (newest first) after adding new activity
+      _activities.sort((a, b) => b.date.compareTo(a.date));
+      
       notifyListeners();
+      
     } catch (e) {
-      print('Error adding activity: $e');
       rethrow;
     }
   }
@@ -1017,34 +1049,333 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> addPaymentActivity(Debt debt, double paymentAmount, DebtStatus oldStatus, DebtStatus newStatus) async {
-    final activity = Activity(
-      id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
-      date: DateTime.now(),
-      type: ActivityType.payment,
-      customerName: debt.customerName,
-      customerId: debt.customerId,
-      description: debt.description,
-      amount: debt.amount,
-      paymentAmount: paymentAmount,
-      oldStatus: oldStatus,
-      newStatus: newStatus,
-      debtId: debt.id,
-    );
-    await _addActivity(activity);
+    try {
+      print('addPaymentActivity called: ${debt.customerName} - $paymentAmount - $oldStatus -> $newStatus');
+      
+      // Add a small delay to ensure unique timestamps
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      final activity = Activity(
+        id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+        date: DateTime.now(), // Use current time for payment
+        type: ActivityType.payment,
+        customerName: debt.customerName,
+        customerId: debt.customerId,
+        description: debt.description,
+        amount: debt.amount,
+        paymentAmount: paymentAmount,
+        oldStatus: oldStatus,
+        newStatus: newStatus,
+        debtId: debt.id,
+      );
+      
+      print('Created activity: ${activity.customerName} - ${activity.paymentAmount} - ${activity.date}');
+      
+      // ALWAYS add to storage first
+      await _dataService.addActivity(activity);
+      
+      // ALWAYS add to local list
+      _activities.add(activity);
+      
+      // Sort activities by date (newest first) after adding new activity
+      _activities.sort((a, b) => b.date.compareTo(a.date));
+      
+      // ALWAYS notify listeners
+      notifyListeners();
+      
+      print('Payment activity added successfully');
+      
+    } catch (e) {
+      print('Error in addPaymentActivity: $e');
+      rethrow;
+    }
   }
 
-  Future<void> addDebtClearedActivity(Debt debt) async {
-    final activity = Activity(
-      id: 'activity_cleared_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
-      date: DateTime.now(),
-      type: ActivityType.debtCleared,
-      customerName: debt.customerName,
-      customerId: debt.customerId,
-      description: debt.description,
-      amount: debt.amount,
-      debtId: debt.id,
+  // Check if a payment activity exists for a debt
+  bool hasPaymentActivity(String debtId) {
+    return _activities.any((activity) => 
+      activity.debtId == debtId && 
+      activity.type == ActivityType.payment
     );
-    await _addActivity(activity);
+  }
+  
+  // Get payment activities for a debt
+  List<Activity> getPaymentActivities(String debtId) {
+    return _activities.where((activity) => 
+      activity.debtId == debtId && 
+      activity.type == ActivityType.payment
+    ).toList();
+  }
+
+  // Get payment activities for a specific customer
+  List<Activity> getPaymentActivitiesForCustomer(String customerName) {
+    return _activities.where((activity) => 
+      activity.customerName.toLowerCase() == customerName.toLowerCase() && 
+      activity.type == ActivityType.payment
+    ).toList();
+  }
+  
+  // Check if a customer has any payment activities
+  bool hasPaymentActivitiesForCustomer(String customerName) {
+    return _activities.any((activity) => 
+      activity.customerName.toLowerCase() == customerName.toLowerCase() && 
+      activity.type == ActivityType.payment
+    );
+  }
+
+  // Manual method to create payment activity for testing
+  Future<void> createTestPaymentActivity(String customerName, String debtId, double amount) async {
+    try {
+      final activity = Activity(
+        id: 'test_payment_${debtId}_${DateTime.now().millisecondsSinceEpoch}',
+        date: DateTime.now(),
+        type: ActivityType.payment,
+        customerName: customerName,
+        customerId: 'test_customer_id',
+        description: 'Test payment',
+        amount: amount,
+        paymentAmount: amount,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.paid,
+        debtId: debtId,
+      );
+      
+      await _addActivity(activity);
+      await _loadData();
+      notifyListeners();
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Create payment activity for Charbel Bechaalany if missing
+  Future<void> createMissingPaymentActivityForCharbel() async {
+    try {
+      final charbelActivities = getPaymentActivitiesForCustomer('Charbel Bechaalany');
+      
+      if (charbelActivities.isEmpty) {
+        // Find Charbel's debts
+        final charbelDebts = _debts.where((debt) => 
+          debt.customerName.toLowerCase() == 'charbel bechaalany'.toLowerCase()
+        ).toList();
+        
+        if (charbelDebts.isNotEmpty) {
+          final debt = charbelDebts.first;
+          
+          // Create the activity without triggering UI updates immediately
+          final activity = Activity(
+            id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+            date: DateTime.now(),
+            type: ActivityType.payment,
+            customerName: debt.customerName,
+            customerId: debt.customerId,
+            description: debt.description,
+            amount: debt.amount,
+            paymentAmount: debt.amount,
+            oldStatus: DebtStatus.pending,
+            newStatus: DebtStatus.paid,
+            debtId: debt.id,
+          );
+          
+          // Add to storage directly
+          await _dataService.addActivity(activity);
+          _activities.add(activity);
+        }
+      }
+      
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  // Comprehensive method to check and create missing payment activities
+  Future<void> checkAndCreateMissingPaymentActivities() async {
+    try {
+      // Get all paid debts
+      final paidDebts = _debts.where((debt) => debt.isFullyPaid).toList();
+      
+      for (final debt in paidDebts) {
+        // Check if payment activity exists for this debt
+        final existingActivities = _activities.where((activity) => 
+          activity.debtId == debt.id && 
+          activity.type == ActivityType.payment
+        ).toList();
+        
+        if (existingActivities.isEmpty) {
+          // Create payment activity
+          final activity = Activity(
+            id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+            date: debt.paidAt ?? DateTime.now(),
+            type: ActivityType.payment,
+            customerName: debt.customerName,
+            customerId: debt.customerId,
+            description: debt.description,
+            amount: debt.amount,
+            paymentAmount: debt.amount,
+            oldStatus: DebtStatus.pending,
+            newStatus: DebtStatus.paid,
+            debtId: debt.id,
+          );
+          
+          // Add to storage and local list
+          await _dataService.addActivity(activity);
+          _activities.add(activity);
+        }
+      }
+      
+      notifyListeners();
+      
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  // Retroactively create payment activities for all paid debts
+  Future<void> createMissingPaymentActivitiesForAllPaidDebts() async {
+    try {
+      // Get all paid debts
+      final paidDebts = _debts.where((debt) => debt.isFullyPaid).toList();
+      
+      for (final debt in paidDebts) {
+        // Check if payment activity exists for this debt
+        final existingActivities = _activities.where((activity) => 
+          activity.debtId == debt.id && 
+          activity.type == ActivityType.payment
+        ).toList();
+        
+        if (existingActivities.isEmpty) {
+          // Create payment activity
+          final activity = Activity(
+            id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+            date: debt.paidAt ?? DateTime.now(),
+            type: ActivityType.payment,
+            customerName: debt.customerName,
+            customerId: debt.customerId,
+            description: debt.description,
+            amount: debt.amount,
+            paymentAmount: debt.amount,
+            oldStatus: DebtStatus.pending,
+            newStatus: DebtStatus.paid,
+            debtId: debt.id,
+          );
+          
+          // Add to storage and local list
+          await _dataService.addActivity(activity);
+          _activities.add(activity);
+        }
+      }
+      
+      // Sort activities by date (newest first) after adding new activities
+      _activities.sort((a, b) => b.date.compareTo(a.date));
+      
+      // Notify listeners to update UI
+      notifyListeners();
+      
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  // Test method to create a payment activity for testing
+  Future<void> testCreatePaymentActivity() async {
+    try {
+      // Create a test debt
+      final testDebt = Debt(
+        id: 'test_debt_${DateTime.now().millisecondsSinceEpoch}',
+        customerId: 'test_customer',
+        customerName: 'Test Customer',
+        amount: 50.0,
+        description: 'Test debt',
+        type: DebtType.credit,
+        status: DebtStatus.pending,
+        createdAt: DateTime.now(),
+      );
+      
+      // Create payment activity
+      await addPaymentActivity(testDebt, 50.0, DebtStatus.pending, DebtStatus.paid);
+      
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  // Create a fully paid activity for Charbel
+  Future<void> createFullyPaidActivity() async {
+    try {
+      // Create activity with current timestamp
+      final now = DateTime.now();
+      final activity = Activity(
+        id: 'fully_paid_${now.millisecondsSinceEpoch}',
+        date: now,
+        type: ActivityType.payment,
+        customerName: 'Charbel Bechaalany',
+        customerId: 'charbel_id',
+        description: 'alfa ushare 10gb',
+        amount: 15.0,
+        paymentAmount: 15.0,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.paid,
+        debtId: 'fully_paid_debt_id',
+      );
+      
+      // Add to storage first
+      await _dataService.addActivity(activity);
+      
+      // Add to local list
+      _activities.add(activity);
+      
+      // Sort activities by date (newest first)
+      _activities.sort((a, b) => b.date.compareTo(a.date));
+      
+      // Force notify listeners
+      notifyListeners();
+      
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  // Clean up activities for deleted customers
+  Future<void> cleanupOldActivities() async {
+    try {
+      final validCustomerNames = _customers.map((c) => c.name.toLowerCase()).toSet();
+      final activitiesToKeep = <Activity>[];
+      final activitiesToDelete = <Activity>[];
+      
+      for (final activity in _activities) {
+        if (validCustomerNames.contains(activity.customerName.toLowerCase())) {
+          activitiesToKeep.add(activity);
+        } else {
+          activitiesToDelete.add(activity);
+        }
+      }
+      
+      // Remove old activities from storage
+      for (final activity in activitiesToDelete) {
+        try {
+          await _dataService.deleteActivity(activity.id);
+        } catch (e) {
+          print('Error deleting activity ${activity.id}: $e');
+        }
+      }
+      
+      // Update local list
+      _activities.clear();
+      _activities.addAll(activitiesToKeep);
+      
+      // Only notify if we're still active
+      try {
+        notifyListeners();
+      } catch (e) {
+        print('Error notifying listeners during cleanup: $e');
+      }
+      
+      print('Cleaned up ${activitiesToDelete.length} old activities');
+      
+    } catch (e) {
+      print('Error cleaning up activities: $e');
+    }
   }
 
   // Settings methods
@@ -1108,6 +1439,118 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // New iOS 18+ settings methods
+  Future<void> setBiometricEnabled(bool enabled) async {
+    _biometricEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setAppLockEnabled(bool enabled) async {
+    _appLockEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setAccentColor(String color) async {
+    _accentColor = color;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setReminderFrequency(String frequency) async {
+    _reminderFrequency = frequency;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setLiveActivitiesEnabled(bool enabled) async {
+    _liveActivitiesEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setWidgetsEnabled(bool enabled) async {
+    _widgetsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setFocusModeEnabled(bool enabled) async {
+    _focusModeEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setShortcutsEnabled(bool enabled) async {
+    _shortcutsEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setDynamicIslandEnabled(bool enabled) async {
+    _dynamicIslandEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setSmartStackEnabled(bool enabled) async {
+    _smartStackEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setAiFeaturesEnabled(bool enabled) async {
+    _aiFeaturesEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  // New Business Settings Setters
+  Future<void> setDefaultCurrency(String currency) async {
+    _defaultCurrency = currency;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setReceiptTemplate(String template) async {
+    _receiptTemplate = template;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setBusinessHours(String hours) async {
+    _businessHours = hours;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setBackupFrequency(String frequency) async {
+    _backupFrequency = frequency;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> addQuickAction(String action) async {
+    if (!_quickActions.contains(action)) {
+      _quickActions.add(action);
+      await _saveSettings();
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeQuickAction(String action) async {
+    _quickActions.remove(action);
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setQuietHours(String hours) async {
+    _quietHours = hours;
+    await _saveSettings();
+    notifyListeners();
+  }
+
   // Cache management
   void _clearCache() {
     _cachedTotalDebt = null;
@@ -1155,8 +1598,32 @@ class AppState extends ChangeNotifier {
     final sortedCustomers = _customers.where((customer) => 
       customerDebts.containsKey(customer.id)
     ).toList()
-      ..sort((a, b) => customerDebts[b.id]!.compareTo(customerDebts[a.id]!));
+      ..sort((a, b) {
+        final debtA = customerDebts[a.id];
+        final debtB = customerDebts[b.id];
+        if (debtA == null || debtB == null) return 0;
+        return debtB.compareTo(debtA);
+      });
     
     return sortedCustomers.take(5).toList();
+  }
+
+
+
+  // Clean up existing cleared activities
+  Future<void> cleanupClearedActivities() async {
+    try {
+      final clearedActivities = _activities.where((activity) => activity.type == ActivityType.debtCleared).toList();
+      
+      for (final activity in clearedActivities) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+      }
+      
+      notifyListeners();
+      
+    } catch (e) {
+      // Handle error silently
+    }
   }
 } 

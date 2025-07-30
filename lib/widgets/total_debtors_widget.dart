@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../models/debt.dart';
+
 import '../providers/app_state.dart';
 
 class TotalDebtorsWidget extends StatelessWidget {
@@ -42,7 +42,7 @@ class TotalDebtorsWidget extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      "Total Debtors",
+                      "Total Customers and Debtors",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -130,38 +130,6 @@ class TotalDebtorsWidget extends StatelessWidget {
                             '${((customersWithPendingDebts / totalCustomers) * 100).toStringAsFixed(1)}% of customers have pending debts',
                             style: TextStyle(
                               color: AppColors.warning,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withAlpha(26), // 0.1 * 255
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.success.withAlpha(77), // 0.3 * 255
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          color: AppColors.success,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'All customers are up to date!',
-                            style: TextStyle(
-                              color: AppColors.success,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),

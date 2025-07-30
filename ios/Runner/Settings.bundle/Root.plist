@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>StringsTable</key>
+    <string>Root</string>
+    <key>PreferenceSpecifiers</key>
+    <array>
+        <!-- Security & Privacy Group -->
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Security & Privacy</string>
+            <key>FooterText</key>
+            <string>Configure authentication and privacy settings for Bechaalany Debt</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>face_id_touch_id</string>
+            <key>Title</key>
+            <string>Face ID / Touch ID</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSMultiValueSpecifier</string>
+            <key>Key</key>
+            <string>pin_authentication</string>
+            <key>Title</key>
+            <string>PIN Authentication</string>
+            <key>DefaultValue</key>
+            <string>disabled</string>
+            <key>Titles</key>
+            <array>
+                <string>Disabled</string>
+                <string>System PIN</string>
+                <string>Custom PIN</string>
+            </array>
+            <key>Values</key>
+            <array>
+                <string>disabled</string>
+                <string>system_pin</string>
+                <string>custom_pin</string>
+            </array>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>require_auth_on_launch</string>
+            <key>Title</key>
+            <string>Require Authentication on Launch</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>require_auth_for_sensitive_data</string>
+            <key>Title</key>
+            <string>Require Authentication for Sensitive Data</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        
+        <!-- Notifications Group -->
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Notifications</string>
+            <key>FooterText</key>
+            <string>Configure how you receive notifications from Bechaalany Debt</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>notifications_enabled</string>
+            <key>Title</key>
+            <string>Allow Notifications</string>
+            <key>DefaultValue</key>
+            <true/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSMultiValueSpecifier</string>
+            <key>Key</key>
+            <string>notification_sound</string>
+            <key>Title</key>
+            <string>Notification Sound</string>
+            <key>DefaultValue</key>
+            <string>default</string>
+            <key>Titles</key>
+            <array>
+                <string>Default</string>
+                <string>Chime</string>
+                <string>Bell</string>
+                <string>None</string>
+            </array>
+            <key>Values</key>
+            <array>
+                <string>default</string>
+                <string>chime</string>
+                <string>bell</string>
+                <string>none</string>
+            </array>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>badge_count</string>
+            <key>Title</key>
+            <string>Badge App Icon</string>
+            <key>DefaultValue</key>
+            <true/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>lock_screen</string>
+            <key>Title</key>
+            <string>Show on Lock Screen</string>
+            <key>DefaultValue</key>
+            <true/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>live_activities</string>
+            <key>Title</key>
+            <string>Live Activities</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        
+        <!-- Privacy Group -->
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Privacy</string>
+            <key>FooterText</key>
+            <string>Control which data Bechaalany Debt can access</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>camera_access</string>
+            <key>Title</key>
+            <string>Camera</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>photo_library_access</string>
+            <key>Title</key>
+            <string>Photo Library</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>location_access</string>
+            <key>Title</key>
+            <string>Location Services</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Key</key>
+            <string>microphone_access</string>
+            <key>Title</key>
+            <string>Microphone</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        
+        <!-- Storage Group -->
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Storage</string>
+            <key>FooterText</key>
+            <string>Manage storage and cache for Bechaalany Debt</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSButtonSpecifier</string>
+            <key>Key</key>
+            <string>clear_cache</string>
+            <key>Title</key>
+            <string>Clear Cache</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSButtonSpecifier</string>
+            <key>Key</key>
+            <string>storage_info</string>
+            <key>Title</key>
+            <string>Storage Information</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSMultiValueSpecifier</string>
+            <key>Key</key>
+            <string>auto_backup_frequency</string>
+            <key>Title</key>
+            <string>Auto-Backup Frequency</string>
+            <key>DefaultValue</key>
+            <string>weekly</string>
+            <key>Titles</key>
+            <array>
+                <string>Daily</string>
+                <string>Weekly</string>
+                <string>Monthly</string>
+                <string>Never</string>
+            </array>
+            <key>Values</key>
+            <array>
+                <string>daily</string>
+                <string>weekly</string>
+                <string>monthly</string>
+                <string>never</string>
+            </array>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSButtonSpecifier</string>
+            <key>Key</key>
+            <string>clear_all_data</string>
+            <key>Title</key>
+            <string>Clear All Data</string>
+        </dict>
+    </array>
+</dict>
+</plist> 

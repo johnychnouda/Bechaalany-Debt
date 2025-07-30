@@ -14,12 +14,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  final List<GlobalKey<NavigatorState>> _navigatorKeys = [
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-    GlobalKey<NavigatorState>(),
-  ];
+
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -49,7 +44,7 @@ class _MainScreenState extends State<MainScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: isSelected 
-              ? AppColors.primary.withOpacity(0.1)
+              ? AppColors.primary.withValues(alpha: 0.1)
               : Colors.transparent,
         ),
         child: Column(

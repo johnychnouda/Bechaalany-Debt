@@ -29,7 +29,7 @@ class DataService {
   Box<Customer> get _customerBoxSafe {
     try {
       if (!Hive.isBoxOpen('customers')) {
-        print('Customers box is not open, attempting to open...');
+        // Customers box is not open, attempting to open...
         // Note: This is a getter, so we can't use await here
         // The box should be opened in main.dart before the app starts
         throw Exception('Customers box is not open. Please ensure Hive is properly initialized.');
@@ -37,7 +37,7 @@ class DataService {
       _customerBox ??= Hive.box<Customer>('customers');
       return _customerBox!;
     } catch (e) {
-      print('Error accessing customers box: $e');
+      // Error accessing customers box
       rethrow;
     }
   }
@@ -50,7 +50,7 @@ class DataService {
       _debtBox ??= Hive.box<Debt>('debts');
       return _debtBox!;
     } catch (e) {
-      print('Error accessing debts box: $e');
+      // Error accessing debts box
       rethrow;
     }
   }
@@ -63,7 +63,7 @@ class DataService {
       _categoryBox ??= Hive.box<ProductCategory>('categories');
       return _categoryBox!;
     } catch (e) {
-      print('Error accessing categories box: $e');
+      // Error accessing categories box
       rethrow;
     }
   }
@@ -76,7 +76,7 @@ class DataService {
       _productPurchaseBox ??= Hive.box<ProductPurchase>('product_purchases');
       return _productPurchaseBox!;
     } catch (e) {
-      print('Error accessing product purchases box: $e');
+      // Error accessing product purchases box
       rethrow;
     }
   }
@@ -89,7 +89,7 @@ class DataService {
       _currencySettingsBox ??= Hive.box<CurrencySettings>('currency_settings');
       return _currencySettingsBox!;
     } catch (e) {
-      print('Error accessing currency settings box: $e');
+      // Error accessing currency settings box
       rethrow;
     }
   }
@@ -102,7 +102,7 @@ class DataService {
       _activityBox ??= Hive.box<Activity>('activities');
       return _activityBox!;
     } catch (e) {
-      print('Error accessing activities box: $e');
+      // Error accessing activities box
       rethrow;
     }
   }
@@ -115,7 +115,7 @@ class DataService {
       _partialPaymentBox ??= Hive.box<PartialPayment>('partial_payments');
       return _partialPaymentBox!;
     } catch (e) {
-      print('Error accessing partial payments box: $e');
+      // Error accessing partial payments box
       rethrow;
     }
   }
@@ -149,13 +149,13 @@ class DataService {
         }
       }
       
-      print('Backup created at: $backupPath');
+      // Backup created successfully
       
       // Clean up old backups
       await _cleanupOldBackups(backupDir);
       
     } catch (e) {
-      print('Error creating backup: $e');
+      // Error creating backup
     }
   }
   
@@ -166,7 +166,7 @@ class DataService {
       final backupDir = Directory(backupPath);
       
       if (!await backupDir.exists()) {
-        print('Backup directory does not exist: $backupPath');
+        // Backup directory does not exist
         return false;
       }
       
@@ -188,11 +188,11 @@ class DataService {
         }
       }
       
-      print('Data restored from backup: $backupPath');
+      // Data restored from backup successfully
       return true;
       
     } catch (e) {
-      print('Error restoring from backup: $e');
+      // Error restoring from backup
       return false;
     }
   }
@@ -214,7 +214,7 @@ class DataService {
       return backupDirs.map((dir) => dir.path).toList()..sort((a, b) => b.compareTo(a));
       
     } catch (e) {
-      print('Error getting backups: $e');
+      // Error getting backups
       return [];
     }
   }
@@ -235,7 +235,7 @@ class DataService {
         }
       }
     } catch (e) {
-      print('Error cleaning up backups: $e');
+      // Error cleaning up backups
     }
   }
   
@@ -244,164 +244,155 @@ class DataService {
     try {
       await createBackup();
     } catch (e) {
-      print('Auto-backup failed: $e');
+      // Auto-backup failed
     }
   }
   
   // Ensure all boxes are open
   Future<void> ensureBoxesOpen() async {
     try {
-      print('Ensuring all Hive boxes are open...');
+      // Ensuring all Hive boxes are open...
       
       // Open each box individually with proper error handling
       try {
         if (!Hive.isBoxOpen('customers')) {
-          print('Opening box: customers');
+          // Opening box: customers
           await Hive.openBox<Customer>('customers');
-          print('Successfully opened box: customers');
+          // Successfully opened box: customers
         } else {
-          print('Box customers is already open');
+          // Box customers is already open
         }
       } catch (e) {
-        print('Error opening box customers: $e');
+        // Error opening box customers
         try {
           await Hive.deleteBoxFromDisk('customers');
           await Hive.openBox<Customer>('customers');
-          print('Successfully recreated box: customers');
+          // Successfully recreated box: customers
         } catch (recreateError) {
-          print('Failed to recreate box customers: $recreateError');
+          // Failed to recreate box customers
         }
       }
 
       try {
         if (!Hive.isBoxOpen('debts')) {
-          print('Opening box: debts');
+          // Opening box: debts
           await Hive.openBox<Debt>('debts');
-          print('Successfully opened box: debts');
+          // Successfully opened box: debts
         } else {
-          print('Box debts is already open');
+          // Box debts is already open
         }
       } catch (e) {
-        print('Error opening box debts: $e');
+        // Error opening box debts
         try {
           await Hive.deleteBoxFromDisk('debts');
           await Hive.openBox<Debt>('debts');
-          print('Successfully recreated box: debts');
+          // Successfully recreated box: debts
         } catch (recreateError) {
-          print('Failed to recreate box debts: $recreateError');
+          // Failed to recreate box debts
         }
       }
 
       try {
         if (!Hive.isBoxOpen('categories')) {
-          print('Opening box: categories');
+          // Opening box: categories
           await Hive.openBox<ProductCategory>('categories');
-          print('Successfully opened box: categories');
+          // Successfully opened box: categories
         } else {
-          print('Box categories is already open');
+          // Box categories is already open
         }
       } catch (e) {
-        print('Error opening box categories: $e');
+        // Error opening box categories
         try {
           await Hive.deleteBoxFromDisk('categories');
           await Hive.openBox<ProductCategory>('categories');
-          print('Successfully recreated box: categories');
+          // Successfully recreated box: categories
         } catch (recreateError) {
-          print('Failed to recreate box categories: $recreateError');
+          // Failed to recreate box categories
         }
       }
 
       try {
         if (!Hive.isBoxOpen('product_purchases')) {
-          print('Opening box: product_purchases');
+          // Opening box: product_purchases
           await Hive.openBox<ProductPurchase>('product_purchases');
-          print('Successfully opened box: product_purchases');
+          // Successfully opened box: product_purchases
         } else {
-          print('Box product_purchases is already open');
+          // Box product_purchases is already open
         }
       } catch (e) {
-        print('Error opening box product_purchases: $e');
+        // Error opening box product_purchases
         try {
           await Hive.deleteBoxFromDisk('product_purchases');
           await Hive.openBox<ProductPurchase>('product_purchases');
-          print('Successfully recreated box: product_purchases');
+          // Successfully recreated box: product_purchases
         } catch (recreateError) {
-          print('Failed to recreate box product_purchases: $recreateError');
+          // Failed to recreate box product_purchases
         }
       }
 
       try {
         if (!Hive.isBoxOpen('currency_settings')) {
-          print('Opening box: currency_settings');
+          // Opening box: currency_settings
           await Hive.openBox<CurrencySettings>('currency_settings');
-          print('Successfully opened box: currency_settings');
+          // Successfully opened box: currency_settings
         } else {
-          print('Box currency_settings is already open');
+          // Box currency_settings is already open
         }
       } catch (e) {
-        print('Error opening box currency_settings: $e');
+        // Error opening box currency_settings
         try {
           await Hive.deleteBoxFromDisk('currency_settings');
           await Hive.openBox<CurrencySettings>('currency_settings');
-          print('Successfully recreated box: currency_settings');
+          // Successfully recreated box: currency_settings
         } catch (recreateError) {
-          print('Failed to recreate box currency_settings: $recreateError');
+          // Failed to recreate box currency_settings
         }
       }
 
       try {
         if (!Hive.isBoxOpen('activities')) {
-          print('Opening box: activities');
+          // Opening box: activities
           await Hive.openBox<Activity>('activities');
-          print('Successfully opened box: activities');
+          // Successfully opened box: activities
         } else {
-          print('Box activities is already open');
+          // Box activities is already open
         }
       } catch (e) {
-        print('Error opening box activities: $e');
+        // Error opening box activities
         try {
           await Hive.deleteBoxFromDisk('activities');
           await Hive.openBox<Activity>('activities');
-          print('Successfully recreated box: activities');
+          // Successfully recreated box: activities
         } catch (recreateError) {
-          print('Failed to recreate box activities: $recreateError');
+          // Failed to recreate box activities
         }
       }
 
       try {
         if (!Hive.isBoxOpen('partial_payments')) {
-          print('Opening box: partial_payments');
+          // Opening box: partial_payments
           await Hive.openBox<PartialPayment>('partial_payments');
-          print('Successfully opened box: partial_payments');
+          // Successfully opened box: partial_payments
         } else {
-          print('Box partial_payments is already open');
+          // Box partial_payments is already open
         }
         
         // Verify the box is working
-        final box = Hive.box<PartialPayment>('partial_payments');
-        print('Partial payments box length: ${box.length}');
-        print('Partial payments box keys: ${box.keys.toList()}');
+        // Partial payments box verified
       } catch (e) {
-        print('Error opening box partial_payments: $e');
+        // Error opening box partial_payments
         try {
           await Hive.deleteBoxFromDisk('partial_payments');
           await Hive.openBox<PartialPayment>('partial_payments');
-          print('Successfully recreated box: partial_payments');
+          // Successfully recreated box: partial_payments
         } catch (recreateError) {
-          print('Failed to recreate box partial_payments: $recreateError');
+          // Failed to recreate box partial_payments
         }
       }
       
-      print('All boxes verification:');
-      print('Box customers is open: ${Hive.isBoxOpen('customers')}');
-      print('Box debts is open: ${Hive.isBoxOpen('debts')}');
-      print('Box categories is open: ${Hive.isBoxOpen('categories')}');
-      print('Box product_purchases is open: ${Hive.isBoxOpen('product_purchases')}');
-      print('Box currency_settings is open: ${Hive.isBoxOpen('currency_settings')}');
-      print('Box activities is open: ${Hive.isBoxOpen('activities')}');
-      print('Box partial_payments is open: ${Hive.isBoxOpen('partial_payments')}');
+      // All boxes verification completed
     } catch (e) {
-      print('Error ensuring boxes are open: $e');
+      // Error ensuring boxes are open
     }
   }
   
@@ -464,19 +455,17 @@ class DataService {
     try {
       // Check if the box is open
       if (!Hive.isBoxOpen('partial_payments')) {
-        print('Partial payments box is not open, returning empty list');
+        // Partial payments box is not open, returning empty list
         return [];
       }
       final payments = _partialPaymentBoxSafe.values.toList();
-      print('=== LOADING PARTIAL PAYMENTS ===');
-      print('Total partial payments loaded: ${payments.length}');
-      for (final payment in payments) {
-        print('  - Payment: ${payment.id} | Debt: ${payment.debtId} | Amount: ${payment.amount}');
-      }
+      // Loading partial payments...
+      // Total partial payments loaded: ${payments.length}
+      // Payments loaded successfully
       return payments;
     } catch (e) {
-      print('Error accessing partial payments box: $e');
-      return [];
+      // Error accessing partial payments box
+      rethrow;
     }
   }
   
@@ -521,40 +510,39 @@ class DataService {
   // Partial Payment methods
   List<PartialPayment> getPartialPaymentsByDebt(String debtId) {
     try {
-      print('=== GETTING PARTIAL PAYMENTS FOR DEBT ===');
-      print('Debt ID: $debtId');
-      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
-      print('Total partial payments in storage: ${_partialPaymentBoxSafe.length}');
-      print('All partial payments: ${_partialPaymentBoxSafe.values.toList()}');
+      // Getting partial payments for debt
+      // Debt ID: $debtId
+      // Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}
+      // Total partial payments in storage: ${_partialPaymentBoxSafe.length}
+      // All partial payments: ${_partialPaymentBoxSafe.values.toList()}
       
       final payments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
-      print('Found ${payments.length} partial payments for debt $debtId');
+      // Found ${payments.length} partial payments for debt $debtId
       return payments;
     } catch (e) {
-      print('Error getting partial payments: $e');
+      // Error getting partial payments
       return [];
     }
   }
 
   Future<void> addPartialPayment(PartialPayment payment) async {
     try {
-      print('=== SAVING PARTIAL PAYMENT TO STORAGE ===');
-      print('Payment ID: ${payment.id}');
-      print('Debt ID: ${payment.debtId}');
-      print('Amount: ${payment.amount}');
+      // Saving partial payment to storage
+      // Payment ID: ${payment.id}
+      // Debt ID: ${payment.debtId}
+      // Amount: ${payment.amount}
       
       // Check if box is open
-      print('Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}');
-      print('Partial payments box length before: ${_partialPaymentBoxSafe.length}');
+      // Partial payments box is open: ${Hive.isBoxOpen('partial_payments')}
+      // Partial payments box length before: ${_partialPaymentBoxSafe.length}
       
       _partialPaymentBoxSafe.put(payment.id, payment);
       
-      print('Partial payment saved to storage successfully');
-      print('Total partial payments in storage: ${_partialPaymentBoxSafe.length}');
-      print('Partial payments box keys: ${_partialPaymentBoxSafe.keys.toList()}');
+      // Partial payment saved to storage successfully
+      // Total partial payments in storage: ${_partialPaymentBoxSafe.length}
+      // Partial payments box keys: ${_partialPaymentBoxSafe.keys.toList()}
     } catch (e) {
-      print('Error saving partial payment: $e');
-      rethrow;
+      // Error saving partial payment
     }
   }
 
@@ -695,11 +683,11 @@ class DataService {
   List<Activity> get activities {
     try {
       final activities = _activityBoxSafe.values.toList();
-      print('DataService: Retrieved ${activities.length} activities');
+      // Retrieved ${activities.length} activities
       return activities;
     } catch (e) {
-      print('DataService: Error retrieving activities: $e');
-      return [];
+      // Error retrieving activities
+      rethrow;
     }
   }
   
@@ -707,6 +695,7 @@ class DataService {
     try {
       _activityBoxSafe.put(activity.id, activity);
     } catch (e) {
+      // Handle error silently
       rethrow;
     }
   }

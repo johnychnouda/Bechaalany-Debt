@@ -35,6 +35,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     _loadCustomerDebts();
   }
 
+  late ScaffoldMessengerState _scaffoldMessenger;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scaffoldMessenger = ScaffoldMessenger.of(context);
+    _currentCustomer = widget.customer;
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -48,24 +57,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final appState = Provider.of<AppState>(context);
-    _currentCustomer = widget.customer;
-    
-    setState(() {
-      // Show all customer debts (both pending and paid)
-      // _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(); // This line is removed
-    });
-  }
-
   void _loadCustomerDebts() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    setState(() {
-      // Show all customer debts (both pending and paid)
-      // _customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(); // This line is removed
-    });
+    // Customer debts are loaded in build method
   }
 
   Future<void> _markAsPaid(Debt debt) async {
@@ -113,7 +106,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      _scaffoldMessenger.showSnackBar(
         const SnackBar(
           content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
           backgroundColor: Colors.orange,
@@ -649,6 +642,7 @@ class _DebtCard extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
+                      
                     ],
                   ),
                 ),

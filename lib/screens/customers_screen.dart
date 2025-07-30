@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
-import '../l10n/app_localizations.dart';
+
 import '../utils/currency_formatter.dart';
 import '../services/notification_service.dart';
 import 'add_customer_screen.dart';
@@ -70,7 +70,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
       if (!grouped.containsKey(firstLetter)) {
         grouped[firstLetter] = [];
       }
-      grouped[firstLetter]!.add(customer);
+              grouped[firstLetter]!.add(customer);
     }
     
     // Sort the groups alphabetically
@@ -78,7 +78,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     final sortedMap = <String, List<Customer>>{};
     
     for (final key in sortedKeys) {
-      sortedMap[key] = grouped[key]!..sort((a, b) => a.name.compareTo(b.name));
+              sortedMap[key] = grouped[key]!..sort((a, b) => a.name.compareTo(b.name));
     }
     
     return sortedMap;
@@ -146,7 +146,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
           key: const Key('customers_screen'),
           backgroundColor: Colors.grey[50],
           appBar: AppBar(
-            title: Text(AppLocalizations.of(context).customers),
+            title: const Text('Customers'),
             backgroundColor: Colors.grey[50],
             elevation: 0,
           ),
@@ -185,14 +185,14 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  AppLocalizations.of(context).noCustomersFound,
+                                  'No customers found',
                                   style: AppTheme.getDynamicTitle3(context).copyWith(
                                     color: Colors.black,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  AppLocalizations.of(context).addNewCustomerToGetStarted,
+                                  'Add a new customer to get started',
                                   style: AppTheme.getDynamicCallout(context).copyWith(
                                     color: Colors.grey[600],
                                   ),
@@ -318,7 +318,7 @@ class _CustomerListTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.blue[600]!.withAlpha(26), // 0.1 * 255
+              color: (Colors.blue[600] ?? Colors.blue).withAlpha(26), // 0.1 * 255
               borderRadius: BorderRadius.circular(20),
             ),
             child: Center(
@@ -458,7 +458,7 @@ class _CustomerListTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              AppLocalizations.of(context).selectAction,
+              'Select an action',
               style: TextStyle(
                 color: Colors.grey[600],
                 fontSize: 14,
@@ -467,7 +467,7 @@ class _CustomerListTile extends StatelessWidget {
             const SizedBox(height: 16),
             ListTile(
               leading: Icon(Icons.visibility, color: Colors.blue[600]),
-              title: Text(AppLocalizations.of(context).viewDetails),
+              title: const Text('View Details'),
               onTap: () {
                 Navigator.pop(context);
                 onView();
@@ -475,7 +475,7 @@ class _CustomerListTile extends StatelessWidget {
             ),
             ListTile(
               leading: Icon(Icons.delete, color: Colors.red),
-              title: Text(AppLocalizations.of(context).delete),
+              title: const Text('Delete'),
               onTap: () {
                 Navigator.pop(context);
                 onDelete();
@@ -486,7 +486,7 @@ class _CustomerListTile extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(AppLocalizations.of(context).cancel),
+                child: const Text('Cancel'),
               ),
             ),
           ],

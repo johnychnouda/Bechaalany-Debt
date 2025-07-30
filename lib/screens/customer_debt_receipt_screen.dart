@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
+import 'package:cross_file/cross_file.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
 import 'dart:io';
 import '../constants/app_colors.dart';
-import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/partial_payment.dart';
@@ -17,8 +16,6 @@ import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
 import '../utils/debt_description_utils.dart';
-import 'package:provider/provider.dart';
-import '../providers/app_state.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -37,9 +34,63 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
 }
 
 class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
+  
+  List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
+    // Find the most recent payment date to determine which debts are relevant
+    DateTime? latestPaymentDate;
+    
+    // Check partial payments for this customer
+    for (final payment in widget.partialPayments) {
+      final debt = allCustomerDebts.firstWhere(
+        (d) => d.id == payment.debtId,
+        orElse: () => Debt(
+          id: '',
+          customerId: '',
+          customerName: '',
+          amount: 0.0,
+          description: '',
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      if (debt.id.isNotEmpty) {
+        if (latestPaymentDate == null || payment.paidAt.isAfter(latestPaymentDate)) {
+          latestPaymentDate = payment.paidAt;
+        }
+      }
+    }
+    
+    // Check fully paid debts
+    for (final debt in allCustomerDebts) {
+      if (debt.isFullyPaid && debt.paidAt != null) {
+        if (latestPaymentDate == null || debt.paidAt!.isAfter(latestPaymentDate)) {
+          latestPaymentDate = debt.paidAt;
+        }
+      }
+    }
+    
+    // If no payments found, include all debts
+    if (latestPaymentDate == null) {
+      return allCustomerDebts;
+    }
+    
+    // Only include debts that were created on or before the latest payment date
+    // This excludes new debts created after the payment was completed
+    return allCustomerDebts.where((debt) {
+      return debt.createdAt.isBefore(latestPaymentDate!) || 
+             debt.createdAt.isAtSameMomentAs(latestPaymentDate);
+    }).toList();
+  }
+  
   @override
   Widget build(BuildContext context) {
-    final sortedDebts = List<Debt>.from(widget.customerDebts)
+    // Filter debts to only include those relevant to the payment being viewed
+    // This excludes new debts that were created after the payment was completed
+    final relevantDebts = _getRelevantDebts(widget.customerDebts);
+    
+    final sortedDebts = List<Debt>.from(relevantDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
@@ -205,6 +256,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     for (Debt debt in sortedDebts) {
       final cleanedDescription = DebtDescriptionUtils.cleanDescription(debt.description);
       
+      // Always show the debt/product
       allItems.add({
         'type': 'debt',
         'description': cleanedDescription,
@@ -213,6 +265,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         'debt': debt,
       });
       
+      // Only show partial payments if they exist
       final partialPayments = _getPartialPaymentsForDebt(debt.id);
       for (PartialPayment payment in partialPayments) {
         allItems.add({
@@ -334,6 +387,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               ),
             ],
           ),
+          
           const SizedBox(height: 12),
           Text(
             _formatDateTime(debt.createdAt),
@@ -377,7 +431,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.green[600]!.withAlpha(26),
+                  color: (Colors.green[600] ?? Colors.green).withAlpha(26),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -426,8 +480,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   Widget _buildTotalAmount(double remainingAmount) {
     final totalOriginalAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
     final partiallyPaidAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-    final hasPendingOrPartiallyPaid = widget.customerDebts.any((debt) => !debt.isFullyPaid);
+    
+    // Determine the payment status for the relevant debts
+    final hasPartialPayments = partiallyPaidAmount > 0;
     final allDebtsFullyPaid = remainingAmount == 0 && widget.customerDebts.isNotEmpty;
+    final hasNewDebts = widget.customerDebts.any((debt) => debt.paidAmount == 0 && !debt.isFullyPaid);
     
     DateTime? latestPaymentDate;
     if (allDebtsFullyPaid) {
@@ -452,7 +509,33 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       ),
       child: Column(
         children: [
-          if (partiallyPaidAmount > 0 && hasPendingOrPartiallyPaid) ...[
+          // Case 1: New debt (no payments) - show only remaining amount
+          if (hasNewDebts && !hasPartialPayments && !allDebtsFullyPaid) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Remaining Amount:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(context, remainingAmount),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          
+          // Case 2: Partial payments made - show partially paid amount and remaining amount
+          if (hasPartialPayments && !allDebtsFullyPaid) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -475,8 +558,30 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Remaining Amount:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                Text(
+                  CurrencyFormatter.formatAmount(context, remainingAmount),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red[600],
+                  ),
+                ),
+              ],
+            ),
           ],
           
+          // Case 3: Fully paid - show full paid amount status
           if (allDebtsFullyPaid) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -519,37 +624,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ),
               ),
             ],
-          ] else ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Remaining Amount:',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                Text(
-                  CurrencyFormatter.formatAmount(context, remainingAmount),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[600],
-                  ),
-                ),
-              ],
-            ),
           ],
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
+
 
   String _formatDateTime(DateTime date) {
     final hour = date.hour;
@@ -700,7 +781,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       pageIndex++;
       
       while (currentIndex < allItems.length) {
-        final endIndex = (currentIndex + itemsPerPage).clamp(0, allItems.length);
         final pageItems = allItems.skip(currentIndex).take(itemsPerPage).toList();
         final isLastPage = pageIndex == totalPages - 1;
         

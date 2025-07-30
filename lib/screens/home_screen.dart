@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_theme.dart';
+
 import '../providers/app_state.dart';
 import '../widgets/customizable_dashboard_widget.dart';
 
@@ -16,15 +16,26 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh data when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Automatically fetch data when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final appState = Provider.of<AppState>(context, listen: false);
       if (!appState.isLoading) {
-        appState.refresh();
-        // Debug: Print current data state
-        appState.debugPrintDataState();
+        await appState.refresh();
+        // Wait a bit for data to load, then create activities
+        await Future.delayed(const Duration(milliseconds: 500));
+        // Activities are now created automatically in app state initialization
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (like when returning from other screens)
+    final appState = Provider.of<AppState>(context, listen: false);
+    if (!appState.isLoading) {
+      appState.refresh();
+    }
   }
 
   @override
@@ -32,49 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            _buildHeader(),
-            
-            // Dashboard Content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  final appState = Provider.of<AppState>(context, listen: false);
-                  await appState.refresh();
-                },
-                child: const CustomizableDashboardWidget(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Dashboard',
-              style: AppTheme.title1.copyWith(
-                color: AppColors.dynamicTextPrimary(context),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
-            icon: const Icon(Icons.settings),
-            color: AppColors.dynamicTextSecondary(context),
-          ),
-        ],
+        child: const CustomizableDashboardWidget(),
       ),
     );
   }

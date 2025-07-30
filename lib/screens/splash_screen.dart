@@ -163,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen>
         );
       }
     } catch (e) {
-      print('Error initializing app: $e');
+      // Handle error silently
       if (mounted) {
         setState(() {
           _statusText = 'Ready!';
@@ -292,7 +292,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 Text(
                                   'Smart debt management',
                                   style: AppTheme.body.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: isSmallScreen ? 16 : 18,
                                   ),
                                   textAlign: TextAlign.center,
@@ -317,7 +317,7 @@ class _SplashScreenState extends State<SplashScreen>
                               width: 60,
                               height: 60,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(AppTheme.radius32),
                               ),
                               child: Center(
@@ -328,7 +328,7 @@ class _SplashScreenState extends State<SplashScreen>
                                     value: _progressAnimation.value,
                                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                                     strokeWidth: 3,
-                                    backgroundColor: Colors.white.withOpacity(0.3),
+                                    backgroundColor: Colors.white.withValues(alpha: 0.3),
                                   ),
                                 ),
                               ),
@@ -350,7 +350,7 @@ class _SplashScreenState extends State<SplashScreen>
                               Text(
                                 'Please wait while we set up your experience',
                                 style: AppTheme.footnote.copyWith(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -375,7 +375,7 @@ class SplashBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.05)
+              ..color = Colors.white.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
 
     // Draw subtle background pattern

@@ -130,7 +130,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       if (!groupedMap.containsKey(debt.customerId)) {
         groupedMap[debt.customerId] = [];
       }
-      groupedMap[debt.customerId]!.add(debt);
+              groupedMap[debt.customerId]!.add(debt);
     }
     
     // Sort debts within each group by date and time in descending order (newest first)

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../constants/app_colors.dart';
-import '../l10n/app_localizations.dart';
+
 import '../models/category.dart' show ProductCategory, Subcategory;
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
@@ -33,14 +33,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     List<Subcategory> allSubcategories = [];
     
-    // Debug: Print categories info
-    print('Categories count: ${appState.categories.length}');
     for (final category in appState.categories) {
-      print('Category type: ${category.runtimeType}');
-      if (category is ProductCategory) {
-        print('Category: ${category.name}, Subcategories: ${category.subcategories.length}');
-        allSubcategories.addAll(category.subcategories);
-      }
+      allSubcategories.addAll(category.subcategories);
     }
     
     // Filter by search query
@@ -55,7 +49,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (_selectedCategory != 'All') {
       allSubcategories = allSubcategories.where((subcategory) {
         for (final cat in appState.categories) {
-          if (cat is ProductCategory && cat.subcategories.contains(subcategory)) {
+          if (cat.subcategories.contains(subcategory)) {
             return cat.name == _selectedCategory;
           }
         }
@@ -87,13 +81,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
           String categoryNameB = '';
           
           for (final cat in appState.categories) {
-            if (cat is ProductCategory) {
-              if (cat.subcategories.contains(a)) {
-                categoryNameA = cat.name;
-              }
-              if (cat.subcategories.contains(b)) {
-                categoryNameB = cat.name;
-              }
+            if (cat.subcategories.contains(a)) {
+              categoryNameA = cat.name;
+            }
+            if (cat.subcategories.contains(b)) {
+              categoryNameB = cat.name;
             }
           }
           
@@ -111,7 +103,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+
     
     return Scaffold(
       key: const Key('products_screen'),
@@ -176,7 +168,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: Row(
                     children: [
                       'All',
-                      ...appState.categories.where((cat) => cat is ProductCategory).map((cat) => (cat as ProductCategory).name).where((name) => name.isNotEmpty),
+                      ...appState.categories.map((cat) => cat.name).where((name) => name.isNotEmpty),
                     ].map((category) {
                       final isSelected = _selectedCategory == category;
                       return Padding(
@@ -245,13 +237,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: _filteredProducts.length,
                         itemBuilder: (context, index) {
-                          final subcategory = _filteredProducts[index] as Subcategory;
+                          final subcategory = _filteredProducts[index];
                           
                           // Find the category name when in "All" view
                           String? categoryName;
                           if (_selectedCategory == 'All') {
                             for (final category in appState.categories) {
-                              if (category is ProductCategory && category.subcategories.contains(subcategory)) {
+                              if (category.subcategories.contains(subcategory)) {
                                 categoryName = category.name;
                                 break;
                               }
@@ -303,11 +295,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     // Find the category that contains this subcategory
     final appState = Provider.of<AppState>(context, listen: false);
     for (final category in appState.categories) {
-      if (category is ProductCategory) {
-        if (category.subcategories.contains(subcategory)) {
-          _showEditSubcategoryDialog(context, subcategory, category.name);
-          break;
-        }
+      if (category.subcategories.contains(subcategory)) {
+        _showEditSubcategoryDialog(context, subcategory, category.name);
+        break;
       }
     }
   }
@@ -316,18 +306,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
     // Find the category that contains this subcategory
     final appState = Provider.of<AppState>(context, listen: false);
     for (final category in appState.categories) {
-      if (category is ProductCategory) {
-        if (category.subcategories.contains(subcategory)) {
-          _showDeleteSubcategoryDialog(context, subcategory, category.name);
-          break;
-        }
+      if (category.subcategories.contains(subcategory)) {
+        _showDeleteSubcategoryDialog(context, subcategory, category.name);
+        break;
       }
     }
   }
 
   void _showAddChoiceDialog(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final hasCategories = appState.categories.whereType<ProductCategory>().isNotEmpty;
+    final hasCategories = appState.categories.isNotEmpty;
 
     showModalBottomSheet(
       context: context,
@@ -446,7 +434,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showCategorySelectionDialog(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final categories = appState.categories.whereType<ProductCategory>().toList();
+    final categories = appState.categories.toList();
 
     showDialog(
       context: context,
@@ -519,7 +507,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   
                   try {
                     await appState.addCategory(category);
-                    Navigator.of(context).pop();
+                    if (mounted) {
+                      Navigator.of(context).pop();
+                    }
                     
                     // Refresh the products list
                     _filterProducts();
@@ -542,70 +532,76 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
     final nameController = TextEditingController(text: subcategory.name);
-            final costPriceController = TextEditingController(text: subcategory.costPrice.toStringAsFixed(2));
-        final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toStringAsFixed(2));
-    String selectedCurrency = subcategory.costPriceCurrency; // Use same currency for both
-
+    final costPriceController = TextEditingController(text: subcategory.costPrice.toStringAsFixed(2));
+    final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toStringAsFixed(2));
+    String selectedCurrency = subcategory.costPriceCurrency;
+    final double originalCostPriceUSD = subcategory.costPrice;
+    final double originalSellingPriceUSD = subcategory.sellingPrice;
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit Subcategory'),
-          contentPadding: const EdgeInsets.all(16),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Subcategory Name',
-                    hintText: 'e.g., iPhone',
-                  ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit Subcategory'),
+              contentPadding: const EdgeInsets.all(16),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Subcategory Name',
+                        hintText: 'e.g., iPhone',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Currency',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ExpandableChipDropdown<String>(
+                      label: 'Currency',
+                      value: selectedCurrency,
+                      items: ['USD', 'LBP'],
+                      itemToString: (currency) => currency,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCurrency = value!;
+                          if (selectedCurrency == 'LBP') {
+                            costPriceController.text = (originalCostPriceUSD * 89500).toStringAsFixed(0);
+                            sellingPriceController.text = (originalSellingPriceUSD * 89500).toStringAsFixed(0);
+                          } else {
+                            costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
+                            sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: costPriceController,
+                      decoration: InputDecoration(
+                        labelText: 'Cost Price',
+                        hintText: selectedCurrency == 'USD' ? 'e.g., 800.00' : 'e.g., 358000',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: sellingPriceController,
+                      decoration: InputDecoration(
+                        labelText: 'Selling Price',
+                        hintText: selectedCurrency == 'USD' ? 'e.g., 1000.00' : 'e.g., 895000',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Currency',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ExpandableChipDropdown<String>(
-                  label: 'Currency',
-                  value: selectedCurrency,
-                  items: ['USD', 'LBP'],
-                  itemToString: (currency) => currency,
-                  onChanged: (value) {
-                    selectedCurrency = value!;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: costPriceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Cost Price',
-                    hintText: 'e.g., 800.00',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: sellingPriceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Selling Price',
-                    hintText: 'e.g., 1000.00',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              ),
+              actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
@@ -615,56 +611,43 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     if (nameController.text.trim().isNotEmpty &&
                         costPriceController.text.isNotEmpty &&
                         sellingPriceController.text.isNotEmpty) {
-                      
                       final appState = Provider.of<AppState>(context, listen: false);
                       final notificationService = NotificationService();
                       final category = appState.categories.firstWhere(
-                        (cat) => cat is ProductCategory && cat.name == categoryName,
+                        (cat) => cat.name == categoryName,
                         orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                       );
-                      
-                      if (category is ProductCategory) {
-                        try {
-                          // Convert prices to USD if they're in LBP
-                          double costPriceUSD = double.parse(costPriceController.text);
-                          double sellingPriceUSD = double.parse(sellingPriceController.text);
-                          
-                          if (selectedCurrency == 'LBP') {
-                            costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                            sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                          }
-                          
-                          // Update the subcategory
-                          subcategory.name = nameController.text.trim();
-                          subcategory.costPrice = costPriceUSD;
-                          subcategory.sellingPrice = sellingPriceUSD;
-                          subcategory.costPriceCurrency = selectedCurrency;
-                          subcategory.sellingPriceCurrency = selectedCurrency;
-                          
-                          await appState.updateCategory(category);
-                          
-                          Navigator.of(context).pop();
-                          
-                          // Show success notification
-                          await notificationService.showProductUpdatedNotification(subcategory.name);
-                          
-                          // Refresh the products list
-                          _filterProducts();
-                        } catch (e) {
-                          // Show error notification
-                          await notificationService.showErrorNotification(
-                            title: 'Error',
-                            body: 'Failed to update product: $e',
-                          );
+                      try {
+                        double costPriceUSD = double.parse(costPriceController.text);
+                        double sellingPriceUSD = double.parse(sellingPriceController.text);
+                        if (selectedCurrency == 'LBP') {
+                          costPriceUSD = costPriceUSD / 89500;
+                          sellingPriceUSD = sellingPriceUSD / 89500;
                         }
+                        subcategory.name = nameController.text.trim();
+                        subcategory.costPrice = costPriceUSD;
+                        subcategory.sellingPrice = sellingPriceUSD;
+                        subcategory.costPriceCurrency = selectedCurrency;
+                        subcategory.sellingPriceCurrency = selectedCurrency;
+                        await appState.updateCategory(category);
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                        await notificationService.showProductUpdatedNotification(subcategory.name);
+                        _filterProducts();
+                      } catch (e) {
+                        await notificationService.showErrorNotification(
+                          title: 'Error',
+                          body: 'Failed to update product: $e',
+                        );
                       }
                     }
                   },
                   child: const Text('Update'),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -687,29 +670,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 final appState = Provider.of<AppState>(context, listen: false);
                 final notificationService = NotificationService();
                 final category = appState.categories.firstWhere(
-                  (cat) => cat is ProductCategory && cat.name == categoryName,
+                  (cat) => cat.name == categoryName,
                   orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                 );
-                
-                if (category is ProductCategory) {
-                  try {
-                    category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
-                    await appState.updateCategory(category);
-                    
+                try {
+                  category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
+                  await appState.updateCategory(category);
+                  if (mounted) {
                     Navigator.of(context).pop();
-                    
-                    // Show success notification
-                    await notificationService.showProductDeletedNotification(subcategory.name);
-                    
-                    // Refresh the products list
-                    _filterProducts();
-                  } catch (e) {
-                    // Show error notification
-                    await notificationService.showErrorNotification(
-                      title: 'Error',
-                      body: 'Failed to delete product: $e',
-                    );
                   }
+                  await notificationService.showProductDeletedNotification(subcategory.name);
+                  _filterProducts();
+                } catch (e) {
+                  await notificationService.showErrorNotification(
+                    title: 'Error',
+                    body: 'Failed to delete product: $e',
+                  );
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -729,67 +705,102 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     String selectedCurrency = 'USD';
+    double defaultCostPriceUSD = 0.0;
+    double defaultSellingPriceUSD = 0.0;
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Add Subcategory to $categoryName'),
-          contentPadding: const EdgeInsets.all(16),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Subcategory Name',
-                    hintText: 'e.g., iPhone',
-                  ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Add Subcategory to $categoryName'),
+              contentPadding: const EdgeInsets.all(16),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Subcategory Name',
+                        hintText: 'e.g., iPhone',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Currency',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    ExpandableChipDropdown<String>(
+                      label: 'Currency',
+                      value: selectedCurrency,
+                      items: ['USD', 'LBP'],
+                      itemToString: (currency) => currency,
+                      onChanged: (value) {
+                        setState(() {
+                          selectedCurrency = value!;
+                          if (selectedCurrency == 'LBP') {
+                            costPriceController.text = (defaultCostPriceUSD * 89500).toStringAsFixed(0);
+                            sellingPriceController.text = (defaultSellingPriceUSD * 89500).toStringAsFixed(0);
+                          } else {
+                            costPriceController.text = defaultCostPriceUSD.toStringAsFixed(2);
+                            sellingPriceController.text = defaultSellingPriceUSD.toStringAsFixed(2);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: costPriceController,
+                      decoration: InputDecoration(
+                        labelText: 'Cost Price',
+                        hintText: selectedCurrency == 'USD' ? 'e.g., 800.00' : 'e.g., 358000',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          try {
+                            double price = double.parse(value);
+                            if (selectedCurrency == 'LBP') {
+                              defaultCostPriceUSD = price / 89500;
+                            } else {
+                              defaultCostPriceUSD = price;
+                            }
+                          } catch (e) {
+                            // Handle invalid input
+                          }
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: sellingPriceController,
+                      decoration: InputDecoration(
+                        labelText: 'Selling Price',
+                        hintText: selectedCurrency == 'USD' ? 'e.g., 1000.00' : 'e.g., 895000',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          try {
+                            double price = double.parse(value);
+                            if (selectedCurrency == 'LBP') {
+                              defaultSellingPriceUSD = price / 89500;
+                            } else {
+                              defaultSellingPriceUSD = price;
+                            }
+                          } catch (e) {
+                            // Handle invalid input
+                          }
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Currency',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ExpandableChipDropdown<String>(
-                  label: 'Currency',
-                  value: selectedCurrency,
-                  items: ['USD', 'LBP'],
-                  itemToString: (currency) => currency,
-                  onChanged: (value) {
-                    selectedCurrency = value!;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: costPriceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Cost Price',
-                    hintText: 'e.g., 800.00',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: sellingPriceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Selling Price',
-                    hintText: 'e.g., 1000.00',
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+              ),
+              actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Cancel'),
@@ -799,62 +810,49 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     if (nameController.text.trim().isNotEmpty &&
                         costPriceController.text.isNotEmpty &&
                         sellingPriceController.text.isNotEmpty) {
-                      
                       final appState = Provider.of<AppState>(context, listen: false);
                       final notificationService = NotificationService();
                       final category = appState.categories.firstWhere(
-                        (cat) => cat is ProductCategory && cat.name == categoryName,
+                        (cat) => cat.name == categoryName,
                         orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
                       );
-                      
-                      if (category is ProductCategory) {
-                        try {
-                          // Convert prices to USD if they're in LBP
-                          double costPriceUSD = double.parse(costPriceController.text);
-                          double sellingPriceUSD = double.parse(sellingPriceController.text);
-                          
-                          if (selectedCurrency == 'LBP') {
-                            costPriceUSD = costPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                            sellingPriceUSD = sellingPriceUSD / 89500; // Convert LBP to USD (1 USD = 89,500 LBP)
-                          }
-                          
-                          final subcategory = Subcategory(
-                            id: appState.generateProductPurchaseId(), // Using this as subcategory ID generator
-                            name: nameController.text.trim(),
-                            description: null, // No description field
-                            costPrice: costPriceUSD,
-                            sellingPrice: sellingPriceUSD,
-                            createdAt: DateTime.now(),
-                            costPriceCurrency: selectedCurrency,
-                            sellingPriceCurrency: selectedCurrency,
-                          );
-                          
-                          // Add subcategory to the category
-                          category.subcategories.add(subcategory);
-                          await appState.updateCategory(category);
-                          
-                          Navigator.of(context).pop();
-                          
-                          // Show success notification
-                          await notificationService.showProductUpdatedNotification(subcategory.name);
-                          
-                          // Refresh the products list
-                          _filterProducts();
-                        } catch (e) {
-                          // Show error notification
-                          await notificationService.showErrorNotification(
-                            title: 'Error',
-                            body: 'Failed to add product: $e',
-                          );
+                      try {
+                        double costPriceUSD = double.parse(costPriceController.text);
+                        double sellingPriceUSD = double.parse(sellingPriceController.text);
+                        if (selectedCurrency == 'LBP') {
+                          costPriceUSD = costPriceUSD / 89500;
+                          sellingPriceUSD = sellingPriceUSD / 89500;
                         }
+                        final subcategory = Subcategory(
+                          id: appState.generateProductPurchaseId(),
+                          name: nameController.text.trim(),
+                          description: null,
+                          costPrice: costPriceUSD,
+                          sellingPrice: sellingPriceUSD,
+                          createdAt: DateTime.now(),
+                          costPriceCurrency: selectedCurrency,
+                          sellingPriceCurrency: selectedCurrency,
+                        );
+                        category.subcategories.add(subcategory);
+                        await appState.updateCategory(category);
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                        await notificationService.showProductUpdatedNotification(subcategory.name);
+                        _filterProducts();
+                      } catch (e) {
+                        await notificationService.showErrorNotification(
+                          title: 'Error',
+                          body: 'Failed to add product: $e',
+                        );
                       }
                     }
                   },
                   child: const Text('Add'),
                 ),
               ],
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -862,7 +860,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showDeleteCategorySelectionDialog(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final categories = appState.categories.whereType<ProductCategory>().toList();
+    final categories = appState.categories.toList();
 
     showDialog(
       context: context,
@@ -902,7 +900,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final categoryMap = <Subcategory, ProductCategory>{};
 
     // Collect all subcategories with their parent categories
-    for (final category in appState.categories.whereType<ProductCategory>()) {
+    for (final category in appState.categories) {
       for (final subcategory in category.subcategories) {
         allSubcategories.add(subcategory);
         categoryMap[subcategory] = category;
@@ -1000,7 +998,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 
                 try {
                   await appState.deleteCategory(category.id);
-                  Navigator.of(context).pop();
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
                   
                   // Reset to 'All' if the deleted category was selected
                   if (_selectedCategory == category.name) {
@@ -1064,7 +1064,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 
                 try {
                   await appState.deleteSubcategory(category.id, subcategory.id);
-                  Navigator.of(context).pop();
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                  }
                   
                   // Show success notification
                   await notificationService.showProductDeletedNotification(subcategory.name);

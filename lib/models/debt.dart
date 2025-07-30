@@ -41,6 +41,14 @@ class Debt extends HiveObject {
   final String? notes;
   @HiveField(10)
   final double paidAmount; // Amount that has been paid
+  @HiveField(11)
+  final String? subcategoryId; // ID of the subcategory if debt was created from a product
+  @HiveField(12)
+  final String? subcategoryName; // Name of the subcategory at time of debt creation
+  @HiveField(13)
+  final double? originalSellingPrice; // Original selling price at time of debt creation
+  @HiveField(14)
+  final String? categoryName; // Category name at time of debt creation
 
   Debt({
     required this.id,
@@ -54,6 +62,10 @@ class Debt extends HiveObject {
     this.paidAt,
     this.notes,
     this.paidAmount = 0.0,
+    this.subcategoryId,
+    this.subcategoryName,
+    this.originalSellingPrice,
+    this.categoryName,
   });
 
   factory Debt.fromJson(Map<String, dynamic> json) {
@@ -75,6 +87,12 @@ class Debt extends HiveObject {
           : null,
       notes: json['notes'] as String?,
       paidAmount: (json['paidAmount'] as num).toDouble(),
+      subcategoryId: json['subcategoryId'] as String?,
+      subcategoryName: json['subcategoryName'] as String?,
+      originalSellingPrice: json['originalSellingPrice'] != null 
+          ? (json['originalSellingPrice'] as num).toDouble() 
+          : null,
+      categoryName: json['categoryName'] as String?,
     );
   }
 
@@ -91,6 +109,10 @@ class Debt extends HiveObject {
       'paidAt': paidAt?.toIso8601String(),
       'notes': notes,
       'paidAmount': paidAmount,
+      'subcategoryId': subcategoryId,
+      'subcategoryName': subcategoryName,
+      'originalSellingPrice': originalSellingPrice,
+      'categoryName': categoryName,
     };
   }
 
@@ -106,6 +128,10 @@ class Debt extends HiveObject {
     DateTime? paidAt,
     String? notes,
     double? paidAmount,
+    String? subcategoryId,
+    String? subcategoryName,
+    double? originalSellingPrice,
+    String? categoryName,
   }) {
     return Debt(
       id: id ?? this.id,
@@ -119,6 +145,10 @@ class Debt extends HiveObject {
       paidAt: paidAt ?? this.paidAt,
       notes: notes ?? this.notes,
       paidAmount: paidAmount ?? this.paidAmount,
+      subcategoryId: subcategoryId ?? this.subcategoryId,
+      subcategoryName: subcategoryName ?? this.subcategoryName,
+      originalSellingPrice: originalSellingPrice ?? this.originalSellingPrice,
+      categoryName: categoryName ?? this.categoryName,
     );
   }
 

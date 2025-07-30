@@ -5,6 +5,7 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/debt_description_utils.dart';
 
 enum ActivityView { daily, weekly, monthly }
 
@@ -49,11 +50,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   }
 
   void _addSampleDataIfNeeded() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    if (appState.debts.isNotEmpty) {
-      for (final debt in appState.debts) {
-      }
-    }
+    // Sample data generation removed
   }
 
   @override
@@ -130,11 +127,14 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                   color: AppColors.dynamicTextPrimary(context),
                   fontWeight: FontWeight.w600,
                 ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                textAlign: TextAlign.center,
               ),
             ),
             // Search Bar
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: TextField(
                 controller: _searchController,
                 onChanged: (value) {
@@ -160,6 +160,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                   filled: true,
                   fillColor: AppColors.dynamicSurface(context),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  isDense: true,
                 ),
               ),
             ),
@@ -206,19 +207,35 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   Widget _buildActivityItem(Activity activity) {
     IconData icon;
     Color iconColor;
+    Color backgroundColor;
+
+    // Determine if this is a full payment
+    bool isFullPayment = activity.type == ActivityType.payment && 
+                        activity.paymentAmount != null && 
+                        activity.paymentAmount == activity.amount;
 
     switch (activity.type) {
       case ActivityType.newDebt:
         icon = Icons.add_circle;
         iconColor = AppColors.primary;
+        backgroundColor = AppColors.primary.withValues(alpha: 0.1);
         break;
       case ActivityType.payment:
-        icon = Icons.payment;
-        iconColor = AppColors.success;
+        if (isFullPayment) {
+          icon = Icons.check_circle;
+          iconColor = AppColors.success;
+          backgroundColor = AppColors.success.withValues(alpha: 0.1);
+        } else {
+          icon = Icons.payment;
+          iconColor = AppColors.warning;
+          backgroundColor = AppColors.warning.withValues(alpha: 0.1);
+        }
         break;
       case ActivityType.debtCleared:
+        // This case should not be reached since we filter out debtCleared activities
         icon = Icons.delete_forever;
-        iconColor = AppColors.warning;
+        iconColor = Colors.red;
+        backgroundColor = Colors.red.withValues(alpha: 0.1);
         break;
     }
 
@@ -227,11 +244,12 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: backgroundColor,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -251,48 +269,57 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                       fontWeight: FontWeight.w600,
                       color: AppColors.dynamicTextPrimary(context),
                     ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    activity.description,
-                    style: AppTheme.caption1.copyWith(
-                      color: AppColors.textSecondary,
+                  // Only show product description for new debts, not for payments
+                  if (activity.type == ActivityType.newDebt)
+                    Text(
+                      DebtDescriptionUtils.cleanDescription(activity.description),
+                      style: AppTheme.caption1.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
-                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text(
-                        _formatActivityDate(activity.date),
-                        style: AppTheme.caption1.copyWith(
-                          color: AppColors.textLight,
+                      Expanded(
+                        child: Text(
+                          _formatActivityDate(activity.date),
+                          style: AppTheme.caption1.copyWith(
+                            color: AppColors.textLight,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       if (activity.type == ActivityType.newDebt)
-                        Text(
-                          CurrencyFormatter.formatAmount(context, activity.amount),
-                          style: AppTheme.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
+                        Flexible(
+                          child: Text(
+                            CurrencyFormatter.formatAmount(context, activity.amount),
+                            style: AppTheme.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
                           ),
                         ),
                       if (activity.type == ActivityType.payment && activity.paymentAmount != null)
-                        Text(
-                          activity.paymentAmount == activity.amount
-                              ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                              : 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                          style: AppTheme.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: activity.paymentAmount == activity.amount ? AppColors.success : AppColors.warning,
-                          ),
-                        ),
-                      if (activity.type == ActivityType.debtCleared)
-                        Text(
-                          'Cleared: ${CurrencyFormatter.formatAmount(context, activity.amount)}',
-                          style: AppTheme.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.warning,
+                        Flexible(
+                          child: Text(
+                            isFullPayment
+                                ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                                : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                            style: AppTheme.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: isFullPayment ? AppColors.success : AppColors.warning,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
                           ),
                         ),
                     ],
@@ -444,13 +471,22 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
 
     // Get activities from the new Activity model
     for (final activity in appState.activities) {
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
-        activities.add(activity);
+      // Filter out debtCleared activities - only show new debts and payments
+      if (activity.type == ActivityType.debtCleared) {
+        continue; // Skip cleared activities
       }
+      
+      // Filter out activities for customers that no longer exist
+      final customerExists = appState.customers.any((customer) => 
+        customer.name.toLowerCase() == activity.customerName.toLowerCase()
+      );
+      
+      if (!customerExists) {
+        continue;
+      }
+      
+      // Add only activities for existing customers
+      activities.add(activity);
     }
 
     // Sort by date (newest first)

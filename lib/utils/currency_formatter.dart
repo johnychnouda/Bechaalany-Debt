@@ -5,10 +5,10 @@ import '../models/currency_settings.dart';
 
 class CurrencyFormatter {
   static String formattedExchangeRate(CurrencySettings settings) {
-    return settings != null ? settings.exchangeRate.toStringAsFixed(2) : '1.00';
+    return settings.exchangeRate.toStringAsFixed(2);
   }
   static String reverseFormattedExchangeRate(CurrencySettings settings) {
-    return settings != null ? (1 / settings.exchangeRate).toStringAsFixed(2) : '1.00';
+    return (1 / settings.exchangeRate).toStringAsFixed(2);
   }
 
   static String formatAmount(BuildContext context, double amount) {
@@ -26,24 +26,7 @@ class CurrencyFormatter {
     return amount.toStringAsFixed(2);
   }
 
-  // Helper method to determine decimal places based on currency
-  static int _getDecimalPlaces(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'USD':
-      case 'EUR':
-      case 'GBP':
-      case 'CAD':
-      case 'AUD':
-      case 'JPY':
-        return 2;
-      case 'LBP':
-      case 'IQD':
-      case 'IRR':
-        return 0;
-      default:
-        return 2; // Default to 2 decimals for unknown currencies
-    }
-  }
+
 
   static String getCurrencySymbol(BuildContext context) {
     // Always return USD symbol
@@ -89,25 +72,5 @@ class CurrencyFormatter {
 
 
 
-  // Helper method to get currency symbol
-  static String _getCurrencySymbol(String currency) {
-    switch (currency.toUpperCase()) {
-      case 'USD':
-        return '\$';
-      case 'EUR':
-        return '€';
-      case 'GBP':
-        return '£';
-      case 'JPY':
-        return '¥';
-      case 'LBP':
-        return 'L.L.';
-      case 'IQD':
-        return 'ع.د';
-      case 'IRR':
-        return 'ریال';
-      default:
-        return currency; // Return currency code if no symbol is defined
-    }
-  }
+
 } 

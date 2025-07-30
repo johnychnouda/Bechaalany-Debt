@@ -189,7 +189,7 @@ class DataExportImportService {
             );
             customers.add(customer);
           } catch (e) {
-            print('Error parsing customer row: $e');
+            // Handle error silently
           }
         }
 
@@ -213,7 +213,7 @@ class DataExportImportService {
             );
             debts.add(debt);
           } catch (e) {
-            print('Error parsing debt row: $e');
+            // Handle error silently
           }
         }
       }

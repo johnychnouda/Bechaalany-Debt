@@ -33,7 +33,9 @@ class SyncService {
       // Update last sync time
       _lastSyncTime = DateTime.now();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('last_sync_time', _lastSyncTime!.toIso8601String());
+      if (_lastSyncTime != null) {
+        await prefs.setString('last_sync_time', _lastSyncTime!.toIso8601String());
+      }
     } catch (e) {
       rethrow;
     }
