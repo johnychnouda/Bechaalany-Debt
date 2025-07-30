@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/customer.dart';
@@ -206,6 +207,38 @@ class AppState extends ChangeNotifier {
     _cachedTopDebtors ??= _calculateTopDebtors();
     return _cachedTopDebtors!;
   }
+
+  // Get total historical payments for a customer (including deleted debts)
+  double getCustomerTotalHistoricalPayments(String customerId) {
+    // Get payments from activities
+    final paymentActivities = _activities.where((a) => 
+      a.customerId == customerId && 
+      a.type == ActivityType.payment
+    ).toList();
+    
+    // Get payments from partial payments
+    final partialPayments = _partialPayments.where((p) {
+      final debt = _debts.firstWhere(
+        (d) => d.id == p.debtId,
+        orElse: () => Debt(
+          id: '',
+          customerId: '',
+          customerName: '',
+          description: '',
+          amount: 0,
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+        ),
+      );
+      return debt.customerId == customerId;
+    }).toList();
+    
+    final totalFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+    final totalFromPartialPayments = partialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+    
+    return totalFromActivities + totalFromPartialPayments;
+  }
   
   // Initialize the app state
   Future<void> initialize() async {
@@ -235,9 +268,6 @@ class AppState extends ChangeNotifier {
       
       // AUTOMATICALLY create missing payment activities for existing paid debts
       await createMissingPaymentActivitiesForAllPaidDebts();
-      
-      // Clean up existing cleared activities
-      await cleanupClearedActivities();
       
       // Setup connectivity listener
       _setupConnectivityListener();
@@ -399,15 +429,13 @@ class AppState extends ChangeNotifier {
     }
     
     _clearCache();
-    notifyListeners();
+    // Use post-frame callback to avoid calling notifyListeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
     
     // Create missing payment activities for fully paid debts
     await createMissingPaymentActivitiesForAllPaidDebts();
-    
-    // Clean up old activities for deleted customers (with delay to avoid widget issues)
-    Future.delayed(const Duration(milliseconds: 1000), () async {
-      await cleanupOldActivities();
-    });
   }
   
 
@@ -629,13 +657,29 @@ class AppState extends ChangeNotifier {
   Future<void> deleteDebt(String debtId) async {
     try {
       final debt = _debts.firstWhere((d) => d.id == debtId);
+      
+      // Create a summary activity to preserve payment history before deleting
+      if (debt.paidAmount > 0) {
+        final summaryActivity = Activity(
+          id: 'summary_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+          date: DateTime.now(),
+          type: ActivityType.debtCleared,
+          customerName: debt.customerName,
+          customerId: debt.customerId,
+          description: 'Cleared debt: ${debt.description}',
+          amount: debt.amount,
+          paymentAmount: debt.paidAmount,
+          oldStatus: debt.status,
+          newStatus: DebtStatus.paid,
+          debtId: debt.id,
+        );
+        await _addActivity(summaryActivity);
+      }
+      
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
       _clearCache();
       notifyListeners();
-      
-      // Removed: Track debt cleared activity - no longer creating cleared activities
-      // await addDebtClearedActivity(debt);
       
       // Show system notification
       await _notificationService.showDebtDeletedNotification(debt.customerName, debt.amount);
@@ -672,6 +716,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         print('About to create payment activity for remaining amount: $remainingAmount');
+        
         // AUTOMATICALLY create payment activity when debt is marked as paid
         await addPaymentActivity(originalDebt, remainingAmount, DebtStatus.pending, DebtStatus.paid);
         print('Payment activity created for remaining amount');
@@ -889,10 +934,10 @@ class AppState extends ChangeNotifier {
       // Automatically create missing payment activities when data is refreshed
       await createMissingPaymentActivitiesForAllPaidDebts();
       
-      // Clean up existing cleared activities
-      await cleanupClearedActivities();
-      
-      notifyListeners();
+      // Use post-frame callback to avoid calling notifyListeners during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     } catch (e) {
       // Handle error silently
     }
@@ -1245,24 +1290,71 @@ class AppState extends ChangeNotifier {
         ).toList();
         
         if (existingActivities.isEmpty) {
-          // Create payment activity
-          final activity = Activity(
-            id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
-            date: debt.paidAt ?? DateTime.now(),
-            type: ActivityType.payment,
-            customerName: debt.customerName,
-            customerId: debt.customerId,
-            description: debt.description,
-            amount: debt.amount,
-            paymentAmount: debt.amount,
-            oldStatus: DebtStatus.pending,
-            newStatus: DebtStatus.paid,
-            debtId: debt.id,
-          );
+          // Check if there are partial payments for this debt
+          final partialPayments = _partialPayments.where((p) => p.debtId == debt.id).toList();
           
-          // Add to storage and local list
-          await _dataService.addActivity(activity);
-          _activities.add(activity);
+          if (partialPayments.isNotEmpty) {
+            // Create separate activities for each partial payment
+            for (final partialPayment in partialPayments) {
+              final activity = Activity(
+                id: 'activity_partial_${debt.id}_${partialPayment.id}',
+                date: partialPayment.paidAt,
+                type: ActivityType.payment,
+                customerName: debt.customerName,
+                customerId: debt.customerId,
+                description: debt.description,
+                amount: debt.amount,
+                paymentAmount: partialPayment.amount,
+                oldStatus: DebtStatus.pending,
+                newStatus: DebtStatus.pending, // Still pending until fully paid
+                debtId: debt.id,
+              );
+              
+              await _dataService.addActivity(activity);
+              _activities.add(activity);
+            }
+            
+            // Create final payment activity for the remaining amount
+            final totalPartialPaid = partialPayments.fold(0.0, (sum, p) => sum + p.amount);
+            final remainingAmount = debt.amount - totalPartialPaid;
+            
+            if (remainingAmount > 0) {
+              final finalActivity = Activity(
+                id: 'activity_final_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+                date: debt.paidAt ?? DateTime.now(),
+                type: ActivityType.payment,
+                customerName: debt.customerName,
+                customerId: debt.customerId,
+                description: debt.description,
+                amount: debt.amount,
+                paymentAmount: remainingAmount,
+                oldStatus: DebtStatus.pending,
+                newStatus: DebtStatus.paid,
+                debtId: debt.id,
+              );
+              
+              await _dataService.addActivity(finalActivity);
+              _activities.add(finalActivity);
+            }
+          } else {
+            // No partial payments, create single full payment activity
+            final activity = Activity(
+              id: 'activity_payment_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
+              date: debt.paidAt ?? DateTime.now(),
+              type: ActivityType.payment,
+              customerName: debt.customerName,
+              customerId: debt.customerId,
+              description: debt.description,
+              amount: debt.amount,
+              paymentAmount: debt.amount,
+              oldStatus: DebtStatus.pending,
+              newStatus: DebtStatus.paid,
+              debtId: debt.id,
+            );
+            
+            await _dataService.addActivity(activity);
+            _activities.add(activity);
+          }
         }
       }
       
@@ -1300,83 +1392,80 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Create a fully paid activity for Charbel
-  Future<void> createFullyPaidActivity() async {
+  // Clean up duplicate or incorrect activities for a specific customer
+  Future<void> cleanupCustomerActivities(String customerName) async {
     try {
-      // Create activity with current timestamp
-      final now = DateTime.now();
-      final activity = Activity(
-        id: 'fully_paid_${now.millisecondsSinceEpoch}',
-        date: now,
-        type: ActivityType.payment,
-        customerName: 'Charbel Bechaalany',
-        customerId: 'charbel_id',
-        description: 'alfa ushare 10gb',
-        amount: 15.0,
-        paymentAmount: 15.0,
-        oldStatus: DebtStatus.pending,
-        newStatus: DebtStatus.paid,
-        debtId: 'fully_paid_debt_id',
-      );
+      // Find all activities for this customer
+      final customerActivities = _activities.where((activity) => 
+        activity.customerName.toLowerCase() == customerName.toLowerCase()
+      ).toList();
       
-      // Add to storage first
-      await _dataService.addActivity(activity);
-      
-      // Add to local list
-      _activities.add(activity);
+      // Remove all activities for this customer
+      for (final activity in customerActivities) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+      }
       
       // Sort activities by date (newest first)
       _activities.sort((a, b) => b.date.compareTo(a.date));
       
-      // Force notify listeners
+      // Notify listeners
       notifyListeners();
       
-    } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  // Clean up activities for deleted customers
-  Future<void> cleanupOldActivities() async {
-    try {
-      final validCustomerNames = _customers.map((c) => c.name.toLowerCase()).toSet();
-      final activitiesToKeep = <Activity>[];
-      final activitiesToDelete = <Activity>[];
-      
-      for (final activity in _activities) {
-        if (validCustomerNames.contains(activity.customerName.toLowerCase())) {
-          activitiesToKeep.add(activity);
-        } else {
-          activitiesToDelete.add(activity);
-        }
-      }
-      
-      // Remove old activities from storage
-      for (final activity in activitiesToDelete) {
-        try {
-          await _dataService.deleteActivity(activity.id);
-        } catch (e) {
-          print('Error deleting activity ${activity.id}: $e');
-        }
-      }
-      
-      // Update local list
-      _activities.clear();
-      _activities.addAll(activitiesToKeep);
-      
-      // Only notify if we're still active
-      try {
-        notifyListeners();
-      } catch (e) {
-        print('Error notifying listeners during cleanup: $e');
-      }
-      
-      print('Cleaned up ${activitiesToDelete.length} old activities');
+      print('Cleaned up ${customerActivities.length} activities for $customerName');
       
     } catch (e) {
       print('Error cleaning up activities: $e');
     }
   }
+
+  // Create a payment activity for a specific customer (for testing/fixing)
+  Future<void> createPaymentActivityForCustomer(String customerName, double amount, String description) async {
+    try {
+      // Find the customer
+      final customer = _customers.firstWhere(
+        (c) => c.name.toLowerCase() == customerName.toLowerCase(),
+        orElse: () => Customer(id: '', name: '', phone: '', createdAt: DateTime.now()),
+      );
+      
+      if (customer.id.isEmpty) {
+        print('Customer not found: $customerName');
+        return;
+      }
+      
+      // Create payment activity
+      final activity = Activity(
+        id: 'payment_${customer.id}_${DateTime.now().millisecondsSinceEpoch}',
+        date: DateTime.now(),
+        type: ActivityType.payment,
+        customerName: customer.name,
+        customerId: customer.id,
+        description: description,
+        amount: amount,
+        paymentAmount: amount,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.paid,
+        debtId: 'manual_payment_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      
+      // Add to storage and local list
+      await _dataService.addActivity(activity);
+      _activities.add(activity);
+      
+      // Sort activities by date (newest first)
+      _activities.sort((a, b) => b.date.compareTo(a.date));
+      
+      // Notify listeners
+      notifyListeners();
+      
+      print('Created payment activity for $customerName: ${amount}');
+      
+    } catch (e) {
+      print('Error creating payment activity: $e');
+    }
+  }
+
+
 
   // Settings methods
   Future<void> setDarkModeEnabled(bool enabled) async {
@@ -1610,20 +1699,5 @@ class AppState extends ChangeNotifier {
 
 
 
-  // Clean up existing cleared activities
-  Future<void> cleanupClearedActivities() async {
-    try {
-      final clearedActivities = _activities.where((activity) => activity.type == ActivityType.debtCleared).toList();
-      
-      for (final activity in clearedActivities) {
-        await _dataService.deleteActivity(activity.id);
-        _activities.removeWhere((a) => a.id == activity.id);
-      }
-      
-      notifyListeners();
-      
-    } catch (e) {
-      // Handle error silently
-    }
-  }
+
 } 

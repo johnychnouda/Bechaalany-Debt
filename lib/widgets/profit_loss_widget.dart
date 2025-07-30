@@ -60,7 +60,6 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
         
         // Calculate total outstanding debts
         final totalDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).fold<double>(0.0, (sum, debt) => sum + debt.remainingAmount);
-        final remainingAmount = totalRevenue - totalDebts;
 
 
         return SlideTransition(

@@ -1215,10 +1215,10 @@ class _ProductCard extends StatelessWidget {
                 Expanded(
                   child: _buildInfoChip(
                     context,
-                    'Profit',
+                    subcategory.profit >= 0 ? 'Profit' : 'Loss',
                     CurrencyFormatter.formatAmount(context, subcategory.profit),
                     Icons.trending_up,
-                    AppColors.success,
+                    subcategory.profit >= 0 ? AppColors.success : Colors.red,
                   ),
                 ),
               ],

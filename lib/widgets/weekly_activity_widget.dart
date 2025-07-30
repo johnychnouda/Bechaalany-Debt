@@ -190,12 +190,12 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, ActivityView view) {
+    final activities = <Activity>[];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
-    DateTime startDate;
-    DateTime endDate;
-    
+    // Define date ranges based on view
+    DateTime startDate, endDate;
     switch (view) {
       case ActivityView.daily:
         startDate = today;
@@ -210,8 +210,6 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
         endDate = DateTime(now.year, now.month + 1, 0);
         break;
     }
-    
-    final activities = <Activity>[];
 
     for (final activity in appState.activities) {
       // Filter out debtCleared activities - only show new debts and payments
@@ -219,17 +217,13 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
         continue;
       }
       
-      // Filter out activities for customers that no longer exist
-      final customerExists = appState.customers.any((customer) => 
-        customer.name.toLowerCase() == activity.customerName.toLowerCase()
-      );
-      
-      if (!customerExists) {
-        continue;
+      // Check if activity date is within the period (inclusive)
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+        
+        activities.add(activity);
       }
-      
-      // Add only activities for existing customers
-      activities.add(activity);
     }
 
     // Sort by date (newest first)
@@ -255,7 +249,17 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add debts or make payments to see activity here',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       );

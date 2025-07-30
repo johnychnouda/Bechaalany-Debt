@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
@@ -167,7 +168,19 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Calculate totals from all customer debts (including paid ones)
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         final totalDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-        final totalPaid = allCustomerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        
+        // Calculate total paid from active debts
+        final totalPaidFromActiveDebts = allCustomerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        
+        // Calculate total paid from payment activities (includes cleared/deleted debts)
+        final paymentActivities = appState.activities.where((a) => 
+          a.customerId == _currentCustomer.id && 
+          a.type == ActivityType.payment
+        ).toList();
+        final totalPaidFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+        
+        // Total paid is the sum of active debt payments and payment activities
+        final totalPaid = totalPaidFromActiveDebts + totalPaidFromActivities;
         
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts

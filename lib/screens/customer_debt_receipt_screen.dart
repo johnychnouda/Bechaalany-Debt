@@ -36,51 +36,16 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
 class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
-    // Find the most recent payment date to determine which debts are relevant
-    DateTime? latestPaymentDate;
-    
-    // Check partial payments for this customer
-    for (final payment in widget.partialPayments) {
-      final debt = allCustomerDebts.firstWhere(
-        (d) => d.id == payment.debtId,
-        orElse: () => Debt(
-          id: '',
-          customerId: '',
-          customerName: '',
-          amount: 0.0,
-          description: '',
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: DateTime.now(),
-        ),
-      );
-      
-      if (debt.id.isNotEmpty) {
-        if (latestPaymentDate == null || payment.paidAt.isAfter(latestPaymentDate)) {
-          latestPaymentDate = payment.paidAt;
-        }
-      }
-    }
-    
-    // Check fully paid debts
-    for (final debt in allCustomerDebts) {
-      if (debt.isFullyPaid && debt.paidAt != null) {
-        if (latestPaymentDate == null || debt.paidAt!.isAfter(latestPaymentDate)) {
-          latestPaymentDate = debt.paidAt;
-        }
-      }
-    }
-    
-    // If no payments found, include all debts
-    if (latestPaymentDate == null) {
-      return allCustomerDebts;
-    }
-    
-    // Only include debts that were created on or before the latest payment date
-    // This excludes new debts created after the payment was completed
+    // Include all active debts (not fully paid) and fully paid debts
+    // This ensures new debts are included even if they were created after payments
     return allCustomerDebts.where((debt) {
-      return debt.createdAt.isBefore(latestPaymentDate!) || 
-             debt.createdAt.isAtSameMomentAs(latestPaymentDate);
+      // Include all debts that are not fully paid (pending or partially paid)
+      if (!debt.isFullyPaid) {
+        return true;
+      }
+      
+      // Include fully paid debts for historical reference
+      return debt.isFullyPaid;
     }).toList();
   }
   

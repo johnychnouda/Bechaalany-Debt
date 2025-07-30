@@ -62,7 +62,7 @@ class RecentActivityWidget extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 if (topActivities.isEmpty)
-                  const Center(
+                  Center(
                     child: Column(
                       children: [
                         Icon(
@@ -70,13 +70,23 @@ class RecentActivityWidget extends StatelessWidget {
                           size: 32,
                           color: AppColors.textLight,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'No recent activity',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Add debts or make payments to see activity here',
+                          style: TextStyle(
+                            color: AppColors.textSecondary.withValues(alpha: 0.7),
+                            fontSize: 12,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),

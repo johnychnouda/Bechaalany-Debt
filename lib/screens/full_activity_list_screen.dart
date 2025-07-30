@@ -436,11 +436,11 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   String _getEmptyMessage(ActivityView view) {
     switch (view) {
       case ActivityView.daily:
-        return 'No activity today';
+        return 'No activity today\nAdd debts or make payments to see activity here';
       case ActivityView.weekly:
-        return 'No activity this week';
+        return 'No activity this week\nAdd debts or make payments to see activity here';
       case ActivityView.monthly:
-        return 'No activity this month';
+        return 'No activity this month\nAdd debts or make payments to see activity here';
     }
   }
 
@@ -476,17 +476,13 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         continue; // Skip cleared activities
       }
       
-      // Filter out activities for customers that no longer exist
-      final customerExists = appState.customers.any((customer) => 
-        customer.name.toLowerCase() == activity.customerName.toLowerCase()
-      );
-      
-      if (!customerExists) {
-        continue;
+      // Check if activity date is within the period (inclusive)
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+        
+        activities.add(activity);
       }
-      
-      // Add only activities for existing customers
-      activities.add(activity);
     }
 
     // Sort by date (newest first)
@@ -499,14 +495,20 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       return activities;
     }
     
+    final searchQuery = _searchQuery.trim();
+    final isNumericQuery = int.tryParse(searchQuery) != null;
+    
     return activities.where((activity) {
       final customerName = activity.customerName.toLowerCase();
-      final customerId = activity.customerId.toLowerCase();
-      final searchQuery = _searchQuery.toLowerCase();
+      final searchQueryLower = searchQuery.toLowerCase();
       
-      return customerName.contains(searchQuery) || 
-             customerId.contains(searchQuery) ||
-             customerId == searchQuery; // Exact match for ID
+      if (isNumericQuery) {
+        // Search by customer ID (exact match for numbers)
+        return activity.customerId == searchQuery;
+      } else {
+        // Search by customer name (contains match for text)
+        return customerName.contains(searchQueryLower);
+      }
     }).toList();
   }
 } 

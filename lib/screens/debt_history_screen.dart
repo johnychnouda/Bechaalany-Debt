@@ -56,7 +56,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         String debtStatus;
         if (debt.isFullyPaid) {
           debtStatus = 'fully paid';
-        } else if (debt.paidAmount > 0) {
+        } else if (debt.isPartiallyPaid) {
           debtStatus = 'partially paid';
         } else {
           debtStatus = 'pending';
@@ -75,23 +75,121 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   }
 
   void _groupDebtsIndividually(List<Debt> debts) {
-    // Show each debt as a separate entry (not grouped by customer)
-    _groupedDebts = debts.map((debt) {
-      return {
-        'customerId': debt.customerId,
-        'customerName': debt.customerName,
-        'debts': [debt], // Single debt per entry
-        'totalAmount': debt.amount,
-        'totalPaidAmount': debt.paidAmount,
-        'totalRemainingAmount': debt.remainingAmount,
-        'totalDebts': 1,
-        'pendingDebts': debt.isFullyPaid ? 0 : (debt.paidAmount > 0 ? 0 : 1),
-        'paidDebts': debt.isFullyPaid ? 1 : 0,
-        'partiallyPaidDebts': debt.isFullyPaid ? 0 : (debt.paidAmount > 0 ? 1 : 0),
-      };
-    }).toList();
+    // Get all debts from the app state to check for partially paid debts
+    final appState = Provider.of<AppState>(context, listen: false);
+    final allDebts = appState.debts;
     
-    // Sort individual debts
+    // Group debts by customer
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    
+    for (final debt in debts) {
+      final customerKey = debt.customerId;
+      
+      if (!customerDebtsMap.containsKey(customerKey)) {
+        customerDebtsMap[customerKey] = [];
+      }
+      
+      customerDebtsMap[customerKey]!.add(debt);
+    }
+    
+    _groupedDebts = [];
+    
+    for (final entry in customerDebtsMap.entries) {
+      final customerDebts = entry.value;
+      final customerId = entry.key;
+      
+      // Skip customers with no debts
+      if (customerDebts.isEmpty) continue;
+      
+      // Get ALL debts for this customer (not just filtered ones) to check status
+      final allCustomerDebts = allDebts.where((d) => d.customerId == customerId).toList();
+      
+      // Categorize debts by status
+      final pendingDebts = customerDebts.where((d) => !d.isPartiallyPaid && !d.isFullyPaid).toList();
+      final partiallyPaidDebts = customerDebts.where((d) => d.isPartiallyPaid).toList();
+      final fullyPaidDebts = customerDebts.where((d) => d.isFullyPaid).toList();
+      
+      // Check if customer has ANY partially paid debts in the entire system
+      final hasPartiallyPaidDebts = allCustomerDebts.any((d) => d.isPartiallyPaid);
+      
+      // PHASE 1: PENDING PHASE - Customer has no partial payments yet
+      // Show grouped pending card (combines all pending debts)
+      // Only show pending grouped card if there are NO partially paid debts for this customer
+      // AND we're on the "Pending" or "All" filter
+      if (pendingDebts.isNotEmpty && 
+          !hasPartiallyPaidDebts && 
+          (_selectedStatus == 'Pending' || _selectedStatus == 'All')) {
+        final totalAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalRemainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        
+        _groupedDebts.add({
+          'customerId': pendingDebts.first.customerId,
+          'customerName': pendingDebts.first.customerName,
+          'debts': pendingDebts,
+          'totalAmount': totalAmount,
+          'totalPaidAmount': 0.0,
+          'totalRemainingAmount': totalRemainingAmount,
+          'totalDebts': pendingDebts.length,
+          'pendingDebts': pendingDebts.length,
+          'paidDebts': 0,
+          'partiallyPaidDebts': 0,
+          'isGrouped': true,
+        });
+      }
+      
+      // PHASE 2: PARTIALLY PAID PHASE - Customer has made partial payments
+      // Show ONE grouped card for all partially paid debts (combines all active debts)
+      if (partiallyPaidDebts.isNotEmpty || (_selectedStatus == 'Partially Paid' && hasPartiallyPaidDebts)) {
+        // If we're on "Partially Paid" filter, use all customer debts
+        // Otherwise, combine partially paid debts and any new pending debts
+        final allActiveDebts = _selectedStatus == 'Partially Paid' 
+            ? allCustomerDebts.where((d) => d.isPartiallyPaid || (!d.isFullyPaid && d.paidAmount == 0)).toList()
+            : [...partiallyPaidDebts, ...pendingDebts];
+        
+        // Calculate totals for the grouped card
+        final totalAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        final totalRemainingAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        
+        _groupedDebts.add({
+          'customerId': allActiveDebts.first.customerId,
+          'customerName': allActiveDebts.first.customerName,
+          'debts': allActiveDebts,
+          'totalAmount': totalAmount,
+          'totalPaidAmount': totalPaidAmount,
+          'totalRemainingAmount': totalRemainingAmount,
+          'totalDebts': allActiveDebts.length,
+          'pendingDebts': allActiveDebts.where((d) => d.paidAmount == 0).length,
+          'paidDebts': 0,
+          'partiallyPaidDebts': allActiveDebts.where((d) => d.paidAmount > 0 && !d.isFullyPaid).length,
+          'isGrouped': true,
+        });
+      }
+      
+      // PHASE 3: FULLY PAID PHASE - Show ONE grouped card for all fully paid debts
+      if (fullyPaidDebts.isNotEmpty) {
+        // Calculate totals for the grouped fully paid card
+        final totalAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        final totalRemainingAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        
+        _groupedDebts.add({
+          'customerId': fullyPaidDebts.first.customerId,
+          'customerName': fullyPaidDebts.first.customerName,
+          'debts': fullyPaidDebts,
+          'totalAmount': totalAmount,
+          'totalPaidAmount': totalPaidAmount,
+          'totalRemainingAmount': totalRemainingAmount,
+          'totalDebts': fullyPaidDebts.length,
+          'pendingDebts': 0,
+          'paidDebts': fullyPaidDebts.length,
+          'partiallyPaidDebts': 0,
+          'isGrouped': true,
+        });
+      }
+    }
+    
+    // Sort grouped debts
     _sortGroupedDebts();
   }
 
@@ -369,12 +467,15 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final customer = appState.customers.firstWhere((c) => c.id == customerId);
     
+    // Get all debts for this customer to show in receipt
+    final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+    
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
-          customerDebts: [specificDebt], // Only show this specific debt
+          customerDebts: allCustomerDebts, // Show all customer debts in receipt
           partialPayments: appState.partialPayments,
         ),
       ),
@@ -457,7 +558,7 @@ class _GroupedDebtCard extends StatelessWidget {
     if (firstDebt.isFullyPaid) {
       return 'Fully Paid';
     } else if (firstDebt.paidAmount > 0) {
-      return 'Partially Paid';
+      return ''; // Remove "remaining" status text
     } else {
       return 'Pending';
     }
@@ -498,20 +599,32 @@ class _GroupedDebtCard extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              group['customerName'] as String,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                color: Colors.black,
-                              ),
-                              overflow: TextOverflow.clip,
-                              maxLines: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        group['customerName'] as String,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                        ),
+                                        overflow: TextOverflow.clip,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+
+                                  ],
+                                ),
+
+                              ],
                             ),
                           ),
                           const SizedBox(width: 16),
                           // Amount on the same line as customer name
-                          // Always show individual debt amount since each debt is now a separate receipt
                           Text(
                             _getAmountText(context),
                             style: TextStyle(
@@ -631,16 +744,33 @@ class _GroupedDebtCard extends StatelessWidget {
 
   String _getAmountText(BuildContext context) {
     final debts = group['debts'] as List<Debt>;
+    final isGrouped = group['isGrouped'] as bool? ?? false;
+    
     if (debts.isEmpty) return '';
     
-    final debt = debts.first; // Since we're showing individual debts in "All" view
-    
-    if (debt.isFullyPaid) {
-      return '${CurrencyFormatter.formatAmount(context, debt.amount)} paid';
-    } else if (debt.paidAmount > 0) {
-      return '${CurrencyFormatter.formatAmount(context, debt.remainingAmount)} remaining';
+    if (isGrouped && debts.length > 1) {
+      // For grouped debts, check if all are fully paid
+      final allFullyPaid = debts.every((debt) => debt.isFullyPaid);
+      
+      if (allFullyPaid) {
+        // For fully paid grouped debts, show total amount paid
+        final totalAmount = debts.fold(0.0, (sum, debt) => sum + debt.amount);
+        return '${CurrencyFormatter.formatAmount(context, totalAmount)} paid';
+      } else {
+        // For partially paid grouped debts, show remaining amount
+        final totalRemainingAmount = debts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        return '${CurrencyFormatter.formatAmount(context, totalRemainingAmount)}';
+      }
     } else {
-      return '${CurrencyFormatter.formatAmount(context, debt.amount)}';
+      // Show individual debt amount
+      final debt = debts.first;
+      if (debt.isFullyPaid) {
+        return '${CurrencyFormatter.formatAmount(context, debt.amount)} paid';
+      } else if (debt.paidAmount > 0) {
+        return 'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}';
+      } else {
+        return '${CurrencyFormatter.formatAmount(context, debt.amount)}';
+      }
     }
   }
 

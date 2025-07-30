@@ -32,10 +32,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh data when dependencies change (like when returning from other screens)
-    final appState = Provider.of<AppState>(context, listen: false);
-    if (!appState.isLoading) {
-      appState.refresh();
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (!appState.isLoading) {
+        appState.refresh();
+      }
+    });
   }
 
   @override
