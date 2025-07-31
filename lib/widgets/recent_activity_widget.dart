@@ -3,26 +3,24 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 
 import '../models/activity.dart';
+import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 
-enum ActivityPeriod { daily, weekly, monthly }
+enum ActivityPeriod { daily, weekly, monthly, yearly }
 
 class RecentActivityWidget extends StatelessWidget {
-  final ActivityPeriod period;
-  
   const RecentActivityWidget({
     super.key,
-    this.period = ActivityPeriod.weekly,
   });
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Get activities for the selected period
-        final activities = _getActivitiesForPeriod(appState, period);
+        // Get daily activities only
+        final activities = _getActivitiesForPeriod(appState, ActivityPeriod.daily);
         
         // Take the top 3 activities and filter out cleared activities
         final topActivities = activities.where((activity) => activity.type != ActivityType.debtCleared).take(3).toList();
@@ -50,7 +48,7 @@ class RecentActivityWidget extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _getPeriodTitle(period),
+                        'Today\'s Activity',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -97,7 +95,7 @@ class RecentActivityWidget extends StatelessWidget {
                       // Determine if this is a full payment
                       bool isFullPayment = activity.type == ActivityType.payment && 
                                          activity.paymentAmount != null && 
-                                         activity.paymentAmount == activity.amount;
+                                         activity.newStatus == DebtStatus.paid;
                       
                       IconData icon;
                       Color iconColor;
@@ -182,6 +180,18 @@ class RecentActivityWidget extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            // Centered date between left icon and right amount
+                            Expanded(
+                              child: Center(
+                                child: Text(
+                                  _getTimeAgo(activity.date),
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
+                              ),
+                            ),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
@@ -196,23 +206,13 @@ class RecentActivityWidget extends StatelessWidget {
                                   ),
                                 if (activity.type == ActivityType.payment && activity.paymentAmount != null)
                                   Text(
-                                    isFullPayment
-                                        ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                                        : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                                    CurrencyFormatter.formatAmount(context, activity.paymentAmount!),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                       color: isFullPayment ? AppColors.success : AppColors.warning,
                                     ),
                                   ),
-                                // Removed debtCleared case since we filter those activities out
-                                Text(
-                                  _getTimeAgo(activity.date),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.textLight,
-                                  ),
-                                ),
                               ],
                             ),
                           ],
@@ -236,6 +236,8 @@ class RecentActivityWidget extends StatelessWidget {
         return 'Weekly Activity';
       case ActivityPeriod.monthly:
         return 'Monthly Activity';
+      case ActivityPeriod.yearly:
+        return 'Yearly Activity';
     }
   }
 
@@ -258,6 +260,11 @@ class RecentActivityWidget extends StatelessWidget {
         final startOfMonth = DateTime(now.year, now.month, 1);
         final endOfMonth = DateTime(now.year, now.month + 1, 0);
         return _getActivitiesForDateRange(appState, startOfMonth, endOfMonth);
+        
+      case ActivityPeriod.yearly:
+        final startOfYear = DateTime(now.year, 1, 1);
+        final endOfYear = DateTime(now.year, 12, 31);
+        return _getActivitiesForDateRange(appState, startOfYear, endOfYear);
     }
   }
 

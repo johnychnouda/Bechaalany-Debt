@@ -16,13 +16,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final DataService _dataService = DataService();
   List<String> _availableBackups = [];
   bool _isLoading = false;
-  late ScaffoldMessengerState _scaffoldMessenger;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scaffoldMessenger = ScaffoldMessenger.of(context);
-  }
 
   @override
   void initState() {
@@ -46,7 +39,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        _scaffoldMessenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading backups: $e')),
         );
       }
@@ -63,13 +56,13 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       await _loadBackups();
       
       if (mounted) {
-        _scaffoldMessenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Backup created successfully')),
         );
       }
     } catch (e) {
       if (mounted) {
-        _scaffoldMessenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error creating backup: $e')),
         );
       }
@@ -117,21 +110,21 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         await appState.initialize();
         
         if (mounted) {
-          _scaffoldMessenger.showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Data restored successfully')),
           );
           Navigator.of(context).pop();
         }
       } else {
         if (mounted) {
-          _scaffoldMessenger.showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to restore data')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        _scaffoldMessenger.showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error restoring data: $e')),
         );
       }

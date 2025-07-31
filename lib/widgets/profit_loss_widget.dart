@@ -5,6 +5,7 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 
 class ProfitLossWidget extends StatefulWidget {
   const ProfitLossWidget({super.key});
@@ -53,13 +54,21 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Calculate revenue from product sales + customer payments
+        // Calculate revenue from product sales + ALL customer payments (including cleared debts)
         final productRevenue = appState.productPurchases.fold<double>(0.0, (sum, purchase) => sum + purchase.totalAmount);
-        final paymentRevenue = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
+        
+        // Get ALL payment activities (including from cleared debts)
+        final allPaymentActivities = appState.activities.where((activity) => 
+          activity.type == ActivityType.payment && activity.paymentAmount != null
+        ).toList();
+        final paymentRevenue = allPaymentActivities.fold<double>(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+        
         final totalRevenue = productRevenue + paymentRevenue;
         
-        // Calculate total outstanding debts
-        final totalDebts = appState.debts.where((debt) => debt.status == DebtStatus.pending).fold<double>(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Calculate total debts: sum of all debt amounts minus total partial payments
+        final totalDebtAmount = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.amount);
+        final totalPartialPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
+        final totalDebts = totalDebtAmount - totalPartialPayments;
 
 
         return SlideTransition(

@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../models/activity.dart';
+import '../models/debt.dart';
 import '../screens/full_activity_list_screen.dart';
 import '../utils/debt_description_utils.dart';
 
@@ -29,6 +30,9 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
           _currentView = ActivityView.monthly;
           break;
         case ActivityView.monthly:
+          _currentView = ActivityView.yearly;
+          break;
+        case ActivityView.yearly:
           _currentView = ActivityView.daily;
           break;
       }
@@ -44,6 +48,8 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
         return 'Weekly Activity - ${_getWeekRange(now)}';
       case ActivityView.monthly:
         return 'Monthly Activity - ${_getMonthYear(now)}';
+      case ActivityView.yearly:
+        return 'Yearly Activity - ${now.year}';
     }
   }
 
@@ -113,25 +119,22 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
               children: [
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: _cycleView,
-                      child: Container(
+                    Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
+                        color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
-                        Icons.calendar_today,
-                        color: AppColors.secondary,
+                        Icons.history,
+                        color: AppColors.success,
                         size: 20,
-                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _getViewTitle(),
+                        'Today\'s Activity',
                         style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -179,14 +182,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
   }
 
   Widget _buildCurrentView(AppState appState) {
-    switch (_currentView) {
-      case ActivityView.daily:
-        return _buildActivitiesList(appState, 'Today\'s Activity');
-      case ActivityView.weekly:
-        return _buildActivitiesList(appState, 'This Week\'s Activity');
-      case ActivityView.monthly:
-        return _buildActivitiesList(appState, 'This Month\'s Activity');
-    }
+    return _buildActivitiesList(appState, 'Today\'s Activity');
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, ActivityView view) {
@@ -208,6 +204,10 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
       case ActivityView.monthly:
         startDate = DateTime(now.year, now.month, 1);
         endDate = DateTime(now.year, now.month + 1, 0);
+        break;
+      case ActivityView.yearly:
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31);
         break;
     }
 
@@ -232,7 +232,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
   }
 
   Widget _buildActivitiesList(AppState appState, String title) {
-    final activities = _getActivitiesForPeriod(appState, _currentView);
+    final activities = _getActivitiesForPeriod(appState, ActivityView.daily);
     
     if (activities.isEmpty) {
       return Column(
@@ -289,7 +289,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
     // Determine if this is a full payment
     bool isFullPayment = activity.type == ActivityType.payment && 
                         activity.paymentAmount != null && 
-                        activity.paymentAmount == activity.amount;
+                        activity.newStatus == DebtStatus.paid;
     
     IconData icon;
     Color iconColor;

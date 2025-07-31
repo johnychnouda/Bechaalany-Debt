@@ -21,13 +21,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   String _selectedStatus = 'All';
   Set<String> _lastKnownDebtIds = {};
   bool _sortAscending = false;
-  late ScaffoldMessengerState _scaffoldMessenger;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scaffoldMessenger = ScaffoldMessenger.of(context);
-  }
 
   @override
   void initState() {
@@ -167,25 +160,32 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       }
       
       // PHASE 3: FULLY PAID PHASE - Show ONE grouped card for all fully paid debts
+      // ONLY if customer has NO remaining debts
       if (fullyPaidDebts.isNotEmpty) {
-        // Calculate totals for the grouped fully paid card
-        final totalAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.amount);
-        final totalPaidAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-        final totalRemainingAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Check if customer has any remaining debts (pending or partially paid)
+        final hasRemainingDebts = allCustomerDebts.any((d) => !d.isFullyPaid);
         
-        _groupedDebts.add({
-          'customerId': fullyPaidDebts.first.customerId,
-          'customerName': fullyPaidDebts.first.customerName,
-          'debts': fullyPaidDebts,
-          'totalAmount': totalAmount,
-          'totalPaidAmount': totalPaidAmount,
-          'totalRemainingAmount': totalRemainingAmount,
-          'totalDebts': fullyPaidDebts.length,
-          'pendingDebts': 0,
-          'paidDebts': fullyPaidDebts.length,
-          'partiallyPaidDebts': 0,
-          'isGrouped': true,
-        });
+        // Only show fully paid card if customer has NO remaining debts
+        if (!hasRemainingDebts) {
+          // Calculate totals for the grouped fully paid card
+          final totalAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+          final totalPaidAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+          final totalRemainingAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+          
+          _groupedDebts.add({
+            'customerId': fullyPaidDebts.first.customerId,
+            'customerName': fullyPaidDebts.first.customerName,
+            'debts': fullyPaidDebts,
+            'totalAmount': totalAmount,
+            'totalPaidAmount': totalPaidAmount,
+            'totalRemainingAmount': totalRemainingAmount,
+            'totalDebts': fullyPaidDebts.length,
+            'pendingDebts': 0,
+            'paidDebts': fullyPaidDebts.length,
+            'partiallyPaidDebts': 0,
+            'isGrouped': true,
+          });
+        }
       }
     }
     
@@ -241,13 +241,15 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      _scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
       return;
     }
     
@@ -477,6 +479,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           customer: customer,
           customerDebts: allCustomerDebts, // Show all customer debts in receipt
           partialPayments: appState.partialPayments,
+          activities: appState.activities,
         ),
       ),
     );
@@ -759,7 +762,7 @@ class _GroupedDebtCard extends StatelessWidget {
       } else {
         // For partially paid grouped debts, show remaining amount
         final totalRemainingAmount = debts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-        return '${CurrencyFormatter.formatAmount(context, totalRemainingAmount)}';
+        return 'Remaining: ${CurrencyFormatter.formatAmount(context, totalRemainingAmount)}';
       }
     } else {
       // Show individual debt amount
@@ -912,21 +915,11 @@ class _GroupedDebtCard extends StatelessWidget {
   }
 
   Future<void> _applyPartialPayment(BuildContext context, List<Debt> unpaidDebts, double paymentAmount) async {
-    
-    double remainingPayment = paymentAmount;
     final appState = Provider.of<AppState>(context, listen: false);
     
-    for (final debt in unpaidDebts) {
-      if (remainingPayment <= 0) break;
-      
-      final debtRemaining = debt.remainingAmount;
-      final paymentForThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
-      
-      // Use the new partial payment method
-      await appState.applyPartialPayment(debt.id, paymentForThisDebt);
-      remainingPayment -= paymentForThisDebt;
-    }
-    
+    // Use the new method that creates a single payment activity
+    final debtIds = unpaidDebts.map((debt) => debt.id).toList();
+    await appState.applyPaymentAcrossDebts(debtIds, paymentAmount);
   }
 
   void _showClearDialog(BuildContext context) {
@@ -988,13 +981,15 @@ class _GroupedDebtCard extends StatelessWidget {
       await appState.deleteDebt(debt.id);
     }
     // Show success notification
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Cleared ${completedDebts.length} completed debts for $customerName'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cleared ${completedDebts.length} completed debts for $customerName'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   String _formatDate(DateTime date) {

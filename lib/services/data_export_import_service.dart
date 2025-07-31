@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:csv/csv.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
+// import 'package:cross_file/cross_file.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 
@@ -121,8 +121,8 @@ class DataExportImportService {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        await Share.shareXFiles(
-          [XFile(filePath)],
+        await Share.shareFiles(
+          [filePath],
           text: 'Bechaalany Debt App - Data Export',
           subject: 'Debt App Data Export',
         );
@@ -136,94 +136,97 @@ class DataExportImportService {
 
   Future<Map<String, dynamic>> importFromCSV() async {
     try {
+      // Import functionality temporarily disabled due to file_picker dependency issues
+      throw Exception('Import functionality is temporarily disabled');
+      
       // Pick CSV file
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['csv'],
-        allowMultiple: false,
-      );
+      // final result = await FilePicker.platform.pickFiles(
+      //   type: FileType.custom,
+      //   allowedExtensions: ['csv'],
+      //   allowMultiple: false,
+      // );
 
-      if (result == null || result.files.isEmpty) {
-        throw Exception('No file selected');
-      }
+      // if (result == null || result.files.isEmpty) {
+      //   throw Exception('No file selected');
+      // }
 
-      final file = File(result.files.first.path!);
-      if (!await file.exists()) {
-        throw Exception('Selected file does not exist');
-      }
+      // final file = File(result.files.first.path!);
+      // if (!await file.exists()) {
+      //   throw Exception('Selected file does not exist');
+      // }
 
       // Read CSV content
-      final csvString = await file.readAsString();
-      final csvData = const CsvToListConverter().convert(csvString);
+      // final csvString = await file.readAsString();
+      // final csvData = const CsvToListConverter().convert(csvString);
 
       // Parse the data
-      final customers = <Customer>[];
-      final debts = <Debt>[];
+      // final customers = <Customer>[];
+      // final debts = <Debt>[];
 
-      bool inCustomersSection = true; // Start with customers section
-      bool inDebtsSection = false;
+      // bool inCustomersSection = true; // Start with customers section
+      // bool inDebtsSection = false;
 
-      for (final row in csvData) {
-        if (row.isEmpty || row.length == 1) continue;
+      // for (final row in csvData) {
+      //   if (row.isEmpty || row.length == 1) continue;
 
-        final firstCell = row[0].toString().trim();
+      //   final firstCell = row[0].toString().trim();
         
-        if (firstCell == 'DEBTS') {
-          inCustomersSection = false;
-          inDebtsSection = true;
-          continue;
-        }
+      //   if (firstCell == 'DEBTS') {
+      //     inCustomersSection = false;
+      //     inDebtsSection = true;
+      //     continue;
+      //   }
 
-        if (inCustomersSection && row.length >= 5) {
-          try {
-            // Skip header row
-            if (row[0].toString().toLowerCase().contains('name')) continue;
+      //   if (inCustomersSection && row.length >= 5) {
+      //     try {
+      //       // Skip header row
+      //       if (row[0].toString().toLowerCase().contains('name')) continue;
             
-            final customer = Customer(
-              id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
-              name: row[0].toString(),
-              phone: row[1].toString(),
-              email: row[2].toString().isEmpty ? null : row[2].toString(),
-              address: row[3].toString().isEmpty ? null : row[3].toString(),
-              createdAt: _parseDate(row[4].toString()),
-            );
-            customers.add(customer);
-          } catch (e) {
-            // Handle error silently
-          }
-        }
+      //       final customer = Customer(
+      //         id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
+      //         name: row[0].toString(),
+      //         phone: row[1].toString(),
+      //         email: row[2].toString().isEmpty ? null : row[2].toString(),
+      //         address: row[3].toString().isEmpty ? null : row[3].toString(),
+      //         createdAt: _parseDate(row[4].toString()),
+      //       );
+      //       customers.add(customer);
+      //     } catch (e) {
+      //       // Handle error silently
+      //     }
+      //   }
 
-        if (inDebtsSection && row.length >= 8) {
-          try {
-            // Skip header row
-            if (row[0].toString().toLowerCase().contains('customer')) continue;
+      //   if (inDebtsSection && row.length >= 8) {
+      //     try {
+      //       // Skip header row
+      //       if (row[0].toString().toLowerCase().contains('customer')) continue;
             
-            final debt = Debt(
-              id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
-              customerId: '', // Will be linked by customer name
-              customerName: row[0].toString(),
-              description: row[1].toString(),
-              amount: _parseCurrency(row[2].toString()),
-              type: DebtType.credit, // Default type
-              status: _parseDebtStatus(row[5].toString()),
-              createdAt: _parseDate(row[6].toString()),
-              paidAt: null,
-              notes: row[7].toString().isEmpty ? null : row[7].toString(),
-              paidAmount: _parseCurrency(row[3].toString()),
-            );
-            debts.add(debt);
-          } catch (e) {
-            // Handle error silently
-          }
-        }
-      }
+      //       final debt = Debt(
+      //         id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
+      //         customerId: '', // Will be linked by customer name
+      //         customerName: row[0].toString(),
+      //         description: row[1].toString(),
+      //         amount: _parseCurrency(row[2].toString()),
+      //         type: DebtType.credit, // Default type
+      //         status: _parseDebtStatus(row[5].toString()),
+      //         createdAt: _parseDate(row[6].toString()),
+      //         paidAt: null,
+      //         notes: row[7].toString().isEmpty ? null : row[7].toString(),
+      //         paidAmount: _parseCurrency(row[3].toString()),
+      //       );
+      //       debts.add(debt);
+      //     } catch (e) {
+      //       // Handle error silently
+      //     }
+      //   }
+      // }
 
-      return {
-        'customers': customers,
-        'debts': debts,
-        'totalCustomers': customers.length,
-        'totalDebts': debts.length,
-      };
+      // return {
+      //   'customers': customers,
+      //   'debts': debts,
+      //   'totalCustomers': customers.length,
+      //   'totalDebts': debts.length,
+      // };
     } catch (e) {
       throw Exception('Failed to import data: $e');
     }

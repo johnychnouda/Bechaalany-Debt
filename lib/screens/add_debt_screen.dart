@@ -21,13 +21,6 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
   final _amountController = TextEditingController();
   Customer? _selectedCustomer;
   bool _isLoading = false;
-  late ScaffoldMessengerState _scaffoldMessenger;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scaffoldMessenger = ScaffoldMessenger.of(context);
-  }
 
   @override
   void initState() {
@@ -54,12 +47,14 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     final customers = appState.customers;
     
     if (customers.isEmpty) {
-      _scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('No customers available. Please add a customer first.'),
-          backgroundColor: AppColors.warning,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No customers available. Please add a customer first.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
       return;
     }
 

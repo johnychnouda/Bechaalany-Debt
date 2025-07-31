@@ -4,10 +4,11 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
+import '../models/debt.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 
-enum ActivityView { daily, weekly, monthly }
+enum ActivityView { daily, weekly, monthly, yearly }
 
 class FullActivityListScreen extends StatefulWidget {
   final ActivityView initialView;
@@ -33,7 +34,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     super.initState();
     _currentView = widget.initialView;
     _tabController = TabController(
-      length: 3,
+      length: 4,
       vsync: this,
       initialIndex: _currentView.index,
     );
@@ -42,15 +43,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         _currentView = ActivityView.values[_tabController.index];
       });
     });
-    
-    // Add sample data for testing if no debts exist
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _addSampleDataIfNeeded();
-    });
-  }
-
-  void _addSampleDataIfNeeded() {
-    // Sample data generation removed
   }
 
   @override
@@ -86,6 +78,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             Tab(text: 'Daily'),
             Tab(text: 'Weekly'),
             Tab(text: 'Monthly'),
+            Tab(text: 'Yearly'),
           ],
         ),
       ),
@@ -95,11 +88,12 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildActivityView(ActivityView.daily),
-                _buildActivityView(ActivityView.weekly),
-                _buildActivityView(ActivityView.monthly),
-              ],
+                        children: [
+            _buildActivityView(ActivityView.daily),
+            _buildActivityView(ActivityView.weekly),
+            _buildActivityView(ActivityView.monthly),
+            _buildActivityView(ActivityView.yearly),
+          ],
             ),
           ),
         ],
@@ -205,14 +199,14 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   }
 
   Widget _buildActivityItem(Activity activity) {
-    IconData icon;
-    Color iconColor;
-    Color backgroundColor;
-
     // Determine if this is a full payment
     bool isFullPayment = activity.type == ActivityType.payment && 
                         activity.paymentAmount != null && 
-                        activity.paymentAmount == activity.amount;
+                        activity.newStatus == DebtStatus.paid;
+
+    IconData icon;
+    Color iconColor;
+    Color backgroundColor;
 
     switch (activity.type) {
       case ActivityType.newDebt:
@@ -239,98 +233,101 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         break;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity.customerName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // Only show product description for new debts, not for payments
+                if (activity.type == ActivityType.newDebt)
                   Text(
-                    activity.customerName,
-                    style: AppTheme.body.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.dynamicTextPrimary(context),
+                    DebtDescriptionUtils.cleanDescription(activity.description),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
                   ),
-                  const SizedBox(height: 4),
-                  // Only show product description for new debts, not for payments
-                  if (activity.type == ActivityType.newDebt)
-                    Text(
-                      DebtDescriptionUtils.cleanDescription(activity.description),
-                      style: AppTheme.caption1.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 2,
-                    ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _formatActivityDate(activity.date),
-                          style: AppTheme.caption1.copyWith(
-                            color: AppColors.textLight,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      if (activity.type == ActivityType.newDebt)
-                        Flexible(
-                          child: Text(
-                            CurrencyFormatter.formatAmount(context, activity.amount),
-                            style: AppTheme.body.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                          ),
-                        ),
-                      if (activity.type == ActivityType.payment && activity.paymentAmount != null)
-                        Flexible(
-                          child: Text(
-                            isFullPayment
-                                ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                                : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                            style: AppTheme.body.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isFullPayment ? AppColors.success : AppColors.warning,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                          ),
-                        ),
-                    ],
+                Text(
+                  _getActivityText(activity, isFullPayment),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: activity.type == ActivityType.payment 
+                        ? (isFullPayment ? AppColors.success : AppColors.warning)
+                        : AppColors.textLight,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatActivityDate(activity.date),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textLight,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (activity.type == ActivityType.newDebt)
+                Text(
+                  CurrencyFormatter.formatAmount(context, activity.amount),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+              if (activity.type == ActivityType.payment && activity.paymentAmount != null)
+                Text(
+                  isFullPayment
+                      ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
+                      : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isFullPayment ? AppColors.success : AppColors.warning,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
+  }
+
+  String _getActivityText(Activity activity, bool isFullPayment) {
+    switch (activity.type) {
+      case ActivityType.payment:
+        return isFullPayment ? 'Payment completed' : 'Partial payment';
+      case ActivityType.newDebt:
+        return 'New debt added';
+      case ActivityType.debtCleared:
+        return 'Debt cleared'; // This case should not be reached since we filter out debtCleared
+    }
   }
 
   String _formatActivityDate(DateTime date) {
@@ -350,6 +347,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         }
       case ActivityView.weekly:
       case ActivityView.monthly:
+      case ActivityView.yearly:
         return '${_formatDayDate(date)} at ${_formatTime12Hour(date)}';
     }
   }
@@ -404,6 +402,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         return 'Weekly Activity - ${_formatShortDate(startOfWeek)} - ${_formatShortDate(endOfWeek)}';
       case ActivityView.monthly:
         return 'Monthly Activity - ${_getMonthYear(now)}';
+      case ActivityView.yearly:
+        return 'Yearly Activity - ${now.year}';
     }
   }
 
@@ -441,6 +441,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         return 'No activity this week\nAdd debts or make payments to see activity here';
       case ActivityView.monthly:
         return 'No activity this month\nAdd debts or make payments to see activity here';
+      case ActivityView.yearly:
+        return 'No activity this year\nAdd debts or make payments to see activity here';
     }
   }
 
@@ -450,19 +452,28 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
+        // Show activities created today
         final startDate = today;
         final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
         return _getActivitiesForPeriod(appState, startDate, endDate);
         
       case ActivityView.weekly:
+        // Show activities created this week (Monday to Sunday)
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         return _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
         
       case ActivityView.monthly:
+        // Show activities created this month
         final startOfMonth = DateTime(now.year, now.month, 1);
         final endOfMonth = DateTime(now.year, now.month + 1, 0);
         return _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
+        
+      case ActivityView.yearly:
+        // Show activities created this year
+        final startOfYear = DateTime(now.year, 1, 1);
+        final endOfYear = DateTime(now.year, 12, 31);
+        return _getActivitiesForPeriod(appState, startOfYear, endOfYear);
     }
   }
 
@@ -481,12 +492,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
           (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
         
+        // Additional filter: For payment activities, check if they're still relevant
+        if (activity.type == ActivityType.payment && activity.debtId == null) {
+          // Check if this activity is for a customer who still has pending debts
+          final customerDebts = appState.debts.where((d) => d.customerId == activity.customerId).toList();
+          final hasPendingDebts = customerDebts.any((d) => !d.isFullyPaid);
+          
+          // Only show payment activities if the customer still has pending debts
+          // or if this is a recent activity (within last 24 hours)
+          final isRecent = DateTime.now().difference(activity.date).inHours < 24;
+          
+          if (!hasPendingDebts && !isRecent) {
+            print('Filtering out old payment activity: ${activity.customerName} - ${activity.paymentAmount}');
+            continue; // Skip this activity
+          }
+        }
+        
         activities.add(activity);
       }
     }
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));
+    
     return activities;
   }
 

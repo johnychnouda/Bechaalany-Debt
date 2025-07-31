@@ -11,6 +11,7 @@ import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/partial_payment.dart';
+import '../models/activity.dart';
 import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
@@ -21,12 +22,14 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
   final List<Debt> customerDebts;
   final List<PartialPayment> partialPayments;
+  final List<Activity> activities;
 
   const CustomerDebtReceiptScreen({
     super.key,
     required this.customer,
     required this.customerDebts,
     required this.partialPayments,
+    required this.activities,
   });
 
   @override
@@ -229,16 +232,43 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         'date': debt.createdAt,
         'debt': debt,
       });
+    }
+    
+    // Add payment activities for this customer that are relevant to the debts being viewed
+    final customerPaymentActivities = widget.activities
+        .where((activity) => 
+            activity.type == ActivityType.payment && 
+            activity.customerId == widget.customer.id)
+        .toList();
+    
+    for (Activity activity in customerPaymentActivities) {
+      // Check if this activity is relevant to any of the debts being viewed
+      bool isRelevant = false;
       
-      // Only show partial payments if they exist
-      final partialPayments = _getPartialPaymentsForDebt(debt.id);
-      for (PartialPayment payment in partialPayments) {
+      for (Debt debt in sortedDebts) {
+        // If activity has a specific debt ID, check if it matches
+        if (activity.debtId != null) {
+          if (activity.debtId == debt.id) {
+            isRelevant = true;
+            break;
+          }
+        } else {
+          // If activity doesn't have a specific debt ID (cross-debt payment),
+          // check if the activity date is after the debt creation date
+          if (activity.date.isAfter(debt.createdAt)) {
+            isRelevant = true;
+            break;
+          }
+        }
+      }
+      
+      if (isRelevant) {
         allItems.add({
-          'type': 'partial_payment',
-          'description': 'Partial Payment',
-          'amount': payment.amount,
-          'date': payment.paidAt,
-          'payment': payment,
+          'type': 'payment_activity',
+          'description': activity.paymentAmount == activity.amount ? 'Payment completed' : 'Partial payment',
+          'amount': activity.paymentAmount ?? 0,
+          'date': activity.date,
+          'activity': activity,
         });
       }
     }
@@ -292,6 +322,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           ...allItems.map((item) {
             if (item['type'] == 'debt') {
               return _buildDebtItem(item['debt']);
+            } else if (item['type'] == 'payment_activity') {
+              return _buildPaymentActivityItem(item['activity']);
             } else {
               return _buildPartialPaymentItem(item['payment']);
             }
@@ -374,6 +406,74 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         .toList()
       ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
     return payments;
+  }
+
+  Widget _buildPaymentActivityItem(Activity activity) {
+    final isFullPayment = activity.paymentAmount == activity.amount;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[200]!,
+          width: 0.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: (isFullPayment ? Colors.green[600] : Colors.orange[600])?.withAlpha(26),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isFullPayment ? Icons.check_circle : Icons.payment,
+                  size: 14,
+                  color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  activity.paymentAmount == activity.amount ? 'Payment completed' : 'Partial payment',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _formatDateTime(activity.date),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPartialPaymentItem(PartialPayment payment) {
@@ -637,7 +737,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdfBytes = await pdf.save();
       await file.writeAsBytes(pdfBytes);
       
-      await Share.shareXFiles([XFile(file.path)]);
+      await Share.shareFiles([file.path]);
       
       final notificationService = NotificationService();
       await notificationService.showSuccessNotification(

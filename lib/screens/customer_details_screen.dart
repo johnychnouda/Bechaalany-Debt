@@ -36,12 +36,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     _loadCustomerDebts();
   }
 
-  late ScaffoldMessengerState _scaffoldMessenger;
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _scaffoldMessenger = ScaffoldMessenger.of(context);
     _currentCustomer = widget.customer;
   }
 
@@ -107,13 +104,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      _scaffoldMessenger.showSnackBar(
-        const SnackBar(
-          content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
       return;
     }
     
@@ -167,20 +166,42 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         
         // Calculate totals from all customer debts (including paid ones)
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
-        final totalDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
-        // Calculate total paid from active debts
-        final totalPaidFromActiveDebts = allCustomerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        // Calculate total pending debt (current remaining amount)
+        final totalPendingDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
-        // Calculate total paid from payment activities (includes cleared/deleted debts)
-        final paymentActivities = appState.activities.where((a) => 
+        // Calculate total paid (cumulative sum of all payments made)
+        // This includes payments for active debts and cleared/deleted debts
+        double totalPaid = 0.0;
+        
+        // Add payments from active debts
+        for (final debt in allCustomerDebts) {
+          totalPaid += debt.paidAmount;
+        }
+        
+        // Add payments from cleared/deleted debts (debts that no longer exist but have payment activities)
+        final activeDebtIds = allCustomerDebts.map((d) => d.id).toSet();
+        final paymentActivitiesForClearedDebts = appState.activities.where((a) => 
           a.customerId == _currentCustomer.id && 
-          a.type == ActivityType.payment
+          a.type == ActivityType.payment &&
+          a.debtId != null &&
+          !activeDebtIds.contains(a.debtId)
         ).toList();
-        final totalPaidFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
         
-        // Total paid is the sum of active debt payments and payment activities
-        final totalPaid = totalPaidFromActiveDebts + totalPaidFromActivities;
+        for (final activity in paymentActivitiesForClearedDebts) {
+          totalPaid += activity.paymentAmount ?? 0;
+        }
+        
+        // Also add cross-debt payments (activities without specific debt ID)
+        final crossDebtPayments = appState.activities.where((a) => 
+          a.customerId == _currentCustomer.id && 
+          a.type == ActivityType.payment &&
+          a.debtId == null
+        ).toList();
+        
+        for (final activity in crossDebtPayments) {
+          totalPaid += activity.paymentAmount ?? 0;
+        }
         
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
@@ -421,7 +442,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           ),
                         ),
                         subtitle: Text(
-                          CurrencyFormatter.formatAmount(context, totalDebt),
+                          CurrencyFormatter.formatAmount(context, totalPendingDebt),
                           style: const TextStyle(
                             fontSize: 15,
                             color: Colors.red,
