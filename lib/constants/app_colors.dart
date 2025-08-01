@@ -100,6 +100,24 @@ class AppColors {
         : border;
   }
   
+  static Color dynamicWarning(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFFFF9500) 
+        : warning;
+  }
+  
+  static Color dynamicSuccess(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF34C759) 
+        : success;
+  }
+  
+  static Color dynamicError(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFFFF453A) 
+        : error;
+  }
+  
   // iOS-style Gradients
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [Color(0xFF007AFF), Color(0xFF0056CC)],

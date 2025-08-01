@@ -50,6 +50,7 @@ class RecentDebtsList extends StatelessWidget {
                 if (recentDebts.isEmpty)
                   const Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.account_balance_wallet_outlined,
@@ -63,6 +64,7 @@ class RecentDebtsList extends StatelessWidget {
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),

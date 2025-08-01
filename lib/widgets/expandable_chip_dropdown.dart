@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
 class ExpandableChipDropdown<T> extends StatefulWidget {
-  final String label;
+  final String? label;
   final T? value;
   final List<T> items;
   final String Function(T) itemToString;
@@ -15,7 +15,7 @@ class ExpandableChipDropdown<T> extends StatefulWidget {
 
   const ExpandableChipDropdown({
     super.key,
-    required this.label,
+    this.label,
     required this.value,
     required this.items,
     required this.itemToString,
@@ -31,55 +31,40 @@ class ExpandableChipDropdown<T> extends StatefulWidget {
   State<ExpandableChipDropdown<T>> createState() => _ExpandableChipDropdownState<T>();
 }
 
-class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>> 
-    with TickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _animation;
+class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>> {
   bool _isExpanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Main chip
+        if (widget.label != null) ...[
+          Text(
+            widget.label!,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         GestureDetector(
           onTap: widget.enabled ? () {
             setState(() {
               _isExpanded = !_isExpanded;
-              if (_isExpanded) {
-                _animationController.forward();
-              } else {
-                _animationController.reverse();
-              }
             });
           } : null,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: widget.backgroundColor ?? Colors.grey[50],
-              border: Border.all(
-                color: widget.borderColor ?? Colors.grey[300]!,
-              ),
+              color: widget.backgroundColor ?? AppColors.dynamicSurface(context),
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: widget.borderColor ?? AppColors.dynamicBorder(context),
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
@@ -91,37 +76,38 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
                   child: Text(
                     widget.value != null 
                         ? widget.itemToString(widget.value as T)
-                        : (widget.placeholder ?? widget.label),
+                        : (widget.placeholder ?? widget.label ?? 'Select'),
                     style: TextStyle(
                       fontSize: 16,
-                      color: widget.value != null ? Colors.black : Colors.grey[600],
+                      color: widget.value != null 
+                          ? AppColors.dynamicTextPrimary(context) 
+                          : AppColors.dynamicTextSecondary(context),
                       fontWeight: widget.value != null ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
                 if (widget.enabled)
-                  AnimatedRotation(
-                    turns: _isExpanded ? 0.5 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                  Icon(
+                    _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
               ],
             ),
           ),
         ),
-        
-        // Expandable options
-        SizeTransition(
-          sizeFactor: _animation,
-          child: Container(
+        if (_isExpanded && widget.items.isNotEmpty)
+          Container(
             margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.dynamicSurface(context),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(
+                color: AppColors.dynamicBorder(context),
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withAlpha(26), // 0.1 * 255
+                  color: Colors.black.withAlpha(26),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -140,7 +126,6 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
                       setState(() {
                         _isExpanded = false;
                       });
-                      _animationController.reverse();
                     },
                   ),
                 ],
@@ -154,13 +139,11 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
                     setState(() {
                       _isExpanded = false;
                     });
-                    _animationController.reverse();
                   },
                 )),
               ],
             ),
           ),
-        ),
       ],
     );
   }
@@ -171,7 +154,7 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withAlpha(26) : Colors.transparent, // 0.1 * 255
+          color: isSelected ? AppColors.dynamicPrimary(context).withAlpha(26) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -181,15 +164,17 @@ class _ExpandableChipDropdownState<T> extends State<ExpandableChipDropdown<T>>
                 title,
                 style: TextStyle(
                   fontSize: 16,
-                  color: isSelected ? AppColors.primary : Colors.black87,
+                  color: isSelected 
+                      ? AppColors.dynamicPrimary(context) 
+                      : AppColors.dynamicTextPrimary(context),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ),
             if (isSelected)
               Icon(
-                Icons.check,
-                color: AppColors.primary,
+                Icons.close,
+                color: AppColors.dynamicError(context),
                 size: 20,
               ),
           ],

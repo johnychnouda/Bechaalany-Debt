@@ -60,33 +60,28 @@ class RecentActivityWidget extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 if (topActivities.isEmpty)
-                  Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.history_outlined,
-                          size: 32,
-                          color: AppColors.textLight,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No recent activity',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.history_outlined,
+                            size: 32,
+                            color: AppColors.textLight,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Add debts or make payments to see activity here',
-                          style: TextStyle(
-                            color: AppColors.textSecondary.withValues(alpha: 0.7),
-                            fontSize: 12,
+                          const SizedBox(height: 8),
+                          Text(
+                            'No recent activity',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   )
                 else

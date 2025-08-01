@@ -163,7 +163,7 @@ class BechaalanyDebtApp extends StatelessWidget {
       child: Consumer<AppState>(
         builder: (context, appState, child) {
           return MaterialApp(
-            title: 'Bechaalany Debt',
+            title: 'Bechaalany Connect',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,

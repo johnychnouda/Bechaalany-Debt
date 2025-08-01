@@ -241,14 +241,26 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             activity.customerId == widget.customer.id)
         .toList();
     
+    // Sort activities by date to find the most recent payment for each debt
+    final sortedActivities = List<Activity>.from(customerPaymentActivities)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    
     for (Activity activity in customerPaymentActivities) {
       // Check if this activity is relevant to any of the debts being viewed
       bool isRelevant = false;
+      bool isFinalPayment = false;
       
       for (Debt debt in sortedDebts) {
         // If activity has a specific debt ID, check if it matches
         if (activity.debtId != null) {
           if (activity.debtId == debt.id) {
+            // Check if this is the most recent payment for this debt and the debt is fully paid
+            if (debt.isFullyPaid) {
+              final debtActivities = sortedActivities.where((a) => a.debtId == debt.id).toList();
+              if (debtActivities.isNotEmpty && debtActivities.first == activity) {
+                isFinalPayment = true;
+              }
+            }
             isRelevant = true;
             break;
           }
@@ -256,16 +268,26 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           // If activity doesn't have a specific debt ID (cross-debt payment),
           // check if the activity date is after the debt creation date
           if (activity.date.isAfter(debt.createdAt)) {
+            // For cross-debt payments, check if this is the most recent payment and debt is fully paid
+            if (debt.isFullyPaid) {
+              final debtActivities = sortedActivities.where((a) => 
+                a.customerId == debt.customerId && a.date.isAfter(debt.createdAt)
+              ).toList();
+              if (debtActivities.isNotEmpty && debtActivities.first == activity) {
+                isFinalPayment = true;
+              }
+            }
             isRelevant = true;
             break;
           }
         }
       }
       
-      if (isRelevant) {
+      // Only add the activity if it's relevant and NOT the final payment
+      if (isRelevant && !isFinalPayment) {
         allItems.add({
           'type': 'payment_activity',
-          'description': activity.paymentAmount == activity.amount ? 'Payment completed' : 'Partial payment',
+          'description': 'Partial payment',
           'amount': activity.paymentAmount ?? 0,
           'date': activity.date,
           'activity': activity,
@@ -775,14 +797,35 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         'debt': debt,
       });
       
+      // Add partial payments for this debt, excluding the final payment
       final partialPayments = _getPartialPaymentsForDebt(debt.id);
-      for (PartialPayment payment in partialPayments) {
-        allItems.add({
-          'type': 'partial_payment',
-          'description': 'Partial Payment',
-          'amount': payment.amount,
-          'date': payment.paidAt,
-        });
+      if (partialPayments.isNotEmpty && debt.isFullyPaid) {
+        // For fully paid debts, exclude the most recent payment (the final payment)
+        final sortedPayments = List<PartialPayment>.from(partialPayments)
+          ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+        
+        for (int i = 0; i < partialPayments.length; i++) {
+          final payment = partialPayments[i];
+          // Skip the most recent payment if the debt is fully paid
+          if (!(i == 0 && debt.isFullyPaid)) {
+            allItems.add({
+              'type': 'partial_payment',
+              'description': 'Partial Payment',
+              'amount': payment.amount,
+              'date': payment.paidAt,
+            });
+          }
+        }
+      } else {
+        // For debts that are not fully paid, show all partial payments
+        for (PartialPayment payment in partialPayments) {
+          allItems.add({
+            'type': 'partial_payment',
+            'description': 'Partial Payment',
+            'amount': payment.amount,
+            'date': payment.paidAt,
+          });
+        }
       }
     }
     

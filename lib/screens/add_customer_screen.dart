@@ -273,20 +273,20 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
-
-    
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
         title: Text(
           widget.customer != null ? 'Edit Customer' : 'Add Customer',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
           ),
         ),
-        backgroundColor: Colors.grey[50],
+        backgroundColor: AppColors.dynamicSurface(context),
         elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
       ),
       body: SafeArea(
         child: Form(
@@ -471,23 +471,31 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   
   Widget _buildDuplicateWarning(String message) {
     return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.orange[300]!),
+        color: AppColors.dynamicError(context).withAlpha(26),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.dynamicError(context).withAlpha(51),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.warning, size: 16, color: Colors.orange[700]),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: AppColors.dynamicError(context),
+            size: 20,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: TextStyle(
-                fontSize: 12,
-                color: Colors.orange[700],
+                color: AppColors.dynamicError(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -511,25 +519,46 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 8),
         TextFormField(
           controller: controller,
           enabled: enabled,
-          decoration: InputDecoration(
-            labelText: label,
-            border: const OutlineInputBorder(),
-            prefixIcon: Icon(icon, color: AppColors.textSecondary),
-            filled: true,
-            fillColor: Colors.white,
-          ),
-          keyboardType: keyboardType,
           textCapitalization: textCapitalization ?? TextCapitalization.none,
-          maxLines: maxLines,
           validator: validator,
           onChanged: onChanged,
-          style: const TextStyle(
-            fontSize: 16,
-            color: AppColors.textPrimary,
+          decoration: InputDecoration(
+            hintText: placeholder,
+            hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+            prefixIcon: Icon(icon, color: AppColors.dynamicTextSecondary(context)),
+            filled: true,
+            fillColor: AppColors.dynamicSurface(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicError(context)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
         ),
       ],
     );

@@ -15,7 +15,6 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
@@ -44,7 +43,7 @@ class _MainScreenState extends State<MainScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           color: isSelected 
-              ? AppColors.primary.withValues(alpha: 0.1)
+              ? AppColors.dynamicPrimary(context).withValues(alpha: 0.1)
               : Colors.transparent,
         ),
         child: Column(
@@ -54,8 +53,8 @@ class _MainScreenState extends State<MainScreen> {
               icon,
               size: 24,
               color: isSelected 
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
+                  ? AppColors.dynamicPrimary(context)
+                  : AppColors.dynamicTextSecondary(context),
             ),
             const SizedBox(height: 4),
             Text(
@@ -64,8 +63,8 @@ class _MainScreenState extends State<MainScreen> {
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 color: isSelected 
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
+                    ? AppColors.dynamicPrimary(context)
+                    : AppColors.dynamicTextSecondary(context),
               ),
             ),
           ],
@@ -78,13 +77,14 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const Key('main_screen'),
+      backgroundColor: AppColors.dynamicBackground(context),
       body: IndexedStack(
         index: _currentIndex,
         children: _screens,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: AppColors.dynamicBackground(context),
+          color: AppColors.dynamicSurface(context),
           border: Border(
             top: BorderSide(
               color: AppColors.dynamicBorder(context),

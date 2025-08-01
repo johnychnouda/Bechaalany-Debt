@@ -107,7 +107,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
 
       try {
         final appState = Provider.of<AppState>(context, listen: false);
-        final amount = double.parse(_amountController.text);
+        final amount = double.parse(_amountController.text.replaceAll(',', ''));
         
         final debt = Debt(
           id: appState.generateDebtId(),
@@ -236,10 +236,11 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter an amount';
                 }
-                if (double.tryParse(value) == null) {
+                final cleanValue = value.replaceAll(',', '');
+                if (double.tryParse(cleanValue) == null) {
                   return 'Please enter a valid number';
                 }
-                if (double.parse(value) <= 0) {
+                if (double.parse(cleanValue) <= 0) {
                   return 'Amount must be greater than 0';
                 }
                 return null;

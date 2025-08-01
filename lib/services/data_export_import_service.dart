@@ -99,8 +99,8 @@ class DataExportImportService {
 
   double _parseCurrency(String currencyStr) {
     try {
-      // Remove $ and parse
-      return double.parse(currencyStr.replaceAll('\$', '').trim());
+      // Remove $ and commas, then parse
+      return double.parse(currencyStr.replaceAll('\$', '').replaceAll(',', '').trim());
     } catch (e) {
       return 0.0;
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../constants/app_colors.dart';
 
@@ -8,6 +9,30 @@ import '../models/category.dart' show ProductCategory, Subcategory;
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 import '../services/notification_service.dart';
+
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+    
+    // Remove all non-digit characters
+    String digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    
+    if (digitsOnly.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+    
+    // Format with thousands separators
+    String formatted = NumberFormat('#,###').format(int.parse(digitsOnly));
+    
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -103,172 +128,189 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
-    
     return Scaffold(
-      key: const Key('products_screen'),
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text(
-          'Products',
-          style: TextStyle(
-            color: Theme.of(context).textTheme.titleLarge?.color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark 
-            ? Brightness.light 
-            : Brightness.dark,
-          statusBarBrightness: Theme.of(context).brightness,
-        ),
-      ),
-      body: Consumer<AppState>(
-        builder: (context, appState, child) {
-          return Column(
-            children: [
-              // Search Bar
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                    _filterProducts();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search products...',
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: AppColors.textSecondary,
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).cardColor,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-              
-              // Category Filter Chips
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+      backgroundColor: AppColors.dynamicBackground(context),
+      body: SafeArea(
+        child: Consumer<AppState>(
+          builder: (context, appState, child) {
+            return Column(
+              children: [
+                // Search and Filter Section
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                     children: [
-                      'All',
-                      ...appState.categories.map((cat) => cat.name).where((name) => name.isNotEmpty),
-                    ].map((category) {
-                      final isSelected = _selectedCategory == category;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: FilterChip(
-                          label: Text(category),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setState(() {
-                              _selectedCategory = category;
-                            });
-                            _filterProducts();
-                          },
-                          backgroundColor: Colors.transparent,
-                          selectedColor: AppColors.primary.withAlpha(51), // 0.2 * 255
-                          checkmarkColor: AppColors.primary,
-                          labelStyle: TextStyle(
-                            color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      // Search Bar
+                      TextField(
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                          _filterProducts();
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Search products...',
+                          hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+                          prefixIcon: Icon(Icons.search, color: AppColors.dynamicTextSecondary(context)),
+                          filled: true,
+                          fillColor: AppColors.dynamicSurface(context),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
                           ),
-                          side: BorderSide(
-                            color: isSelected ? AppColors.primary : AppColors.border,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
                           ),
                         ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              
-
-              
-              // Products List
-              Expanded(
-                child: _filteredProducts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+                      ),
+                      const SizedBox(height: 12),
+                      // Filter Chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
                           children: [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 64,
-                              color: Theme.of(context).textTheme.bodySmall?.color,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _getEmptyStateMessage(),
-                              style: TextStyle(
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                            // All filter
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(
+                                  'All',
+                                  style: TextStyle(
+                                    color: _selectedCategory == 'All' 
+                                        ? Colors.white 
+                                        : AppColors.dynamicTextPrimary(context),
+                                    fontWeight: _selectedCategory == 'All' ? FontWeight.w600 : FontWeight.normal,
+                                  ),
+                                ),
+                                selected: _selectedCategory == 'All',
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedCategory = 'All';
+                                  });
+                                  _filterProducts();
+                                },
+                                backgroundColor: _selectedCategory == 'All' 
+                                    ? AppColors.dynamicPrimary(context)
+                                    : AppColors.dynamicSurface(context),
+                                selectedColor: AppColors.dynamicPrimary(context),
+                                checkmarkColor: Colors.white,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _getEmptyStateSubMessage(),
-                              style: TextStyle(
-                                color: Theme.of(context).textTheme.bodySmall?.color,
-                              ),
-                            ),
-
+                            // Category filters
+                            ...appState.categories.map((category) {
+                              final isSelected = _selectedCategory == category.name;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Text(
+                                    category.name,
+                                    style: TextStyle(
+                                      color: isSelected 
+                                          ? Colors.white 
+                                          : AppColors.dynamicTextPrimary(context),
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                    ),
+                                  ),
+                                  selected: isSelected,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedCategory = category.name;
+                                    });
+                                    _filterProducts();
+                                  },
+                                  backgroundColor: isSelected 
+                                      ? AppColors.dynamicPrimary(context)
+                                      : AppColors.dynamicSurface(context),
+                                  selectedColor: AppColors.dynamicPrimary(context),
+                                  checkmarkColor: Colors.white,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              );
+                            }).toList(),
                           ],
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final subcategory = _filteredProducts[index];
-                          
-                          // Find the category name when in "All" view
-                          String? categoryName;
-                          if (_selectedCategory == 'All') {
-                            for (final category in appState.categories) {
-                              if (category.subcategories.contains(subcategory)) {
-                                categoryName = category.name;
-                                break;
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Products List
+                Expanded(
+                  child: _filteredProducts.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                size: 64,
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _getEmptyStateMessage(),
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextPrimary(context),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _getEmptyStateSubMessage(),
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _filteredProducts.length,
+                          itemBuilder: (context, index) {
+                            final subcategory = _filteredProducts[index];
+                            
+                            // Find the category name when in "All" view
+                            String? categoryName;
+                            if (_selectedCategory == 'All') {
+                              for (final category in appState.categories) {
+                                if (category.subcategories.contains(subcategory)) {
+                                  categoryName = category.name;
+                                  break;
+                                }
                               }
                             }
-                          }
-                          
-                          return _ProductCard(
-                            subcategory: subcategory,
-                            onEdit: () => _editProduct(subcategory),
-                            onDelete: () => _deleteProduct(subcategory),
-                            categoryName: categoryName,
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
-        },
+                            
+                            return _ProductCard(
+                              subcategory: subcategory,
+                              onEdit: () => _editProduct(subcategory),
+                              onDelete: () => _deleteProduct(subcategory),
+                              categoryName: categoryName,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
-              floatingActionButton: FloatingActionButton(
-          heroTag: 'products_fab_hero',
-          onPressed: () async {
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'products_fab_hero',
+        onPressed: () async {
           _showAddChoiceDialog(context);
         },
-        backgroundColor: Theme.of(context).colorScheme.primary,
+        backgroundColor: AppColors.dynamicPrimary(context),
         child: const Icon(
           Icons.add,
           color: Colors.white,
@@ -532,16 +574,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
     final nameController = TextEditingController(text: subcategory.name);
-    final costPriceController = TextEditingController(text: subcategory.costPrice.toStringAsFixed(2));
-    final sellingPriceController = TextEditingController(text: subcategory.sellingPrice.toStringAsFixed(2));
     String selectedCurrency = subcategory.costPriceCurrency;
     final double originalCostPriceUSD = subcategory.costPrice;
     final double originalSellingPriceUSD = subcategory.sellingPrice;
+    
+    // Initialize controllers based on currency
+    final costPriceController = TextEditingController();
+    final sellingPriceController = TextEditingController();
+    
+    // Set initial values based on currency
+    if (selectedCurrency == 'LBP') {
+      costPriceController.text = NumberFormat('#,###').format((originalCostPriceUSD * 89500).toInt());
+      sellingPriceController.text = NumberFormat('#,###').format((originalSellingPriceUSD * 89500).toInt());
+    } else {
+      costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
+      sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
+    }
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            // Add listeners to trigger rebuild when text changes
+            nameController.addListener(() => setState(() {}));
+            costPriceController.addListener(() => setState(() {}));
+            sellingPriceController.addListener(() => setState(() {}));
+            
             return AlertDialog(
               title: const Text('Edit Subcategory'),
               contentPadding: const EdgeInsets.all(16),
@@ -571,11 +629,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         setState(() {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
-                            costPriceController.text = (originalCostPriceUSD * 89500).toStringAsFixed(0);
-                            sellingPriceController.text = (originalSellingPriceUSD * 89500).toStringAsFixed(0);
+                            if (originalCostPriceUSD > 0) {
+                              costPriceController.text = NumberFormat('#,###').format((originalCostPriceUSD * 89500).toInt());
+                            } else {
+                              costPriceController.clear();
+                            }
+                            if (originalSellingPriceUSD > 0) {
+                              sellingPriceController.text = NumberFormat('#,###').format((originalSellingPriceUSD * 89500).toInt());
+                            } else {
+                              sellingPriceController.clear();
+                            }
                           } else {
-                            costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
-                            sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
+                            if (originalCostPriceUSD > 0) {
+                              costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
+                            } else {
+                              costPriceController.clear();
+                            }
+                            if (originalSellingPriceUSD > 0) {
+                              sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
+                            } else {
+                              sellingPriceController.clear();
+                            }
                           }
                         });
                       },
@@ -585,65 +659,150 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       controller: costPriceController,
                       decoration: InputDecoration(
                         labelText: 'Cost Price',
-                        hintText: selectedCurrency == 'USD' ? 'e.g., 800.00' : 'e.g., 358000',
+                        hintText: 'Enter cost price',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: selectedCurrency == 'LBP' 
+                          ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
+                          : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: sellingPriceController,
                       decoration: InputDecoration(
                         labelText: 'Selling Price',
-                        hintText: selectedCurrency == 'USD' ? 'e.g., 1000.00' : 'e.g., 895000',
+                        hintText: 'Enter selling price',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: selectedCurrency == 'LBP' 
+                          ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
+                          : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+                    ),
+                    
+                    // Calculate if there's a loss
+                    Builder(
+                      builder: (context) {
+                        final costPriceText = costPriceController.text.replaceAll(',', '');
+                        final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                        final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                        final sellingPrice = double.tryParse(sellingPriceText);
+                        final sellingPriceEntered = sellingPriceController.text.isNotEmpty;
+                        final isLoss = sellingPriceEntered && sellingPrice != null && sellingPrice < costPrice;
+                        final loss = sellingPrice != null ? sellingPrice - costPrice : 0.0;
+                        
+                        return Column(
+                          children: [
+                            if (isLoss) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: AppColors.error, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w600),
+                                        children: [
+                                          const TextSpan(text: 'Warning: Selling price is less than cost. You\'ll lose '),
+                                          TextSpan(
+                                            text: selectedCurrency == 'USD' 
+                                                ? '${loss.toStringAsFixed(2)}\$'
+                                                : '${NumberFormat('#,###').format(loss.toInt())} LBP',
+                                            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                                          ),
+                                          const TextSpan(text: ' on each sale.'),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.trim().isNotEmpty &&
-                        costPriceController.text.isNotEmpty &&
-                        sellingPriceController.text.isNotEmpty) {
-                      final appState = Provider.of<AppState>(context, listen: false);
-                      final notificationService = NotificationService();
-                      final category = appState.categories.firstWhere(
-                        (cat) => cat.name == categoryName,
-                        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                      );
-                      try {
-                        double costPriceUSD = double.parse(costPriceController.text);
-                        double sellingPriceUSD = double.parse(sellingPriceController.text);
-                        if (selectedCurrency == 'LBP') {
-                          costPriceUSD = costPriceUSD / 89500;
-                          sellingPriceUSD = sellingPriceUSD / 89500;
-                        }
-                        subcategory.name = nameController.text.trim();
-                        subcategory.costPrice = costPriceUSD;
-                        subcategory.sellingPrice = sellingPriceUSD;
-                        subcategory.costPriceCurrency = selectedCurrency;
-                        subcategory.sellingPriceCurrency = selectedCurrency;
-                        await appState.updateCategory(category);
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                        }
-                        await notificationService.showProductUpdatedNotification(subcategory.name);
-                        _filterProducts();
-                      } catch (e) {
-                        await notificationService.showErrorNotification(
-                          title: 'Error',
-                          body: 'Failed to update product: $e',
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Update'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final costPriceText = costPriceController.text.replaceAll(',', '');
+                          final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                          final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                          final sellingPrice = double.tryParse(sellingPriceText);
+                          final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                          
+                          final isEnabled = nameController.text.trim().isNotEmpty && costPriceController.text.isNotEmpty && sellingPriceController.text.isNotEmpty;
+                          
+                          return ElevatedButton(
+                            onPressed: isEnabled
+                                ? () async {
+                                    final appState = Provider.of<AppState>(context, listen: false);
+                                    final notificationService = NotificationService();
+                                    final category = appState.categories.firstWhere(
+                                      (cat) => cat.name == categoryName,
+                                      orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                                    );
+                                    try {
+                                      String cleanCostPrice = costPriceController.text.replaceAll(',', '');
+                                      String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
+                                      double costPriceUSD = double.parse(cleanCostPrice);
+                                      double sellingPriceUSD = double.parse(cleanSellingPrice);
+                                      if (selectedCurrency == 'LBP') {
+                                        costPriceUSD = costPriceUSD / 89500;
+                                        sellingPriceUSD = sellingPriceUSD / 89500;
+                                      }
+                                      
+                                      subcategory.name = nameController.text.trim();
+                                      subcategory.costPrice = costPriceUSD;
+                                      subcategory.sellingPrice = sellingPriceUSD;
+                                      subcategory.costPriceCurrency = selectedCurrency;
+                                      subcategory.sellingPriceCurrency = selectedCurrency;
+                                      await appState.updateCategory(category);
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+                                      await notificationService.showProductUpdatedNotification(subcategory.name);
+                                      _filterProducts();
+                                    } catch (e) {
+                                      await notificationService.showErrorNotification(
+                                        title: 'Error',
+                                        body: 'Failed to update product: $e',
+                                      );
+                                    }
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isEnabled 
+                                  ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
+                                  : AppColors.dynamicTextSecondary(context),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(isLoss ? 'Confirm' : 'Update'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -707,12 +866,22 @@ class _ProductsScreenState extends State<ProductsScreen> {
     String selectedCurrency = 'USD';
     double defaultCostPriceUSD = 0.0;
     double defaultSellingPriceUSD = 0.0;
+    
+    // Add listeners to trigger rebuild when text changes
+    nameController.addListener(() {});
+    costPriceController.addListener(() {});
+    sellingPriceController.addListener(() {});
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            // Add listeners to trigger rebuild when text changes
+            nameController.addListener(() => setState(() {}));
+            costPriceController.addListener(() => setState(() {}));
+            sellingPriceController.addListener(() => setState(() {}));
+            
             return AlertDialog(
               title: Text('Add Subcategory to $categoryName'),
               contentPadding: const EdgeInsets.all(16),
@@ -742,11 +911,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         setState(() {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
-                            costPriceController.text = (defaultCostPriceUSD * 89500).toStringAsFixed(0);
-                            sellingPriceController.text = (defaultSellingPriceUSD * 89500).toStringAsFixed(0);
+                            if (defaultCostPriceUSD > 0) {
+                              costPriceController.text = NumberFormat('#,###').format((defaultCostPriceUSD * 89500).toInt());
+                            } else {
+                              costPriceController.clear();
+                            }
+                            if (defaultSellingPriceUSD > 0) {
+                              sellingPriceController.text = NumberFormat('#,###').format((defaultSellingPriceUSD * 89500).toInt());
+                            } else {
+                              sellingPriceController.clear();
+                            }
                           } else {
-                            costPriceController.text = defaultCostPriceUSD.toStringAsFixed(2);
-                            sellingPriceController.text = defaultSellingPriceUSD.toStringAsFixed(2);
+                            if (defaultCostPriceUSD > 0) {
+                              costPriceController.text = defaultCostPriceUSD.toStringAsFixed(2);
+                            } else {
+                              costPriceController.clear();
+                            }
+                            if (defaultSellingPriceUSD > 0) {
+                              sellingPriceController.text = defaultSellingPriceUSD.toStringAsFixed(2);
+                            } else {
+                              sellingPriceController.clear();
+                            }
                           }
                         });
                       },
@@ -756,13 +941,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       controller: costPriceController,
                       decoration: InputDecoration(
                         labelText: 'Cost Price',
-                        hintText: selectedCurrency == 'USD' ? 'e.g., 800.00' : 'e.g., 358000',
+                        hintText: 'Enter cost price',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: selectedCurrency == 'LBP' 
+                          ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
+                          : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           try {
-                            double price = double.parse(value);
+                            // Remove commas for parsing
+                            String cleanValue = value.replaceAll(',', '');
+                            double price = double.parse(cleanValue);
                             if (selectedCurrency == 'LBP') {
                               defaultCostPriceUSD = price / 89500;
                             } else {
@@ -779,13 +969,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       controller: sellingPriceController,
                       decoration: InputDecoration(
                         labelText: 'Selling Price',
-                        hintText: selectedCurrency == 'USD' ? 'e.g., 1000.00' : 'e.g., 895000',
+                        hintText: 'Enter selling price',
                       ),
                       keyboardType: TextInputType.number,
+                      inputFormatters: selectedCurrency == 'LBP' 
+                          ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
+                          : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           try {
-                            double price = double.parse(value);
+                            // Remove commas for parsing
+                            String cleanValue = value.replaceAll(',', '');
+                            double price = double.parse(cleanValue);
                             if (selectedCurrency == 'LBP') {
                               defaultSellingPriceUSD = price / 89500;
                             } else {
@@ -797,58 +992,137 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         }
                       },
                     ),
+                    
+                    // Calculate if there's a loss
+                    Builder(
+                      builder: (context) {
+                        final costPriceText = costPriceController.text.replaceAll(',', '');
+                        final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                        final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                        final sellingPrice = double.tryParse(sellingPriceText);
+                        final sellingPriceEntered = sellingPriceController.text.isNotEmpty;
+                        final isLoss = sellingPriceEntered && sellingPrice != null && sellingPrice < costPrice;
+                        final loss = sellingPrice != null ? sellingPrice - costPrice : 0.0;
+                        
+                        return Column(
+                          children: [
+                            if (isLoss) ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(Icons.warning, color: AppColors.error, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w600),
+                                        children: [
+                                          const TextSpan(text: 'Warning: Selling price is less than cost. You\'ll lose '),
+                                          TextSpan(
+                                            text: selectedCurrency == 'USD' 
+                                                ? '${loss.toStringAsFixed(2)}\$'
+                                                : '${NumberFormat('#,###').format(loss.toInt())} LBP',
+                                            style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold),
+                                          ),
+                                          const TextSpan(text: ' on each sale.'),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameController.text.trim().isNotEmpty &&
-                        costPriceController.text.isNotEmpty &&
-                        sellingPriceController.text.isNotEmpty) {
-                      final appState = Provider.of<AppState>(context, listen: false);
-                      final notificationService = NotificationService();
-                      final category = appState.categories.firstWhere(
-                        (cat) => cat.name == categoryName,
-                        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                      );
-                      try {
-                        double costPriceUSD = double.parse(costPriceController.text);
-                        double sellingPriceUSD = double.parse(sellingPriceController.text);
-                        if (selectedCurrency == 'LBP') {
-                          costPriceUSD = costPriceUSD / 89500;
-                          sellingPriceUSD = sellingPriceUSD / 89500;
-                        }
-                        final subcategory = Subcategory(
-                          id: appState.generateProductPurchaseId(),
-                          name: nameController.text.trim(),
-                          description: null,
-                          costPrice: costPriceUSD,
-                          sellingPrice: sellingPriceUSD,
-                          createdAt: DateTime.now(),
-                          costPriceCurrency: selectedCurrency,
-                          sellingPriceCurrency: selectedCurrency,
-                        );
-                        category.subcategories.add(subcategory);
-                        await appState.updateCategory(category);
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                        }
-                        await notificationService.showProductUpdatedNotification(subcategory.name);
-                        _filterProducts();
-                      } catch (e) {
-                        await notificationService.showErrorNotification(
-                          title: 'Error',
-                          body: 'Failed to add product: $e',
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Add'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final costPriceText = costPriceController.text.replaceAll(',', '');
+                          final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                          final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                          final sellingPrice = double.tryParse(sellingPriceText);
+                          final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                          
+                          final isEnabled = nameController.text.trim().isNotEmpty && costPriceController.text.isNotEmpty && sellingPriceController.text.isNotEmpty;
+                          
+                          return ElevatedButton(
+                            onPressed: isEnabled
+                                ? () async {
+                                    final appState = Provider.of<AppState>(context, listen: false);
+                                    final notificationService = NotificationService();
+                                    final category = appState.categories.firstWhere(
+                                      (cat) => cat.name == categoryName,
+                                      orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                                    );
+                                    try {
+                                      String cleanCostPrice = costPriceController.text.replaceAll(',', '');
+                                      String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
+                                      double costPriceUSD = double.parse(cleanCostPrice);
+                                      double sellingPriceUSD = double.parse(cleanSellingPrice);
+                                      if (selectedCurrency == 'LBP') {
+                                        costPriceUSD = costPriceUSD / 89500;
+                                        sellingPriceUSD = sellingPriceUSD / 89500;
+                                      }
+                                      
+                                      final subcategory = Subcategory(
+                                        id: appState.generateProductPurchaseId(),
+                                        name: nameController.text.trim(),
+                                        description: null,
+                                        costPrice: costPriceUSD,
+                                        sellingPrice: sellingPriceUSD,
+                                        createdAt: DateTime.now(),
+                                        costPriceCurrency: selectedCurrency,
+                                        sellingPriceCurrency: selectedCurrency,
+                                      );
+                                      category.subcategories.add(subcategory);
+                                      await appState.updateCategory(category);
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+                                      await notificationService.showProductUpdatedNotification(subcategory.name);
+                                      _filterProducts();
+                                    } catch (e) {
+                                      await notificationService.showErrorNotification(
+                                        title: 'Error',
+                                        body: 'Failed to add product: $e',
+                                      );
+                                    }
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isEnabled 
+                                  ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
+                                  : AppColors.dynamicTextSecondary(context),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(isLoss ? 'Confirm' : 'Add'),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -1131,7 +1405,7 @@ class _ProductCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: AppColors.dynamicTextPrimary(context),
                         ),
                       ),
                       if (categoryName != null) ...[
@@ -1140,7 +1414,7 @@ class _ProductCard extends StatelessWidget {
                           categoryName!,
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: AppColors.dynamicTextSecondary(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1165,7 +1439,7 @@ class _ProductCard extends StatelessWidget {
                       value: 'edit',
                       child: Row(
                         children: [
-                          Icon(Icons.edit, size: 20, color: AppColors.textSecondary),
+                          Icon(Icons.edit, size: 20, color: AppColors.dynamicTextSecondary(context)),
                           const SizedBox(width: 8),
                           Text('Edit'),
                         ],
@@ -1184,7 +1458,7 @@ class _ProductCard extends StatelessWidget {
                   ],
                   child: Icon(
                     Icons.more_vert,
-                    color: AppColors.textSecondary,
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
                 ),
               ],
@@ -1198,7 +1472,7 @@ class _ProductCard extends StatelessWidget {
                     'Cost',
                     CurrencyFormatter.formatAmount(context, subcategory.costPrice),
                     Icons.shopping_cart,
-                    AppColors.warning,
+                    AppColors.dynamicWarning(context),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1208,7 +1482,7 @@ class _ProductCard extends StatelessWidget {
                     'Price',
                     CurrencyFormatter.formatAmount(context, subcategory.sellingPrice),
                     Icons.attach_money,
-                    AppColors.primary,
+                    AppColors.dynamicPrimary(context),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1218,7 +1492,7 @@ class _ProductCard extends StatelessWidget {
                     subcategory.profit >= 0 ? 'Profit' : 'Loss',
                     CurrencyFormatter.formatAmount(context, subcategory.profit),
                     Icons.trending_up,
-                    subcategory.profit >= 0 ? AppColors.success : Colors.red,
+                    subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : Colors.red,
                   ),
                 ),
               ],

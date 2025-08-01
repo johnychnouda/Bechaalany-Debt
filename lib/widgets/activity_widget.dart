@@ -9,15 +9,15 @@ import '../models/debt.dart';
 import '../screens/full_activity_list_screen.dart';
 import '../utils/debt_description_utils.dart';
 
-class WeeklyActivityWidget extends StatefulWidget {
-  const WeeklyActivityWidget({super.key});
+class ActivityWidget extends StatefulWidget {
+  const ActivityWidget({super.key});
 
   @override
-  State<WeeklyActivityWidget> createState() => _WeeklyActivityWidgetState();
+  State<ActivityWidget> createState() => _ActivityWidgetState();
 }
 
-class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
-  ActivityView _currentView = ActivityView.weekly;
+class _ActivityWidgetState extends State<ActivityWidget> {
+  ActivityView _currentView = ActivityView.daily;
   Timer? _timer;
 
   void _cycleView() {
@@ -148,9 +148,7 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => FullActivityListScreen(
-                              initialView: _currentView,
-                            ),
+                            builder: (context) => const FullActivityListScreen(),
                           ),
                         );
                       },
@@ -235,33 +233,28 @@ class _WeeklyActivityWidgetState extends State<WeeklyActivityWidget> {
     final activities = _getActivitiesForPeriod(appState, ActivityView.daily);
     
     if (activities.isEmpty) {
-      return Column(
-        children: [
-          const SizedBox(height: 20),
-          Icon(
-            Icons.inbox_outlined,
-            size: 48,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'No activity found',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            Icon(
+              Icons.inbox_outlined,
+              size: 48,
+              color: Colors.grey[400],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Add debts or make payments to see activity here',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
+            const SizedBox(height: 8),
+            Text(
+              'No recent activity',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       );
     }
 

@@ -8,7 +8,7 @@ import '../utils/logo_utils.dart';
 
 import '../screens/settings_screen.dart';
 
-import 'weekly_activity_widget.dart';
+import 'activity_widget.dart';
 import 'top_debtors_widget.dart';
 import 'profit_loss_widget.dart';
 import 'total_debtors_widget.dart';
@@ -45,10 +45,10 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
     _availableWidgets = [
       DashboardWidget(
         id: 'weekly_activity',
-        title: 'Activity Overview',
+        title: 'Activity Widget',
         icon: Icons.trending_up,
         color: AppColors.success,
-        widget: const WeeklyActivityWidget(),
+        widget: const ActivityWidget(),
         isEnabled: true,
       ),
       DashboardWidget(
@@ -61,7 +61,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       ),
       DashboardWidget(
         id: 'profit_loss',
-        title: 'Profit & Loss',
+        title: 'Revenue/Debts Analysis',
         icon: Icons.analytics,
         color: AppColors.primary,
         widget: const ProfitLossWidget(),
@@ -69,7 +69,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       ),
       DashboardWidget(
         id: 'total_debtors',
-        title: 'Total Debtors',
+        title: 'Total Customers and Debtors',
         icon: Icons.group,
         color: AppColors.secondary,
         widget: const TotalDebtorsWidget(),
@@ -77,8 +77,24 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       ),
     ];
 
-    // Enable all widgets by default
-    _enabledWidgets = List.from(_availableWidgets);
+    // Set default order for first-time installations
+    _enabledWidgets = _getDefaultWidgetOrder();
+  }
+
+  // Method to get the default widget order for first-time installations
+  List<DashboardWidget> _getDefaultWidgetOrder() {
+    // Default order: 1- Revenue/Debts Analysis, 2- Activity Widget, 3- Total Customers and Debtors, 4- Top Debtors
+    final defaultOrder = ['profit_loss', 'weekly_activity', 'total_debtors', 'top_debtors'];
+    
+    final orderedWidgets = <DashboardWidget>[];
+    
+    // Add widgets in the default order
+    for (final widgetId in defaultOrder) {
+      final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
+      orderedWidgets.add(widget);
+    }
+    
+    return orderedWidgets;
   }
 
   void _loadWidgetPreferences() {
@@ -86,7 +102,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       final enabledWidgetIds = prefs.getStringList('dashboard_widget_order') ?? [];
       
       if (enabledWidgetIds.isNotEmpty) {
-        // Filter available widgets based on saved order
+        // User has custom preferences - load them
         final orderedWidgets = <DashboardWidget>[];
         final availableWidgetIds = _availableWidgets.map((w) => w.id).toSet();
         
@@ -109,9 +125,14 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
           _isLoading = false;
         });
       } else {
+        // First time installation - use default order and save it
         setState(() {
+          _enabledWidgets = _getDefaultWidgetOrder();
           _isLoading = false;
         });
+        
+        // Save the default order so it's preserved
+        _saveWidgetPreferences();
       }
     });
   }
@@ -168,21 +189,14 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(26), // 0.1 * 255
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: LogoUtils.buildLogo(
-              context: context,
-              width: 24,
-              height: 24,
-              placeholder: const Icon(
-                Icons.account_balance_wallet,
-                color: AppColors.primary,
-                size: 24,
-              ),
+          LogoUtils.buildLogo(
+            context: context,
+            width: 64,
+            height: 64,
+            placeholder: const Icon(
+              Icons.account_balance_wallet,
+              color: AppColors.primary,
+              size: 64,
             ),
           ),
           const SizedBox(width: 12),
@@ -191,7 +205,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dashboard',
+                  'Bechaalany Connect',
                   style: AppTheme.getDynamicTitle3(context).copyWith(
                     color: AppColors.dynamicTextPrimary(context),
                   ),
@@ -200,6 +214,8 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                   'Welcome back',
                   style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
+                    fontSize: 14, // Increased from default footnote size
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

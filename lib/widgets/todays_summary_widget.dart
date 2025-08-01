@@ -50,6 +50,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                 if (pendingDebts.isEmpty)
                   const Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.check_circle_outline,
@@ -63,6 +64,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),

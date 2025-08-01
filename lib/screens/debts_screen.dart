@@ -55,8 +55,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
   List<GroupedDebtData> _groupedDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
-  Set<String> _lastKnownDebtIds = {};
   bool _sortAscending = false; // true = ascending, false = descending
+  List<Debt> _previousDebts = []; // Track previous debt state for auto-switching
 
   @override
   void initState() {
@@ -70,56 +70,262 @@ class _DebtsScreenState extends State<DebtsScreen> {
     super.dispose();
   }
 
-  void _filterDebts() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final debts = appState.debts;
+  // Method to determine the appropriate chip based on debt status
+  String _determineAppropriateChip(List<Debt> currentDebts) {
+    if (currentDebts.isEmpty) return 'All';
+    
+    // Find the most recently added or modified debt
+    final mostRecentDebt = currentDebts.reduce((curr, next) => 
+        curr.createdAt.isAfter(next.createdAt) ? curr : next);
+    
+    // Group debts by customer to determine customer-level status
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    for (final debt in currentDebts) {
+      if (!customerDebtsMap.containsKey(debt.customerId)) {
+        customerDebtsMap[debt.customerId] = [];
+      }
+      customerDebtsMap[debt.customerId]!.add(debt);
+    }
+    
+    // Get the customer status for the most recent debt
+    final customerDebts = customerDebtsMap[mostRecentDebt.customerId] ?? [];
+    final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+    
+    if (totalPaidAmount >= totalAmount) {
+      return 'Fully Paid';
+    } else if (totalPaidAmount > 0) {
+      return 'Partially Paid';
+    } else {
+      return 'Pending';
+    }
+  }
+
+  // Method to check if debts have changed and auto-switch chips
+  void _checkAndAutoSwitchChips(List<Debt> currentDebts) {
+    if (_previousDebts.isEmpty) {
+      // First time loading, just update previous debts
+      _previousDebts = List.from(currentDebts);
+      return;
+    }
+    
+    final hasNewDebts = currentDebts.length > _previousDebts.length;
+    final hasDeletedDebts = currentDebts.length < _previousDebts.length;
+    final hasStatusChanges = _hasDebtStatusChanges(currentDebts);
+    
+    // Auto-switch logic for different scenarios
+    if (hasNewDebts) {
+      // When new debts are added, only auto-switch if we're on 'All' chip
+      if (_selectedStatus == 'All') {
+        final appropriateChip = _determineAppropriateChip(currentDebts);
+        if (appropriateChip != 'All') {
+          setState(() {
+            _selectedStatus = appropriateChip;
+          });
+        }
+      }
+    } else if (hasStatusChanges) {
+      // When debt status changes, check if we should switch chips
+      if (_selectedStatus == 'All') {
+        // If on 'All' chip, check what type of status change occurred
+        final hasFullyPaidDebts = _hasFullyPaidDebts(currentDebts);
+        final hasPartiallyPaidDebts = _hasPartiallyPaidDebts(currentDebts);
+        
+        if (hasFullyPaidDebts) {
+          setState(() {
+            _selectedStatus = 'Fully Paid';
+          });
+        } else if (hasPartiallyPaidDebts) {
+          setState(() {
+            _selectedStatus = 'Partially Paid';
+          });
+        }
+      } else {
+        // If on a specific chip, check if current selection still has debts
+        final currentChipHasDebts = _doesCurrentChipHaveDebts(currentDebts);
+        if (!currentChipHasDebts) {
+          // Switch back to 'All' if current chip has no debts
+          setState(() {
+            _selectedStatus = 'All';
+          });
+        }
+      }
+    } else if (hasDeletedDebts) {
+      // When debts are deleted, check if current chip still has debts
+      final currentChipHasDebts = _doesCurrentChipHaveDebts(currentDebts);
+      if (!currentChipHasDebts) {
+        // Switch back to 'All' if current chip has no debts
+        setState(() {
+          _selectedStatus = 'All';
+        });
+      }
+    }
+    
+    // Update previous debts for next comparison
+    _previousDebts = List.from(currentDebts);
+  }
+
+  // Method to check if any debt statuses have changed
+  bool _hasDebtStatusChanges(List<Debt> currentDebts) {
+    if (_previousDebts.isEmpty) return false;
+    
+    // Create maps for easy comparison
+    final Map<String, Debt> previousDebtsMap = {
+      for (var debt in _previousDebts) debt.id: debt
+    };
+    
+    for (final currentDebt in currentDebts) {
+      final previousDebt = previousDebtsMap[currentDebt.id];
+      if (previousDebt != null) {
+        // Check if status or paid amount has changed
+        if (previousDebt.status != currentDebt.status ||
+            previousDebt.paidAmount != currentDebt.paidAmount) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  // Method to check if there are any fully paid debts
+  bool _hasFullyPaidDebts(List<Debt> allDebts) {
+    // Group debts by customer to determine customer-level status
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    for (final debt in allDebts) {
+      if (!customerDebtsMap.containsKey(debt.customerId)) {
+        customerDebtsMap[debt.customerId] = [];
+      }
+      customerDebtsMap[debt.customerId]!.add(debt);
+    }
+    
+    for (final entry in customerDebtsMap.entries) {
+      final customerDebts = entry.value;
+      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      
+      if (totalPaidAmount >= totalAmount) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Method to check if there are any partially paid debts
+  bool _hasPartiallyPaidDebts(List<Debt> allDebts) {
+    // Group debts by customer to determine customer-level status
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    for (final debt in allDebts) {
+      if (!customerDebtsMap.containsKey(debt.customerId)) {
+        customerDebtsMap[debt.customerId] = [];
+      }
+      customerDebtsMap[debt.customerId]!.add(debt);
+    }
+    
+    for (final entry in customerDebtsMap.entries) {
+      final customerDebts = entry.value;
+      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      
+      if (totalPaidAmount > 0 && totalPaidAmount < totalAmount) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  // Method to check if the current selected chip has any debts
+  bool _doesCurrentChipHaveDebts(List<Debt> allDebts) {
+    if (_selectedStatus == 'All') return true;
+    
+    // Group debts by customer to determine customer-level status
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    for (final debt in allDebts) {
+      if (!customerDebtsMap.containsKey(debt.customerId)) {
+        customerDebtsMap[debt.customerId] = [];
+      }
+      customerDebtsMap[debt.customerId]!.add(debt);
+    }
+    
+    for (final entry in customerDebtsMap.entries) {
+      final customerDebts = entry.value;
+      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      
+      String customerStatus;
+      if (totalPaidAmount >= totalAmount) {
+        customerStatus = 'fully paid';
+      } else if (totalPaidAmount > 0) {
+        customerStatus = 'partially paid';
+      } else {
+        customerStatus = 'pending';
+      }
+      
+      if (customerStatus == _selectedStatus.toLowerCase()) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  void _updateFilteredData(List<Debt> allDebts) {
+    // Check and auto-switch chips if needed
+    _checkAndAutoSwitchChips(allDebts);
+    
     final query = _searchController.text.toLowerCase();
     
-    setState(() {
-      // First, group all debts by customer to determine customer-level status
-      final Map<String, List<Debt>> customerDebtsMap = {};
-      for (final debt in debts) {
-        if (!customerDebtsMap.containsKey(debt.customerId)) {
-          customerDebtsMap[debt.customerId] = [];
-        }
-        customerDebtsMap[debt.customerId]!.add(debt);
+    // First, group all debts by customer to determine customer-level status
+    final Map<String, List<Debt>> customerDebtsMap = {};
+    for (final debt in allDebts) {
+      if (!customerDebtsMap.containsKey(debt.customerId)) {
+        customerDebtsMap[debt.customerId] = [];
+      }
+      customerDebtsMap[debt.customerId]!.add(debt);
+    }
+    
+    // Determine which customers match the status filter
+    final Set<String> matchingCustomerIds = {};
+    for (final entry in customerDebtsMap.entries) {
+      final customerDebts = entry.value;
+      final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      
+      String customerStatus;
+      if (totalPaidAmount >= totalAmount) {
+        customerStatus = 'fully paid';
+      } else if (totalPaidAmount > 0) {
+        customerStatus = 'partially paid';
+      } else {
+        customerStatus = 'pending';
       }
       
-      // Determine which customers match the status filter
-      final Set<String> matchingCustomerIds = {};
-      for (final entry in customerDebtsMap.entries) {
-        final customerDebts = entry.value;
-        final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-        final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-        
-        String customerStatus;
-        if (totalPaidAmount >= totalAmount) {
-          customerStatus = 'paid';
-        } else if (totalPaidAmount > 0) {
-          customerStatus = 'partially paid';
-        } else {
-          customerStatus = 'pending';
-        }
-        
-        final matchesStatus = _selectedStatus == 'All' ||
-                             customerStatus == _selectedStatus.toLowerCase();
-        
-        if (matchesStatus) {
-          matchingCustomerIds.add(entry.key);
-        }
+      final matchesStatus = _selectedStatus == 'All' ||
+                           customerStatus == _selectedStatus.toLowerCase();
+      
+      if (matchesStatus) {
+        matchingCustomerIds.add(entry.key);
       }
+    }
+    
+    // Filter debts to only include customers that match the status
+    final filteredDebts = allDebts.where((debt) {
+      final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
+                           debt.description.toLowerCase().contains(query) ||
+                           debt.customerId.toLowerCase().contains(query);
       
-      // Filter debts to only include customers that match the status
-      final filteredDebts = debts.where((debt) {
-        final matchesSearch = debt.customerName.toLowerCase().contains(query) ||
-                             debt.description.toLowerCase().contains(query);
-        
-        return matchesSearch && matchingCustomerIds.contains(debt.customerId);
-      }).toList();
-      
-      // Group debts by customer
-      _groupDebtsByCustomer(filteredDebts);
-    });
+      return matchesSearch && matchingCustomerIds.contains(debt.customerId);
+    }).toList();
+    
+    // Group debts by customer
+    _groupDebtsByCustomer(filteredDebts);
+  }
+
+  void _filterDebts() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    _updateFilteredData(appState.debts);
   }
 
   void _groupDebtsByCustomer(List<Debt> debts) {
@@ -200,9 +406,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
     try {
       final appState = Provider.of<AppState>(context, listen: false);
       await appState.markDebtAsPaid(debt.id);
-      
-      // Refresh the list
-      _filterDebts();
     } catch (e) {
       // Show error notification
       final notificationService = NotificationService();
@@ -217,9 +420,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
     try {
       final appState = Provider.of<AppState>(context, listen: false);
       await appState.deleteDebt(debt.id);
-      
-      // Refresh the list
-      _filterDebts();
     } catch (e) {
       // Show error notification
       final notificationService = NotificationService();
@@ -234,13 +434,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
     try {
       final appState = Provider.of<AppState>(context, listen: false);
       await appState.exportData();
-      
-      // Show success notification
-      final notificationService = NotificationService();
-      await notificationService.showSuccessNotification(
-        title: 'Export Complete',
-        body: 'Debts data has been exported successfully',
-      );
     } catch (e) {
       // Show error notification
       final notificationService = NotificationService();
@@ -275,12 +468,8 @@ class _DebtsScreenState extends State<DebtsScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Check if we need to refresh the list
-        final currentDebtIds = Set<String>.from(appState.debts.map((d) => d.id));
-        if (currentDebtIds != _lastKnownDebtIds) {
-          _lastKnownDebtIds = currentDebtIds;
-          WidgetsBinding.instance.addPostFrameCallback((_) => _filterDebts());
-        }
+        // Update filtered data whenever AppState changes
+        _updateFilteredData(appState.debts);
 
         return Scaffold(
           key: const Key('debts_screen'),
@@ -318,7 +507,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
                     TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search debts...',
+                        hintText: 'Search by name or ID',
                         prefixIcon: const Icon(Icons.search),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -329,17 +518,24 @@ class _DebtsScreenState extends State<DebtsScreen> {
                     ),
                     const SizedBox(height: 12),
                     // Status filter
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildFilterChip('All', _selectedStatus == 'All'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Pending', _selectedStatus == 'Pending'),
-                          const SizedBox(width: 8),
-                          _buildFilterChip('Paid', _selectedStatus == 'Paid'),
-                        ],
-                      ),
+                    Consumer<AppState>(
+                      builder: (context, appState, child) {
+                        return SingleChildScrollView(
+                          key: ValueKey('filter_chips_${appState.debts.length}_${appState.debts.fold(0, (sum, debt) => sum + (debt.isFullyPaid ? 1 : 0))}'),
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildFilterChip('All', _selectedStatus == 'All', appState.debts),
+                              const SizedBox(width: 8),
+                              _buildFilterChip('Pending', _selectedStatus == 'Pending', appState.debts),
+                              const SizedBox(width: 8),
+                              _buildFilterChip('Partially Paid', _selectedStatus == 'Partially Paid', appState.debts),
+                              const SizedBox(width: 8),
+                              _buildFilterChip('Fully Paid', _selectedStatus == 'Fully Paid', appState.debts),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -398,7 +594,6 @@ class _DebtsScreenState extends State<DebtsScreen> {
             heroTag: 'debts_fab_hero',
             onPressed: () async {
               await Navigator.pushNamed(context, '/add-debt');
-              _filterDebts(); // Refresh the list when returning
             },
             backgroundColor: AppColors.primary,
             child: const Icon(Icons.add, color: Colors.white),
@@ -408,14 +603,47 @@ class _DebtsScreenState extends State<DebtsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
+  Widget _buildFilterChip(String label, bool isSelected, List<Debt> allDebts) {
+    int count = 0;
+    if (label == 'All') {
+      count = allDebts.length;
+    } else {
+      // Group debts by customer to determine customer-level status
+      final Map<String, List<Debt>> customerDebtsMap = {};
+      for (final debt in allDebts) {
+        if (!customerDebtsMap.containsKey(debt.customerId)) {
+          customerDebtsMap[debt.customerId] = [];
+        }
+        customerDebtsMap[debt.customerId]!.add(debt);
+      }
+      
+      for (final entry in customerDebtsMap.entries) {
+        final customerDebts = entry.value;
+        final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        
+        String customerStatus;
+        if (totalPaidAmount >= totalAmount) {
+          customerStatus = 'fully paid';
+        } else if (totalPaidAmount > 0) {
+          customerStatus = 'partially paid';
+        } else {
+          customerStatus = 'pending';
+        }
+        
+        if (customerStatus == label.toLowerCase()) {
+          count++;
+        }
+      }
+    }
+    
     return FilterChip(
-      label: Text(label),
+      key: ValueKey('${label}_${count}_${allDebts.length}'),
+      label: Text('$label${count > 0 ? ' ($count)' : ''}'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
           _selectedStatus = selected ? label : 'All';
-          _filterDebts();
         });
       },
       selectedColor: AppColors.primary.withAlpha(51), // 0.2 * 255
@@ -426,6 +654,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
       ),
     );
   }
+
 }
 
 class _GroupedDebtCard extends StatelessWidget {
@@ -519,9 +748,18 @@ class _GroupedDebtCard extends StatelessWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ] else if (selectedStatus == 'Paid') ...[
+                      ] else if (selectedStatus == 'Partially Paid') ...[
                         Text(
-                          '${group.paidDebts} paid debt${group.paidDebts == 1 ? '' : 's'}',
+                          '${group.partiallyPaidDebts} partially paid debt${group.partiallyPaidDebts == 1 ? '' : 's'}',
+                          style: TextStyle(
+                            color: Colors.orange[600],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ] else if (selectedStatus == 'Fully Paid') ...[
+                        Text(
+                          '${group.paidDebts} fully paid debt${group.paidDebts == 1 ? '' : 's'}',
                           style: TextStyle(
                             color: Colors.green[600],
                             fontSize: 14,

@@ -291,177 +291,176 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppState>(
-      builder: (context, appState, child) {
-        // Update filtered debts when app state changes
-        final currentDebtIds = appState.debts.map((d) => '${d.id}_${d.status}_${d.paidAt?.millisecondsSinceEpoch ?? 0}_${d.amount}_${d.paidAmount}').toSet();
-        if (_lastKnownDebtIds != currentDebtIds) {
-          _lastKnownDebtIds = currentDebtIds;
-          // Use a small delay to prevent infinite loops
-          Future.delayed(const Duration(milliseconds: 100), () {
-            if (mounted) {
-              _filterDebts();
-            }
-          });
-        }
-        
-        return Scaffold(
-          key: const Key('debt_history_screen'),
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          appBar: AppBar(
-            title: const Text('Debt History'),
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-          ),
-          floatingActionButton: FloatingActionButton(
-            key: const Key('debt_history_fab'),
-            heroTag: 'debt_history_fab_hero',
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddDebtFromProductScreen(),
-                ),
-              );
-              // Refresh the debt history after adding a new debt
-              if (mounted) {
-                _filterDebts();
-              }
-            },
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            child: const Icon(
-              Icons.add,
-              color: Colors.white,
-            ),
-          ),
-          body: Column(
-            children: [
-              // Search and filter bar
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by customer name or ID',
-                        prefixIcon: Icon(Icons.search, color: Theme.of(context).iconTheme.color),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                onPressed: () {
-                                  _searchController.clear();
-                                },
-                                icon: Icon(Icons.clear, color: Theme.of(context).iconTheme.color),
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+    return Scaffold(
+      backgroundColor: AppColors.dynamicBackground(context),
+      body: SafeArea(
+        child: Consumer<AppState>(
+          builder: (context, appState, child) {
+            return Column(
+              children: [
+                // Search and Filter Section
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Search Bar
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by name or ID',
+                          hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+                          prefixIcon: Icon(Icons.search, color: AppColors.dynamicTextSecondary(context)),
+                          filled: true,
+                          fillColor: AppColors.dynamicSurface(context),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
+                          ),
                         ),
-                        filled: true,
-                        fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                        style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Status Filter Chips
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: ['All', 'Pending', 'Partially Paid', 'Fully Paid'].map((status) {
-                          final isSelected = _selectedStatus == status;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8.0),
-                            child: FilterChip(
-                              label: Text(
-                                status,
-                                style: TextStyle(
-                                  color: isSelected 
-                                      ? (status == 'Pending' 
-                                          ? Colors.red[700] 
-                                          : status == 'Partially Paid' 
-                                              ? Colors.orange[700] 
-                                              : status == 'Fully Paid' 
-                                                  ? Colors.green[700] 
-                                                  : AppColors.primary)
-                                      : null,
-                                  fontWeight: isSelected ? FontWeight.w600 : null,
-                                  fontSize: 12,
+                      const SizedBox(height: 12),
+                      // Filter Chips
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: ['All', 'Pending', 'Partially Paid', 'Fully Paid'].map((status) {
+                            final isSelected = _selectedStatus == status;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: Text(
+                                  status,
+                                  style: TextStyle(
+                                    color: isSelected 
+                                        ? (status == 'Pending' 
+                                            ? Colors.white 
+                                            : status == 'Partially Paid' 
+                                                ? Colors.white 
+                                                : status == 'Fully Paid' 
+                                                    ? Colors.white 
+                                                    : Colors.white)
+                                        : AppColors.dynamicTextPrimary(context),
+                                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                  ),
                                 ),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedStatus = status;
+                                  });
+                                  _filterDebts();
+                                },
+                                backgroundColor: isSelected 
+                                    ? (status == 'Pending' 
+                                        ? Colors.red[700] 
+                                        : status == 'Partially Paid' 
+                                            ? Colors.orange[700] 
+                                            : status == 'Fully Paid' 
+                                                ? Colors.green[700] 
+                                                : AppColors.dynamicPrimary(context))
+                                    : AppColors.dynamicSurface(context),
+                                selectedColor: isSelected 
+                                    ? (status == 'Pending' 
+                                        ? Colors.red[700] 
+                                        : status == 'Partially Paid' 
+                                            ? Colors.orange[700] 
+                                            : status == 'Fully Paid' 
+                                                ? Colors.green[700] 
+                                                : AppColors.dynamicPrimary(context))
+                                    : AppColors.dynamicSurface(context),
+                                checkmarkColor: isSelected 
+                                    ? (status == 'Pending' 
+                                        ? Colors.white 
+                                        : status == 'Partially Paid' 
+                                            ? Colors.white 
+                                            : status == 'Fully Paid' 
+                                                ? Colors.white 
+                                                : Colors.white)
+                                    : AppColors.dynamicPrimary(context),
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
                               ),
-                              selected: isSelected,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedStatus = status;
-                                });
-                                _filterDebts();
-                              },
-                              backgroundColor: Colors.grey[200],
-                              selectedColor: isSelected 
-                                  ? (status == 'Pending' 
-                                      ? Colors.red[50] 
-                                      : status == 'Partially Paid' 
-                                          ? Colors.orange[50] 
-                                          : status == 'Fully Paid' 
-                                              ? Colors.green[50] 
-                                              : AppColors.primary.withValues(alpha: 0.2))
-                                  : Colors.grey[200],
-                              checkmarkColor: isSelected 
-                                  ? (status == 'Pending' 
-                                      ? Colors.red[700] 
-                                      : status == 'Partially Paid' 
-                                          ? Colors.orange[700] 
-                                          : status == 'Fully Paid' 
-                                              ? Colors.green[700] 
-                                              : AppColors.primary)
-                                  : AppColors.primary,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Debts list
-              Expanded(
-                child: _groupedDebts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).textTheme.bodySmall?.color),
-                            const SizedBox(height: 16),
-                            Text(
-                              _getEmptyStateMessage(),
-                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 18, fontWeight: FontWeight.w600)
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _getEmptyStateSubMessage(),
-                              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color)
-                            ),
-                          ],
+                            );
+                          }).toList(),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _groupedDebts.length,
-                        itemBuilder: (context, index) {
-                          final group = _groupedDebts[index];
-                          return _GroupedDebtCard(
-                            group: group,
-                            onMarkAsPaid: (debt) => _markAsPaid(debt),
-                            onDelete: (debt) => _deleteDebt(debt),
-                            onViewCustomer: (debt) => _viewCustomerDetails(group['customerId'] as String, debt),
-                            selectedStatus: _selectedStatus,
-                          );
-                        },
                       ),
-              ),
-            ],
-          ),
-        );
-      },
+                    ],
+                  ),
+                ),
+                // Debts list
+                Expanded(
+                  child: _groupedDebts.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.account_balance_wallet_outlined, 
+                                size: 64, 
+                                color: AppColors.dynamicTextSecondary(context)
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _getEmptyStateMessage(),
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextPrimary(context), 
+                                  fontSize: 18, 
+                                  fontWeight: FontWeight.w600
+                                )
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _getEmptyStateSubMessage(),
+                                style: TextStyle(color: AppColors.dynamicTextSecondary(context))
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _groupedDebts.length,
+                          itemBuilder: (context, index) {
+                            final group = _groupedDebts[index];
+                            return _GroupedDebtCard(
+                              group: group,
+                              onMarkAsPaid: (debt) => _markAsPaid(debt),
+                              onDelete: (debt) => _deleteDebt(debt),
+                              onViewCustomer: (debt) => _viewCustomerDetails(group['customerId'] as String, debt),
+                              selectedStatus: _selectedStatus,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'debts_fab_hero',
+        onPressed: () async {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddDebtFromProductScreen(),
+            ),
+          );
+        },
+        backgroundColor: AppColors.dynamicPrimary(context),
+        child: const Icon(
+          Icons.add,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 
@@ -567,12 +566,11 @@ class _GroupedDebtCard extends StatelessWidget {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      color: AppColors.dynamicSurface(context),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -610,19 +608,17 @@ class _GroupedDebtCard extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         group['customerName'] as String,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 16,
-                                          color: Colors.black,
+                                          color: AppColors.dynamicTextPrimary(context),
                                         ),
                                         overflow: TextOverflow.clip,
                                         maxLines: 1,
                                       ),
                                     ),
-
                                   ],
                                 ),
-
                               ],
                             ),
                           ),
@@ -664,12 +660,12 @@ class _GroupedDebtCard extends StatelessWidget {
             // Date information
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                Icon(Icons.calendar_today, size: 16, color: AppColors.dynamicTextSecondary(context)),
                 const SizedBox(width: 8),
                 Text(
                   'Latest: ${_formatDate(_getLatestActivityDate())}',
                   style: TextStyle(
-                    color: Colors.grey[600],
+                    color: AppColors.dynamicTextSecondary(context),
                     fontSize: 12,
                   ),
                 ),
@@ -688,7 +684,7 @@ class _GroupedDebtCard extends StatelessWidget {
                       icon: const Icon(Icons.payment, size: 16),
                       label: const Text('Make Payment'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: AppColors.dynamicPrimary(context),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
@@ -703,7 +699,7 @@ class _GroupedDebtCard extends StatelessWidget {
                       icon: const Icon(Icons.delete_forever, size: 16),
                       label: const Text('Clear'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppColors.error,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
@@ -717,6 +713,8 @@ class _GroupedDebtCard extends StatelessWidget {
                     icon: const Icon(Icons.receipt_long, size: 16),
                     label: const Text('View Receipt'),
                     style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.dynamicPrimary(context),
+                      side: BorderSide(color: AppColors.dynamicPrimary(context)),
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                   ),
@@ -900,7 +898,7 @@ class _GroupedDebtCard extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                final amount = double.tryParse(amountController.text) ?? 0;
+                final amount = double.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
                 if (amount > 0 && amount <= totalRemaining) {
                   Navigator.of(dialogContext).pop();
                   await _applyPartialPayment(context, unpaidDebts, amount);
@@ -979,16 +977,6 @@ class _GroupedDebtCard extends StatelessWidget {
     final appState = Provider.of<AppState>(context, listen: false);
     for (final debt in completedDebts) {
       await appState.deleteDebt(debt.id);
-    }
-    // Show success notification
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Cleared ${completedDebts.length} completed debts for $customerName'),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 

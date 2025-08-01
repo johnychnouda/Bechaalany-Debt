@@ -665,9 +665,6 @@ class AppState extends ChangeNotifier {
         
         notifyListeners();
         
-        // Show system notification
-        await _notificationService.showDebtAddedNotification(debt);
-        
         if (_isOnline) {
           await _syncService.syncDebts([debt]);
         }
@@ -689,9 +686,6 @@ class AppState extends ChangeNotifier {
         }
         
         notifyListeners();
-        
-        // Show system notification
-        await _notificationService.showDebtAddedNotification(debt);
         
         if (_isOnline) {
           await _syncService.syncDebts([debt]);
@@ -719,9 +713,6 @@ class AppState extends ChangeNotifier {
         }
         
         notifyListeners();
-        
-        // Show system notification
-        await _notificationService.showDebtUpdatedNotification(debt);
       }
       
       if (_isOnline) {
@@ -762,9 +753,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show system notification
-      await _notificationService.showDebtDeletedNotification(debt.customerName, debt.amount);
-      
       if (_isOnline) {
         await _syncService.deleteDebt(debtId);
       }
@@ -775,18 +763,13 @@ class AppState extends ChangeNotifier {
   
   Future<void> markDebtAsPaid(String debtId) async {
     try {
-      print('markDebtAsPaid called with debtId: $debtId');
       await _dataService.markDebtAsPaid(debtId);
       final index = _debts.indexWhere((d) => d.id == debtId);
-      print('Found debt at index: $index');
       if (index != -1) {
         final originalDebt = _debts[index];
-        print('Original debt: ${originalDebt.customerName} - ${originalDebt.amount}');
-        print('Original paid amount: ${originalDebt.paidAmount}');
         
         // Calculate the remaining amount to be paid
         final remainingAmount = originalDebt.amount - originalDebt.paidAmount;
-        print('Remaining amount to be paid: $remainingAmount');
         
         // Get all debts for this customer
         final customerDebts = _debts.where((debt) => debt.customerId == originalDebt.customerId).toList();
@@ -822,10 +805,6 @@ class AppState extends ChangeNotifier {
           
           // Create a fully paid activity only if the debt is actually fully paid
           await addPaymentActivity(originalDebt, remainingAmount, DebtStatus.pending, DebtStatus.paid);
-          print('Payment activity created for full debt amount');
-          
-          // Show system notification
-          await _notificationService.showDebtPaidNotification(originalDebt);
         } else {
           // If not fully paid, just update the paid amount but don't mark as paid
           _debts[index] = _debts[index].copyWith(
@@ -836,7 +815,6 @@ class AppState extends ChangeNotifier {
           
           // Create a partial payment activity
           await addPaymentActivity(originalDebt, remainingAmount, DebtStatus.pending, DebtStatus.pending);
-          print('Payment activity created for partial payment');
         }
         
         _clearCache();
@@ -901,9 +879,6 @@ class AppState extends ChangeNotifier {
       
       await addPaymentActivity(originalDebt, paymentAmountToShow, originalDebt.status, _debts[index].status);
       
-      // Show system notification for partial payment
-      await _notificationService.showPaymentAppliedNotification(originalDebt, paymentAmount);
-      
       if (_isOnline) {
         await _syncService.syncDebts([_debts[index]]);
       }
@@ -919,45 +894,33 @@ class AppState extends ChangeNotifier {
   Future<void> _cleanupInvalidActivities() async {
     final activitiesToRemove = <Activity>[];
     
-    print('Starting cleanup of invalid activities. Total activities: ${_activities.length}');
-    
-    for (final activity in _activities) {
-      if (activity.type == ActivityType.payment && activity.debtId == null) {
-        // Check if this activity is for a debt that was already fully paid
-        final customerDebts = _debts.where((d) => d.customerId == activity.customerId).toList();
-        final allDebtsFullyPaid = customerDebts.every((d) => d.isFullyPaid);
-        
-        print('Activity: ${activity.customerName} - ${activity.paymentAmount} - ${activity.newStatus}');
-        print('Customer debts: ${customerDebts.length}, all fully paid: $allDebtsFullyPaid');
-        
-        if (allDebtsFullyPaid) {
-          // This activity should be removed as it's for already paid debts
-          // Check if this is an old activity (more than 24 hours old)
-          final isOldActivity = DateTime.now().difference(activity.date).inHours > 24;
+          for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && activity.debtId == null) {
+          // Check if this activity is for a debt that was already fully paid
+          final customerDebts = _debts.where((d) => d.customerId == activity.customerId).toList();
+          final allDebtsFullyPaid = customerDebts.every((d) => d.isFullyPaid);
           
-          if (isOldActivity) {
-            activitiesToRemove.add(activity);
-            print('Marking activity for removal: ${activity.customerName} - ${activity.paymentAmount}');
+          if (allDebtsFullyPaid) {
+            // This activity should be removed as it's for already paid debts
+            // Check if this is an old activity (more than 24 hours old)
+            final isOldActivity = DateTime.now().difference(activity.date).inHours > 24;
+            
+            if (isOldActivity) {
+              activitiesToRemove.add(activity);
+            }
           }
         }
       }
-    }
-    
-    print('Activities to remove: ${activitiesToRemove.length}');
-    
-    for (final activity in activitiesToRemove) {
-      await _dataService.deleteActivity(activity.id);
-      _activities.remove(activity);
-      print('Removed activity: ${activity.customerName} - ${activity.paymentAmount}');
-    }
-    
-    if (activitiesToRemove.isNotEmpty) {
-      print('Cleaned up ${activitiesToRemove.length} invalid activities');
-      _clearCache();
-      notifyListeners();
-    } else {
-      print('No invalid activities found to clean up');
-    }
+      
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.remove(activity);
+      }
+      
+      if (activitiesToRemove.isNotEmpty) {
+        _clearCache();
+        notifyListeners();
+      }
   }
 
   // Manual cleanup method to remove specific activities
@@ -967,9 +930,8 @@ class AppState extends ChangeNotifier {
       _activities.removeWhere((activity) => activity.id == activityId);
       _clearCache();
       notifyListeners();
-      print('Manually removed activity: $activityId');
     } catch (e) {
-      print('Error removing activity: $e');
+      // Handle error silently
     }
   }
 
@@ -984,14 +946,12 @@ class AppState extends ChangeNotifier {
       for (final activity in activitiesToRemove) {
         await _dataService.deleteActivity(activity.id);
         _activities.remove(activity);
-        print('Removed activity: ${activity.customerName} - ${activity.paymentAmount}');
       }
       
       _clearCache();
       notifyListeners();
-      print('Removed ${activitiesToRemove.length} activities for $customerName with amount $amount');
     } catch (e) {
-      print('Error removing activities: $e');
+      // Handle error silently
     }
   }
 
@@ -1012,7 +972,6 @@ class AppState extends ChangeNotifier {
       
       // If no valid debts to pay, don't create an activity
       if (validDebtIds.isEmpty) {
-        print('No valid debts to pay - all debts are already fully paid');
         return;
       }
       
@@ -1044,7 +1003,7 @@ class AppState extends ChangeNotifier {
         debtId: null, // No specific debt ID since it's across multiple debts
       );
       
-      print('Creating activity: paymentAmount=${activity.paymentAmount}, amount=${activity.amount}, isAllDebtsFullyPaid=$isAllDebtsFullyPaid, validDebtIds=$validDebtIds');
+
       
       // Apply payment to each valid debt
       for (final debtId in validDebtIds) {
@@ -1089,9 +1048,6 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      
-      // Show notification
-      await _notificationService.showPaymentAppliedNotification(firstDebt, totalPaymentAmount);
       
       if (_isOnline) {
         await _syncService.syncDebts(_debts.where((d) => validDebtIds.contains(d.id)).toList());

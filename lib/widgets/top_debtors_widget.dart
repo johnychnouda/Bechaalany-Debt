@@ -79,6 +79,7 @@ class TopDebtorsWidget extends StatelessWidget {
                 if (topDebtors.isEmpty)
                   const Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           Icons.people_outline,
@@ -92,6 +93,7 @@ class TopDebtorsWidget extends StatelessWidget {
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),

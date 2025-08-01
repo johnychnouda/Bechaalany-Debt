@@ -33,15 +33,22 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
-        title: const Text('Add Debt from Product'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        title: Text('Add Debt from Product', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+        backgroundColor: AppColors.dynamicSurface(context),
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
+        titleTextStyle: TextStyle(
+          color: AppColors.dynamicTextPrimary(context),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       body: Consumer<AppState>(
         builder: (context, appState, child) {
           return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -55,83 +62,29 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                     });
                   },
                   label: 'Customer',
-                  placeholder: 'Search by customer name or ID...',
+                                      placeholder: 'Search by name or ID',
                 ),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 
                 // Category Selection
-                const Text(
-                  'Category',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 _buildExpandableCategorySelection(appState),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 
                 // Product Selection
-                const Text(
-                  'Product',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 _buildExpandableSubcategorySelection(appState),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 
                 // Product Details
-                const Text(
-                  'Product Details',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 _buildProductDetails(),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 32),
                 
                 // Add Debt Button
+                _buildAddDebtButton(),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_selectedCustomer != null && _selectedSubcategory != null && !_isLoading) ? _addDebt : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: (_selectedCustomer != null && _selectedSubcategory != null) ? AppColors.primary : Colors.grey,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Text(
-                            'Add Debt',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16), // Bottom padding for the button
               ],
             ),
           );
@@ -149,19 +102,52 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.orange.withAlpha(26), // 0.1 * 255
+          color: Colors.orange.withAlpha(26),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.withAlpha(77)), // 0.3 * 255
+          border: Border.all(color: Colors.orange.withAlpha(77)),
         ),
-        child: const Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.warning, color: Colors.orange),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'No categories available. Please add categories first.',
-                style: TextStyle(color: Colors.orange),
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No categories available',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'You need to add categories and products first. Go to the Products tab to create categories and products.',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 14,
               ),
+            ),
+            SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to products screen
+                Navigator.pushNamed(context, '/products');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Go to Products'),
             ),
           ],
         ),
@@ -184,10 +170,68 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   }
 
   Widget _buildExpandableSubcategorySelection(AppState appState) {
+    final subcategories = _selectedCategory?.subcategories ?? [];
+    
+    if (_selectedCategory != null && subcategories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.blue.withAlpha(26),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.withAlpha(77)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info, color: Colors.blue),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No products in ${_selectedCategory!.name}',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Add products to this category in the Products tab.',
+              style: TextStyle(
+                color: Colors.blue,
+                fontSize: 14,
+              ),
+            ),
+            SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to products screen
+                Navigator.pushNamed(context, '/products');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text('Go to Products'),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ExpandableChipDropdown<Subcategory>(
       label: 'Product',
       value: _selectedSubcategory,
-      items: _selectedCategory?.subcategories ?? [],
+      items: subcategories,
       itemToString: (subcategory) => subcategory.name,
       onChanged: (subcategory) {
         setState(() {
@@ -202,105 +246,317 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
 
   Widget _buildProductDetails() {
-    final quantity = double.tryParse(_quantityController.text) ?? 1.0;
-    final totalAmount = _selectedSubcategory?.sellingPrice ?? 0;
-    final calculatedTotal = totalAmount * quantity;
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Product Info Card
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _selectedSubcategory?.name ?? 'No product selected',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+        Text(
+          'Product Details',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.dynamicBorder(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_selectedSubcategory != null) ...[
+                // Product Name with larger, more prominent display
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicPrimary(context).withAlpha(51)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2,
+                        size: 24,
+                        color: AppColors.dynamicPrimary(context),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedSubcategory!.name,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Category: ${_selectedCategory?.name ?? "Not selected"}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+                
+                // Category and Price in a clean layout
                 Row(
                   children: [
+                    // Category Info
                     Expanded(
-                      child: _buildInfoChip(
-                        'Unit Price',
-                        _selectedSubcategory != null 
-                            ? CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice)
-                            : '0.00 USD',
-                        AppColors.primary,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSurface(context),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.dynamicBorder(context)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.category,
+                                  size: 16,
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicTextSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _selectedCategory?.name ?? 'Not selected',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.dynamicTextPrimary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Unit Price
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSuccess(context).withAlpha(26),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.dynamicSuccess(context).withAlpha(51)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.attach_money,
+                                  size: 16,
+                                  color: AppColors.dynamicSuccess(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Unit Price',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicSuccess(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.dynamicSuccess(context),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
+              ] else ...[
+                // No Product Selected State - More helpful
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicWarning(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicWarning(context).withAlpha(51)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: AppColors.dynamicWarning(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'No Product Selected',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please select a category and product above to see product details and pricing information.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.dynamicTextSecondary(context),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ),
-        
-        const SizedBox(height: 16),
-        
-        // Quantity Input
-        TextField(
-          controller: _quantityController,
-          decoration: const InputDecoration(
-            labelText: 'Quantity',
-            border: OutlineInputBorder(),
-            hintText: '1.0',
+      ],
+    );
+  }
+
+  Widget _buildQuantityField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quantity',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
           ),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _quantityController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter quantity',
+            hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+            filled: true,
+            fillColor: AppColors.dynamicSurface(context),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
           onChanged: (value) {
-            setState(() {
-              // Trigger rebuild to update total
-            });
+            setState(() {});
           },
         ),
-        
-        const SizedBox(height: 16),
-        
-        // Total Amount Display
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withAlpha(26), // 0.1 * 255
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withAlpha(77)), // 0.3 * 255
+      ],
+    );
+  }
+
+  Widget _buildTotalAmount() {
+    final quantity = int.tryParse(_quantityController.text) ?? 1;
+    final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
+    final totalAmount = quantity * unitPrice;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicPrimary(context).withAlpha(26),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Total Amount:',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total Amount:',
+          Text(
+            CurrencyFormatter.formatAmount(context, totalAmount),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.dynamicPrimary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddDebtButton() {
+    final quantity = int.tryParse(_quantityController.text) ?? 1;
+    final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
+    final totalAmount = quantity * unitPrice;
+    final isValid = _selectedCustomer != null && _selectedSubcategory != null && totalAmount > 0;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: isValid && !_isLoading ? _addDebt : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isValid ? AppColors.dynamicPrimary(context) : AppColors.dynamicTextSecondary(context),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Add Debt',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Text(
-                _selectedSubcategory != null 
-                    ? CurrencyFormatter.formatAmount(context, calculatedTotal)
-                    : '0.00 USD',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _selectedSubcategory != null ? AppColors.primary : Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -348,7 +604,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
     try {
       final appState = Provider.of<AppState>(context, listen: false);
-      final quantity = double.tryParse(_quantityController.text) ?? 1.0;
+      final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
       final totalAmount = _selectedSubcategory!.sellingPrice * quantity;
       
       // Create description with quantity if > 1

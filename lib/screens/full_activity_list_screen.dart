@@ -137,7 +137,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                   });
                 },
                 decoration: InputDecoration(
-                  hintText: 'Search by customer name or ID...',
+                                      hintText: 'Search by name or ID',
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -503,7 +503,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           final isRecent = DateTime.now().difference(activity.date).inHours < 24;
           
           if (!hasPendingDebts && !isRecent) {
-            print('Filtering out old payment activity: ${activity.customerName} - ${activity.paymentAmount}');
             continue; // Skip this activity
           }
         }

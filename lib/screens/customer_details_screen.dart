@@ -10,6 +10,7 @@ import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
 import 'add_debt_screen.dart';
 import 'add_customer_screen.dart';
+import '../constants/app_colors.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -210,13 +211,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return Scaffold(
-          backgroundColor: Colors.grey[50],
+          backgroundColor: AppColors.dynamicBackground(context),
           appBar: AppBar(
             title: Text(
               _currentCustomer.name,
               style: AppTheme.getDynamicHeadline(context),
             ),
-            backgroundColor: Colors.grey[50],
+            backgroundColor: AppColors.dynamicSurface(context),
             elevation: 0,
             actions: [
               IconButton(
@@ -244,7 +245,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 },
                 icon: Icon(
                   Icons.edit,
-                  color: Colors.blue[600],
+                  color: AppColors.dynamicPrimary(context),
                 ),
               ),
             ],
@@ -257,7 +258,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.dynamicSurface(context),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -274,9 +275,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'CUSTOMER INFORMATION',
-                          style: AppTheme.getDynamicCaption1(context).copyWith(
-                            color: Colors.grey[600],
+                          style: AppTheme.getDynamicSubheadline(context).copyWith(
+                            color: AppColors.dynamicTextSecondary(context),
                             letterSpacing: 0.5,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -284,18 +286,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       ListTile(
                         leading: Icon(
                           Icons.tag,
-                          color: Colors.grey[600],
+                          color: AppColors.dynamicTextSecondary(context),
                         ),
                         title: Text(
                           'Customer ID',
                           style: AppTheme.getDynamicBody(context).copyWith(
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                         subtitle: Text(
                           _currentCustomer.id,
                           style: AppTheme.getDynamicCallout(context).copyWith(
-                            color: Colors.grey[600],
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
                         ),
                       ),
@@ -303,20 +305,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       ListTile(
                         leading: Icon(
                           Icons.person,
-                          color: Colors.grey[600],
+                          color: AppColors.dynamicTextSecondary(context),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Full Name',
                           style: TextStyle(
                             fontSize: 17,
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                         subtitle: Text(
                           _currentCustomer.name,
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.grey[600],
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
                         ),
                       ),
@@ -324,20 +326,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       ListTile(
                         leading: Icon(
                           Icons.phone,
-                          color: Colors.grey[600],
+                          color: AppColors.dynamicTextSecondary(context),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Phone Number',
                           style: TextStyle(
                             fontSize: 17,
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                         subtitle: Text(
                           _currentCustomer.phone,
                           style: TextStyle(
                             fontSize: 15,
-                            color: Colors.grey[600],
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
                         ),
                       ),
@@ -346,20 +348,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ListTile(
                           leading: Icon(
                             Icons.email,
-                            color: Colors.grey[600],
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
-                          title: const Text(
+                          title: Text(
                             'Email Address',
                             style: TextStyle(
                               fontSize: 17,
-                              color: Colors.black,
+                              color: AppColors.dynamicTextPrimary(context),
                             ),
                           ),
                           subtitle: Text(
                             _currentCustomer.email!,
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.grey[600],
+                              color: AppColors.dynamicTextSecondary(context),
                             ),
                           ),
                         ),
@@ -368,20 +370,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ListTile(
                           leading: Icon(
                             Icons.location_on,
-                            color: Colors.grey[600],
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
-                          title: const Text(
+                          title: Text(
                             'Address',
                             style: TextStyle(
                               fontSize: 17,
-                              color: Colors.black,
+                              color: AppColors.dynamicTextPrimary(context),
                             ),
                           ),
                           subtitle: Text(
                             _currentCustomer.address!,
                             style: TextStyle(
                               fontSize: 15,
-                              color: Colors.grey[600],
+                              color: AppColors.dynamicTextSecondary(context),
                             ),
                           ),
                         ),
@@ -395,7 +397,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.dynamicSurface(context),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
@@ -412,11 +414,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         padding: const EdgeInsets.all(16),
                         child: Text(
                           'FINANCIAL SUMMARY',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[600],
+                          style: AppTheme.getDynamicSubheadline(context).copyWith(
+                            color: AppColors.dynamicTextSecondary(context),
                             letterSpacing: 0.5,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -425,27 +426,27 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.red.withAlpha(26), // 0.1 * 255
+                            color: AppColors.dynamicError(context).withAlpha(26), // 0.1 * 255
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.attach_money,
-                            color: Colors.red,
+                            color: AppColors.dynamicError(context),
                             size: 16,
                           ),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Total Pending Debt',
                           style: TextStyle(
                             fontSize: 17,
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                         subtitle: Text(
                           CurrencyFormatter.formatAmount(context, totalPendingDebt),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
-                            color: Colors.red,
+                            color: AppColors.dynamicError(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -455,27 +456,27 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         leading: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.green.withAlpha(26), // 0.1 * 255
+                            color: AppColors.dynamicSuccess(context).withAlpha(26), // 0.1 * 255
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.check_circle,
-                            color: Colors.green,
+                            color: AppColors.dynamicSuccess(context),
                             size: 16,
                           ),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Total Paid',
                           style: TextStyle(
                             fontSize: 17,
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                         subtitle: Text(
                           CurrencyFormatter.formatAmount(context, totalPaid),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 15,
-                            color: Colors.green,
+                            color: AppColors.dynamicSuccess(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -494,12 +495,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'DEBTS',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                            color: AppColors.dynamicTextPrimary(context),
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -517,10 +518,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               _loadCustomerDebts();
                             }
                           },
-                          child: const Text(
+                          child: Text(
                             'Add Debt',
                             style: TextStyle(
-                              color: Colors.blue,
+                              color: AppColors.dynamicPrimary(context),
                               fontSize: 15,
                             ),
                           ),
@@ -540,13 +541,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               Icon(
                                 Icons.attach_money,
                                 size: 64,
-                                color: Colors.grey[600],
+                                color: AppColors.dynamicTextSecondary(context),
                               ),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'No debts found',
                                 style: TextStyle(
-                                  color: Colors.black,
+                                  color: AppColors.dynamicTextPrimary(context),
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -555,7 +556,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               Text(
                                 'Add a new debt to get started',
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: AppColors.dynamicTextSecondary(context),
                                   fontSize: 15,
                                 ),
                               ),
@@ -623,10 +624,10 @@ class _DebtCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[300]!,
+          color: AppColors.dynamicBorder(context),
           width: 1,
         ),
       ),
@@ -672,7 +673,7 @@ class _DebtCard extends StatelessWidget {
                             ? 'Paid: ${_formatDate(debt.paidAt ?? debt.createdAt)}'
                             : 'Created: ${_formatDate(debt.createdAt)}',
                         style: TextStyle(
-                          color: Colors.grey[600],
+                          color: AppColors.dynamicTextSecondary(context),
                           fontSize: 13,
                         ),
                       ),
@@ -699,7 +700,7 @@ class _DebtCard extends StatelessWidget {
                         'Paid: ${CurrencyFormatter.formatAmount(context, debt.paidAmount)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.green[600],
+                          color: AppColors.dynamicSuccess(context),
                         ),
                       ),
                     ],
@@ -730,7 +731,7 @@ class _DebtCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
+                        backgroundColor: AppColors.dynamicSuccess(context),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -750,7 +751,7 @@ class _DebtCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
+                        backgroundColor: AppColors.dynamicError(context),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -852,9 +853,11 @@ class _DebtCard extends StatelessWidget {
               TextField(
                 controller: amountController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Payment Amount',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],
@@ -866,7 +869,7 @@ class _DebtCard extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                final amount = double.tryParse(amountController.text) ?? 0;
+                final amount = double.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
                 if (amount > 0 && amount <= debt.remainingAmount) {
                   Navigator.of(dialogContext).pop();
                   _applyPartialPayment(amount, context);
@@ -906,7 +909,7 @@ class _PaymentOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
+          border: Border.all(color: AppColors.dynamicBorder(context)),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -925,14 +928,14 @@ class _PaymentOption extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: AppColors.dynamicTextSecondary(context),
                       fontSize: 14,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
+            Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.dynamicTextSecondary(context)),
           ],
         ),
       ),

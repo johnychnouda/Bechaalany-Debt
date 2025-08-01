@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/customer.dart';
+import '../constants/app_colors.dart';
 
 class SearchableCustomerField extends StatefulWidget {
   final Customer? selectedCustomer;
@@ -14,7 +15,7 @@ class SearchableCustomerField extends StatefulWidget {
     required this.customers,
     required this.onCustomerSelected,
     this.label = 'Customer',
-    this.placeholder = 'Search by name or ID...',
+    this.placeholder = 'Search by name or ID',
   });
 
   @override
@@ -25,6 +26,8 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<Customer> _filteredCustomers = [];
+  String _searchQuery = '';
+  bool _showDropdown = false;
 
   @override
   void initState() {
@@ -50,20 +53,17 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
     }
   }
 
-  void _filterCustomers(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _filteredCustomers = [];
-      });
-      return;
-    }
-
+  void _filterCustomers() {
+    final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredCustomers = widget.customers.where((customer) {
-        final nameMatch = customer.name.toLowerCase().contains(query.toLowerCase());
-        final idMatch = customer.id.toLowerCase().contains(query.toLowerCase());
-        return nameMatch || idMatch;
-      }).toList();
+      if (query.isEmpty) {
+        _filteredCustomers = widget.customers;
+      } else {
+        _filteredCustomers = widget.customers.where((customer) {
+          return customer.name.toLowerCase().contains(query) ||
+                 customer.id.toLowerCase().contains(query);
+        }).toList();
+      }
     });
   }
 
@@ -100,25 +100,157 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
       children: [
         Text(
           widget.label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
           ),
         ),
         const SizedBox(height: 8),
-        
-        // Show selected customer card if customer is selected
-        if (widget.selectedCustomer != null) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              border: Border.all(color: Colors.grey[300]!),
+        TextFormField(
+          controller: _searchController,
+          focusNode: _searchFocusNode,
+          decoration: InputDecoration(
+            hintText: widget.placeholder,
+            hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+            prefixIcon: Icon(Icons.search, color: AppColors.dynamicTextSecondary(context)),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterCustomers();
+                    },
+                    icon: Icon(Icons.clear, color: AppColors.dynamicTextSecondary(context)),
+                  )
+                : null,
+            filled: true,
+            fillColor: AppColors.dynamicSurface(context),
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+          onChanged: (value) {
+            _filterCustomers();
+            setState(() {
+              _showDropdown = value.isNotEmpty;
+            });
+          },
+          onTap: () {
+            setState(() {
+              _showDropdown = _searchController.text.isNotEmpty;
+            });
+          },
+        ),
+        if (_showDropdown && _filteredCustomers.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: AppColors.dynamicSurface(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.dynamicBorder(context)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(26),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: _filteredCustomers.map((customer) {
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 1, horizontal: 4),
+                  child: InkWell(
+                    onTap: () {
+                      widget.onCustomerSelected(customer);
+                      _searchController.text = customer.name;
+                      setState(() {
+                        _showDropdown = false;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppColors.dynamicPrimary(context).withAlpha(26),
+                            child: Text(
+                              customer.name.split(' ').map((e) => e[0]).join(''),
+                              style: TextStyle(
+                                color: AppColors.dynamicPrimary(context),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  customer.name,
+                                  style: TextStyle(
+                                    color: AppColors.dynamicTextPrimary(context),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  'ID: ${customer.id}',
+                                  style: TextStyle(
+                                    color: AppColors.dynamicTextSecondary(context),
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        if (widget.selectedCustomer != null)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.dynamicPrimary(context).withAlpha(26),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.dynamicPrimary(context).withAlpha(51),
+                width: 1,
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.person, size: 20, color: Colors.grey),
+                CircleAvatar(
+                  backgroundColor: AppColors.dynamicPrimary(context),
+                  child: Text(
+                    widget.selectedCustomer!.name.split(' ').map((e) => e[0]).join(''),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -126,167 +258,37 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
                     children: [
                       Text(
                         widget.selectedCustomer!.name,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
-                          color: Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 2),
                       Text(
                         'ID: ${widget.selectedCustomer!.id}',
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w400,
+                          color: AppColors.dynamicTextSecondary(context),
+                          fontSize: 12,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.grey),
-                  onPressed: _clearSelection,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.clear();
+                    });
+                    widget.onCustomerSelected(null);
+                  },
+                  icon: Icon(
+                    Icons.close,
+                    color: AppColors.dynamicTextSecondary(context),
+                    size: 20,
+                  ),
                 ),
               ],
             ),
           ),
-        ] else ...[
-          // Search Text Field Container
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(12),
-                topRight: const Radius.circular(12),
-                bottomLeft: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
-                    ? Radius.zero 
-                    : const Radius.circular(12),
-                bottomRight: _searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty 
-                    ? Radius.zero 
-                    : const Radius.circular(12),
-              ),
-            ),
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              decoration: InputDecoration(
-                hintText: widget.placeholder,
-                prefixIcon: const Icon(Icons.search),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              onChanged: _filterCustomers,
-              onTap: () {
-                // Don't show suggestions until user starts typing
-              },
-            ),
-          ),
-          
-          // Search Results Dropdown
-          if (_searchController.text.isNotEmpty && _filteredCustomers.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(26), // 0.1 * 255
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: _filteredCustomers.map((customer) => InkWell(
-                  onTap: () => _selectCustomer(customer),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person, size: 20, color: Colors.grey),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                customer.name,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'ID: ${customer.id}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )).toList(),
-              ),
-            ),
-          
-          // No Results Message
-          if (_searchController.text.isNotEmpty && _filteredCustomers.isEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(26), // 0.1 * 255
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.search_off,
-                    size: 20,
-                    color: Colors.grey[600],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'No customers found matching "${_searchController.text}"',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
       ],
     );
   }
