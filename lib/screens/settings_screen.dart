@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
 import 'data_recovery_screen.dart';
+import 'currency_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -373,17 +374,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCurrencySettings() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Currency Settings'),
-        content: const Text('Currency settings will be implemented in a future update.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => const CurrencySettingsScreen(),
       ),
     );
   }

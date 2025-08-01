@@ -12,30 +12,103 @@ class CurrencyFormatter {
   }
 
   static String formatAmount(BuildContext context, double amount) {
-    // Always display in USD with 2 decimal places
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null) {
+      // Convert amount using current exchange rate
+      final convertedAmount = settings.convertAmount(amount);
+      return '${convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency))} ${settings.targetCurrency}';
+    }
+    
+    // Fallback to USD
     return '${amount.toStringAsFixed(2)}\$';
   }
 
   static String formatAmountWithCurrency(BuildContext context, double amount) {
-    // Always display in USD with 2 decimal places
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null) {
+      final convertedAmount = settings.convertAmount(amount);
+      return '${convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency))} ${settings.targetCurrency}';
+    }
+    
+    // Fallback to USD
     return '${amount.toStringAsFixed(2)}\$ (USD)';
   }
 
   static String formatAmountOnly(BuildContext context, double amount) {
-    // Always display in USD with 2 decimal places
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null) {
+      final convertedAmount = settings.convertAmount(amount);
+      return convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency));
+    }
+    
+    // Fallback to USD
     return amount.toStringAsFixed(2);
   }
 
-
-
   static String getCurrencySymbol(BuildContext context) {
-    // Always return USD symbol
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null) {
+      return _getCurrencySymbol(settings.targetCurrency);
+    }
+    
+    // Fallback to USD symbol
     return '\$';
   }
 
   static String getBaseCurrencySymbol(BuildContext context) {
-    // Always return USD symbol
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null) {
+      return _getCurrencySymbol(settings.baseCurrency);
+    }
+    
+    // Fallback to USD symbol
     return '\$';
+  }
+
+  static String _getCurrencySymbol(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+        return '\$';
+      case 'LBP':
+        return 'L.L.';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      case 'CAD':
+        return 'C\$';
+      case 'AUD':
+        return 'A\$';
+      default:
+        return currency;
+    }
+  }
+
+  static int _getDecimalPlaces(String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+      case 'EUR':
+      case 'GBP':
+      case 'CAD':
+      case 'AUD':
+        return 2;
+      case 'LBP':
+      case 'IQD':
+      case 'IRR':
+        return 0;
+      default:
+        return 2;
+    }
   }
 
   // Convert amount using current exchange rate
