@@ -381,7 +381,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice),
+                              CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice, storedCurrency: _selectedSubcategory!.sellingPriceCurrency),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -605,7 +605,18 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     try {
       final appState = Provider.of<AppState>(context, listen: false);
       final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
-      final totalAmount = _selectedSubcategory!.sellingPrice * quantity;
+      
+      // Convert LBP amount to USD for debt storage
+      final settings = appState.currencySettings;
+      double totalAmount;
+      
+      if (_selectedSubcategory!.sellingPriceCurrency == 'LBP' && settings != null) {
+        // Convert LBP to USD using current exchange rate
+        totalAmount = (_selectedSubcategory!.sellingPrice * quantity) / settings.exchangeRate;
+      } else {
+        // Already in USD or no exchange rate available
+        totalAmount = _selectedSubcategory!.sellingPrice * quantity;
+      }
       
       // Create description with quantity if > 1
       String description = _selectedSubcategory!.name;

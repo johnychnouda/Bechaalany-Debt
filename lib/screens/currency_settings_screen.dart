@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
 import '../models/currency_settings.dart';
 import '../services/data_service.dart';
+import '../providers/app_state.dart';
 
 class CurrencySettingsScreen extends StatefulWidget {
   const CurrencySettingsScreen({super.key});
@@ -94,6 +97,10 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
 
       await _dataService.saveCurrencySettings(settings);
       
+      // Refresh AppState to apply new currency settings throughout the app
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.refresh();
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -115,19 +122,29 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
-        middle: Text('Currency Settings', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+        middle: Text(
+          'Currency Settings',
+          style: AppTheme.getDynamicTitle3(context).copyWith(
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
         backgroundColor: AppColors.dynamicSurface(context),
         border: null,
         trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Text('Save', style: TextStyle(color: AppColors.dynamicPrimary(context))),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            'Save',
+            style: AppTheme.getDynamicBody(context).copyWith(
+              color: AppColors.dynamicPrimary(context),
+              fontWeight: FontWeight.w600,
+              fontSize: 17,
+            ),
+          ),
           onPressed: _saveCurrencySettings,
         ),
       ),
@@ -137,104 +154,24 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
             : Material(
                 color: Colors.transparent,
                 child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   children: [
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
                     // Current Settings Section
-                    _buildSection(
-                      'Current Settings',
-                      [
-                                                 if (_currentSettings != null) ...[
-                           _buildInfoRow(
-                             'Exchange Rate',
-                             '1 $_baseCurrency = ${_addThousandsSeparators(_currentSettings!.exchangeRate.toInt().toString())} $_targetCurrency',
-                             CupertinoIcons.money_dollar,
-                           ),
-                          _buildInfoRow(
-                            'Last Updated',
-                            _formatDate(_currentSettings!.lastUpdated),
-                            CupertinoIcons.time,
-                          ),
-
-                        ] else ...[
-                          _buildInfoRow(
-                            'No Settings',
-                            'Configure your currency settings below',
-                            CupertinoIcons.info_circle,
-                          ),
-                        ],
-                      ],
-                    ),
+                    if (_currentSettings != null) _buildCurrentSettingsSection(),
                     
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     
-                    // Currency Configuration Section
-                    _buildSection(
-                      'Currency Configuration',
-                      [
-                        _buildInfoRow(
-                          'Base Currency',
-                          _baseCurrency,
-                          CupertinoIcons.money_dollar,
-                        ),
-                        _buildInfoRow(
-                          'Target Currency',
-                          _targetCurrency,
-                          CupertinoIcons.money_dollar,
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: AppColors.dynamicBorder(context),
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Exchange Rate',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.dynamicTextPrimary(context),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                CupertinoTextField(
-                                  controller: _exchangeRateController,
-                                  placeholder: 'Enter exchange rate',
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
-                                  onChanged: (value) {
-                                    // Format the input as user types
-                                    _formatInputOnChange(value);
-                                  },
-                                  style: TextStyle(
-                                    color: AppColors.dynamicTextPrimary(context),
-                                  ),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: AppColors.dynamicBorder(context),
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-
-                              ],
-                            ),
-                          ),
-                        ),
-
-                      ],
-                    ),
+                    // Exchange Rate Input Section
+                    _buildExchangeRateSection(),
                     
-
+                    const SizedBox(height: 24),
                     
-                    const SizedBox(height: 40),
+                    // Help Text
+                    _buildHelpText(),
+                    
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -242,55 +179,108 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     );
   }
 
-  Widget _buildSection(String title, List<Widget> children) {
+  Widget _buildCurrentSettingsSection() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context),
+          width: 0.5,
+        ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.dynamicTextSecondary(context),
-                letterSpacing: 0.5,
-              ),
-            ),
+          _buildInfoRow(
+            'Exchange Rate',
+            '1 $_baseCurrency = ${_addThousandsSeparators(_currentSettings!.exchangeRate.toInt().toString())} $_targetCurrency',
+            CupertinoIcons.money_dollar,
+            AppColors.dynamicSuccess(context),
           ),
-          ...children,
+          _buildInfoRow(
+            'Last Updated',
+            _formatDate(_currentSettings!.lastUpdated),
+            CupertinoIcons.time,
+            AppColors.dynamicPrimary(context),
+            showBorder: false,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String title, String subtitle, IconData icon) {
+  Widget _buildExchangeRateSection() {
     return Container(
       decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context),
+          width: 0.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Exchange Rate',
+              style: AppTheme.getDynamicBody(context).copyWith(
+                color: AppColors.dynamicTextPrimary(context),
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 12),
+            CupertinoTextField(
+              controller: _exchangeRateController,
+              placeholder: 'Enter exchange rate',
+              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+              onChanged: (value) {
+                _formatInputOnChange(value);
+              },
+              style: AppTheme.getDynamicBody(context).copyWith(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 18,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.dynamicBackground(context),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.dynamicBorder(context),
+                  width: 0.5,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String title, String subtitle, IconData icon, Color iconColor, {bool showBorder = true}) {
+    return Container(
+      decoration: showBorder ? BoxDecoration(
         border: Border(
           bottom: BorderSide(
             color: AppColors.dynamicBorder(context),
             width: 0.5,
           ),
         ),
-      ),
+      ) : null,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.all(16),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withAlpha(26),
+                color: iconColor.withAlpha(26),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+              child: Icon(icon, color: iconColor, size: 18),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -299,18 +289,18 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                    style: AppTheme.getDynamicBody(context).copyWith(
                       color: AppColors.dynamicTextPrimary(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 17,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: AppTheme.getDynamicFootnote(context).copyWith(
                       color: AppColors.dynamicTextSecondary(context),
+                      fontSize: 15,
                     ),
                   ),
                 ],
@@ -322,9 +312,34 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     );
   }
 
-
-
-
+  Widget _buildHelpText() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicPrimary(context).withAlpha(26),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            CupertinoIcons.info_circle,
+            color: AppColors.dynamicPrimary(context),
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'The exchange rate will be used to convert USD amounts to LBP in all calculations and reports.',
+              style: AppTheme.getDynamicCaption1(context).copyWith(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _formatInputOnChange(String value) {
     // Remove any non-digit characters
@@ -365,17 +380,6 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     return newCursorPosition.clamp(0, newText.length);
   }
 
-  String _formatExchangeRatePreview(String rateText) {
-    if (rateText.isEmpty) return "0";
-    
-    final rate = double.tryParse(rateText);
-    if (rate == null) return rateText;
-    
-    // Format LBP with thousands separators
-    final formattedRate = _addThousandsSeparators(rate.toInt().toString());
-    return formattedRate;
-  }
-
   String _addThousandsSeparators(String number) {
     final buffer = StringBuffer();
     final length = number.length;
@@ -391,6 +395,11 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final hour = date.hour;
+    final minute = date.minute;
+    final ampm = hour >= 12 ? 'PM' : 'AM';
+    final hour12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} at ${hour12.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $ampm';
   }
 } 

@@ -476,9 +476,10 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       MaterialPageRoute(
         builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
-          customerDebts: allCustomerDebts, // Show all customer debts in receipt
+          customerDebts: allCustomerDebts,
           partialPayments: appState.partialPayments,
           activities: appState.activities,
+          specificDate: specificDebt.createdAt, // Pass the specific debt's date
         ),
       ),
     );

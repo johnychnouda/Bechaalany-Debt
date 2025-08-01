@@ -6,6 +6,7 @@ import '../providers/app_state.dart';
 import '../constants/app_colors.dart';
 
 import '../models/category.dart' show ProductCategory, Subcategory;
+import '../models/currency_settings.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 import '../services/notification_service.dart';
@@ -29,9 +30,11 @@ class ThousandsSeparatorInputFormatter extends TextInputFormatter {
     
     return newValue.copyWith(
       text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      selection: TextSelection.collapsed(offset: formatted.length      ),
     );
   }
+
+
 }
 
 class ProductsScreen extends StatefulWidget {
@@ -582,11 +585,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     
+    // Get current exchange rate from app state
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentExchangeRate = appState.currencySettings?.exchangeRate ?? 89000;
+    
     // Set initial values based on currency
     if (selectedCurrency == 'LBP') {
-      costPriceController.text = NumberFormat('#,###').format((originalCostPriceUSD * 89500).toInt());
-      sellingPriceController.text = NumberFormat('#,###').format((originalSellingPriceUSD * 89500).toInt());
+      // Convert USD to LBP for display when currency is LBP
+      final costPriceLBP = originalCostPriceUSD * currentExchangeRate;
+      final sellingPriceLBP = originalSellingPriceUSD * currentExchangeRate;
+      costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
+      sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
     } else {
+      // Show USD amounts directly when currency is USD
       costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
       sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
     }
@@ -630,22 +641,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
                             if (originalCostPriceUSD > 0) {
-                              costPriceController.text = NumberFormat('#,###').format((originalCostPriceUSD * 89500).toInt());
+                              // Convert USD to LBP for display
+                              final costPriceLBP = originalCostPriceUSD * currentExchangeRate;
+                              costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
                             } else {
                               costPriceController.clear();
                             }
                             if (originalSellingPriceUSD > 0) {
-                              sellingPriceController.text = NumberFormat('#,###').format((originalSellingPriceUSD * 89500).toInt());
+                              // Convert USD to LBP for display
+                              final sellingPriceLBP = originalSellingPriceUSD * currentExchangeRate;
+                              sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
                             } else {
                               sellingPriceController.clear();
                             }
                           } else {
                             if (originalCostPriceUSD > 0) {
+                              // Show USD amounts directly
                               costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
                             } else {
                               costPriceController.clear();
                             }
                             if (originalSellingPriceUSD > 0) {
+                              // Show USD amounts directly
                               sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
                             } else {
                               sellingPriceController.clear();
@@ -761,16 +778,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     try {
                                       String cleanCostPrice = costPriceController.text.replaceAll(',', '');
                                       String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
-                                      double costPriceUSD = double.parse(cleanCostPrice);
-                                      double sellingPriceUSD = double.parse(cleanSellingPrice);
-                                      if (selectedCurrency == 'LBP') {
-                                        costPriceUSD = costPriceUSD / 89500;
-                                        sellingPriceUSD = sellingPriceUSD / 89500;
-                                      }
+                                      double costPrice = double.parse(cleanCostPrice);
+                                      double sellingPrice = double.parse(cleanSellingPrice);
                                       
                                       subcategory.name = nameController.text.trim();
-                                      subcategory.costPrice = costPriceUSD;
-                                      subcategory.sellingPrice = sellingPriceUSD;
+                                      subcategory.costPrice = costPrice;
+                                      subcategory.sellingPrice = sellingPrice;
                                       subcategory.costPriceCurrency = selectedCurrency;
                                       subcategory.sellingPriceCurrency = selectedCurrency;
                                       await appState.updateCategory(category);
@@ -867,6 +880,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
     double defaultCostPriceUSD = 0.0;
     double defaultSellingPriceUSD = 0.0;
     
+    // Get current exchange rate from app state
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentExchangeRate = appState.currencySettings?.exchangeRate ?? 89000;
+    
     // Add listeners to trigger rebuild when text changes
     nameController.addListener(() {});
     costPriceController.addListener(() {});
@@ -912,12 +929,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
                             if (defaultCostPriceUSD > 0) {
-                              costPriceController.text = NumberFormat('#,###').format((defaultCostPriceUSD * 89500).toInt());
+                              costPriceController.text = NumberFormat('#,###').format((defaultCostPriceUSD * currentExchangeRate).toInt());
                             } else {
                               costPriceController.clear();
                             }
                             if (defaultSellingPriceUSD > 0) {
-                              sellingPriceController.text = NumberFormat('#,###').format((defaultSellingPriceUSD * 89500).toInt());
+                              sellingPriceController.text = NumberFormat('#,###').format((defaultSellingPriceUSD * currentExchangeRate).toInt());
                             } else {
                               sellingPriceController.clear();
                             }
@@ -954,7 +971,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             String cleanValue = value.replaceAll(',', '');
                             double price = double.parse(cleanValue);
                             if (selectedCurrency == 'LBP') {
-                              defaultCostPriceUSD = price / 89500;
+                              defaultCostPriceUSD = price / currentExchangeRate;
                             } else {
                               defaultCostPriceUSD = price;
                             }
@@ -982,7 +999,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             String cleanValue = value.replaceAll(',', '');
                             double price = double.parse(cleanValue);
                             if (selectedCurrency == 'LBP') {
-                              defaultSellingPriceUSD = price / 89500;
+                              defaultSellingPriceUSD = price / currentExchangeRate;
                             } else {
                               defaultSellingPriceUSD = price;
                             }
@@ -1075,19 +1092,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     try {
                                       String cleanCostPrice = costPriceController.text.replaceAll(',', '');
                                       String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
-                                      double costPriceUSD = double.parse(cleanCostPrice);
-                                      double sellingPriceUSD = double.parse(cleanSellingPrice);
-                                      if (selectedCurrency == 'LBP') {
-                                        costPriceUSD = costPriceUSD / 89500;
-                                        sellingPriceUSD = sellingPriceUSD / 89500;
-                                      }
+                                      double costPrice = double.parse(cleanCostPrice);
+                                      double sellingPrice = double.parse(cleanSellingPrice);
                                       
                                       final subcategory = Subcategory(
                                         id: appState.generateProductPurchaseId(),
                                         name: nameController.text.trim(),
                                         description: null,
-                                        costPrice: costPriceUSD,
-                                        sellingPrice: sellingPriceUSD,
+                                        costPrice: costPrice,
+                                        sellingPrice: sellingPrice,
                                         createdAt: DateTime.now(),
                                         costPriceCurrency: selectedCurrency,
                                         sellingPriceCurrency: selectedCurrency,
@@ -1400,13 +1413,27 @@ class _ProductCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        subcategory.name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.dynamicTextPrimary(context),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            subcategory.name,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Exchange Rate Display
+                          Consumer<AppState>(
+                            builder: (context, appState, child) {
+                              if (appState.currencySettings != null) {
+                                return _buildExchangeRateChip(context, appState.currencySettings!);
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
                       ),
                       if (categoryName != null) ...[
                         const SizedBox(height: 2),
@@ -1464,41 +1491,78 @@ class _ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildInfoChip(
-                    context,
-                    'Cost',
-                    CurrencyFormatter.formatAmount(context, subcategory.costPrice),
-                    Icons.shopping_cart,
-                    AppColors.dynamicWarning(context),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildInfoChip(
-                    context,
-                    'Price',
-                    CurrencyFormatter.formatAmount(context, subcategory.sellingPrice),
-                    Icons.attach_money,
-                    AppColors.dynamicPrimary(context),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildInfoChip(
-                    context,
-                    subcategory.profit >= 0 ? 'Profit' : 'Loss',
-                    CurrencyFormatter.formatAmount(context, subcategory.profit),
-                    Icons.trending_up,
-                    subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : Colors.red,
-                  ),
-                ),
-              ],
+            Consumer<AppState>(
+              builder: (context, appState, child) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoChip(
+                        context,
+                        'Cost',
+                        CurrencyFormatter.formatAmount(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
+                        Icons.shopping_cart,
+                        AppColors.dynamicWarning(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildInfoChip(
+                        context,
+                        'Price',
+                        CurrencyFormatter.formatAmount(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
+                        Icons.attach_money,
+                        AppColors.dynamicPrimary(context),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildInfoChip(
+                        context,
+                        subcategory.profit >= 0 ? 'Profit' : 'Loss',
+                        CurrencyFormatter.formatAmount(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
+                        Icons.trending_up,
+                        subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : Colors.red,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildExchangeRateChip(BuildContext context, CurrencySettings settings) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.systemGray5,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.systemGray3,
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.currency_exchange,
+            size: 12,
+            color: AppColors.textPrimary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '1 ${settings.baseCurrency} = ${_addThousandsSeparators(settings.exchangeRate.toInt().toString())} ${settings.targetCurrency}',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1538,5 +1602,19 @@ class _ProductCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _addThousandsSeparators(String number) {
+    final buffer = StringBuffer();
+    final length = number.length;
+    
+    for (int i = 0; i < length; i++) {
+      if (i > 0 && (length - i) % 3 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(number[i]);
+    }
+    
+    return buffer.toString();
   }
 } 

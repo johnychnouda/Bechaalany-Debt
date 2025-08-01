@@ -11,17 +11,23 @@ class CurrencyFormatter {
     return (1 / settings.exchangeRate).toStringAsFixed(2);
   }
 
-  static String formatAmount(BuildContext context, double amount) {
+  static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     
-    if (settings != null) {
-      // Convert amount using current exchange rate
-      final convertedAmount = settings.convertAmount(amount);
-      return '${_formatNumberWithCommas(convertedAmount, settings.targetCurrency)} ${settings.targetCurrency}';
+    if (settings != null && storedCurrency != null) {
+      // If stored currency is LBP, convert to USD using exchange rate
+      if (storedCurrency.toUpperCase() == 'LBP') {
+        // Convert LBP to USD by dividing by exchange rate
+        final convertedAmount = amount / settings.exchangeRate;
+        return '${convertedAmount.toStringAsFixed(2)}\$';
+      } else {
+        // Already in USD, format as is
+        return '${amount.toStringAsFixed(2)}\$';
+      }
     }
     
-    // Fallback to USD
+    // Fallback to USD with dollar sign on the right side
     return '${amount.toStringAsFixed(2)}\$';
   }
 
