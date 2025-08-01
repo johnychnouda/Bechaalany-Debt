@@ -18,7 +18,7 @@ class CurrencyFormatter {
     if (settings != null) {
       // Convert amount using current exchange rate
       final convertedAmount = settings.convertAmount(amount);
-      return '${convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency))} ${settings.targetCurrency}';
+      return '${_formatNumberWithCommas(convertedAmount, settings.targetCurrency)} ${settings.targetCurrency}';
     }
     
     // Fallback to USD
@@ -31,7 +31,7 @@ class CurrencyFormatter {
     
     if (settings != null) {
       final convertedAmount = settings.convertAmount(amount);
-      return '${convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency))} ${settings.targetCurrency}';
+      return '${_formatNumberWithCommas(convertedAmount, settings.targetCurrency)} ${settings.targetCurrency}';
     }
     
     // Fallback to USD
@@ -44,7 +44,7 @@ class CurrencyFormatter {
     
     if (settings != null) {
       final convertedAmount = settings.convertAmount(amount);
-      return convertedAmount.toStringAsFixed(_getDecimalPlaces(settings.targetCurrency));
+      return _formatNumberWithCommas(convertedAmount, settings.targetCurrency);
     }
     
     // Fallback to USD
@@ -92,6 +92,44 @@ class CurrencyFormatter {
       default:
         return currency;
     }
+  }
+
+  static String _formatNumberWithCommas(double amount, String currency) {
+    final decimalPlaces = _getDecimalPlaces(currency);
+    final formattedNumber = amount.toStringAsFixed(decimalPlaces);
+    
+    if (currency.toUpperCase() == 'LBP') {
+      // For LBP, add thousands separators
+      final parts = formattedNumber.split('.');
+      final integerPart = parts[0];
+      final decimalPart = parts.length > 1 ? parts[1] : '';
+      
+      // Add commas for thousands
+      final formattedInteger = _addThousandsSeparators(integerPart);
+      
+      if (decimalPart.isNotEmpty) {
+        return '$formattedInteger.$decimalPart';
+      } else {
+        return formattedInteger;
+      }
+    } else {
+      // For other currencies, use standard formatting
+      return formattedNumber;
+    }
+  }
+
+  static String _addThousandsSeparators(String number) {
+    final buffer = StringBuffer();
+    final length = number.length;
+    
+    for (int i = 0; i < length; i++) {
+      if (i > 0 && (length - i) % 3 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(number[i]);
+    }
+    
+    return buffer.toString();
   }
 
   static int _getDecimalPlaces(String currency) {

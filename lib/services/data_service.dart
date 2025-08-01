@@ -662,8 +662,7 @@ class DataService {
   // Currency Settings methods
   CurrencySettings? get currencySettings {
     try {
-      final settings = _currencySettingsBoxSafe.values.toList();
-      return settings.isNotEmpty ? settings.first : null;
+      return _currencySettingsBoxSafe.get('default');
     } catch (e) {
       return null;
     }
