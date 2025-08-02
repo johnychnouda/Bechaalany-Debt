@@ -81,25 +81,11 @@ class _ImportDataScreenState extends State<ImportDataScreen> {
       child: Column(
         children: [
           _buildImportOption(
-            'CSV Format',
-            'Import data from CSV file',
-            CupertinoIcons.doc_text,
-            'Most compatible format from spreadsheets',
-            true,
-          ),
-          _buildImportOption(
             'Excel Format',
             'Import from Excel spreadsheet',
             CupertinoIcons.table,
             'Native Excel format support',
-            false, // Not implemented yet
-          ),
-          _buildImportOption(
-            'Other Apps',
-            'Import from other debt apps',
-            CupertinoIcons.app_badge,
-            'Compatible with popular debt apps',
-            false, // Not implemented yet
+            true,
           ),
         ],
       ),
@@ -217,7 +203,7 @@ class _ImportDataScreenState extends State<ImportDataScreen> {
               ],
             )
           : Text(
-              'Select File to Import',
+              'Select Excel File to Import',
               style: AppTheme.getDynamicBody(context).copyWith(
                 color: AppColors.dynamicSurface(context),
                 fontWeight: FontWeight.w600,
@@ -351,7 +337,7 @@ class _ImportDataScreenState extends State<ImportDataScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Import will add new customers and debts to your existing data. Duplicate entries will be skipped. Make sure your CSV file has the correct format.',
+              'Import will add new customers and debts to your existing data. Duplicate entries will be skipped. Make sure your Excel file has the correct format.',
               style: AppTheme.getDynamicCaption1(context).copyWith(
                 color: AppColors.dynamicTextSecondary(context),
                 fontSize: 14,

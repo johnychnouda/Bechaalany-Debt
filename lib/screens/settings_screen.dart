@@ -97,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                   _buildNavigationRow(
                     'Export Data',
-                    'Export to PDF, CSV, or Excel formats',
+                    'Export to PDF or Excel formats',
                     CupertinoIcons.square_arrow_up,
                     () => Navigator.of(context).push(
                       CupertinoPageRoute(
@@ -107,7 +107,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildNavigationRow(
                     'Import Data',
-                    'Import from other debt management apps',
+                    'Import from Excel spreadsheet',
                     CupertinoIcons.square_arrow_down,
                     () => Navigator.of(context).push(
                       CupertinoPageRoute(
