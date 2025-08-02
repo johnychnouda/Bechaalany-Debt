@@ -17,8 +17,9 @@ class DataExportImportService {
     try {
       // Create simple, user-friendly CSV data for customers
       final customerData = [
-        ['Name', 'Phone', 'Email', 'Address', 'Date Added'], // Simple headers
+        ['Customer ID', 'Name', 'Phone', 'Email', 'Address', 'Date Added'], // Simple headers
         ...customers.map((customer) => [
+          customer.id,
           customer.name,
           customer.phone,
           customer.email ?? '',
@@ -29,8 +30,10 @@ class DataExportImportService {
 
       // Create simple, user-friendly CSV data for debts
       final debtData = [
-        ['Customer', 'Description', 'Amount', 'Paid', 'Remaining', 'Status', 'Date', 'Notes'], // Simple headers
+        ['Debt ID', 'Customer ID', 'Customer', 'Description', 'Amount', 'Paid', 'Remaining', 'Status', 'Date', 'Notes'], // Simple headers
         ...debts.map((debt) => [
+          debt.id,
+          debt.customerId,
           debt.customerName,
           debt.description,
           _formatCurrency(debt.amount),
@@ -73,51 +76,57 @@ class DataExportImportService {
       final customersSheet = excel['Customers'];
       
       // Add headers for customers
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Name';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Phone';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Email';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Address';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Date Added';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Customer ID';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Name';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Phone';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Email';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Address';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Date Added';
       
-      // Add customer data
-      for (int i = 0; i < customers.length; i++) {
-        final customer = customers[i];
-        final rowIndex = i + 1;
-        
-        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.name;
-        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.phone;
-        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = customer.email ?? '';
-        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.address ?? '';
-        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
-      }
+              // Add customer data
+        for (int i = 0; i < customers.length; i++) {
+          final customer = customers[i];
+          final rowIndex = i + 1;
+          
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.id;
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.name;
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = customer.phone;
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.email ?? '';
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = customer.address ?? '';
+          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
+        }
       
       // Create Debts sheet
       final debtsSheet = excel['Debts'];
       
       // Add headers for debts
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Customer';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Description';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Amount';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Paid';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Remaining';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Status';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: 0)).value = 'Date';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: 0)).value = 'Notes';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Debt ID';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Customer ID';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Customer';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Description';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Amount';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Paid';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: 0)).value = 'Remaining';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: 0)).value = 'Status';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0)).value = 'Date';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: 0)).value = 'Notes';
       
-      // Add debt data
-      for (int i = 0; i < debts.length; i++) {
-        final debt = debts[i];
-        final rowIndex = i + 1;
-        
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.customerName;
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.description;
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = _formatCurrency(debt.amount);
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = _formatCurrency(debt.paidAmount);
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatCurrency(debt.remainingAmount);
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
-        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = debt.notes ?? '';
-      }
+              // Add debt data
+        for (int i = 0; i < debts.length; i++) {
+          final debt = debts[i];
+          final rowIndex = i + 1;
+          
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.id;
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.customerId;
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = debt.customerName;
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = debt.description;
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatCurrency(debt.amount);
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatCurrency(debt.paidAmount);
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatCurrency(debt.remainingAmount);
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
+          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex)).value = debt.notes ?? '';
+        }
       
       // Create Summary sheet
       final summarySheet = excel['Summary'];
