@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/data_service.dart';
+import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 
 
@@ -39,8 +40,10 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading backups: $e')),
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Backup Error',
+          body: 'Error loading backups: $e',
         );
       }
     }
@@ -56,14 +59,18 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       await _loadBackups();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Backup created successfully')),
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Backup Created',
+          body: 'Backup created successfully',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating backup: $e')),
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Backup Failed',
+          body: 'Error creating backup: $e',
         );
       }
     } finally {
@@ -110,22 +117,28 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         await appState.initialize();
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data restored successfully')),
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'Data Restored',
+            body: 'Data restored successfully',
           );
           Navigator.of(context).pop();
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to restore data')),
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'Restore Failed',
+            body: 'Failed to restore data',
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error restoring data: $e')),
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Restore Error',
+          body: 'Error restoring data: $e',
         );
       }
     } finally {

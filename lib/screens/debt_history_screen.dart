@@ -241,15 +241,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
       return;
     }
     
@@ -479,7 +470,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           customerDebts: allCustomerDebts,
           partialPayments: appState.partialPayments,
           activities: appState.activities,
-          specificDate: specificDebt.createdAt, // Pass the specific debt's date
+          specificDebtId: specificDebt.id, // Pass the specific debt ID
         ),
       ),
     );
@@ -771,6 +762,7 @@ class _GroupedDebtCard extends StatelessWidget {
       } else if (debt.paidAmount > 0) {
         return 'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}';
       } else {
+        // For new debts with no payments, show just the amount
         return '${CurrencyFormatter.formatAmount(context, debt.amount)}';
       }
     }

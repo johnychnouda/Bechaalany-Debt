@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../models/currency_settings.dart';
 import '../services/data_service.dart';
+import '../services/notification_service.dart';
 import '../providers/app_state.dart';
 
 class CurrencySettingsScreen extends StatefulWidget {
@@ -61,14 +62,6 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     try {
       // Check if input is empty
       if (_exchangeRateController.text.trim().isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter an exchange rate'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
         return;
       }
       
@@ -76,14 +69,11 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       final cleanText = _exchangeRateController.text.replaceAll(',', '');
       final exchangeRate = double.tryParse(cleanText);
       if (exchangeRate == null || exchangeRate <= 0) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid exchange rate'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Invalid Exchange Rate',
+          body: 'Please enter a valid exchange rate',
+        );
         return;
       }
       
@@ -102,21 +92,20 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       await appState.refresh();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Currency settings saved successfully'),
-            backgroundColor: Colors.green,
-          ),
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Settings Updated',
+          body: 'Currency settings updated successfully',
         );
-        Navigator.of(context).pop();
+        // Reload the settings to show the updated values
+        _loadCurrencySettings();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving currency settings: $e'),
-            backgroundColor: Colors.red,
-          ),
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Update Failed',
+          body: 'Error saving currency settings: $e',
         );
       }
     }
@@ -138,7 +127,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
         trailing: CupertinoButton(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
-            'Save',
+            'Update',
             style: AppTheme.getDynamicBody(context).copyWith(
               color: AppColors.dynamicPrimary(context),
               fontWeight: FontWeight.w600,
@@ -192,7 +181,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       child: Column(
         children: [
           _buildInfoRow(
-            'Exchange Rate',
+            'Current Exchange Rate',
             '1 $_baseCurrency = ${_addThousandsSeparators(_currentSettings!.exchangeRate.toInt().toString())} $_targetCurrency',
             CupertinoIcons.money_dollar,
             AppColors.dynamicSuccess(context),
@@ -225,7 +214,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Exchange Rate',
+              'New Exchange Rate',
               style: AppTheme.getDynamicBody(context).copyWith(
                 color: AppColors.dynamicTextPrimary(context),
                 fontWeight: FontWeight.w600,

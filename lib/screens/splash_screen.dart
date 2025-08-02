@@ -95,15 +95,15 @@ class _SplashScreenState extends State<SplashScreen>
     _fadeController.forward();
     
     // Start logo animation
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 300));
     _logoController.forward();
     
     // Start text animation after logo
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 500));
     _textController.forward();
     
     // Wait for animations to complete and navigate
-    await Future.delayed(const Duration(milliseconds: 8500));
+    await Future.delayed(const Duration(milliseconds: 3200));
     if (mounted) {
       _navigateToMain();
     }

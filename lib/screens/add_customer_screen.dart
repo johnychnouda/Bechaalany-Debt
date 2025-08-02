@@ -196,6 +196,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       if (widget.customer != null) {
         await appState.updateCustomer(customer);
         if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'Customer Updated',
+            body: 'Contact information for ${customer.name} has been updated',
+          );
           Navigator.pop(context, true); // Return true to indicate successful update
         }
       } else {

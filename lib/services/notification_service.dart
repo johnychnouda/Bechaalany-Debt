@@ -96,7 +96,7 @@ class NotificationService {
   Future<void> showCustomerUpdatedNotification(Customer customer) async {
     await showSuccessNotification(
       title: 'Customer Updated',
-      body: '${customer.name}\'s information has been updated',
+      body: 'Contact information for ${customer.name} has been updated',
       payload: 'customer_updated_${customer.id}',
     );
   }
@@ -219,13 +219,6 @@ class NotificationService {
   }
 
   // Settings and system notifications
-  Future<void> showSettingsSavedNotification() async {
-    await showSuccessNotification(
-      title: 'Settings Saved',
-      body: 'Your preferences have been updated',
-      payload: 'settings_saved',
-    );
-  }
 
   Future<void> showDataExportedNotification() async {
     await showSuccessNotification(
@@ -267,30 +260,7 @@ class NotificationService {
     );
   }
 
-  // Debt reminder notifications
-  Future<void> scheduleDebtReminders(List<Debt> pendingDebts) async {
-    if (!_isInitialized) await initialize();
-
-    // Cancel existing notifications
-    await _notifications.cancelAll();
-
-    // Show immediate notifications for pending debts
-    for (final debt in pendingDebts) {
-      await showWarningNotification(
-        title: 'Pending Payment',
-        body: '${debt.customerName} owes ${_formatCurrency(debt.amount)}',
-        payload: debt.id,
-      );
-    }
-
-    if (pendingDebts.isNotEmpty) {
-      await showInfoNotification(
-        title: 'Daily Debt Summary',
-        body: '${pendingDebts.length} pending payments',
-        payload: 'summary',
-      );
-    }
-  }
+  // Debt reminder notifications - Removed as per user request
 
   // Private method to show notifications with proper iOS configuration
   Future<void> _showNotification({

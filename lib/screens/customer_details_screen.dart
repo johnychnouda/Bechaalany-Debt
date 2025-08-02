@@ -105,15 +105,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Don't allow deletion of fully paid debts
     if (debt.isFullyPaid) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot delete fully paid debts. Use the "Clear" button to remove completed transactions.'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
       return;
     }
     

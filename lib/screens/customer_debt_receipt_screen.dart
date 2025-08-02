@@ -24,6 +24,7 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
   final List<PartialPayment> partialPayments;
   final List<Activity> activities;
   final DateTime? specificDate; // Optional date to filter debts
+  final String? specificDebtId; // Optional specific debt ID to show only that debt
 
   const CustomerDebtReceiptScreen({
     super.key,
@@ -32,6 +33,7 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
     required this.partialPayments,
     required this.activities,
     this.specificDate,
+    this.specificDebtId,
   });
 
   @override
@@ -41,15 +43,36 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
 class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
+    // If a specific debt ID is provided, show all debts until partial payment
+    if (widget.specificDebtId != null) {
+      final specificDebt = allCustomerDebts.firstWhere(
+        (debt) => debt.id == widget.specificDebtId,
+        orElse: () => allCustomerDebts.first,
+      );
+      
+      // Check if any partial payments have been made
+      final hasPartialPayments = allCustomerDebts.any((debt) => debt.paidAmount > 0);
+      
+      if (hasPartialPayments) {
+        // If partial payments exist, show only the specific debt
+        return allCustomerDebts.where((debt) {
+          return debt.id == widget.specificDebtId;
+        }).toList();
+      } else {
+        // If no partial payments, show all debts (accumulate all new debts)
+        return allCustomerDebts.where((debt) => debt.paidAmount == 0).toList();
+      }
+    }
+    
     // If a specific date is provided, filter debts to only include those relevant to that date
     if (widget.specificDate != null) {
       final targetDate = widget.specificDate!;
-      final startOfDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
       
       return allCustomerDebts.where((debt) {
-        // Include debts created on the specific date
-        return debt.createdAt.isAfter(startOfDay) && debt.createdAt.isBefore(endOfDay);
+        // Include debts created within 1 hour of the specific debt time
+        return debt.createdAt.isAfter(startTime) && debt.createdAt.isBefore(endTime);
       }).toList();
     }
     
@@ -578,17 +601,20 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
 
   Widget _buildTotalAmount(double remainingAmount) {
-    final totalOriginalAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-    final partiallyPaidAmount = widget.customerDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+    // Get the relevant debts for calculations
+    final relevantDebts = _getRelevantDebts(widget.customerDebts);
+    
+    final totalOriginalAmount = relevantDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    final partiallyPaidAmount = relevantDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
     
     // Determine the payment status for the relevant debts
     final hasPartialPayments = partiallyPaidAmount > 0;
-    final allDebtsFullyPaid = remainingAmount == 0 && widget.customerDebts.isNotEmpty;
-    final hasNewDebts = widget.customerDebts.any((debt) => debt.paidAmount == 0 && !debt.isFullyPaid);
+    final allDebtsFullyPaid = remainingAmount == 0 && relevantDebts.isNotEmpty;
+    final hasNewDebts = relevantDebts.any((debt) => debt.paidAmount == 0 && !debt.isFullyPaid);
     
     DateTime? latestPaymentDate;
     if (allDebtsFullyPaid) {
-      latestPaymentDate = widget.customerDebts
+      latestPaymentDate = relevantDebts
           .where((debt) => debt.paidAt != null)
           .map((debt) => debt.paidAt!)
           .reduce((a, b) => a.isAfter(b) ? a : b);

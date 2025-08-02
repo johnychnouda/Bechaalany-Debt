@@ -48,11 +48,10 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     
     if (customers.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No customers available. Please add a customer first.'),
-            backgroundColor: AppColors.warning,
-          ),
+        final notificationService = NotificationService();
+        await notificationService.showWarningNotification(
+          title: 'No Customers',
+          body: 'No customers available. Please add a customer first.',
         );
       }
       return;
