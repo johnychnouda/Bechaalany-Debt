@@ -19,7 +19,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _isExporting = false;
   String? _exportedFilePath;
-  String _selectedFormat = 'CSV'; // Default format
+  String _selectedFormat = 'Excel'; // Default format
 
   @override
   Widget build(BuildContext context) {
@@ -75,28 +75,20 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       child: Column(
         children: [
           _buildExportOption(
-            'CSV Format',
-            'Export all data as CSV file',
-            CupertinoIcons.doc_text,
-            'Most compatible format for spreadsheets',
+            'Excel Format',
+            'Export as Excel spreadsheet',
+            CupertinoIcons.table,
+            'Native Excel format with multiple sheets',
             true,
-            'CSV',
+            'Excel',
           ),
           _buildExportOption(
             'PDF Report',
             'Generate detailed PDF report',
             CupertinoIcons.doc_richtext,
             'Professional report with charts and summaries',
-            false, // Not implemented yet
-            'PDF',
-          ),
-          _buildExportOption(
-            'Excel Format',
-            'Export as Excel spreadsheet',
-            CupertinoIcons.table,
-            'Native Excel format with multiple sheets',
             true, // Now implemented
-            'Excel',
+            'PDF',
           ),
         ],
       ),
@@ -303,14 +295,14 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       String formatName;
       
       switch (_selectedFormat) {
+        case 'PDF':
+          filePath = await _exportService.exportToPDF(customers, debts);
+          formatName = 'PDF';
+          break;
         case 'Excel':
+        default:
           filePath = await _exportService.exportToExcel(customers, debts);
           formatName = 'Excel';
-          break;
-        case 'CSV':
-        default:
-          filePath = await _exportService.exportToCSV(customers, debts);
-          formatName = 'CSV';
           break;
       }
       
