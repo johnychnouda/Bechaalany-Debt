@@ -3,8 +3,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
+import '../services/notification_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
+import 'export_data_screen.dart';
+import 'import_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -96,13 +99,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Export Data',
                     'Export to PDF, CSV, or Excel formats',
                     CupertinoIcons.square_arrow_up,
-                    () => _showExportDialog(),
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => const ExportDataScreen(),
+                      ),
+                    ),
                   ),
                   _buildNavigationRow(
                     'Import Data',
                     'Import from other debt management apps',
                     CupertinoIcons.square_arrow_down,
-                    () => _showImportDialog(),
+                    () => Navigator.of(context).push(
+                      CupertinoPageRoute(
+                        builder: (context) => const ImportDataScreen(),
+                      ),
+                    ),
                   ),
                   _buildNavigationRow(
                     'Data Recovery',
@@ -353,8 +364,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   String _getCloudKitStatusText(BuildContext context) {
-    // This would be replaced with actual CloudKit status logic
-    return 'Synced';
+    final appState = Provider.of<AppState>(context, listen: false);
+    if (!appState.iCloudSyncEnabled) {
+      return 'Sync disabled';
+    }
+    
+    // Check if user is signed in to CloudKit
+    // For now, return a simple status
+    return 'Ready to sync';
   }
 
   void _showAppInfo() {
@@ -381,37 +398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showExportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Export Data'),
-        content: const Text('Export functionality will be implemented in a future update.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showImportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Import Data'),
-        content: const Text('Import functionality will be implemented in a future update.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showHelpSupportDialog() {
     showCupertinoDialog(

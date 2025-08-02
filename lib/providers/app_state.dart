@@ -1729,6 +1729,41 @@ class AppState extends ChangeNotifier {
   Future<void> setICloudSyncEnabled(bool enabled) async {
     _iCloudSyncEnabled = enabled;
     await _saveSettings();
+    
+    if (enabled) {
+      try {
+        // Initialize CloudKit service
+        await _cloudKitService.initialize();
+        
+        // Check if user is signed in
+        final isSignedIn = await _cloudKitService.isUserSignedIn();
+        if (!isSignedIn) {
+          await _cloudKitService.signInAnonymously();
+        }
+        
+        // Perform initial sync
+        await _cloudKitService.syncData(_customers, _debts);
+        
+        await _notificationService.showSuccessNotification(
+          title: 'iCloud Sync Enabled',
+          body: 'Your data will now sync across all your devices.',
+        );
+      } catch (e) {
+        await _notificationService.showErrorNotification(
+          title: 'iCloud Sync Failed',
+          body: 'Failed to enable iCloud sync: $e',
+        );
+        // Revert the setting if sync fails
+        _iCloudSyncEnabled = false;
+        await _saveSettings();
+      }
+    } else {
+      await _notificationService.showInfoNotification(
+        title: 'iCloud Sync Disabled',
+        body: 'Your data will no longer sync across devices.',
+      );
+    }
+    
     notifyListeners();
   }
 
