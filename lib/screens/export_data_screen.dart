@@ -19,6 +19,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _isExporting = false;
   String? _exportedFilePath;
+  String _selectedFormat = 'CSV'; // Default format
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +80,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             CupertinoIcons.doc_text,
             'Most compatible format for spreadsheets',
             true,
+            'CSV',
           ),
           _buildExportOption(
             'PDF Report',
@@ -86,20 +88,22 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             CupertinoIcons.doc_richtext,
             'Professional report with charts and summaries',
             false, // Not implemented yet
+            'PDF',
           ),
           _buildExportOption(
             'Excel Format',
             'Export as Excel spreadsheet',
             CupertinoIcons.table,
             'Native Excel format with multiple sheets',
-            false, // Not implemented yet
+            true, // Now implemented
+            'Excel',
           ),
         ],
       ),
     );
   }
 
-  Widget _buildExportOption(String title, String subtitle, IconData icon, String description, bool available) {
+  Widget _buildExportOption(String title, String subtitle, IconData icon, String description, bool available, String format) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -176,6 +180,33 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     color: AppColors.dynamicTextSecondary(context),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            if (available)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedFormat = format;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _selectedFormat == format 
+                      ? AppColors.dynamicPrimary(context)
+                      : AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    _selectedFormat == format ? 'Selected' : 'Select',
+                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                      color: _selectedFormat == format 
+                        ? AppColors.dynamicSurface(context)
+                        : AppColors.dynamicPrimary(context),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
@@ -268,7 +299,20 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         return;
       }
 
-      final filePath = await _exportService.exportToCSV(customers, debts);
+      String filePath;
+      String formatName;
+      
+      switch (_selectedFormat) {
+        case 'Excel':
+          filePath = await _exportService.exportToExcel(customers, debts);
+          formatName = 'Excel';
+          break;
+        case 'CSV':
+        default:
+          filePath = await _exportService.exportToCSV(customers, debts);
+          formatName = 'CSV';
+          break;
+      }
       
       setState(() {
         _exportedFilePath = filePath;
@@ -278,7 +322,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       
       await _notificationService.showSuccessNotification(
         title: 'Export Successful',
-        body: 'Your data has been exported and shared successfully.',
+        body: 'Your data has been exported as $formatName and shared successfully.',
       );
 
     } catch (e) {

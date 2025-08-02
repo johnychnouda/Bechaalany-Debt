@@ -3,6 +3,7 @@ import 'package:csv/csv.dart';
 // import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:excel/excel.dart';
 // import 'package:cross_file/cross_file.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
@@ -60,6 +61,95 @@ class DataExportImportService {
       return file.path;
     } catch (e) {
       throw Exception('Failed to export data: $e');
+    }
+  }
+
+  Future<String> exportToExcel(List<Customer> customers, List<Debt> debts) async {
+    try {
+      // Create Excel workbook
+      final excel = Excel.createExcel();
+      
+      // Create Customers sheet
+      final customersSheet = excel['Customers'];
+      
+      // Add headers for customers
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Name';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Phone';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Email';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Address';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Date Added';
+      
+      // Add customer data
+      for (int i = 0; i < customers.length; i++) {
+        final customer = customers[i];
+        final rowIndex = i + 1;
+        
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.name;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.phone;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = customer.email ?? '';
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.address ?? '';
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
+      }
+      
+      // Create Debts sheet
+      final debtsSheet = excel['Debts'];
+      
+      // Add headers for debts
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Customer';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Description';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Amount';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Paid';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Remaining';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Status';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: 0)).value = 'Date';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: 0)).value = 'Notes';
+      
+      // Add debt data
+      for (int i = 0; i < debts.length; i++) {
+        final debt = debts[i];
+        final rowIndex = i + 1;
+        
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.customerName;
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.description;
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = _formatCurrency(debt.amount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = _formatCurrency(debt.paidAmount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatCurrency(debt.remainingAmount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = debt.notes ?? '';
+      }
+      
+      // Create Summary sheet
+      final summarySheet = excel['Summary'];
+      
+      // Add summary data
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Debt Management Summary';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = 'Generated on: ${_formatDate(DateTime.now())}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).value = 'Total Customers:';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3)).value = customers.length;
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4)).value = 'Total Debts:';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 4)).value = debts.length;
+      
+      final totalAmount = debts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaid = debts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      final totalRemaining = debts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = 'Total Amount:';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 5)).value = _formatCurrency(totalAmount);
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = 'Total Paid:';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6)).value = _formatCurrency(totalPaid);
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = 'Total Remaining:';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7)).value = _formatCurrency(totalRemaining);
+      
+      // Save to temporary file
+      final directory = await getTemporaryDirectory();
+      final dateStr = DateTime.now().toString().split(' ')[0].replaceAll('-', '');
+      final file = File('${directory.path}/Debt_Data_$dateStr.xlsx');
+      await file.writeAsBytes(excel.encode()!);
+      
+      return file.path;
+    } catch (e) {
+      throw Exception('Failed to export Excel data: $e');
     }
   }
 
