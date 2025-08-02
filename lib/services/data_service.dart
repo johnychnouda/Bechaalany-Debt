@@ -218,6 +218,24 @@ class DataService {
       return [];
     }
   }
+
+  // Delete a specific backup
+  Future<bool> deleteBackup(String backupPath) async {
+    try {
+      final backupDir = Directory(backupPath);
+      
+      if (!await backupDir.exists()) {
+        return false;
+      }
+      
+      await backupDir.delete(recursive: true);
+      return true;
+      
+    } catch (e) {
+      // Error deleting backup
+      return false;
+    }
+  }
   
   // Clean up old backups
   Future<void> _cleanupOldBackups(Directory backupDir) async {
