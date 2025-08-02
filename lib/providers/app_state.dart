@@ -555,7 +555,7 @@ class AppState extends ChangeNotifier {
     
     final pendingDebts = _debts.where((debt) => debt.paidAmount == 0).toList();
     
-    await _notificationService.scheduleDebtReminders(pendingDebts);
+    // Debt reminders removed as per user request
   }
   
   // Customer operations

@@ -355,11 +355,15 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
   }
 
   int _calculateNewCursorPosition(String oldText, String newText, int oldCursorPosition) {
-    // Count commas before cursor in old text
-    final commasBeforeCursorInOld = oldText.substring(0, oldCursorPosition).split(',').length - 1;
+    // Ensure oldCursorPosition is within bounds of oldText
+    final safeOldPosition = oldCursorPosition.clamp(0, oldText.length);
     
-    // Count commas before cursor in new text
-    final commasBeforeCursorInNew = newText.substring(0, oldCursorPosition).split(',').length - 1;
+    // Count commas before cursor in old text
+    final commasBeforeCursorInOld = oldText.substring(0, safeOldPosition).split(',').length - 1;
+    
+    // Count commas before cursor in new text (use safe position or newText length, whichever is smaller)
+    final safeNewPosition = oldCursorPosition.clamp(0, newText.length);
+    final commasBeforeCursorInNew = newText.substring(0, safeNewPosition).split(',').length - 1;
     
     // Adjust cursor position based on comma difference
     final commaDifference = commasBeforeCursorInNew - commasBeforeCursorInOld;
