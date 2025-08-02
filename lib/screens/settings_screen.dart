@@ -134,23 +134,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'App Info',
                 [
-                  _buildNavigationRow(
-                    'Help & Support',
-                    'Get help and contact support',
-                    CupertinoIcons.question_circle,
-                    () => _showHelpSupportDialog(),
-                  ),
-                  _buildNavigationRow(
-                    'Privacy Policy',
-                    'Read our privacy policy',
-                    CupertinoIcons.shield,
-                    () => _showPrivacyPolicy(),
-                  ),
-                  _buildNavigationRow(
-                    'Terms of Service',
-                    'Read our terms of service',
-                    CupertinoIcons.doc_text,
-                    () => _showTermsOfService(),
+                  _buildInfoRow(
+                    'Developer',
+                    'Johny Chnouda',
+                    CupertinoIcons.person_circle,
                   ),
                   _buildInfoRow(
                     'App Version',
@@ -400,51 +387,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 
 
-  void _showHelpSupportDialog() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Help & Support'),
-        content: const Text('For help and support, please contact our support team.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showPrivacyPolicy() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Privacy Policy'),
-        content: const Text('Our privacy policy will be available soon.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTermsOfService() {
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Terms of Service'),
-        content: const Text('Our terms of service will be available soon.'),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text('OK'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
-      ),
-    );
-  }
 } 
