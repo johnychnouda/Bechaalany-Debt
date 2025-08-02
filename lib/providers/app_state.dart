@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -460,7 +459,7 @@ class AppState extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error cleaning up duplicate payment activities: $e');
+      // Error cleaning up duplicate payment activities
     }
   }
 
@@ -491,7 +490,7 @@ class AppState extends ChangeNotifier {
       // Create missing payment activities for fully paid debts
       await createMissingPaymentActivitiesForAllPaidDebts();
     } catch (e) {
-      print('Error loading data: $e');
+      // Error loading data
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -515,7 +514,7 @@ class AppState extends ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error creating missing payment activities: $e');
+      // Error creating missing payment activities
     }
   }
   
@@ -552,8 +551,6 @@ class AppState extends ChangeNotifier {
   // Schedule notifications for due/overdue debts
   Future<void> _scheduleNotifications() async {
     if (!_notificationsEnabled) return;
-    
-    final pendingDebts = _debts.where((debt) => debt.paidAmount == 0).toList();
     
     // Debt reminders removed as per user request
   }
@@ -959,7 +956,6 @@ class AppState extends ChangeNotifier {
   Future<void> applyPaymentAcrossDebts(List<String> debtIds, double totalPaymentAmount) async {
     try {
       double remainingPayment = totalPaymentAmount;
-      final appState = this;
       
       // Check if any of these debts are already fully paid - if so, skip them
       final validDebtIds = <String>[];
@@ -1393,7 +1389,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
     } catch (e) {
-      print('Error in addPaymentActivity: $e');
+      // Error in addPaymentActivity
       rethrow;
     }
   }
@@ -1583,10 +1579,10 @@ class AppState extends ChangeNotifier {
       // Notify listeners
       notifyListeners();
       
-      print('Cleaned up ${customerActivities.length} activities for $customerName');
+      // Cleaned up activities for $customerName
       
     } catch (e) {
-      print('Error cleaning up activities: $e');
+      // Error cleaning up activities
     }
   }
 
@@ -1600,7 +1596,7 @@ class AppState extends ChangeNotifier {
       );
       
       if (customer.id.isEmpty) {
-        print('Customer not found: $customerName');
+        // Customer not found: $customerName
         return;
       }
       
@@ -1629,10 +1625,10 @@ class AppState extends ChangeNotifier {
       // Notify listeners
       notifyListeners();
       
-      print('Created payment activity for $customerName: ${amount}');
+      // Created payment activity for $customerName
       
     } catch (e) {
-      print('Error creating payment activity: $e');
+      // Error creating payment activity
     }
   }
 
@@ -1645,10 +1641,7 @@ class AppState extends ChangeNotifier {
         activity.type == ActivityType.payment
       ).toList();
       
-      print('Found ${customerActivities.length} payment activities for $customerName:');
-      for (final activity in customerActivities) {
-        print('- ${activity.paymentAmount} (${activity.date})');
-      }
+      // Found payment activities for $customerName
       
       // Find the customer's current debts
       final customer = _customers.firstWhere(
@@ -1658,14 +1651,11 @@ class AppState extends ChangeNotifier {
       
       if (customer.id.isNotEmpty) {
         final customerDebts = _debts.where((debt) => debt.customerId == customer.id).toList();
-        print('Customer has ${customerDebts.length} debts:');
-        for (final debt in customerDebts) {
-          print('- ${debt.amount} (paid: ${debt.paidAmount}, remaining: ${debt.remainingAmount})');
-        }
+        // Customer has debts
       }
       
     } catch (e) {
-      print('Error checking payment activities: $e');
+      // Error checking payment activities
     }
   }
 

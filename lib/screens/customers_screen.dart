@@ -187,7 +187,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                       color: AppColors.dynamicSurface(context),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppColors.dynamicBorder(context).withOpacity(0.3),
+                        color: AppColors.dynamicBorder(context).withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -231,7 +231,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                   color: AppColors.dynamicSurface(context),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: AppColors.dynamicBorder(context).withOpacity(0.3),
+                                    color: AppColors.dynamicBorder(context).withValues(alpha: 0.3),
                                     width: 1,
                                   ),
                                 ),
@@ -311,7 +311,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.3),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -376,7 +376,7 @@ class _CustomerListTile extends StatelessWidget {
             color: AppColors.dynamicSurface(context),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.dynamicBorder(context).withOpacity(0.2),
+              color: AppColors.dynamicBorder(context).withValues(alpha: 0.2),
               width: 1,
             ),
           ),

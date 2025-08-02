@@ -798,7 +798,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdfBytes = await pdf.save();
       await file.writeAsBytes(pdfBytes);
       
-      await Share.shareFiles([file.path]);
+      await Share.shareXFiles([XFile(file.path)]);
       
       final notificationService = NotificationService();
       await notificationService.showSuccessNotification(

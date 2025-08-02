@@ -54,7 +54,7 @@ app.*.map.json
 
 # Firebase configuration (if you add it back later)
 # google-services.json
-# GoogleService-Info.plist
+GoogleService-Info.plist
 
 # Environment files
 .env

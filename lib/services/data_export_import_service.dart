@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:excel/excel.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-// import 'package:cross_file/cross_file.dart';
+import 'package:cross_file/cross_file.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 
@@ -371,8 +371,8 @@ class DataExportImportService {
     try {
       final file = File(filePath);
       if (await file.exists()) {
-        await Share.shareFiles(
-          [filePath],
+        await Share.shareXFiles(
+          [XFile(filePath)],
           text: 'Bechaalany Debt App - Data Export',
           subject: 'Debt App Data Export',
         );
