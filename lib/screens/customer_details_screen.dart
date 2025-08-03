@@ -162,37 +162,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Calculate total pending debt (current remaining amount)
         final totalPendingDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
-        // Calculate total paid (cumulative sum of all payments made)
-        // This includes payments for active debts and cleared/deleted debts
+        // Calculate total paid (only from active debts)
         double totalPaid = 0.0;
         
-        // Add payments from active debts
+        // Add payments from active debts only
         for (final debt in allCustomerDebts) {
           totalPaid += debt.paidAmount;
-        }
-        
-        // Add payments from cleared/deleted debts (debts that no longer exist but have payment activities)
-        final activeDebtIds = allCustomerDebts.map((d) => d.id).toSet();
-        final paymentActivitiesForClearedDebts = appState.activities.where((a) => 
-          a.customerId == _currentCustomer.id && 
-          a.type == ActivityType.payment &&
-          a.debtId != null &&
-          !activeDebtIds.contains(a.debtId)
-        ).toList();
-        
-        for (final activity in paymentActivitiesForClearedDebts) {
-          totalPaid += activity.paymentAmount ?? 0;
-        }
-        
-        // Also add cross-debt payments (activities without specific debt ID)
-        final crossDebtPayments = appState.activities.where((a) => 
-          a.customerId == _currentCustomer.id && 
-          a.type == ActivityType.payment &&
-          a.debtId == null
-        ).toList();
-        
-        for (final activity in crossDebtPayments) {
-          totalPaid += activity.paymentAmount ?? 0;
         }
         
         // Get all customer debts and sort by date and time in descending order (newest first)

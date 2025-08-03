@@ -362,10 +362,7 @@ class _ImportDataScreenState extends State<ImportDataScreen> {
       );
       
       // TODO: Implement actual file picker and import functionality
-      // final importData = await _importService.importFromCSV();
-      // setState(() {
-      //   _importPreview = importData;
-      // });
+      // Import functionality will be implemented in future updates
 
     } catch (e) {
       await _notificationService.showErrorNotification(

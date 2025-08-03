@@ -100,17 +100,25 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
-        title: const Text('Debt Receipt'),
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        title: Text(
+          'Debt Receipt',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        backgroundColor: AppColors.dynamicSurface(context),
+        iconTheme: IconThemeData(
+          color: AppColors.dynamicTextPrimary(context),
+        ),
         actions: [
           CupertinoButton(
             padding: EdgeInsets.zero,
             onPressed: () => _shareReceipt(),
-            child: const Icon(
+            child: Icon(
               CupertinoIcons.share,
-              color: CupertinoColors.systemBlue,
+              color: AppColors.primary,
             ),
           ),
         ],
@@ -136,15 +144,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow,
       ),
       child: Row(
         children: [
@@ -152,7 +154,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             context: context,
             width: 32,
             height: 32,
-            placeholder: const Icon(
+            placeholder: Icon(
               Icons.account_balance_wallet,
               color: AppColors.primary,
               size: 32,
@@ -164,7 +166,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: AppColors.dynamicTextPrimary(context),
               letterSpacing: 1,
             ),
           ),
@@ -177,15 +179,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,21 +191,22 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: Colors.grey[700],
+              color: AppColors.dynamicTextSecondary(context),
               letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.person, size: 16, color: Colors.grey[600]),
+              Icon(Icons.person, size: 16, color: AppColors.dynamicTextSecondary(context)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   widget.customer.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: AppColors.dynamicTextPrimary(context),
                   ),
                 ),
               ),
@@ -219,14 +216,14 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                Icon(Icons.phone, size: 16, color: AppColors.dynamicTextSecondary(context)),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     widget.customer.phone,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.grey[600],
+                      color: AppColors.dynamicTextSecondary(context),
                     ),
                   ),
                 ),
@@ -236,14 +233,15 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.tag, size: 16, color: Colors.grey[600]),
+              Icon(Icons.tag, size: 16, color: AppColors.dynamicTextSecondary(context)),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'ID: ${widget.customer.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    color: AppColors.dynamicTextPrimary(context),
                   ),
                 ),
               ),
@@ -336,16 +334,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(8),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-            spreadRadius: 0,
-          ),
-        ],
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,7 +361,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
+                  color: AppColors.dynamicTextPrimary(context),
                   letterSpacing: 0.5,
                 ),
               ),
@@ -396,10 +387,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppColors.dynamicBackground(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[200]!,
+          color: AppColors.dynamicBorder(context),
           width: 0.5,
         ),
       ),
@@ -424,10 +415,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               Expanded(
                 child: Text(
                   DebtDescriptionUtils.cleanDescription(debt.description),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.dynamicTextPrimary(context),
                   ),
                 ),
               ),
@@ -449,7 +440,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.blue[600],
+              color: AppColors.primary,
               letterSpacing: 0.5,
             ),
           ),
@@ -468,15 +459,16 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
 
   Widget _buildPaymentActivityItem(Activity activity) {
     final isFullPayment = activity.paymentAmount == activity.amount;
+    final paymentColor = isFullPayment ? AppColors.dynamicSuccess(context) : AppColors.dynamicWarning(context);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppColors.dynamicBackground(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[200]!,
+          color: AppColors.dynamicBorder(context),
           width: 0.5,
         ),
       ),
@@ -488,13 +480,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: (isFullPayment ? Colors.green[600] : Colors.orange[600])?.withAlpha(26),
+                  color: paymentColor.withAlpha(26),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   isFullPayment ? Icons.check_circle : Icons.payment,
                   size: 14,
-                  color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+                  color: paymentColor,
                 ),
               ),
               const SizedBox(width: 12),
@@ -504,7 +496,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.dynamicTextPrimary(context),
                   ),
                 ),
               ),
@@ -514,7 +506,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+                  color: paymentColor,
                 ),
               ),
             ],
@@ -525,7 +517,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: isFullPayment ? Colors.green[600] : Colors.orange[600],
+              color: paymentColor,
               letterSpacing: 0.5,
             ),
           ),
@@ -535,14 +527,16 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
 
   Widget _buildPartialPaymentItem(PartialPayment payment) {
+    final paymentColor = AppColors.dynamicSuccess(context);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: AppColors.dynamicBackground(context),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.grey[200]!,
+          color: AppColors.dynamicBorder(context),
           width: 0.5,
         ),
       ),
@@ -554,13 +548,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: (Colors.green[600] ?? Colors.green).withAlpha(26),
+                  color: paymentColor.withAlpha(26),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.payment,
                   size: 14,
-                  color: Colors.green[600],
+                  color: paymentColor,
                 ),
               ),
               const SizedBox(width: 12),
@@ -570,7 +564,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: AppColors.dynamicTextPrimary(context),
                   ),
                 ),
               ),
@@ -580,7 +574,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: Colors.green[600],
+                  color: paymentColor,
                 ),
               ),
             ],
@@ -591,7 +585,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Colors.green[600],
+              color: paymentColor,
               letterSpacing: 0.5,
             ),
           ),
@@ -623,15 +617,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.dynamicSurface(context),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(26),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: AppColors.cardShadow,
       ),
       child: Column(
         children: [
@@ -645,7 +633,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
                 ),
                 Text(
@@ -653,7 +641,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.red[600],
+                    color: AppColors.dynamicError(context),
                   ),
                 ),
               ],
@@ -670,7 +658,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
                 ),
                 Text(
@@ -678,7 +666,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.green[600],
+                    color: AppColors.dynamicSuccess(context),
                   ),
                 ),
               ],
@@ -692,7 +680,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.grey[700],
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
                 ),
                 Text(
@@ -700,7 +688,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.red[600],
+                    color: AppColors.dynamicError(context),
                   ),
                 ),
               ],
@@ -717,7 +705,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.green[600],
+                    color: AppColors.dynamicSuccess(context),
                   ),
                 ),
                 Row(
@@ -727,13 +715,13 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.green[600],
+                        color: AppColors.dynamicSuccess(context),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Icon(
                       Icons.check_circle,
-                      color: Colors.green[600],
+                      color: AppColors.dynamicSuccess(context),
                       size: 24,
                     ),
                   ],
@@ -746,7 +734,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 'Paid on ${_formatDateTime(latestPaymentDate)}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: AppColors.dynamicTextSecondary(context),
                 ),
               ),
             ],

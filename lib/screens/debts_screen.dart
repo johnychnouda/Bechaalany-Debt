@@ -514,26 +514,31 @@ class _DebtsScreenState extends State<DebtsScreen> {
                         ),
                         filled: true,
                         fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
                     const SizedBox(height: 12),
                     // Status filter
                     Consumer<AppState>(
                       builder: (context, appState, child) {
-                        return SingleChildScrollView(
-                          key: ValueKey('filter_chips_${appState.debts.length}_${appState.debts.fold(0, (sum, debt) => sum + (debt.isFullyPaid ? 1 : 0))}'),
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildFilterChip('All', _selectedStatus == 'All', appState.debts),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Pending', _selectedStatus == 'Pending', appState.debts),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Partially Paid', _selectedStatus == 'Partially Paid', appState.debts),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('Fully Paid', _selectedStatus == 'Fully Paid', appState.debts),
-                            ],
-                          ),
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            // Determine if we need compact labels based on screen width
+                            final isCompact = constraints.maxWidth < 400;
+                            
+                            return Wrap(
+                              key: ValueKey('filter_chips_${appState.debts.length}_${appState.debts.fold(0, (sum, debt) => sum + (debt.isFullyPaid ? 1 : 0))}'),
+                              alignment: WrapAlignment.center,
+                              spacing: isCompact ? 6 : 8,
+                              runSpacing: 8,
+                              children: [
+                                _buildFilterChip('All', _selectedStatus == 'All', appState.debts, isCompact),
+                                _buildFilterChip('Pending', _selectedStatus == 'Pending', appState.debts, isCompact),
+                                _buildFilterChip('Partially Paid', _selectedStatus == 'Partially Paid', appState.debts, isCompact),
+                                _buildFilterChip('Fully Paid', _selectedStatus == 'Fully Paid', appState.debts, isCompact),
+                              ],
+                            );
+                          },
                         );
                       },
                     ),
@@ -570,7 +575,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
                         ),
                       )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: _groupedDebts.length,
                         itemBuilder: (context, index) {
                           final group = _groupedDebts[index];
@@ -603,7 +608,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected, List<Debt> allDebts) {
+  Widget _buildFilterChip(String label, bool isSelected, List<Debt> allDebts, [bool isCompact = false]) {
     int count = 0;
     if (label == 'All') {
       count = allDebts.length;
@@ -637,9 +642,20 @@ class _DebtsScreenState extends State<DebtsScreen> {
       }
     }
     
+    // Use adaptive labels based on screen size
+    String displayLabel = label;
+    if (isCompact) {
+      // Use very short labels for compact screens
+      if (label == 'Partially Paid') {
+        displayLabel = 'Partial';
+      } else if (label == 'Fully Paid') {
+        displayLabel = 'Paid';
+      }
+    }
+    
     return FilterChip(
-      key: ValueKey('${label}_${count}_${allDebts.length}'),
-      label: Text('$label${count > 0 ? ' ($count)' : ''}'),
+      key: ValueKey('${label}_${count}_${allDebts.length}_${isCompact}'),
+      label: Text('$displayLabel${count > 0 ? ' ($count)' : ''}'),
       selected: isSelected,
       onSelected: (selected) {
         setState(() {
@@ -651,7 +667,12 @@ class _DebtsScreenState extends State<DebtsScreen> {
       labelStyle: TextStyle(
         color: isSelected ? AppColors.primary : Colors.grey[600],
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        fontSize: isCompact ? 12 : 13, // Smaller font for compact screens
       ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 6 : 8, 
+        vertical: isCompact ? 3 : 4
+      ), // More compact padding for smaller screens
     );
   }
 

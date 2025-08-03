@@ -12,7 +12,7 @@ import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../services/sync_service.dart';
 
-import '../services/cloudkit_service.dart';
+// CloudKit service removed - using built-in backend
 import '../services/data_export_import_service.dart';
 import '../services/ios18_service.dart';
 
@@ -20,7 +20,7 @@ class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
   final SyncService _syncService = SyncService();
-  final CloudKitService _cloudKitService = CloudKitService();
+  // CloudKit service removed - using built-in backend
   final DataExportImportService _exportImportService = DataExportImportService();
   // final IOS18Service _ios18Service = IOS18Service(); // Commented out - static methods don't need instance
 
@@ -44,10 +44,14 @@ class AppState extends ChangeNotifier {
   // App Settings (Only implemented ones)
   bool _isDarkMode = false;
   bool _autoSyncEnabled = true;
-  bool _iCloudSyncEnabled = false;
   
   // Business Settings (Only implemented ones)
   String _defaultCurrency = 'USD';
+  
+  // Constructor to load settings immediately for theme persistence
+  AppState() {
+    _loadSettingsSync();
+  }
   
   // Cached calculations
   double? _cachedTotalDebt;
@@ -74,7 +78,6 @@ class AppState extends ChangeNotifier {
   bool get darkModeEnabled => _isDarkMode;
   String get selectedLanguage => 'English';
   bool get autoSyncEnabled => _autoSyncEnabled;
-  bool get iCloudSyncEnabled => _iCloudSyncEnabled;
   
   // Business Settings Getters (Only implemented ones)
   String get defaultCurrency => _defaultCurrency;
@@ -158,7 +161,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     
     try {
-      // Load settings first
+      // Load settings first - this is critical for theme persistence
       await _loadSettings();
       
       // Initialize services
@@ -210,11 +213,23 @@ class AppState extends ChangeNotifier {
       
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
       _autoSyncEnabled = prefs.getBool('autoSyncEnabled') ?? true;
-      _iCloudSyncEnabled = prefs.getBool('iCloudSyncEnabled') ?? false;
       
       // Business Settings (Only implemented ones)
       _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
       
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+  
+  // Synchronous settings loading for immediate theme persistence
+  void _loadSettingsSync() {
+    try {
+      // Use a microtask to load settings asynchronously but immediately
+      Future.microtask(() async {
+        await _loadSettings();
+        notifyListeners(); // Notify listeners after settings are loaded
+      });
     } catch (e) {
       // Handle error silently
     }
@@ -227,7 +242,6 @@ class AppState extends ChangeNotifier {
       
       await prefs.setBool('isDarkMode', _isDarkMode);
       await prefs.setBool('autoSyncEnabled', _autoSyncEnabled);
-      await prefs.setBool('iCloudSyncEnabled', _iCloudSyncEnabled);
       
       // Business Settings (Only implemented ones)
       await prefs.setString('defaultCurrency', _defaultCurrency);
@@ -336,10 +350,7 @@ class AppState extends ChangeNotifier {
       _customers.add(customer);
       _clearCache();
       
-      // Sync to CloudKit if enabled
-      // if (_iCloudSyncEnabled) {
-      //   await _cloudKitService.syncCustomers(_customers);
-      // }
+      // CloudKit sync removed - using built-in backend
       
       notifyListeners();
       
@@ -362,10 +373,7 @@ class AppState extends ChangeNotifier {
         _customers[index] = customer;
         _clearCache();
         
-        // Sync to CloudKit if enabled
-        // if (_iCloudSyncEnabled) {
-        //   await _cloudKitService.syncCustomers(_customers);
-        // }
+              // CloudKit sync removed - using built-in backend
         
         notifyListeners();
         
@@ -389,10 +397,7 @@ class AppState extends ChangeNotifier {
       _debts.removeWhere((d) => d.customerId == customerId);
       _clearCache();
       
-      // Sync to CloudKit if enabled
-      if (_iCloudSyncEnabled) {
-        await _cloudKitService.deleteCustomer(customerId);
-      }
+      // CloudKit sync removed - using built-in backend
       
       notifyListeners();
       
@@ -429,10 +434,7 @@ class AppState extends ChangeNotifier {
         // Track activity for the addition
         await addDebtActivity(debt);
         
-        // Sync to CloudKit if enabled
-        if (_iCloudSyncEnabled) {
-          await _cloudKitService.syncDebts(_debts);
-        }
+        // CloudKit sync removed - using built-in backend
         
         notifyListeners();
         
@@ -451,10 +453,7 @@ class AppState extends ChangeNotifier {
         // Track activity
         await addDebtActivity(debt);
         
-        // Sync to CloudKit if enabled
-        if (_iCloudSyncEnabled) {
-          await _cloudKitService.syncDebts(_debts);
-        }
+        // CloudKit sync removed - using built-in backend
         
         notifyListeners();
         
@@ -478,10 +477,7 @@ class AppState extends ChangeNotifier {
         _debts[index] = debt;
         _clearCache();
         
-        // Sync to CloudKit if enabled
-        if (_iCloudSyncEnabled) {
-          await _cloudKitService.syncDebts(_debts);
-        }
+        // CloudKit sync removed - using built-in backend
         
         notifyListeners();
       }
@@ -1063,7 +1059,7 @@ class AppState extends ChangeNotifier {
 
   Future<String> exportData() async {
     try {
-      final filePath = await _exportImportService.exportToCSV(_customers, _debts);
+      final filePath = await _exportImportService.exportToExcel(_customers, _debts);
       return filePath;
     } catch (e) {
       // Error exporting data
@@ -1443,47 +1439,6 @@ class AppState extends ChangeNotifier {
   }
 
   // Removed unused setter methods
-
-  Future<void> setICloudSyncEnabled(bool enabled) async {
-    _iCloudSyncEnabled = enabled;
-    await _saveSettings();
-    
-    if (enabled) {
-      try {
-        // Initialize CloudKit service
-        await _cloudKitService.initialize();
-        
-        // Check if user is signed in
-        final isSignedIn = await _cloudKitService.isUserSignedIn();
-        if (!isSignedIn) {
-          await _cloudKitService.signInAnonymously();
-        }
-        
-        // Perform initial sync
-        await _cloudKitService.syncData(_customers, _debts);
-        
-        await _notificationService.showSuccessNotification(
-          title: 'iCloud Sync Enabled',
-          body: 'Your data will now sync across all your devices.',
-        );
-      } catch (e) {
-        await _notificationService.showErrorNotification(
-          title: 'iCloud Sync Failed',
-          body: 'Failed to enable iCloud sync: $e',
-        );
-        // Revert the setting if sync fails
-        _iCloudSyncEnabled = false;
-        await _saveSettings();
-      }
-    } else {
-      await _notificationService.showInfoNotification(
-        title: 'iCloud Sync Disabled',
-        body: 'Your data will no longer sync across devices.',
-      );
-    }
-    
-    notifyListeners();
-  }
 
   // New iOS 18+ settings methods
   // Removed unused setter methods

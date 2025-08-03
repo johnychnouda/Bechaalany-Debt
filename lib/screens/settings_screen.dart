@@ -77,24 +77,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               
               const SizedBox(height: 20),
               
-              // Data & Sync (Enhanced)
+              // Data & Export (Enhanced)
               _buildSection(
-                'Data & Sync',
+                'Data & Export',
                 [
-                  _buildSwitchRow(
-                    'iCloud Sync',
-                    'Sync data across all your devices',
-                    CupertinoIcons.cloud,
-                    Provider.of<AppState>(context).iCloudSyncEnabled,
-                    (value) => Provider.of<AppState>(context, listen: false).setICloudSyncEnabled(value),
-                  ),
-                  if (Provider.of<AppState>(context).iCloudSyncEnabled) ...[
-                    _buildInfoRow(
-                      'Sync Status',
-                      _getCloudKitStatusText(context),
-                      CupertinoIcons.info_circle,
-                    ),
-                  ],
                   _buildNavigationRow(
                     'Export Data',
                     'Export to PDF or Excel formats',
@@ -350,16 +336,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  String _getCloudKitStatusText(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    if (!appState.iCloudSyncEnabled) {
-      return 'Sync disabled';
-    }
-    
-    // Check if user is signed in to CloudKit
-    // For now, return a simple status
-    return 'Ready to sync';
-  }
+  // CloudKit status method removed - using built-in backend
 
   void _showAppInfo() {
     showCupertinoDialog(

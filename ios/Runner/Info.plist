@@ -82,25 +82,7 @@
 	<key>NSNearbyInteractionUsageDescription</key>
 	<string>This app uses nearby interaction for proximity-based features and secure data exchange.</string>
 	
-	<!-- iCloud & CloudKit Settings -->
-	<key>NSUbiquitousContainers</key>
-	<dict>
-		<key>iCloud.com.bechaalany.debtapp</key>
-		<dict>
-			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-			<true/>
-			<key>NSUbiquitousContainerName</key>
-			<string>Bechaalany Debt App</string>
-			<key>NSUbiquitousContainerSupportedFolderLevels</key>
-			<string>None</string>
-		</dict>
-	</dict>
-	<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-	<true/>
-	<key>NSUbiquitousContainerName</key>
-	<string>Bechaalany Debt App</string>
-	<key>NSUbiquitousContainerSupportedFolderLevels</key>
-	<string>None</string>
+	<!-- iCloud & CloudKit Settings removed - using built-in backend -->
 	
 	<!-- Notifications Settings -->
 	<key>NSUserNotificationsUsageDescription</key>
@@ -132,25 +114,7 @@
 	<key>UIAccessibilityIsAssistiveTouchRunning</key>
 	<true/>
 	
-	<!-- Storage & iCloud Settings -->
-	<key>NSUbiquitousContainers</key>
-	<dict>
-		<key>iCloud.$(CFBundleIdentifier)</key>
-		<dict>
-			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-			<true/>
-			<key>NSUbiquitousContainerName</key>
-			<string>Bechaalany Debt App</string>
-			<key>NSUbiquitousContainerSupportedFolderLevels</key>
-			<string>None</string>
-		</dict>
-	</dict>
-	<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-	<true/>
-	<key>NSUbiquitousContainerName</key>
-	<string>Bechaalany Debt App</string>
-	<key>NSUbiquitousContainerSupportedFolderLevels</key>
-	<string>None</string>
+	<!-- Storage Settings - iCloud removed -->
 	
 	<!-- Background App Refresh -->
 	<key>UIBackgroundModes</key>

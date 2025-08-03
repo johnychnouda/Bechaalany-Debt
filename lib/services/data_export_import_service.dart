@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'package:csv/csv.dart';
-// import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:excel/excel.dart';
@@ -15,63 +13,15 @@ class DataExportImportService {
   factory DataExportImportService() => _instance;
   DataExportImportService._internal();
 
-  Future<String> exportToCSV(List<Customer> customers, List<Debt> debts) async {
-    try {
-      // Create simple, user-friendly CSV data for customers
-      final customerData = [
-        ['Customer ID', 'Name', 'Phone', 'Email', 'Address', 'Date Added'], // Simple headers
-        ...customers.map((customer) => [
-          customer.id,
-          customer.name,
-          customer.phone,
-          customer.email ?? '',
-          customer.address ?? '',
-          _formatDate(customer.createdAt),
-        ]),
-      ];
 
-      // Create simple, user-friendly CSV data for debts
-      final debtData = [
-        ['Customer ID', 'Customer', 'Description', 'Amount', 'Paid', 'Remaining', 'Status', 'Date', 'Notes'], // Simple headers
-        ...debts.map((debt) => [
-          debt.customerId,
-          debt.customerName,
-          debt.description,
-          _formatCurrency(debt.amount),
-          _formatCurrency(debt.paidAmount),
-          _formatCurrency(debt.remainingAmount),
-          _formatDebtStatus(debt.status),
-          _formatDate(debt.createdAt),
-          debt.notes ?? '',
-        ]),
-      ];
-
-      // Create simple combined CSV
-      final combinedData = [
-        ...customerData,
-        [''], // Empty row for separation
-        ['DEBTS'], // Simple section header
-        ...debtData,
-      ];
-
-      final csvString = const ListToCsvConverter().convert(combinedData);
-
-      // Save to temporary file with simple naming
-      final directory = await getTemporaryDirectory();
-      final dateStr = DateTime.now().toString().split(' ')[0].replaceAll('-', '');
-      final file = File('${directory.path}/Debt_Data_$dateStr.csv');
-      await file.writeAsString(csvString);
-
-      return file.path;
-    } catch (e) {
-      throw Exception('Failed to export data: $e');
-    }
-  }
 
   Future<String> exportToExcel(List<Customer> customers, List<Debt> debts) async {
     try {
       // Create Excel workbook
       final excel = Excel.createExcel();
+      
+      // Remove the default Sheet1
+      excel.delete('Sheet1');
       
       // Create Customers sheet
       final customersSheet = excel['Customers'];
@@ -84,18 +34,39 @@ class DataExportImportService {
       customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Address';
       customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Date Added';
       
-              // Add customer data
-        for (int i = 0; i < customers.length; i++) {
-          final customer = customers[i];
-          final rowIndex = i + 1;
-          
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.id;
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.name;
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = customer.phone;
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.email ?? '';
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = customer.address ?? '';
-          customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
+      // Style headers - make them bold and centered
+      for (int col = 0; col < 6; col++) {
+        final cell = customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+        cell.cellStyle = CellStyle(
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+      
+      // Add customer data
+      for (int i = 0; i < customers.length; i++) {
+        final customer = customers[i];
+        final rowIndex = i + 1;
+        
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.id;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.name;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = customer.phone;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.email ?? '';
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = customer.address ?? '';
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
+        
+        // Style data rows - center all content
+        for (int col = 0; col < 6; col++) {
+          final cell = customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
+          cell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+          );
         }
+      }
+      
+      // Note: Column widths are automatically adjusted by Excel
       
       // Create Debts sheet
       final debtsSheet = excel['Debts'];
@@ -111,21 +82,42 @@ class DataExportImportService {
       debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: 0)).value = 'Date';
       debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0)).value = 'Notes';
       
-              // Add debt data
-        for (int i = 0; i < debts.length; i++) {
-          final debt = debts[i];
-          final rowIndex = i + 1;
-          
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.customerId;
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.customerName;
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = debt.description;
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = _formatCurrency(debt.amount);
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatCurrency(debt.paidAmount);
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatCurrency(debt.remainingAmount);
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
-          debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).value = debt.notes ?? '';
+      // Style headers - make them bold and centered
+      for (int col = 0; col < 9; col++) {
+        final cell = debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+        cell.cellStyle = CellStyle(
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+      
+      // Add debt data
+      for (int i = 0; i < debts.length; i++) {
+        final debt = debts[i];
+        final rowIndex = i + 1;
+        
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.customerId;
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.customerName;
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = debt.description;
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = _formatCurrency(debt.amount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = _formatCurrency(debt.paidAmount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatCurrency(debt.remainingAmount);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).value = debt.notes ?? '';
+        
+        // Style data rows - center all content
+        for (int col = 0; col < 9; col++) {
+          final cell = debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
+          cell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+          );
         }
+      }
+      
+      // Note: Column widths are automatically adjusted by Excel
       
       // Create Summary sheet
       final summarySheet = excel['Summary'];
@@ -148,6 +140,28 @@ class DataExportImportService {
       summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6)).value = _formatCurrency(totalPaid);
       summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = 'Total Remaining:';
       summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7)).value = _formatCurrency(totalRemaining);
+      
+      // Style summary sheet - make title bold and centered
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+      );
+      
+      // Style all summary data - center align
+      for (int row = 0; row <= 7; row++) {
+        for (int col = 0; col < 2; col++) {
+          final cell = summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
+          if (cell.value != null) {
+            cell.cellStyle = CellStyle(
+              horizontalAlign: HorizontalAlign.Center,
+              verticalAlign: VerticalAlign.Center,
+            );
+          }
+        }
+      }
+      
+      // Note: Column widths are automatically adjusted by Excel
       
       // Save to temporary file
       final directory = await getTemporaryDirectory();
@@ -373,7 +387,6 @@ class DataExportImportService {
       if (await file.exists()) {
         await Share.shareXFiles(
           [XFile(filePath)],
-          text: 'Bechaalany Debt App - Data Export',
           subject: 'Debt App Data Export',
         );
       } else {
@@ -384,103 +397,7 @@ class DataExportImportService {
     }
   }
 
-  Future<Map<String, dynamic>> importFromCSV() async {
-    try {
-      // Import functionality temporarily disabled due to file_picker dependency issues
-      throw Exception('Import functionality is temporarily disabled');
-      
-      // Pick CSV file
-      // final result = await FilePicker.platform.pickFiles(
-      //   type: FileType.custom,
-      //   allowedExtensions: ['csv'],
-      //   allowMultiple: false,
-      // );
 
-      // if (result == null || result.files.isEmpty) {
-      //   throw Exception('No file selected');
-      // }
-
-      // final file = File(result.files.first.path!);
-      // if (!await file.exists()) {
-      //   throw Exception('Selected file does not exist');
-      // }
-
-      // Read CSV content
-      // final csvString = await file.readAsString();
-      // final csvData = const CsvToListConverter().convert(csvString);
-
-      // Parse the data
-      // final customers = <Customer>[];
-      // final debts = <Debt>[];
-
-      // bool inCustomersSection = true; // Start with customers section
-      // bool inDebtsSection = false;
-
-      // for (final row in csvData) {
-      //   if (row.isEmpty || row.length == 1) continue;
-
-      //   final firstCell = row[0].toString().trim();
-        
-      //   if (firstCell == 'DEBTS') {
-      //     inCustomersSection = false;
-      //     inDebtsSection = true;
-      //     continue;
-      //   }
-
-      //   if (inCustomersSection && row.length >= 5) {
-      //     try {
-      //       // Skip header row
-      //       if (row[0].toString().toLowerCase().contains('name')) continue;
-            
-      //       final customer = Customer(
-      //         id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
-      //         name: row[0].toString(),
-      //         phone: row[1].toString(),
-      //         email: row[2].toString().isEmpty ? null : row[2].toString(),
-      //         address: row[3].toString().isEmpty ? null : row[3].toString(),
-      //         createdAt: _parseDate(row[4].toString()),
-      //       );
-      //       customers.add(customer);
-      //     } catch (e) {
-      //       // Handle error silently
-      //     }
-      //   }
-
-      //   if (inDebtsSection && row.length >= 8) {
-      //     try {
-      //       // Skip header row
-      //       if (row[0].toString().toLowerCase().contains('customer')) continue;
-            
-      //       final debt = Debt(
-      //         id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate new ID
-      //         customerId: '', // Will be linked by customer name
-      //         customerName: row[0].toString(),
-      //         description: row[1].toString(),
-      //         amount: _parseCurrency(row[2].toString()),
-      //         type: DebtType.credit, // Default type
-      //         status: _parseDebtStatus(row[5].toString()),
-      //         createdAt: _parseDate(row[6].toString()),
-      //         paidAt: null,
-      //         notes: row[7].toString().isEmpty ? null : row[7].toString(),
-      //         paidAmount: _parseCurrency(row[3].toString()),
-      //       );
-      //       debts.add(debt);
-      //     } catch (e) {
-      //       // Handle error silently
-      //     }
-      //   }
-      // }
-
-      // return {
-      //   'customers': customers,
-      //   'debts': debts,
-      //   'totalCustomers': customers.length,
-      //   'totalDebts': debts.length,
-      // };
-    } catch (e) {
-      throw Exception('Failed to import data: $e');
-    }
-  }
 
   Future<void> validateImportData(Map<String, dynamic> importData) async {
     final customers = importData['customers'] as List<Customer>;
