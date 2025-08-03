@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/data_service.dart';
+import '../services/backup_service.dart';
 import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -16,13 +17,17 @@ class DataRecoveryScreen extends StatefulWidget {
 
 class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final DataService _dataService = DataService();
+  final BackupService _backupService = BackupService();
   List<String> _availableBackups = [];
   bool _isLoading = false;
+  bool _isDailyBackupEnabled = true;
+  String _nextBackupTime = '';
 
   @override
   void initState() {
     super.initState();
     _loadBackups();
+    _loadDailyBackupSettings();
   }
 
   Future<void> _loadBackups() async {
@@ -78,6 +83,55 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadDailyBackupSettings() async {
+    try {
+      final isEnabled = await _backupService.isDailyBackupEnabled();
+      final nextBackupTime = _backupService.formatNextBackupTime();
+      
+      setState(() {
+        _isDailyBackupEnabled = isEnabled;
+        _nextBackupTime = nextBackupTime;
+      });
+    } catch (e) {
+      // Handle error
+    }
+  }
+
+  Future<void> _toggleDailyBackup(bool enabled) async {
+    try {
+      await _backupService.setDailyBackupEnabled(enabled);
+      final nextBackupTime = _backupService.formatNextBackupTime();
+      
+      setState(() {
+        _isDailyBackupEnabled = enabled;
+        _nextBackupTime = nextBackupTime;
+      });
+      
+      if (mounted) {
+        final notificationService = NotificationService();
+        if (enabled) {
+          await notificationService.showSuccessNotification(
+            title: 'Daily Backup Enabled',
+            body: 'Your data will be backed up automatically at 12 AM daily',
+          );
+        } else {
+          await notificationService.showInfoNotification(
+            title: 'Daily Backup Disabled',
+            body: 'Automatic daily backups have been turned off',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Settings Error',
+          body: 'Failed to update daily backup settings: $e',
+        );
+      }
     }
   }
 
@@ -302,6 +356,11 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     // Backup Creation Section
                     _buildBackupCreationSection(),
                     
+                    const SizedBox(height: 16),
+                    
+                    // Daily Backup Section
+                    _buildDailyBackupSection(),
+                    
                     const SizedBox(height: 24),
                     
                     // Available Backups Section
@@ -396,6 +455,129 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDailyBackupSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context),
+          width: 0.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicSuccess(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    CupertinoIcons.clock,
+                    color: AppColors.dynamicSuccess(context),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Automatic Daily Backup',
+                        style: AppTheme.getDynamicTitle2(context).copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Automatically backup your data daily at 12 AM',
+                        style: AppTheme.getDynamicFootnote(context).copyWith(
+                          color: AppColors.dynamicTextSecondary(context),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            // Daily Backup Toggle with better styling
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.dynamicBackground(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.dynamicBorder(context),
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _isDailyBackupEnabled 
+                                ? CupertinoIcons.checkmark_circle_fill
+                                : CupertinoIcons.circle,
+                              color: _isDailyBackupEnabled 
+                                ? AppColors.dynamicSuccess(context)
+                                : AppColors.dynamicTextSecondary(context),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Daily Backup',
+                              style: AppTheme.getDynamicBody(context).copyWith(
+                                color: AppColors.dynamicTextPrimary(context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isDailyBackupEnabled 
+                            ? 'Next backup in $_nextBackupTime'
+                            : 'Automatic backups disabled',
+                          style: AppTheme.getDynamicFootnote(context).copyWith(
+                            color: AppColors.dynamicTextSecondary(context),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoSwitch(
+                    value: _isDailyBackupEnabled,
+                    onChanged: _toggleDailyBackup,
+                    activeColor: AppColors.dynamicSuccess(context),
+                  ),
+                ],
+              ),
+            ),
+            
+
           ],
         ),
       ),

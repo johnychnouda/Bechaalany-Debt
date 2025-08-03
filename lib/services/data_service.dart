@@ -733,17 +733,146 @@ class DataService {
     }
   }
 
-  // Clear all data (for testing/reset)
+  // Clear all data (customers, debts, products, activities) but preserve backups and currency settings
   Future<void> clearAllData() async {
     try {
+      // Clear customers
       await _customerBoxSafe.clear();
+      
+      // Clear debts
       await _debtBoxSafe.clear();
+      
+      // Clear product categories
       await _categoryBoxSafe.clear();
+      
+      // Clear product purchases
       await _productPurchaseBoxSafe.clear();
-      await _currencySettingsBoxSafe.clear();
+      
+      // Clear activities
       await _activityBoxSafe.clear();
+      
+      // Clear partial payments
+      await _partialPaymentBoxSafe.clear();
+      
+      // Note: Currency settings are preserved to maintain app configuration
+      // Note: Backups are preserved as they are stored separately
+      
     } catch (e) {
-      rethrow;
+      throw Exception('Failed to clear data: $e');
     }
+  }
+  
+  // Clear only customers and their related data
+  Future<void> clearCustomers() async {
+    try {
+      // Get all customer IDs
+      final customerIds = _customerBoxSafe.keys.toList();
+      
+      // Clear debts related to these customers
+      final debtsToDelete = _debtBoxSafe.values
+          .where((debt) => customerIds.contains(debt.customerId))
+          .map((debt) => debt.id)
+          .toList();
+      
+      for (final debtId in debtsToDelete) {
+        await _debtBoxSafe.delete(debtId);
+      }
+      
+      // Clear activities related to these customers
+      final activitiesToDelete = _activityBoxSafe.values
+          .where((activity) => customerIds.contains(activity.customerId))
+          .map((activity) => activity.id)
+          .toList();
+      
+      for (final activityId in activitiesToDelete) {
+        await _activityBoxSafe.delete(activityId);
+      }
+      
+      // Clear partial payments related to these customers
+      // First get all debt IDs for these customers
+      final debtIds = _debtBoxSafe.values
+          .where((debt) => customerIds.contains(debt.customerId))
+          .map((debt) => debt.id)
+          .toList();
+      
+      // Then clear partial payments for these debts
+      final paymentsToDelete = _partialPaymentBoxSafe.values
+          .where((payment) => debtIds.contains(payment.debtId))
+          .map((payment) => payment.id)
+          .toList();
+      
+      for (final paymentId in paymentsToDelete) {
+        await _partialPaymentBoxSafe.delete(paymentId);
+      }
+      
+      // Finally, clear customers
+      await _customerBoxSafe.clear();
+      
+    } catch (e) {
+      throw Exception('Failed to clear customers: $e');
+    }
+  }
+  
+  // Clear only debts and their related data
+  Future<void> clearDebts() async {
+    try {
+      // Clear all debts
+      await _debtBoxSafe.clear();
+      
+      // Clear activities related to debts
+      final activitiesToDelete = _activityBoxSafe.values
+          .where((activity) => activity.type == ActivityType.newDebt ||
+                               activity.type == ActivityType.payment ||
+                               activity.type == ActivityType.debtCleared)
+          .map((activity) => activity.id)
+          .toList();
+      
+      for (final activityId in activitiesToDelete) {
+        await _activityBoxSafe.delete(activityId);
+      }
+      
+      // Clear partial payments
+      await _partialPaymentBoxSafe.clear();
+      
+    } catch (e) {
+      throw Exception('Failed to clear debts: $e');
+    }
+  }
+  
+  // Clear only products and their related data
+  Future<void> clearProducts() async {
+    try {
+      // Clear product categories
+      await _categoryBoxSafe.clear();
+      
+      // Clear product purchases
+      await _productPurchaseBoxSafe.clear();
+      
+      // Clear activities related to products
+      // Note: Current ActivityType enum doesn't have product-specific types
+      // So we'll clear all activities for now, or you can add product activity types later
+      final activitiesToDelete = _activityBoxSafe.values
+          .map((activity) => activity.id)
+          .toList();
+      
+      for (final activityId in activitiesToDelete) {
+        await _activityBoxSafe.delete(activityId);
+      }
+      
+    } catch (e) {
+      throw Exception('Failed to clear products: $e');
+    }
+  }
+  
+  // Get data statistics for confirmation dialog
+  Map<String, int> getDataStatistics() {
+    return {
+      'customers': _customerBoxSafe.length,
+      'debts': _debtBoxSafe.length,
+      'categories': _categoryBoxSafe.length,
+      'product_purchases': _productPurchaseBoxSafe.length,
+      'activities': _activityBoxSafe.length,
+      'partial_payments': _partialPaymentBoxSafe.length,
+    };
   }
 } 

@@ -14,6 +14,7 @@ import '../services/sync_service.dart';
 
 // CloudKit service removed - using built-in backend
 import '../services/data_export_import_service.dart';
+import '../services/backup_service.dart';
 import '../services/ios18_service.dart';
 
 class AppState extends ChangeNotifier {
@@ -22,6 +23,7 @@ class AppState extends ChangeNotifier {
   final SyncService _syncService = SyncService();
   // CloudKit service removed - using built-in backend
   final DataExportImportService _exportImportService = DataExportImportService();
+  final BackupService _backupService = BackupService();
   // final IOS18Service _ios18Service = IOS18Service(); // Commented out - static methods don't need instance
 
   
@@ -167,6 +169,7 @@ class AppState extends ChangeNotifier {
       // Initialize services
       await _notificationService.initialize();
       await _syncService.initialize();
+      await _backupService.initialize();
       await IOS18Service.initialize();
       
       // Ensure all Hive boxes are open
@@ -1450,6 +1453,17 @@ class AppState extends ChangeNotifier {
     _cachedPendingCount = null;
     _cachedRecentDebts = null;
     _cachedTopDebtors = null;
+  }
+  
+  // Refresh data after clearing operations
+  Future<void> refreshData() async {
+    try {
+      await _loadData();
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   // Calculation methods

@@ -3,7 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
-// import '../services/notification_service.dart'; // Removed unused import
+import '../services/data_service.dart';
+import '../services/notification_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'export_data_screen.dart';
@@ -100,6 +101,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         builder: (context) => const ImportDataScreen(),
                       ),
                     ),
+                  ),
+                  _buildNavigationRow(
+                    'Clear All Data',
+                    'Remove all customers, debts, products, and activities',
+                    CupertinoIcons.trash,
+                    () => _showClearDataDialog(),
                   ),
                   _buildNavigationRow(
                     'Data Recovery',
@@ -362,7 +369,99 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showClearDataDialog() {
+    final dataService = DataService();
+    final stats = dataService.getDataStatistics();
+    
+    final title = 'Clear All Data';
+    final message = 'This will permanently delete:\n'
+        '• ${stats['customers']} customers\n'
+        '• ${stats['debts']} debts\n'
+        '• ${stats['categories']} product categories\n'
+        '• ${stats['product_purchases']} product purchases\n'
+        '• ${stats['activities']} activities\n'
+        '• ${stats['partial_payments']} partial payments\n\n'
+        '⚠️ This action cannot be undone!\n'
+        '💾 Your backups will be preserved.';
+    final actionText = 'Clear All Data';
+    
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: Text(actionText),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _performDataClearing();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-
-
+  Future<void> _performDataClearing() async {
+    final dataService = DataService();
+    final notificationService = NotificationService();
+    
+    try {
+      // Show loading dialog
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => CupertinoAlertDialog(
+          content: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CupertinoActivityIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Clearing all data...',
+                  style: TextStyle(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      
+      // Clear all data
+      await dataService.clearAllData();
+      
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show success notification
+      await notificationService.showSuccessNotification(
+        title: 'Data Cleared Successfully',
+        body: 'The selected data has been removed. Your backups are preserved.',
+      );
+      
+      // Refresh the app state
+      Provider.of<AppState>(context, listen: false).refreshData();
+      
+    } catch (e) {
+      // Close loading dialog
+      Navigator.pop(context);
+      
+      // Show error notification
+      await notificationService.showErrorNotification(
+        title: 'Error Clearing Data',
+        body: 'Failed to clear data: $e',
+      );
+    }
+  }
 } 
