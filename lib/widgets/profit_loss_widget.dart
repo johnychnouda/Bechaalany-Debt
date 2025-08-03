@@ -4,7 +4,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../models/debt.dart';
+// import '../models/debt.dart'; // Removed unused import
 import '../models/activity.dart';
 
 class ProfitLossWidget extends StatefulWidget {

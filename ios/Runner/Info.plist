@@ -161,7 +161,20 @@
 		<string>location</string>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>
+		<string>background-app-refresh</string>
 	</array>
+	
+	<!-- iOS 18.6+ Notification Capabilities -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>This app uses notifications to keep you informed about debt payments, daily summaries, and important financial updates.</string>
+	
+	<!-- iOS 18.6+ Interruption Levels -->
+	<key>NSNotificationInterruptionLevel</key>
+	<string>active</string>
+	
+	<!-- iOS 18.6+ Focus Mode Integration -->
+	<key>NSFocusStatusUsageDescription</key>
+	<string>This app integrates with Focus modes to provide smart notifications based on your current activity.</string>
 	
 	<!-- App Transport Security -->
 	<key>NSAppTransportSecurity</key>

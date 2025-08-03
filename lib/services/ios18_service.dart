@@ -1,218 +1,462 @@
 
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class IOS18Service {
-  static final IOS18Service _instance = IOS18Service._internal();
-  factory IOS18Service() => _instance;
-  IOS18Service._internal();
+  static const MethodChannel _channel = MethodChannel('ios18_notifications');
+  
+  // iOS 18.6+ notification categories
+  static const String _debtManagementCategory = 'debt_management';
+  static const String _paymentRemindersCategory = 'payment_reminders';
+  static const String _dailySummaryCategory = 'daily_summary';
+  static const String _weeklyReportCategory = 'weekly_report';
+  static const String _overduePaymentsCategory = 'overdue_payments';
 
-  bool _isIOS18Plus = false;
-  bool _supportsSmartStack = false;
-  bool _supportsAIFeatures = false;
-  bool _supportsEnhancedLiveActivities = false;
+  // iOS 18.6+ interruption levels - removed unused static fields
 
-  // Initialize iOS 18+ features
-  Future<void> initialize() async {
+  /// Initialize iOS 18.6+ notification capabilities
+  static Future<void> initialize() async {
+    if (!Platform.isIOS) return;
+
     try {
-      if (Platform.isIOS) {
-        // For now, assume iOS 18+ for testing
-        _isIOS18Plus = true;
-        
-        if (_isIOS18Plus) {
-          await _initializeIOS18Features();
-        }
-      }
-    } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  Future<void> _initializeIOS18Features() async {
-    try {
-      // Initialize Smart Stack support
-      _supportsSmartStack = await _checkSmartStackSupport();
+      // Request notification permissions with iOS 18.6+ features
+      await _requestNotificationPermissions();
       
-      // Initialize AI features support
-      _supportsAIFeatures = await _checkAIFeaturesSupport();
+      // Setup notification categories
+      await _setupNotificationCategories();
       
-      // Initialize enhanced Live Activities
-      _supportsEnhancedLiveActivities = await _checkEnhancedLiveActivitiesSupport();
+      // Configure background processing
+      await _configureBackgroundProcessing();
       
-      // Features initialized silently
+      // Enable smart notifications
+      await _enableSmartNotifications();
+      
+      print('iOS 18.6+ notification service initialized successfully');
     } catch (e) {
-      // Handle error silently
+      print('Error initializing iOS 18.6+ service: $e');
     }
   }
 
-  Future<bool> _checkSmartStackSupport() async {
+  /// Request notification permissions with iOS 18.6+ features
+  static Future<void> _requestNotificationPermissions() async {
     try {
-      // Check if device supports Smart Stack
-      return true; // Placeholder - implement actual check
+      final result = await _channel.invokeMethod('requestNotificationPermissions', {
+        'alert': true,
+        'badge': true,
+        'sound': true,
+        'criticalAlert': false, // Only for critical health alerts
+        'provisional': false, // Provisional notifications
+        'announcement': false, // Announcement notifications
+        'interruptionLevel': 'active',
+      });
+      
+      print('Notification permissions result: $result');
     } catch (e) {
-      return false;
+      print('Error requesting notification permissions: $e');
     }
   }
 
-  Future<bool> _checkAIFeaturesSupport() async {
+  /// Setup notification categories for iOS 18.6+
+  static Future<void> _setupNotificationCategories() async {
     try {
-      // Check if device supports AI features
-      return true; // Placeholder - implement actual check
+      // Debt Management Category
+      await _channel.invokeMethod('createNotificationCategory', {
+        'identifier': _debtManagementCategory,
+        'actions': [
+          {
+            'identifier': 'mark_paid',
+            'title': 'Mark as Paid',
+            'options': ['foreground'],
+          },
+          {
+            'identifier': 'snooze',
+            'title': 'Snooze 1 Day',
+            'options': ['destructive'],
+          },
+          {
+            'identifier': 'contact_customer',
+            'title': 'Contact Customer',
+            'options': ['foreground'],
+          },
+        ],
+        'intentIdentifiers': [],
+        'options': ['allowAnnouncement'],
+      });
+
+      // Payment Reminders Category
+      await _channel.invokeMethod('createNotificationCategory', {
+        'identifier': _paymentRemindersCategory,
+        'actions': [
+          {
+            'identifier': 'mark_paid',
+            'title': 'Mark as Paid',
+            'options': ['foreground'],
+          },
+          {
+            'identifier': 'snooze',
+            'title': 'Snooze 1 Day',
+            'options': ['destructive'],
+          },
+        ],
+        'intentIdentifiers': [],
+        'options': ['allowAnnouncement'],
+      });
+
+      // Daily Summary Category
+      await _channel.invokeMethod('createNotificationCategory', {
+        'identifier': _dailySummaryCategory,
+        'actions': [
+          {
+            'identifier': 'view_summary',
+            'title': 'View Summary',
+            'options': ['foreground'],
+          },
+        ],
+        'intentIdentifiers': [],
+        'options': ['allowAnnouncement'],
+      });
+
+      // Weekly Report Category
+      await _channel.invokeMethod('createNotificationCategory', {
+        'identifier': _weeklyReportCategory,
+        'actions': [
+          {
+            'identifier': 'view_report',
+            'title': 'View Report',
+            'options': ['foreground'],
+          },
+        ],
+        'intentIdentifiers': [],
+        'options': ['allowAnnouncement'],
+      });
+
+      // Overdue Payments Category
+      await _channel.invokeMethod('createNotificationCategory', {
+        'identifier': _overduePaymentsCategory,
+        'actions': [
+          {
+            'identifier': 'mark_paid',
+            'title': 'Mark as Paid',
+            'options': ['foreground'],
+          },
+          {
+            'identifier': 'contact_customer',
+            'title': 'Contact Customer',
+            'options': ['foreground'],
+          },
+          {
+            'identifier': 'send_reminder',
+            'title': 'Send Reminder',
+            'options': ['foreground'],
+          },
+        ],
+        'intentIdentifiers': [],
+        'options': ['allowAnnouncement'],
+      });
+
+      print('iOS 18.6+ notification categories setup complete');
     } catch (e) {
-      return false;
+      print('Error setting up notification categories: $e');
     }
   }
 
-  Future<bool> _checkEnhancedLiveActivitiesSupport() async {
+  /// Configure background processing for iOS 18.6+
+  static Future<void> _configureBackgroundProcessing() async {
     try {
-      // Check if device supports enhanced Live Activities
-      return true; // Placeholder - implement actual check
+      await _channel.invokeMethod('configureBackgroundProcessing', {
+        'backgroundAppRefresh': true,
+        'backgroundProcessing': true,
+        'backgroundFetch': true,
+        'backgroundTasks': [
+          'checkOverduePayments',
+          'generateDailySummary',
+          'generateWeeklyReport',
+          'sendPaymentReminders',
+        ],
+      });
+      
+      print('iOS 18.6+ background processing configured');
     } catch (e) {
-      return false;
+      print('Error configuring background processing: $e');
     }
   }
 
-  // Getters
-  bool get isIOS18Plus => _isIOS18Plus;
-  bool get supportsSmartStack => _supportsSmartStack;
-  bool get supportsAIFeatures => _supportsAIFeatures;
-  bool get supportsEnhancedLiveActivities => _supportsEnhancedLiveActivities;
+  /// Enable smart notifications for iOS 18.6+
+  static Future<void> _enableSmartNotifications() async {
+    try {
+      await _channel.invokeMethod('enableSmartNotifications', {
+        'focusModeIntegration': true,
+        'dynamicIslandIntegration': true,
+        'liveActivities': true,
+        'smartStack': true,
+        'aiFeatures': true,
+      });
+      
+      print('iOS 18.6+ smart notifications enabled');
+    } catch (e) {
+      print('Error enabling smart notifications: $e');
+    }
+  }
 
-  // Smart Stack Methods
-  Future<void> addToSmartStack({
+  /// Send smart notification with iOS 18.6+ features
+  static Future<void> sendSmartNotification({
     required String title,
-    required String subtitle,
-    required String amount,
-    required String dueDate,
+    required String body,
+    required String category,
+    required String interruptionLevel,
+    String? payload,
+    Map<String, dynamic>? userInfo,
+    String? threadIdentifier,
+    String? targetContentIdentifier,
   }) async {
-    if (!_supportsSmartStack) return;
+    if (!Platform.isIOS) return;
 
     try {
-      // Placeholder for Smart Stack functionality
+      await _channel.invokeMethod('sendSmartNotification', {
+        'title': title,
+        'body': body,
+        'category': category,
+        'interruptionLevel': interruptionLevel,
+        'payload': payload,
+        'userInfo': userInfo ?? {},
+        'threadIdentifier': threadIdentifier,
+        'targetContentIdentifier': targetContentIdentifier,
+        'sound': 'default',
+        'badge': 1,
+        'presentAlert': true,
+        'presentBadge': true,
+        'presentSound': true,
+      });
+      
+      print('iOS 18.6+ smart notification sent: $title');
     } catch (e) {
-      // Handle error silently
+      print('Error sending smart notification: $e');
     }
   }
 
-  // AI Features Methods
-  Future<String> getAIInsights({
-    required List<Map<String, dynamic>> debtData,
-    required List<Map<String, dynamic>> paymentHistory,
+  /// Schedule notification with iOS 18.6+ features
+  static Future<void> scheduleNotification({
+    required String title,
+    required String body,
+    required String category,
+    required String interruptionLevel,
+    required DateTime scheduledDate,
+    String? payload,
+    Map<String, dynamic>? userInfo,
+    String? threadIdentifier,
   }) async {
-    if (!_supportsAIFeatures) return '';
+    if (!Platform.isIOS) return;
 
     try {
-      // Implement AI-powered insights
-      final insights = await _generateAIInsights(debtData, paymentHistory);
-      return insights;
+      await _channel.invokeMethod('scheduleNotification', {
+        'title': title,
+        'body': body,
+        'category': category,
+        'interruptionLevel': interruptionLevel,
+        'scheduledDate': scheduledDate.millisecondsSinceEpoch,
+        'payload': payload,
+        'userInfo': userInfo ?? {},
+        'threadIdentifier': threadIdentifier,
+        'sound': 'default',
+        'badge': 1,
+        'presentAlert': true,
+        'presentBadge': true,
+        'presentSound': true,
+      });
+      
+      print('iOS 18.6+ notification scheduled: $title');
     } catch (e) {
-      return '';
+      print('Error scheduling notification: $e');
     }
   }
 
-  Future<String> _generateAIInsights(
-    List<Map<String, dynamic>> debtData,
-    List<Map<String, dynamic>> paymentHistory,
-  ) async {
-    // Placeholder for AI insights generation
-    final totalDebt = debtData.fold<double>(0, (sum, debt) => sum + (debt['amount'] ?? 0));
-    final totalPaid = paymentHistory.fold<double>(0, (sum, payment) => sum + (payment['amount'] ?? 0));
-    final remainingDebt = totalDebt - totalPaid;
-    
-    if (remainingDebt <= 0) {
-      return '🎉 Excellent! All debts are paid off.';
-    } else if (remainingDebt < totalDebt * 0.3) {
-      return '💪 Great progress! You\'ve paid off most of your debts.';
-    } else if (remainingDebt < totalDebt * 0.7) {
-      return '📈 Good progress! Keep up the momentum.';
-    } else {
-      return '💡 Consider prioritizing high-interest debts first.';
+  /// Cancel specific notification
+  static Future<void> cancelNotification(String identifier) async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('cancelNotification', {
+        'identifier': identifier,
+      });
+      
+      print('iOS 18.6+ notification cancelled: $identifier');
+    } catch (e) {
+      print('Error cancelling notification: $e');
     }
   }
 
-  // Enhanced Live Activities Methods
-  Future<void> startEnhancedLiveActivity({
-    required String debtId,
+  /// Cancel all notifications
+  static Future<void> cancelAllNotifications() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('cancelAllNotifications');
+      print('All iOS 18.6+ notifications cancelled');
+    } catch (e) {
+      print('Error cancelling all notifications: $e');
+    }
+  }
+
+  /// Get pending notifications
+  static Future<List<Map<String, dynamic>>> getPendingNotifications() async {
+    if (!Platform.isIOS) return [];
+
+    try {
+      final result = await _channel.invokeMethod('getPendingNotifications');
+      return List<Map<String, dynamic>>.from(result);
+    } catch (e) {
+      print('Error getting pending notifications: $e');
+      return [];
+    }
+  }
+
+  /// Update notification settings for iOS 18.6+
+  static Future<void> updateNotificationSettings({
+    required bool paymentRemindersEnabled,
+    required bool dailySummaryEnabled,
+    required bool weeklyReportEnabled,
+    required String interruptionLevel,
+    required bool focusModeIntegration,
+    required bool dynamicIslandEnabled,
+    required bool liveActivitiesEnabled,
+  }) async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('updateNotificationSettings', {
+        'paymentRemindersEnabled': paymentRemindersEnabled,
+        'dailySummaryEnabled': dailySummaryEnabled,
+        'weeklyReportEnabled': weeklyReportEnabled,
+        'interruptionLevel': interruptionLevel,
+        'focusModeIntegration': focusModeIntegration,
+        'dynamicIslandEnabled': dynamicIslandEnabled,
+        'liveActivitiesEnabled': liveActivitiesEnabled,
+      });
+      
+      print('iOS 18.6+ notification settings updated');
+    } catch (e) {
+      print('Error updating notification settings: $e');
+    }
+  }
+
+  /// Enable Focus mode integration
+  static Future<void> enableFocusModeIntegration() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('enableFocusModeIntegration');
+      print('iOS 18.6+ Focus mode integration enabled');
+    } catch (e) {
+      print('Error enabling Focus mode integration: $e');
+    }
+  }
+
+  /// Enable Dynamic Island integration
+  static Future<void> enableDynamicIslandIntegration() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('enableDynamicIslandIntegration');
+      print('iOS 18.6+ Dynamic Island integration enabled');
+    } catch (e) {
+      print('Error enabling Dynamic Island integration: $e');
+    }
+  }
+
+  /// Enable Live Activities
+  static Future<void> enableLiveActivities() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod('enableLiveActivities');
+      print('iOS 18.6+ Live Activities enabled');
+    } catch (e) {
+      print('Error enabling Live Activities: $e');
+    }
+  }
+
+  /// Start Live Activity for debt tracking
+  static Future<void> startDebtTrackingActivity({
+    required String activityId,
     required String customerName,
     required double amount,
     required DateTime dueDate,
   }) async {
-    if (!_supportsEnhancedLiveActivities) return;
+    if (!Platform.isIOS) return;
 
     try {
-      // Placeholder for enhanced Live Activities
+      await _channel.invokeMethod('startLiveActivity', {
+        'activityId': activityId,
+        'activityType': 'debt_tracking',
+        'customerName': customerName,
+        'amount': amount,
+        'dueDate': dueDate.millisecondsSinceEpoch,
+      });
+      
+      print('iOS 18.6+ Live Activity started for debt tracking');
     } catch (e) {
-      // Handle error silently
+      print('Error starting Live Activity: $e');
     }
   }
 
-  Future<void> updateEnhancedLiveActivity({
+  /// Update Live Activity
+  static Future<void> updateLiveActivity({
     required String activityId,
-    required Map<String, dynamic> data,
+    Map<String, dynamic>? data,
   }) async {
-    if (!_supportsEnhancedLiveActivities) return;
+    if (!Platform.isIOS) return;
 
     try {
-      // Placeholder for updating enhanced Live Activities
+      await _channel.invokeMethod('updateLiveActivity', {
+        'activityId': activityId,
+        'data': data ?? {},
+      });
+      
+      print('iOS 18.6+ Live Activity updated');
     } catch (e) {
-      // Handle error silently
+      print('Error updating Live Activity: $e');
     }
   }
 
-  Future<void> stopEnhancedLiveActivity(String activityId) async {
-    if (!_supportsEnhancedLiveActivities) return;
+  /// End Live Activity
+  static Future<void> endLiveActivity(String activityId) async {
+    if (!Platform.isIOS) return;
 
     try {
-      // Placeholder for stopping enhanced Live Activities
+      await _channel.invokeMethod('endLiveActivity', {
+        'activityId': activityId,
+      });
+      
+      print('iOS 18.6+ Live Activity ended');
     } catch (e) {
-      // Handle error silently
+      print('Error ending Live Activity: $e');
     }
   }
 
-  // Focus Mode Integration
-  Future<void> updateFocusModeStatus(bool isFocusModeActive) async {
-    if (!_isIOS18Plus) return;
+  /// Check if device supports iOS 18.6+ features
+  static Future<bool> isIOS186Supported() async {
+    if (!Platform.isIOS) return false;
 
     try {
-      // Placeholder for Focus Mode integration
+      final result = await _channel.invokeMethod('isIOS186Supported');
+      return result as bool;
     } catch (e) {
-      // Handle error silently
+      print('Error checking iOS 18.6+ support: $e');
+      return false;
     }
   }
 
-  // Dynamic Island Integration
-  Future<void> showDynamicIslandContent({
-    required String title,
-    required String subtitle,
-    required String icon,
-  }) async {
-    if (!_isIOS18Plus) return;
+  /// Get device capabilities
+  static Future<Map<String, bool>> getDeviceCapabilities() async {
+    if (!Platform.isIOS) return {};
 
     try {
-      // Implement Dynamic Island content display
+      final result = await _channel.invokeMethod('getDeviceCapabilities');
+      return Map<String, bool>.from(result);
     } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  // Enhanced Privacy Features
-  Future<void> requestEnhancedPrivacyPermissions() async {
-    if (!_isIOS18Plus) return;
-
-    try {
-      // Request enhanced privacy permissions for iOS 18+
-    } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  // Accessibility Enhancements
-  Future<void> enableEnhancedAccessibility() async {
-    if (!_isIOS18Plus) return;
-
-    try {
-      // Enable enhanced accessibility features for iOS 18+
-    } catch (e) {
-      // Handle error silently
+      print('Error getting device capabilities: $e');
+      return {};
     }
   }
 } 

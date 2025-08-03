@@ -18,7 +18,7 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   final DataExportImportService _exportService = DataExportImportService();
   final NotificationService _notificationService = NotificationService();
   bool _isExporting = false;
-  String? _exportedFilePath;
+  // String? _exportedFilePath; // Removed unused field
   String _selectedFormat = 'Excel'; // Default format
 
   @override
@@ -306,9 +306,9 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
           break;
       }
       
-      setState(() {
-        _exportedFilePath = filePath;
-      });
+      // setState(() { // Removed unused field reference
+      //   _exportedFilePath = filePath;
+      // });
 
       await _exportService.shareExportFile(filePath);
       

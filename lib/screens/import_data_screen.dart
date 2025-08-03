@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
-import '../services/data_export_import_service.dart';
+// import '../services/data_export_import_service.dart'; // Removed unused import
 import '../services/notification_service.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
@@ -17,7 +17,7 @@ class ImportDataScreen extends StatefulWidget {
 }
 
 class _ImportDataScreenState extends State<ImportDataScreen> {
-  final DataExportImportService _importService = DataExportImportService();
+  // final DataExportImportService _importService = DataExportImportService(); // Removed unused field
   final NotificationService _notificationService = NotificationService();
   bool _isImporting = false;
   Map<String, dynamic>? _importPreview;
@@ -215,8 +215,8 @@ class _ImportDataScreenState extends State<ImportDataScreen> {
   }
 
   Widget _buildPreviewSection() {
-    final customers = _importPreview!['customers'] as List<Customer>;
-    final debts = _importPreview!['debts'] as List<Debt>;
+    // final customers = _importPreview!['customers'] as List<Customer>; // Removed unused variable
+    // final debts = _importPreview!['debts'] as List<Debt>; // Removed unused variable
     final totalCustomers = _importPreview!['totalCustomers'] as int;
     final totalDebts = _importPreview!['totalDebts'] as int;
 

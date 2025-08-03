@@ -26,7 +26,7 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<Customer> _filteredCustomers = [];
-  String _searchQuery = '';
+  // String _searchQuery = ''; // Removed unused field
   bool _showDropdown = false;
 
   @override
@@ -67,14 +67,14 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
     });
   }
 
-  void _selectCustomer(Customer customer) {
-    widget.onCustomerSelected(customer);
-    _searchController.clear();
-    _searchFocusNode.unfocus();
-    setState(() {
-      _filteredCustomers = [];
-    });
-  }
+  // void _selectCustomer(Customer customer) { // Removed unused method
+  //   widget.onCustomerSelected(customer);
+  //   _searchController.clear();
+  //   _searchFocusNode.unfocus();
+  //   setState(() {
+  //     _filteredCustomers = [];
+  //   });
+  // }
 
   void _updateSelectedCustomer() {
     if (widget.selectedCustomer != null) {
@@ -85,13 +85,13 @@ class _SearchableCustomerFieldState extends State<SearchableCustomerField> {
     }
   }
 
-  void _clearSelection() {
-    widget.onCustomerSelected(null);
-    _searchController.clear();
-    setState(() {
-      _filteredCustomers = [];
-    });
-  }
+  // void _clearSelection() { // Removed unused method
+  //   widget.onCustomerSelected(null);
+  //   _searchController.clear();
+  //   setState(() {
+  //     _filteredCustomers = [];
+  //   });
+  // }
 
   @override
   Widget build(BuildContext context) {

@@ -20,75 +20,75 @@ class _ActivityWidgetState extends State<ActivityWidget> {
   ActivityView _currentView = ActivityView.daily;
   Timer? _timer;
 
-  void _cycleView() {
-    setState(() {
-      switch (_currentView) {
-        case ActivityView.daily:
-          _currentView = ActivityView.weekly;
-          break;
-        case ActivityView.weekly:
-          _currentView = ActivityView.monthly;
-          break;
-        case ActivityView.monthly:
-          _currentView = ActivityView.yearly;
-          break;
-        case ActivityView.yearly:
-          _currentView = ActivityView.daily;
-          break;
-      }
-    });
-  }
+  // void _cycleView() { // Removed unused method
+  //   setState(() {
+  //     switch (_currentView) {
+  //       case ActivityView.daily:
+  //         _currentView = ActivityView.weekly;
+  //         break;
+  //       case ActivityView.weekly:
+  //         _currentView = ActivityView.monthly;
+  //         break;
+  //       case ActivityView.monthly:
+  //         _currentView = ActivityView.yearly;
+  //         break;
+  //       case ActivityView.yearly:
+  //         _currentView = ActivityView.daily;
+  //         break;
+  //     }
+  //   });
+  // }
 
-  String _getViewTitle() {
-    final now = DateTime.now();
-    switch (_currentView) {
-      case ActivityView.daily:
-        return 'Daily Activity - ${_formatShortDate(now)}';
-      case ActivityView.weekly:
-        return 'Weekly Activity - ${_getWeekRange(now)}';
-      case ActivityView.monthly:
-        return 'Monthly Activity - ${_getMonthYear(now)}';
-      case ActivityView.yearly:
-        return 'Yearly Activity - ${now.year}';
-    }
-  }
+  // String _getViewTitle() { // Removed unused method
+  //   final now = DateTime.now();
+  //   switch (_currentView) {
+  //     case ActivityView.daily:
+  //       return 'Daily Activity - ${_formatShortDate(now)}';
+  //     case ActivityView.weekly:
+  //       return 'Weekly Activity - ${_getWeekRange(now)}';
+  //     case ActivityView.monthly:
+  //       return 'Monthly Activity - ${_getMonthYear(now)}';
+  //     case ActivityView.yearly:
+  //       return 'Yearly Activity - ${now.year}';
+  //   }
+  // }
 
-  String _formatShortDate(DateTime date) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[date.month - 1]} ${date.day}';
-  }
+  // String _formatShortDate(DateTime date) { // Removed unused method
+  //   const months = [
+  //     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  //     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  //   ];
+  //   return '${months[date.month - 1]} ${date.day}';
+  // }
 
-  String _getMonthYear(DateTime date) {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month - 1]} ${date.year}';
-  }
+  // String _getMonthYear(DateTime date) { // Removed unused method
+  //   const months = [
+  //     'January', 'February', 'March', 'April', 'May', 'June',
+  //     'July', 'August', 'September', 'October', 'November', 'December'
+  //   ];
+  //   return '${months[date.month - 1]} ${date.year}';
+  // }
 
-  String _getWeekRange(DateTime date) {
-    final startOfWeek = date.subtract(Duration(days: date.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+  // String _getWeekRange(DateTime date) { // Removed unused method
+  //   final startOfWeek = date.subtract(Duration(days: date.weekday - 1));
+  //   final endOfWeek = startOfWeek.add(const Duration(days: 6));
     
-    // Use compact format with month names
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
+  //   // Use compact format with month names
+  //   const months = [
+  //     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  //     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  //   ];
     
-    String startStr = '${months[startOfWeek.month - 1]} ${startOfWeek.day}';
-    String endStr = '${months[endOfWeek.month - 1]} ${endOfWeek.day}';
+  //   String startStr = '${months[startOfWeek.month - 1]} ${startOfWeek.day}';
+  //   String endStr = '${months[endOfWeek.month - 1]} ${endOfWeek.day}';
     
-    // If same month, only show month once
-    if (startOfWeek.month == endOfWeek.month) {
-      return '$startStr - ${endOfWeek.day}';
-    } else {
-      return '$startStr - $endStr';
-    }
-  }
+  //   // If same month, only show month once
+  //   if (startOfWeek.month == endOfWeek.month) {
+  //     return '$startStr - ${endOfWeek.day}';
+  //   } else {
+  //     return '$startStr - $endStr';
+  //   }
+  // }
 
   @override
   void initState() {

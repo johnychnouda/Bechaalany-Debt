@@ -19,7 +19,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   List<Map<String, dynamic>> _groupedDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
-  Set<String> _lastKnownDebtIds = {};
+  // Set<String> _lastKnownDebtIds = {}; // Removed unused field
   bool _sortAscending = false;
 
   @override

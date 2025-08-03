@@ -3,7 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
-import '../services/notification_service.dart';
+// import '../services/notification_service.dart'; // Removed unused import
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'export_data_screen.dart';

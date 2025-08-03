@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../constants/app_theme.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
 
 import '../utils/currency_formatter.dart';
-import '../services/notification_service.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -141,7 +139,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
             
             final groupedCustomers = _groupCustomersByFirstLetter();
             final totalCustomers = appState.customers.length;
-            final filteredCount = _filteredCustomers.length;
+            // final filteredCount = _filteredCustomers.length; // Removed unused variable
             
             return Column(
               children: [

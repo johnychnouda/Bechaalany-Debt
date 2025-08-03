@@ -22,7 +22,7 @@ class AppState extends ChangeNotifier {
   final SyncService _syncService = SyncService();
   final CloudKitService _cloudKitService = CloudKitService();
   final DataExportImportService _exportImportService = DataExportImportService();
-  final IOS18Service _ios18Service = IOS18Service();
+  // final IOS18Service _ios18Service = IOS18Service(); // Commented out - static methods don't need instance
 
   
   // Data
@@ -41,57 +41,13 @@ class AppState extends ChangeNotifier {
   // Connectivity
   bool _isOnline = true;
   
-  // App Settings
+  // App Settings (Only implemented ones)
   bool _isDarkMode = false;
-  bool _notificationsEnabled = true;
   bool _autoSyncEnabled = true;
-  bool _biometricEnabled = false;
-  bool _appLockEnabled = false;
-  bool _offlineModeEnabled = false;
-  bool _ipadOptimizationsEnabled = false;
-  bool _boldTextEnabled = false;
   bool _iCloudSyncEnabled = false;
-  String _accentColor = 'blue';
-  String _reminderFrequency = '3_days';
   
-  // New Business Settings
+  // Business Settings (Only implemented ones)
   String _defaultCurrency = 'USD';
-  String _receiptTemplate = 'simple';
-  String _businessHours = '9_18';
-  String _backupFrequency = 'weekly';
-  List<String> _quickActions = ['add_debt', 'add_customer'];
-  String _quietHours = '22_08';
-  
-  // Notification Settings
-  bool _paymentDueRemindersEnabled = true;
-  bool _weeklyReportsEnabled = false;
-  bool _monthlyReportsEnabled = true;
-  bool _quietHoursEnabled = false;
-  bool _liveActivitiesEnabled = false;
-  String _notificationPriority = 'Normal';
-  String _quietHoursStart = '22:00';
-  String _quietHoursEnd = '08:00';
-  
-  // Data Management Settings
-  bool _dataValidationEnabled = true;
-  bool _duplicateDetectionEnabled = true;
-  bool _auditTrailEnabled = true;
-  bool _customReportsEnabled = false;
-  bool _calendarIntegrationEnabled = false;
-  bool _multiDeviceSyncEnabled = true;
-  
-  // iOS 18+ Integration Settings
-  bool _widgetsEnabled = false;
-  bool _focusModeEnabled = false;
-  bool _shortcutsEnabled = false;
-  bool _dynamicIslandEnabled = false;
-  bool _smartStackEnabled = false;
-  bool _aiFeaturesEnabled = false;
-  
-  // Accessibility Settings
-  bool _largeTextEnabled = false;
-  bool _reduceMotionEnabled = false;
-  String _textSize = 'Medium'; // Small, Medium, Large, Extra Large
   
   // Cached calculations
   double? _cachedTotalDebt;
@@ -113,62 +69,19 @@ class AppState extends ChangeNotifier {
   bool get isSyncing => _isSyncing;
   bool get isOnline => _isOnline;
   
-  // App Settings Getters
+  // App Settings Getters (Only implemented ones)
   bool get isDarkMode => _isDarkMode;
   bool get darkModeEnabled => _isDarkMode;
   String get selectedLanguage => 'English';
-  bool get notificationsEnabled => _notificationsEnabled;
   bool get autoSyncEnabled => _autoSyncEnabled;
-  bool get biometricEnabled => _biometricEnabled;
-  bool get appLockEnabled => _appLockEnabled;
-  bool get offlineModeEnabled => _offlineModeEnabled;
-  bool get ipadOptimizationsEnabled => _ipadOptimizationsEnabled;
-  bool get boldTextEnabled => _boldTextEnabled;
   bool get iCloudSyncEnabled => _iCloudSyncEnabled;
-  String get accentColor => _accentColor;
-  String get reminderFrequency => _reminderFrequency;
   
-  // New Business Settings Getters
+  // Business Settings Getters (Only implemented ones)
   String get defaultCurrency => _defaultCurrency;
-  String get receiptTemplate => _receiptTemplate;
-  String get businessHours => _businessHours;
-  String get backupFrequency => _backupFrequency;
-  List<String> get quickActions => _quickActions;
-  String get quietHours => _quietHours;
   
-  // Notification Settings Getters
-  bool get paymentDueRemindersEnabled => _paymentDueRemindersEnabled;
-  bool get weeklyReportsEnabled => _weeklyReportsEnabled;
-  bool get monthlyReportsEnabled => _monthlyReportsEnabled;
-  bool get quietHoursEnabled => _quietHoursEnabled;
-  String get notificationPriority => _notificationPriority;
-  String get selectedNotificationPriority => _notificationPriority;
-  String get quietHoursStart => _quietHoursStart;
-  String get selectedQuietHoursStart => _quietHoursStart;
-  String get quietHoursEnd => _quietHoursEnd;
-  String get selectedQuietHoursEnd => _quietHoursEnd;
-  bool get liveActivitiesEnabled => _liveActivitiesEnabled;
-  
-  // Data Management Settings Getters
-  bool get dataValidationEnabled => _dataValidationEnabled;
-  bool get duplicateDetectionEnabled => _duplicateDetectionEnabled;
-  bool get auditTrailEnabled => _auditTrailEnabled;
-  bool get customReportsEnabled => _customReportsEnabled;
-  bool get calendarIntegrationEnabled => _calendarIntegrationEnabled;
-  bool get multiDeviceSyncEnabled => _multiDeviceSyncEnabled;
-  
-  // iOS 18+ Integration Settings Getters
-  bool get widgetsEnabled => _widgetsEnabled;
-  bool get focusModeEnabled => _focusModeEnabled;
-  bool get shortcutsEnabled => _shortcutsEnabled;
-  bool get dynamicIslandEnabled => _dynamicIslandEnabled;
-  bool get smartStackEnabled => _smartStackEnabled;
-  bool get aiFeaturesEnabled => _aiFeaturesEnabled;
-  
-  // Accessibility Settings Getters
-  bool get largeTextEnabled => _largeTextEnabled;
-  bool get reduceMotionEnabled => _reduceMotionEnabled;
-  String get textSize => _textSize;
+  // Accessibility Settings Getters (Needed for theme service)
+  String get textSize => 'Medium'; // Default value
+  bool get boldTextEnabled => false; // Default value
   
   // Cached getters
   double get totalDebt {
@@ -251,7 +164,7 @@ class AppState extends ChangeNotifier {
       // Initialize services
       await _notificationService.initialize();
       await _syncService.initialize();
-      await _ios18Service.initialize();
+      await IOS18Service.initialize();
       
       // Ensure all Hive boxes are open
       await _dataService.ensureBoxesOpen();
@@ -290,178 +203,41 @@ class AppState extends ChangeNotifier {
   
 
   
-  // Load settings from SharedPreferences
+  // Load settings from SharedPreferences (Only implemented ones)
   Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
       _autoSyncEnabled = prefs.getBool('autoSyncEnabled') ?? true;
-      _biometricEnabled = prefs.getBool('biometricEnabled') ?? false;
-      _appLockEnabled = prefs.getBool('appLockEnabled') ?? false;
-      _offlineModeEnabled = prefs.getBool('offlineModeEnabled') ?? false;
-      _ipadOptimizationsEnabled = prefs.getBool('ipadOptimizationsEnabled') ?? false;
-      _boldTextEnabled = prefs.getBool('boldTextEnabled') ?? false;
       _iCloudSyncEnabled = prefs.getBool('iCloudSyncEnabled') ?? false;
-      _accentColor = prefs.getString('accentColor') ?? 'blue';
-      _reminderFrequency = prefs.getString('reminderFrequency') ?? '3_days';
       
-      // New Business Settings
+      // Business Settings (Only implemented ones)
       _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
-      _receiptTemplate = prefs.getString('receiptTemplate') ?? 'simple';
-      _businessHours = prefs.getString('businessHours') ?? '9_18';
-      _backupFrequency = prefs.getString('backupFrequency') ?? 'weekly';
-      _quietHours = prefs.getString('quietHours') ?? '22_08';
-      _quickActions = prefs.getStringList('quickActions') ?? ['add_debt', 'add_customer'];
-      
-      // Notification settings
-      _paymentDueRemindersEnabled = prefs.getBool('paymentDueRemindersEnabled') ?? true;
-      _weeklyReportsEnabled = prefs.getBool('weeklyReportsEnabled') ?? false;
-      _monthlyReportsEnabled = prefs.getBool('monthlyReportsEnabled') ?? true;
-      _quietHoursEnabled = prefs.getBool('quietHoursEnabled') ?? false;
-      _liveActivitiesEnabled = prefs.getBool('liveActivitiesEnabled') ?? false;
-      _notificationPriority = prefs.getString('notificationPriority') ?? 'Normal';
-      _quietHoursStart = prefs.getString('quietHoursStart') ?? '22:00';
-      _quietHoursEnd = prefs.getString('quietHoursEnd') ?? '08:00';
-      
-      // Data management settings
-      _dataValidationEnabled = prefs.getBool('dataValidationEnabled') ?? true;
-      _duplicateDetectionEnabled = prefs.getBool('duplicateDetectionEnabled') ?? true;
-      _auditTrailEnabled = prefs.getBool('auditTrailEnabled') ?? true;
-      _customReportsEnabled = prefs.getBool('customReportsEnabled') ?? false;
-      _calendarIntegrationEnabled = prefs.getBool('calendarIntegrationEnabled') ?? false;
-      _multiDeviceSyncEnabled = prefs.getBool('multiDeviceSyncEnabled') ?? true;
-      
-      // iOS 18+ Integration settings
-      _widgetsEnabled = prefs.getBool('widgetsEnabled') ?? false;
-      _focusModeEnabled = prefs.getBool('focusModeEnabled') ?? false;
-      _shortcutsEnabled = prefs.getBool('shortcutsEnabled') ?? false;
-      _dynamicIslandEnabled = prefs.getBool('dynamicIslandEnabled') ?? false;
-      _smartStackEnabled = prefs.getBool('smartStackEnabled') ?? false;
-      _aiFeaturesEnabled = prefs.getBool('aiFeaturesEnabled') ?? false;
-      
-      // Accessibility settings
-      _largeTextEnabled = prefs.getBool('largeTextEnabled') ?? false;
-      _reduceMotionEnabled = prefs.getBool('reduceMotionEnabled') ?? false;
-      _textSize = prefs.getString('textSize') ?? 'Medium';
       
     } catch (e) {
       // Handle error silently
     }
   }
   
-  // Save settings to SharedPreferences
+  // Save settings to SharedPreferences (Only implemented ones)
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       await prefs.setBool('isDarkMode', _isDarkMode);
-      await prefs.setBool('notificationsEnabled', _notificationsEnabled);
       await prefs.setBool('autoSyncEnabled', _autoSyncEnabled);
-      await prefs.setBool('biometricEnabled', _biometricEnabled);
-      await prefs.setBool('appLockEnabled', _appLockEnabled);
-      await prefs.setBool('offlineModeEnabled', _offlineModeEnabled);
-      await prefs.setBool('ipadOptimizationsEnabled', _ipadOptimizationsEnabled);
-      await prefs.setBool('boldTextEnabled', _boldTextEnabled);
       await prefs.setBool('iCloudSyncEnabled', _iCloudSyncEnabled);
-      await prefs.setString('accentColor', _accentColor);
-      await prefs.setString('reminderFrequency', _reminderFrequency);
       
-      // New Business Settings
+      // Business Settings (Only implemented ones)
       await prefs.setString('defaultCurrency', _defaultCurrency);
-      await prefs.setString('receiptTemplate', _receiptTemplate);
-      await prefs.setString('businessHours', _businessHours);
-      await prefs.setString('backupFrequency', _backupFrequency);
-      await prefs.setString('quietHours', _quietHours);
-      await prefs.setStringList('quickActions', _quickActions);
-      
-      // Notification settings
-      await prefs.setBool('paymentDueRemindersEnabled', _paymentDueRemindersEnabled);
-      await prefs.setBool('weeklyReportsEnabled', _weeklyReportsEnabled);
-      await prefs.setBool('monthlyReportsEnabled', _monthlyReportsEnabled);
-      await prefs.setBool('quietHoursEnabled', _quietHoursEnabled);
-      await prefs.setBool('liveActivitiesEnabled', _liveActivitiesEnabled);
-      await prefs.setString('notificationPriority', _notificationPriority);
-      await prefs.setString('quietHoursStart', _quietHoursStart);
-      await prefs.setString('quietHoursEnd', _quietHoursEnd);
-      
-      // Data management settings
-      await prefs.setBool('dataValidationEnabled', _dataValidationEnabled);
-      await prefs.setBool('duplicateDetectionEnabled', _duplicateDetectionEnabled);
-      await prefs.setBool('auditTrailEnabled', _auditTrailEnabled);
-      await prefs.setBool('customReportsEnabled', _customReportsEnabled);
-      await prefs.setBool('calendarIntegrationEnabled', _calendarIntegrationEnabled);
-      await prefs.setBool('multiDeviceSyncEnabled', _multiDeviceSyncEnabled);
-      
-      // iOS 18+ Integration settings
-      await prefs.setBool('widgetsEnabled', _widgetsEnabled);
-      await prefs.setBool('focusModeEnabled', _focusModeEnabled);
-      await prefs.setBool('shortcutsEnabled', _shortcutsEnabled);
-      await prefs.setBool('dynamicIslandEnabled', _dynamicIslandEnabled);
-      await prefs.setBool('smartStackEnabled', _smartStackEnabled);
-      await prefs.setBool('aiFeaturesEnabled', _aiFeaturesEnabled);
-      
-      // Accessibility settings
-      await prefs.setBool('largeTextEnabled', _largeTextEnabled);
-      await prefs.setBool('reduceMotionEnabled', _reduceMotionEnabled);
-      await prefs.setString('textSize', _textSize);
       
     } catch (e) {
       // Handle error silently
     }
   }
   
-  // Clean up duplicate payment activities for the same customer and debt
-  void _cleanupDuplicatePaymentActivities() {
-    try {
-      final Map<String, List<Activity>> groupedActivities = {};
-      
-      // Group activities by customer and debt
-      for (final activity in _activities) {
-        if (activity.type == ActivityType.payment && activity.debtId != null) {
-          final key = '${activity.customerName}_${activity.debtId}';
-          if (!groupedActivities.containsKey(key)) {
-            groupedActivities[key] = [];
-          }
-          groupedActivities[key]!.add(activity);
-        }
-      }
-      
-      // Process each group
-      for (final activities in groupedActivities.values) {
-        if (activities.length > 1) {
-          // Sort by date to find the most recent
-          activities.sort((a, b) => b.date.compareTo(a.date));
-          
-          // Keep the most recent activity and combine amounts
-          final mostRecent = activities.first;
-          final totalAmount = activities.fold<double>(0, (sum, activity) => 
-            sum + (activity.paymentAmount ?? 0));
-          
-          // Update the most recent activity with combined amount
-          final updatedActivity = mostRecent.copyWith(
-            paymentAmount: totalAmount,
-          );
-          
-          // Remove old activities and update the most recent
-          for (int i = 1; i < activities.length; i++) {
-            _activities.remove(activities[i]);
-            _dataService.deleteActivity(activities[i].id);
-          }
-          
-          // Update the most recent activity
-          final index = _activities.indexWhere((a) => a.id == mostRecent.id);
-          if (index != -1) {
-            _activities[index] = updatedActivity;
-            _dataService.updateActivity(updatedActivity);
-          }
-        }
-      }
-    } catch (e) {
-      // Error cleaning up duplicate payment activities
-    }
-  }
+  // Clean up duplicate payment activities - removed unused method
 
   // Load data from storage
   Future<void> _loadData() async {
@@ -550,8 +326,6 @@ class AppState extends ChangeNotifier {
   
   // Schedule notifications for due/overdue debts
   Future<void> _scheduleNotifications() async {
-    if (!_notificationsEnabled) return;
-    
     // Debt reminders removed as per user request
   }
   
@@ -1636,7 +1410,7 @@ class AppState extends ChangeNotifier {
   Future<void> checkPaymentActivitiesForCustomer(String customerName) async {
     try {
       // Find all payment activities for this customer
-      final customerActivities = _activities.where((activity) => 
+      _activities.where((activity) => 
         activity.customerName.toLowerCase() == customerName.toLowerCase() &&
         activity.type == ActivityType.payment
       ).toList();
@@ -1650,8 +1424,8 @@ class AppState extends ChangeNotifier {
       );
       
       if (customer.id.isNotEmpty) {
-        final customerDebts = _debts.where((debt) => debt.customerId == customer.id).toList();
-        // Customer has debts
+        _debts.where((debt) => debt.customerId == customer.id).toList();
+        // Customer has debts - removed unused variables
       }
       
     } catch (e) {
@@ -1668,53 +1442,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> setBoldTextEnabled(bool enabled) async {
-    _boldTextEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setReduceMotionEnabled(bool enabled) async {
-    _reduceMotionEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setTextSize(String size) async {
-    _textSize = size;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setNotificationsEnabled(bool enabled) async {
-    _notificationsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setPaymentDueRemindersEnabled(bool enabled) async {
-    _paymentDueRemindersEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setWeeklyReportsEnabled(bool enabled) async {
-    _weeklyReportsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setMonthlyReportsEnabled(bool enabled) async {
-    _monthlyReportsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setQuietHoursEnabled(bool enabled) async {
-    _quietHoursEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
+  // Removed unused setter methods
 
   Future<void> setICloudSyncEnabled(bool enabled) async {
     _iCloudSyncEnabled = enabled;
@@ -1758,116 +1486,7 @@ class AppState extends ChangeNotifier {
   }
 
   // New iOS 18+ settings methods
-  Future<void> setBiometricEnabled(bool enabled) async {
-    _biometricEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setAppLockEnabled(bool enabled) async {
-    _appLockEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setAccentColor(String color) async {
-    _accentColor = color;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setReminderFrequency(String frequency) async {
-    _reminderFrequency = frequency;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setLiveActivitiesEnabled(bool enabled) async {
-    _liveActivitiesEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setWidgetsEnabled(bool enabled) async {
-    _widgetsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setFocusModeEnabled(bool enabled) async {
-    _focusModeEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setShortcutsEnabled(bool enabled) async {
-    _shortcutsEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setDynamicIslandEnabled(bool enabled) async {
-    _dynamicIslandEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setSmartStackEnabled(bool enabled) async {
-    _smartStackEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setAiFeaturesEnabled(bool enabled) async {
-    _aiFeaturesEnabled = enabled;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  // New Business Settings Setters
-  Future<void> setDefaultCurrency(String currency) async {
-    _defaultCurrency = currency;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setReceiptTemplate(String template) async {
-    _receiptTemplate = template;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setBusinessHours(String hours) async {
-    _businessHours = hours;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setBackupFrequency(String frequency) async {
-    _backupFrequency = frequency;
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> addQuickAction(String action) async {
-    if (!_quickActions.contains(action)) {
-      _quickActions.add(action);
-      await _saveSettings();
-      notifyListeners();
-    }
-  }
-
-  Future<void> removeQuickAction(String action) async {
-    _quickActions.remove(action);
-    await _saveSettings();
-    notifyListeners();
-  }
-
-  Future<void> setQuietHours(String hours) async {
-    _quietHours = hours;
-    await _saveSettings();
-    notifyListeners();
-  }
+  // Removed unused setter methods
 
   // Cache management
   void _clearCache() {

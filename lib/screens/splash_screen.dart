@@ -21,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _logoOpacityAnimation;
   late Animation<double> _textOpacityAnimation;
   late Animation<double> _textSlideAnimation;
-  late Animation<double> _fadeAnimation;
+  // late Animation<double> _fadeAnimation; // Removed unused field
 
   @override
   void initState() {
@@ -77,14 +77,14 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeOut,
     ));
 
-    // Fade animation
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeInOut,
-    ));
+    // Fade animation - removed unused animation
+    // _fadeAnimation = Tween<double>(
+    //   begin: 0.0,
+    //   end: 1.0,
+    // ).animate(CurvedAnimation(
+    //   parent: _fadeController,
+    //   curve: Curves.easeInOut,
+    // ));
 
     // Start animations
     _startAnimations();
