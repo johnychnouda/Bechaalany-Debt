@@ -5,7 +5,6 @@ import '../providers/app_state.dart';
 import '../services/data_service.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
-import '../services/backup_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 
@@ -21,33 +20,24 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final BackupService _backupService = BackupService();
   List<String> _availableBackups = [];
   bool _isLoading = false;
-<<<<<<< Updated upstream
-  bool _isDailyBackupEnabled = true;
-  String _nextBackupTime = '';
-=======
   bool _isAutomaticBackupEnabled = true;
   DateTime? _lastBackupTime;
->>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
     _loadBackups();
-<<<<<<< Updated upstream
-    _loadDailyBackupSettings();
-=======
     _loadBackupSettings();
   }
 
   Future<void> _loadBackupSettings() async {
     final isEnabled = await _backupService.isAutomaticBackupEnabled();
-    final lastBackup = await _backupService.getLastBackupTime();
+    final lastAutomaticBackup = await _backupService.getLastAutomaticBackupTime();
     
     setState(() {
       _isAutomaticBackupEnabled = isEnabled;
-      _lastBackupTime = lastBackup;
+      _lastBackupTime = lastAutomaticBackup;
     });
->>>>>>> Stashed changes
   }
 
   Future<void> _loadBackups() async {
@@ -90,55 +80,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _loadDailyBackupSettings() async {
-    try {
-      final isEnabled = await _backupService.isDailyBackupEnabled();
-      final nextBackupTime = _backupService.formatNextBackupTime();
-      
-      setState(() {
-        _isDailyBackupEnabled = isEnabled;
-        _nextBackupTime = nextBackupTime;
-      });
-    } catch (e) {
-      // Handle error
-    }
-  }
-
-  Future<void> _toggleDailyBackup(bool enabled) async {
-    try {
-      await _backupService.setDailyBackupEnabled(enabled);
-      final nextBackupTime = _backupService.formatNextBackupTime();
-      
-      setState(() {
-        _isDailyBackupEnabled = enabled;
-        _nextBackupTime = nextBackupTime;
-      });
-      
-      if (mounted) {
-        final notificationService = NotificationService();
-        if (enabled) {
-          await notificationService.showSuccessNotification(
-            title: 'Daily Backup Enabled',
-            body: 'Your data will be backed up automatically at 12 AM daily',
-          );
-        } else {
-          await notificationService.showInfoNotification(
-            title: 'Daily Backup Disabled',
-            body: 'Automatic daily backups have been turned off',
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Settings Error',
-          body: 'Failed to update daily backup settings: $e',
-        );
-      }
     }
   }
 
@@ -186,21 +127,13 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
           );
           Navigator.of(context).pop();
         }
-      } else {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'Restore Failed',
-            body: 'Failed to restore data',
-          );
-        }
       }
     } catch (e) {
       if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
           title: 'Restore Error',
-          body: 'Error restoring data: $e',
+          body: 'Failed to restore data: $e',
         );
       }
     } finally {
@@ -216,7 +149,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Delete Backup'),
         content: const Text(
-          'This will permanently delete this backup. This action cannot be undone. Are you sure?'
+          'This will permanently delete the backup file. This action cannot be undone. Are you sure?'
         ),
         actions: [
           CupertinoDialogAction(
@@ -242,21 +175,13 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       final success = await _dataService.deleteBackup(backupPath);
       
       if (success) {
-        await _loadBackups(); // Reload the backup list
+        await _loadBackups();
         
         if (mounted) {
           final notificationService = NotificationService();
           await notificationService.showSuccessNotification(
             title: 'Backup Deleted',
-            body: 'Backup deleted successfully',
-          );
-        }
-      } else {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'Delete Failed',
-            body: 'Failed to delete backup',
+            body: 'Backup file deleted successfully',
           );
         }
       }
@@ -265,7 +190,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
           title: 'Delete Error',
-          body: 'Error deleting backup: $e',
+          body: 'Failed to delete backup: $e',
         );
       }
     } finally {
@@ -275,137 +200,84 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     }
   }
 
-  String _formatBackupPath(String path) {
-    final parts = path.split('/');
-    final backupName = parts.last;
-    if (backupName.startsWith('backup_')) {
-      final timestamp = backupName.substring(7);
-      final date = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
-      
-      // Format date and time in 12-hour format
-      final month = date.month.toString().padLeft(2, '0');
-      final day = date.day.toString().padLeft(2, '0');
-      final year = date.year;
-      
-      // Convert to 12-hour format
-      int hour = date.hour;
-      final period = hour >= 12 ? 'PM' : 'AM';
-      if (hour == 0) hour = 12;
-      if (hour > 12) hour -= 12;
-      final formattedHour = hour.toString().padLeft(2, '0');
-      final minute = date.minute.toString().padLeft(2, '0');
-      final second = date.second.toString().padLeft(2, '0');
-      
-      return 'Backup from $month/$day/$year $formattedHour:$minute:$second $period';
-    }
-    return backupName;
-  }
 
-  String _formatBackupSize(String path) {
-    // For now, return a realistic size based on actual data
-    // In a real implementation, you would calculate the actual file size
-    final appState = Provider.of<AppState>(context, listen: false);
-    final customerCount = appState.customers.length;
-    final debtCount = appState.debts.length;
-    
-    if (customerCount == 0 && debtCount == 0) {
-      return '0.1 KB';
-    } else if (customerCount < 10 && debtCount < 10) {
-      return '1.2 KB';
-    } else if (customerCount < 50 && debtCount < 50) {
-      return '5.8 KB';
-    } else {
-      return '12.4 KB';
-    }
-  }
-
-  String _formatBackupDetails(String path) {
-    // Get actual data from the app state
-    final appState = Provider.of<AppState>(context, listen: false);
-    final customerCount = appState.customers.length;
-    final activeDebtCount = appState.debts.where((debt) => debt.status == 'active').length;
-    
-    if (customerCount == 0 && activeDebtCount == 0) {
-      return 'No data';
-    } else if (customerCount == 0) {
-      return '$activeDebtCount active debts';
-    } else if (activeDebtCount == 0) {
-      return '$customerCount customers';
-    } else {
-      return '$customerCount customers, $activeDebtCount active debts';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           'Data Recovery',
-          style: AppTheme.getDynamicTitle3(context).copyWith(
+          style: AppTheme.getDynamicTitle2(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
+            fontWeight: FontWeight.w600,
           ),
         ),
         backgroundColor: AppColors.dynamicSurface(context),
-        border: null,
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.dynamicBorder(context),
+            width: 0.5,
+          ),
+        ),
       ),
       child: SafeArea(
-        child: Material(
-          color: Colors.transparent,
-          child: _isLoading
-              ? const Center(child: CupertinoActivityIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(16),
+        child: _isLoading
+            ? const Center(
+                child: CupertinoActivityIndicator(),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 16),
-                    
-                    // Backup Creation Section
-                    _buildBackupCreationSection(),
-                    
+                    _buildBackupSection(),
                     const SizedBox(height: 24),
-                    
-                    // Automatic Backup Settings Section
                     _buildAutomaticBackupSection(),
-                    
                     const SizedBox(height: 24),
-                    
-                    // Available Backups Section
                     _buildAvailableBackupsSection(),
                   ],
                 ),
-        ),
+              ),
       ),
     );
   }
 
-  Widget _buildBackupCreationSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.dynamicBorder(context),
-          width: 0.5,
+  Widget _buildBackupSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Manual Backup',
+          style: AppTheme.getDynamicTitle3(context).copyWith(
+            color: AppColors.dynamicTextPrimary(context),
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.dynamicBorder(context),
+              width: 0.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: AppColors.dynamicPrimary(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     CupertinoIcons.cloud_upload,
                     color: AppColors.dynamicPrimary(context),
-                    size: 24,
+                    size: 18,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -414,7 +286,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Data Backup & Recovery',
+                        'Create Backup',
                         style: AppTheme.getDynamicTitle2(context).copyWith(
                           color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
@@ -422,159 +294,157 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Create backups of your data to prevent loss. You can restore from any available backup.',
-                        style: AppTheme.getDynamicFootnote(context).copyWith(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              child: CupertinoButton(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                color: AppColors.dynamicPrimary(context),
-                borderRadius: BorderRadius.circular(12),
-                onPressed: _createBackup,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.cloud_upload,
-                      color: AppColors.dynamicSurface(context),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Create Backup Now',
-                      style: AppTheme.getDynamicBody(context).copyWith(
-                        color: AppColors.dynamicSurface(context),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 17,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAutomaticBackupSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.dynamicBorder(context),
-          width: 0.5,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.dynamicPrimary(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    CupertinoIcons.clock,
-                    color: AppColors.dynamicPrimary(context),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Automatic Daily Backup',
-                        style: AppTheme.getDynamicTitle3(context).copyWith(
-                          color: AppColors.dynamicTextPrimary(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Automatically backup your data daily at 12:00 AM',
-                        style: AppTheme.getDynamicFootnote(context).copyWith(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                CupertinoSwitch(
-                  value: _isAutomaticBackupEnabled,
-                  onChanged: (value) async {
-                    await _backupService.setAutomaticBackupEnabled(value);
-                    setState(() {
-                      _isAutomaticBackupEnabled = value;
-                    });
-                  },
-                  activeColor: AppColors.dynamicPrimary(context),
-                ),
-              ],
-            ),
-            
-            if (_lastBackupTime != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicBackground(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.dynamicBorder(context),
-                    width: 0.5,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.checkmark_circle,
-                      color: Colors.green,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Last backup: ${_formatLastBackupTime()}',
+                        'Create a backup of all your data',
                         style: AppTheme.getDynamicFootnote(context).copyWith(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 14,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
->>>>>>> Stashed changes
-          ],
+                CupertinoButton(
+                  onPressed: _createBackup,
+                  padding: EdgeInsets.zero,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicPrimary(context),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Backup',
+                      style: AppTheme.getDynamicBody(context).copyWith(
+                        color: AppColors.dynamicSurface(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
-<<<<<<< Updated upstream
-=======
+  Widget _buildAutomaticBackupSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Automatic Backup',
+          style: AppTheme.getDynamicTitle3(context).copyWith(
+            color: AppColors.dynamicTextPrimary(context),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.dynamicBorder(context),
+              width: 0.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.dynamicPrimary(context).withAlpha(26),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.clock,
+                        color: AppColors.dynamicPrimary(context),
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Backup at 12 AM',
+                            style: AppTheme.getDynamicTitle3(context).copyWith(
+                              color: AppColors.dynamicTextPrimary(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Automatically backup your data daily',
+                            style: AppTheme.getDynamicFootnote(context).copyWith(
+                              color: AppColors.dynamicTextSecondary(context),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    CupertinoSwitch(
+                      value: _isAutomaticBackupEnabled,
+                      onChanged: (value) async {
+                        await _backupService.setAutomaticBackupEnabled(value);
+                        setState(() {
+                          _isAutomaticBackupEnabled = value;
+                        });
+                      },
+                      activeColor: AppColors.dynamicPrimary(context),
+                    ),
+                  ],
+                ),
+                if (_lastBackupTime != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicBackground(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.dynamicBorder(context),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.time,
+                          size: 16,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Last backup: ${_formatLastBackupTime()}',
+                          style: AppTheme.getDynamicFootnote(context).copyWith(
+                            color: AppColors.dynamicTextSecondary(context),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   String _formatLastBackupTime() {
     if (_lastBackupTime == null) return 'Never';
     
@@ -592,7 +462,35 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     }
   }
 
->>>>>>> Stashed changes
+  String _formatBackupFileName(String fileName) {
+    // Extract timestamp from backup filename (e.g., "backup_1754326124601")
+    if (fileName.startsWith('backup_')) {
+      try {
+        final timestamp = fileName.substring(7); // Remove "backup_" prefix
+        final dateTime = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
+        
+        // Format date and time in 12-hour format
+        final month = dateTime.month.toString().padLeft(2, '0');
+        final day = dateTime.day.toString().padLeft(2, '0');
+        final year = dateTime.year;
+        
+        // Convert to 12-hour format
+        int hour = dateTime.hour;
+        final period = hour >= 12 ? 'PM' : 'AM';
+        if (hour == 0) hour = 12;
+        if (hour > 12) hour -= 12;
+        final formattedHour = hour.toString().padLeft(2, '0');
+        final minute = dateTime.minute.toString().padLeft(2, '0');
+        
+        return '$month/$day/$year at $formattedHour:$minute $period';
+      } catch (e) {
+        // If parsing fails, return the original filename
+        return fileName;
+      }
+    }
+    return fileName;
+  }
+
   Widget _buildAvailableBackupsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -662,105 +560,112 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
               separatorBuilder: (context, index) => Container(
                 height: 0.5,
                 color: AppColors.dynamicBorder(context),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               itemBuilder: (context, index) {
                 final backupPath = _availableBackups[index];
-                return _buildBackupItem(backupPath);
+                final fileName = backupPath.split('/').last;
+                final formattedDate = _formatBackupFileName(fileName);
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicSurface(context),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.dynamicSuccess(context).withAlpha(26),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            CupertinoIcons.doc_text,
+                            color: AppColors.dynamicSuccess(context),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formattedDate,
+                                style: AppTheme.getDynamicBody(context).copyWith(
+                                  color: AppColors.dynamicTextPrimary(context),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Backup file',
+                                style: AppTheme.getDynamicCaption1(context).copyWith(
+                                  color: AppColors.dynamicTextSecondary(context),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            CupertinoButton(
+                              onPressed: () => _restoreFromBackup(backupPath),
+                              padding: EdgeInsets.zero,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dynamicPrimary(context),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Restore',
+                                  style: AppTheme.getDynamicCaption1(context).copyWith(
+                                    color: AppColors.dynamicSurface(context),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            CupertinoButton(
+                              onPressed: () => _deleteBackup(backupPath),
+                              padding: EdgeInsets.zero,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dynamicError(context),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  'Delete',
+                                  style: AppTheme.getDynamicCaption1(context).copyWith(
+                                    color: AppColors.dynamicSurface(context),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               },
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildBackupItem(String backupPath) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
-      ),
-              child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              CupertinoButton(
-                padding: const EdgeInsets.all(8),
-                onPressed: () => _restoreFromBackup(backupPath),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.dynamicSuccess(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    CupertinoIcons.arrow_clockwise,
-                    color: AppColors.dynamicSuccess(context),
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatBackupPath(backupPath),
-                    style: AppTheme.getDynamicBody(context).copyWith(
-                      color: AppColors.dynamicTextPrimary(context),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        CupertinoIcons.doc_text,
-                        color: AppColors.dynamicTextSecondary(context),
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatBackupDetails(backupPath),
-                        style: AppTheme.getDynamicCaption1(context).copyWith(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        CupertinoIcons.doc_on_doc,
-                        color: AppColors.dynamicTextSecondary(context),
-                        size: 12,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatBackupSize(backupPath),
-                        style: AppTheme.getDynamicCaption1(context).copyWith(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            CupertinoButton(
-              padding: const EdgeInsets.all(8),
-              onPressed: () => _deleteBackup(backupPath),
-              child: Icon(
-                CupertinoIcons.delete,
-                color: AppColors.dynamicError(context),
-                size: 20,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 } 

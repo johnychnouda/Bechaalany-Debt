@@ -27,7 +27,16 @@ class BackupService {
 
   void _scheduleDailyBackup() {
     final now = DateTime.now();
-    final nextBackup = DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
+    
+    // Calculate next backup time (12 AM today or tomorrow)
+    DateTime nextBackup;
+    if (now.hour >= 12) {
+      // If it's past 12 PM, schedule for 12 AM tomorrow
+      nextBackup = DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
+    } else {
+      // If it's before 12 PM, schedule for 12 AM today
+      nextBackup = DateTime(now.year, now.month, now.day, 0, 0, 0);
+    }
     
     final delay = nextBackup.difference(now);
     
@@ -63,6 +72,9 @@ class BackupService {
       
       // Create backup
       await _dataService.createBackup();
+      
+      // Update last automatic backup time
+      await setLastAutomaticBackupTime(DateTime.now());
       
       // Show notification
       await _notificationService.showSuccessNotification(
@@ -101,14 +113,27 @@ class BackupService {
     return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
   }
 
-  // Get last backup time
+  // Get last automatic backup time
+  Future<DateTime?> getLastAutomaticBackupTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt('last_automatic_backup_timestamp');
+    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+  }
+
+  // Set last automatic backup time
+  Future<void> setLastAutomaticBackupTime(DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+  }
+
+  // Get last manual backup time (for backward compatibility)
   Future<DateTime?> getLastBackupTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getInt('last_backup_timestamp');
     return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
   }
 
-  // Set last backup time
+  // Set last backup time (for backward compatibility)
   Future<void> setLastBackupTime(DateTime time) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('last_backup_timestamp', time.millisecondsSinceEpoch);

@@ -65,6 +65,14 @@ class _DebtsScreenState extends State<DebtsScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when dependencies change (like when returning from other screens)
+    final appState = Provider.of<AppState>(context, listen: false);
+    _updateFilteredData(appState.debts);
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
@@ -101,7 +109,7 @@ class _DebtsScreenState extends State<DebtsScreen> {
     }
   }
 
-  // Method to check if debts have changed and auto-switch chips
+  // Method to check if debts have changed (without auto-switching)
   void _checkAndAutoSwitchChips(List<Debt> currentDebts) {
     if (_previousDebts.isEmpty) {
       // First time loading, just update previous debts
@@ -109,56 +117,14 @@ class _DebtsScreenState extends State<DebtsScreen> {
       return;
     }
     
+    // Only track changes for debugging/logging purposes
     final hasNewDebts = currentDebts.length > _previousDebts.length;
     final hasDeletedDebts = currentDebts.length < _previousDebts.length;
     final hasStatusChanges = _hasDebtStatusChanges(currentDebts);
     
-    // Auto-switch logic for different scenarios
-    if (hasNewDebts) {
-      // When new debts are added, only auto-switch if we're on 'All' chip
-      if (_selectedStatus == 'All') {
-        final appropriateChip = _determineAppropriateChip(currentDebts);
-        if (appropriateChip != 'All') {
-          setState(() {
-            _selectedStatus = appropriateChip;
-          });
-        }
-      }
-    } else if (hasStatusChanges) {
-      // When debt status changes, check if we should switch chips
-      if (_selectedStatus == 'All') {
-        // If on 'All' chip, check what type of status change occurred
-        final hasFullyPaidDebts = _hasFullyPaidDebts(currentDebts);
-        final hasPartiallyPaidDebts = _hasPartiallyPaidDebts(currentDebts);
-        
-        if (hasFullyPaidDebts) {
-          setState(() {
-            _selectedStatus = 'Fully Paid';
-          });
-        } else if (hasPartiallyPaidDebts) {
-          setState(() {
-            _selectedStatus = 'Partially Paid';
-          });
-        }
-      } else {
-        // If on a specific chip, check if current selection still has debts
-        final currentChipHasDebts = _doesCurrentChipHaveDebts(currentDebts);
-        if (!currentChipHasDebts) {
-          // Switch back to 'All' if current chip has no debts
-          setState(() {
-            _selectedStatus = 'All';
-          });
-        }
-      }
-    } else if (hasDeletedDebts) {
-      // When debts are deleted, check if current chip still has debts
-      final currentChipHasDebts = _doesCurrentChipHaveDebts(currentDebts);
-      if (!currentChipHasDebts) {
-        // Switch back to 'All' if current chip has no debts
-        setState(() {
-          _selectedStatus = 'All';
-        });
-      }
+    // Log changes for debugging (optional)
+    if (hasNewDebts || hasDeletedDebts || hasStatusChanges) {
+      print('Debts changed: New=$hasNewDebts, Deleted=$hasDeletedDebts, Status=$hasStatusChanges');
     }
     
     // Update previous debts for next comparison

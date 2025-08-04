@@ -169,7 +169,7 @@ class AppState extends ChangeNotifier {
       // Initialize services
       await _notificationService.initialize();
       await _syncService.initialize();
-      await _backupService.initialize();
+      await _backupService.initializeDailyBackup();
       await IOS18Service.initialize();
       
       // Ensure all Hive boxes are open

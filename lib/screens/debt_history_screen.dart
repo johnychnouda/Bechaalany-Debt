@@ -427,6 +427,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                               onDelete: (debt) => _deleteDebt(debt),
                               onViewCustomer: (debt) => _viewCustomerDetails(group['customerId'] as String, debt),
                               selectedStatus: _selectedStatus,
+                              onRefresh: _filterDebts,
                             );
                           },
                         ),
@@ -516,6 +517,7 @@ class _GroupedDebtCard extends StatelessWidget {
   final Function(Debt) onDelete;
   final Function(Debt) onViewCustomer;
   final String selectedStatus;
+  final VoidCallback onRefresh;
 
   const _GroupedDebtCard({
     required this.group,
@@ -523,6 +525,7 @@ class _GroupedDebtCard extends StatelessWidget {
     required this.onDelete,
     required this.onViewCustomer,
     required this.selectedStatus,
+    required this.onRefresh,
   });
 
   Color _getStatusColor() {
@@ -950,7 +953,7 @@ class _GroupedDebtCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    _clearCompletedDebts(context, completedDebts, group['customerName'] as String);
+                    _clearCompletedDebts(context, completedDebts, group['customerName'] as String, onRefresh);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -966,11 +969,14 @@ class _GroupedDebtCard extends StatelessWidget {
     );
   }
 
-  void _clearCompletedDebts(BuildContext context, List<Debt> completedDebts, String customerName) async {
+  void _clearCompletedDebts(BuildContext context, List<Debt> completedDebts, String customerName, VoidCallback onRefresh) async {
     final appState = Provider.of<AppState>(context, listen: false);
     for (final debt in completedDebts) {
       await appState.deleteDebt(debt.id);
     }
+    
+    // Refresh the filtered data after deletion
+    onRefresh();
   }
 
   String _formatDate(DateTime date) {
