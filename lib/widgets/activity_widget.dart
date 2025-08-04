@@ -139,8 +139,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         ),
-                        softWrap: false,
-                        overflow: TextOverflow.visible,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     GestureDetector(

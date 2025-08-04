@@ -133,22 +133,6 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 fontSize: 14,
               ),
             ),
-            SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Navigate to products screen
-                Navigator.pushNamed(context, '/products');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text('Go to Products'),
-            ),
           ],
         ),
       );
@@ -206,22 +190,6 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 color: Colors.blue,
                 fontSize: 14,
               ),
-            ),
-            SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Navigate to products screen
-                Navigator.pushNamed(context, '/products');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text('Go to Products'),
             ),
           ],
         ),

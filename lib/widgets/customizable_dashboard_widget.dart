@@ -186,20 +186,20 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
   Widget _buildHeader(AppState appState) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12), // Further reduced from 16
       child: Row(
         children: [
           LogoUtils.buildLogo(
             context: context,
-            width: 64,
-            height: 64,
+            width: 40, // Further reduced from 48
+            height: 40, // Further reduced from 48
             placeholder: const Icon(
               Icons.account_balance_wallet,
               color: AppColors.primary,
-              size: 64,
+              size: 40, // Further reduced from 48
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8), // Reduced from 12
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,31 +208,34 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                   'Bechaalany Connect',
                   style: AppTheme.getDynamicTitle3(context).copyWith(
                     color: AppColors.dynamicTextPrimary(context),
+                    fontSize: 16, // Reduced font size
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'Welcome back',
                   style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
-                    fontSize: 14, // Increased from default footnote size
+                    fontSize: 12, // Reduced from 14
                     fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           if (appState.isSyncing)
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(4), // Further reduced from 6
               decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(26), // 0.1 * 255
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primary.withAlpha(26),
+                borderRadius: BorderRadius.circular(6), // Reduced from 8
               ),
               child: const SizedBox(
-                width: 16,
-                height: 16,
+                width: 12, // Further reduced from 14
+                height: 12, // Further reduced from 14
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 1.5, // Reduced from 2
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
@@ -249,6 +252,12 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
             icon: const Icon(
               Icons.settings_outlined,
               color: AppColors.textSecondary,
+              size: 18, // Further reduced from 20
+            ),
+            padding: const EdgeInsets.all(4), // Further reduced padding
+            constraints: const BoxConstraints(
+              minWidth: 32, // Further reduced minimum width
+              minHeight: 32, // Further reduced minimum height
             ),
           ),
         ],
@@ -258,7 +267,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
   Widget _buildNormalMode() {
     return ReorderableListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12), // Further reduced from 16
       itemCount: _enabledWidgets.length,
       onReorder: _reorderWidgets,
       itemBuilder: (context, index) {

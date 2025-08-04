@@ -6,6 +6,7 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../services/data_export_import_service.dart';
 import '../services/notification_service.dart';
+import '../models/category.dart';
 
 class ExportDataScreen extends StatefulWidget {
   const ExportDataScreen({super.key});
@@ -296,12 +297,12 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       
       switch (_selectedFormat) {
         case 'PDF':
-          filePath = await _exportService.exportToPDF(customers, debts, appState.productPurchases);
+          filePath = await _exportService.exportToPDF(customers, debts, appState.productPurchases, appState.categories.whereType<ProductCategory>().toList());
           formatName = 'PDF';
           break;
         case 'Excel':
         default:
-          filePath = await _exportService.exportToExcel(customers, debts, appState.productPurchases);
+          filePath = await _exportService.exportToExcel(customers, debts, appState.productPurchases, appState.categories.whereType<ProductCategory>().toList());
           formatName = 'Excel';
           break;
       }

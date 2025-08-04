@@ -8,13 +8,14 @@ import 'package:cross_file/cross_file.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/product_purchase.dart';
+import '../models/category.dart';
 
 class DataExportImportService {
   static final DataExportImportService _instance = DataExportImportService._internal();
   factory DataExportImportService() => _instance;
   DataExportImportService._internal();
 
-  Future<String> exportToExcel(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases) async {
+  Future<String> exportToExcel(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases, List<ProductCategory> categories) async {
     try {
       // Create Excel workbook
       final excel = Excel.createExcel();
@@ -44,41 +45,28 @@ class DataExportImportService {
       final pendingDebts = debts.where((debt) => debt.status == DebtStatus.pending).length;
       final paidDebts = debts.where((debt) => debt.status == DebtStatus.paid).length;
       
-      // Calculate total revenue (profit)
+      // Calculate total revenue as profit from all paid amounts (full + partial payments)
       double totalRevenue = 0.0;
       
-      // Revenue from product sales (profit)
-      for (final purchase in productPurchases) {
-        totalRevenue += (purchase.totalAmount - purchase.costPrice);
-      }
-      
-      // Revenue from partial payments (profit portion)
+      // Revenue from all paid amounts (profit)
       for (final debt in debts) {
-        if (debt.paidAmount > 0) {
-          // Find associated product purchase
-          ProductPurchase? productPurchase;
+        if (debt.paidAmount > 0 && debt.originalSellingPrice != null) {
+          // Find the subcategory to get cost price
           try {
-            productPurchase = productPurchases.firstWhere(
-              (purchase) => purchase.customerId == debt.customerId && 
-                           purchase.subcategoryName == debt.description,
-            );
+            final subcategory = categories
+                .expand((category) => category.subcategories)
+                .firstWhere((sub) => sub.name == debt.subcategoryName);
+            
+            // Calculate profit ratio: (selling price - cost price) / selling price
+            final profitRatio = (debt.originalSellingPrice! - subcategory.costPrice) / debt.originalSellingPrice!;
+            
+            // Calculate actual profit from paid amount: paid amount * profit ratio
+            final profitFromPaidAmount = debt.paidAmount * profitRatio;
+            totalRevenue += profitFromPaidAmount;
           } catch (e) {
-            try {
-              productPurchase = productPurchases.firstWhere(
-                (purchase) => purchase.customerId == debt.customerId,
-              );
-            } catch (e) {
-              productPurchase = productPurchases.isNotEmpty ? productPurchases.first : null;
-            }
-          }
-          
-          if (productPurchase != null) {
-            final profitRatio = (debt.amount - productPurchase.costPrice) / debt.amount;
-            final paymentProfit = debt.paidAmount * profitRatio;
-            totalRevenue += paymentProfit;
-          } else {
-            // Fallback: assume 50% profit
-            totalRevenue += debt.paidAmount * 0.5;
+            // If subcategory not found, assume 50% profit ratio
+            final profitFromPaidAmount = debt.paidAmount * 0.5;
+            totalRevenue += profitFromPaidAmount;
           }
         }
       }
@@ -227,7 +215,7 @@ class DataExportImportService {
     }
   }
 
-  Future<String> exportToPDF(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases) async {
+  Future<String> exportToPDF(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases, List<ProductCategory> categories) async {
     try {
       final pdf = pw.Document();
       
@@ -238,41 +226,45 @@ class DataExportImportService {
       final pendingDebts = debts.where((debt) => debt.status == DebtStatus.pending).length;
       final paidDebts = debts.where((debt) => debt.status == DebtStatus.paid).length;
       
-      // Calculate total revenue (profit)
+      // Calculate total revenue as profit from all paid amounts (full + partial payments)
       double totalRevenue = 0.0;
       
-      // Revenue from product sales (profit)
-      for (final purchase in productPurchases) {
-        totalRevenue += (purchase.totalAmount - purchase.costPrice);
-      }
-      
-      // Revenue from partial payments (profit portion)
+      // Revenue from all paid amounts (profit)
       for (final debt in debts) {
         if (debt.paidAmount > 0) {
-          // Find associated product purchase
-          ProductPurchase? productPurchase;
-          try {
-            productPurchase = productPurchases.firstWhere(
-              (purchase) => purchase.customerId == debt.customerId && 
-                           purchase.subcategoryName == debt.description,
-            );
-          } catch (e) {
+          // Handle case where originalSellingPrice might not be set for existing debts
+          double? sellingPrice = debt.originalSellingPrice;
+          if (sellingPrice == null && debt.subcategoryName != null) {
+            // Try to find the subcategory and get its current selling price
             try {
-              productPurchase = productPurchases.firstWhere(
-                (purchase) => purchase.customerId == debt.customerId,
-              );
+              final subcategory = categories
+                  .expand((category) => category.subcategories)
+                  .firstWhere((sub) => sub.name == debt.subcategoryName);
+              sellingPrice = subcategory.sellingPrice;
             } catch (e) {
-              productPurchase = productPurchases.isNotEmpty ? productPurchases.first : null;
+              // If subcategory not found, skip this debt
+              continue;
             }
           }
           
-          if (productPurchase != null) {
-            final profitRatio = (debt.amount - productPurchase.costPrice) / debt.amount;
-            final paymentProfit = debt.paidAmount * profitRatio;
-            totalRevenue += paymentProfit;
-          } else {
-            // Fallback: assume 50% profit
-            totalRevenue += debt.paidAmount * 0.5;
+          if (sellingPrice != null) {
+            // Find the subcategory to get cost price
+            try {
+              final subcategory = categories
+                  .expand((category) => category.subcategories)
+                  .firstWhere((sub) => sub.name == debt.subcategoryName);
+              
+              // Calculate profit ratio: (selling price - cost price) / selling price
+              final profitRatio = (sellingPrice! - subcategory.costPrice) / sellingPrice!;
+              
+              // Calculate actual profit from paid amount: paid amount * profit ratio
+              final profitFromPaidAmount = debt.paidAmount * profitRatio;
+              totalRevenue += profitFromPaidAmount;
+            } catch (e) {
+              // If subcategory not found, assume 50% profit ratio
+              final profitFromPaidAmount = debt.paidAmount * 0.5;
+              totalRevenue += profitFromPaidAmount;
+            }
           }
         }
       }

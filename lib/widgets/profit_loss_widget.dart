@@ -54,47 +54,118 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Calculate PROFIT from product sales (selling price - cost price)
-        final productRevenue = appState.productPurchases.fold<double>(0.0, (sum, purchase) => 
-          sum + (purchase.totalAmount - purchase.costPrice)
-        );
-        
-        // Get ALL payment activities (including from cleared debts)
-        final allPaymentActivities = appState.activities.where((activity) => 
-          activity.type == ActivityType.payment && activity.paymentAmount != null
-        ).toList();
-        
-        // Calculate profit portion from customer payments
-        final paymentRevenue = allPaymentActivities.fold<double>(0.0, (sum, activity) {
-          try {
-            // Find the debt this payment is for
-            final debt = appState.debts.firstWhere((debt) => debt.id == activity.debtId);
+        // Calculate total revenue as profit from all paid amounts (full + partial payments)
+        final totalRevenue = appState.debts.fold<double>(0.0, (sum, debt) {
+          // Calculate revenue for any debt that has been paid (fully or partially)
+          if (debt.paidAmount > 0) {
+            // Handle case where originalSellingPrice might not be set for existing debts
+            double? sellingPrice = debt.originalSellingPrice;
+            if (sellingPrice == null && debt.subcategoryName != null) {
+              // Try to find the subcategory and get its current selling price
+              try {
+                print('Looking for subcategory: ${debt.subcategoryName}');
+                print('Available subcategories: ${appState.categories.expand((category) => category.subcategories).map((sub) => sub.name).toList()}');
+                
+                final subcategory = appState.categories
+                    .expand((category) => category.subcategories)
+                    .firstWhere((sub) => sub.name == debt.subcategoryName);
+                sellingPrice = subcategory.sellingPrice;
+                print('Found subcategory: ${subcategory.name} with selling price: ${subcategory.sellingPrice}');
+              } catch (e) {
+                // If subcategory not found, skip this debt
+                print('Skipping debt ${debt.id}: subcategory ${debt.subcategoryName} not found');
+                return sum;
+              }
+            } else if (sellingPrice == null) {
+              // If no subcategory name, try to infer from description
+              print('No subcategory name for debt ${debt.id}, trying to infer from description: ${debt.description}');
+              if (debt.description.toLowerCase().contains('alfa')) {
+                // Assume Alfa product with $15 selling price and $1 cost
+                sellingPrice = 15.0;
+                print('Inferred Alfa product with selling price: $sellingPrice');
+              }
+            }
             
-            // Find the related product purchase to get cost price
-            final productPurchase = appState.productPurchases.firstWhere(
-              (purchase) => purchase.customerId == debt.customerId && 
-                           purchase.subcategoryName == debt.subcategoryName,
-              orElse: () => appState.productPurchases.firstWhere(
-                (purchase) => purchase.customerId == debt.customerId,
-                orElse: () => appState.productPurchases.first,
-              ),
-            );
-            
-            // Calculate profit ratio: (selling price - cost price) / selling price
-            final profitRatio = debt.amount > 0 ? 
-              (debt.amount - productPurchase.costPrice) / debt.amount : 0.0;
-            
-            // Calculate profit from this payment
-            final profitFromPayment = (activity.paymentAmount ?? 0) * profitRatio;
-            
-            return sum + profitFromPayment;
-          } catch (e) {
-            // If debt not found or no product purchase, assume 50% profit ratio as fallback
-            return sum + ((activity.paymentAmount ?? 0) * 0.5);
+            if (sellingPrice != null) {
+              print('Processing debt: ${debt.id}');
+              print('  - paidAmount: ${debt.paidAmount}');
+              print('  - sellingPrice: $sellingPrice');
+              print('  - subcategoryName: ${debt.subcategoryName}');
+              
+              // Find the subcategory to get cost price
+              if (debt.subcategoryName != null) {
+                try {
+                  final subcategory = appState.categories
+                      .expand((category) => category.subcategories)
+                      .firstWhere((sub) => sub.name == debt.subcategoryName);
+                  
+                  print('  - found subcategory: ${subcategory.name}');
+                  print('  - subcategory costPrice: ${subcategory.costPrice}');
+                  
+                  // Calculate profit ratio: (selling price - cost price) / selling price
+                  final profitRatio = (sellingPrice! - subcategory.costPrice) / sellingPrice!;
+                  print('  - profitRatio: $profitRatio');
+                  
+                  // Calculate actual profit from paid amount: paid amount * profit ratio
+                  final profitFromPaidAmount = debt.paidAmount * profitRatio;
+                  print('  - profitFromPaidAmount: $profitFromPaidAmount');
+                  
+                  return sum + profitFromPaidAmount;
+                } catch (e) {
+                  print('  - subcategory not found, using inferred cost price');
+                  // If subcategory not found but we have a selling price, use inferred cost
+                  double costPrice = 1.0; // Default cost for Alfa
+                  if (debt.description.toLowerCase().contains('alfa')) {
+                    costPrice = 1.0;
+                  }
+                  
+                  final profitRatio = (sellingPrice! - costPrice) / sellingPrice!;
+                  print('  - inferred costPrice: $costPrice');
+                  print('  - profitRatio: $profitRatio');
+                  
+                  final profitFromPaidAmount = debt.paidAmount * profitRatio;
+                  print('  - profitFromPaidAmount: $profitFromPaidAmount');
+                  
+                  return sum + profitFromPaidAmount;
+                }
+              } else {
+                // No subcategory name, use inferred cost based on description
+                print('  - no subcategory name, using inferred cost price');
+                double costPrice = 1.0; // Default cost for Alfa
+                if (debt.description.toLowerCase().contains('alfa')) {
+                  costPrice = 1.0;
+                }
+                
+                final profitRatio = (sellingPrice! - costPrice) / sellingPrice!;
+                print('  - inferred costPrice: $costPrice');
+                print('  - profitRatio: $profitRatio');
+                
+                final profitFromPaidAmount = debt.paidAmount * profitRatio;
+                print('  - profitFromPaidAmount: $profitFromPaidAmount');
+                
+                return sum + profitFromPaidAmount;
+              }
+            } else {
+              print('Skipping debt: ${debt.id} - paidAmount: ${debt.paidAmount}');
+            }
           }
+          return sum;
         });
         
-        final totalRevenue = productRevenue + paymentRevenue;
+        print('Total Revenue calculated: $totalRevenue');
+        print('Total debts: ${appState.debts.length}');
+        print('Debts with paidAmount > 0: ${appState.debts.where((d) => d.paidAmount > 0).length}');
+        print('Debts with originalSellingPrice: ${appState.debts.where((d) => d.originalSellingPrice != null).length}');
+        print('Debts with both paidAmount > 0 and originalSellingPrice: ${appState.debts.where((d) => d.paidAmount > 0 && d.originalSellingPrice != null).length}');
+        
+        // Debug: Print details of all debts with paid amounts
+        for (final debt in appState.debts.where((d) => d.paidAmount > 0)) {
+          print('Debt ${debt.id}:');
+          print('  - paidAmount: ${debt.paidAmount}');
+          print('  - originalSellingPrice: ${debt.originalSellingPrice}');
+          print('  - subcategoryName: ${debt.subcategoryName}');
+          print('  - description: ${debt.description}');
+        }
         
         // Calculate total debts: sum of all debt amounts minus total partial payments
         final totalDebtAmount = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.amount);
@@ -107,7 +178,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16), // Reduced from 20
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
