@@ -4,6 +4,7 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
-	<!-- iCloud entitlements removed - using built-in backend -->
+	<key>com.apple.developer.aps-environment</key>
+	<string>development</string>
 </dict>
-</plist> 
+</plist>

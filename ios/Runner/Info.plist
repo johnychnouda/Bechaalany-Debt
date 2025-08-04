@@ -82,8 +82,6 @@
 	<key>NSNearbyInteractionUsageDescription</key>
 	<string>This app uses nearby interaction for proximity-based features and secure data exchange.</string>
 	
-	<!-- iCloud & CloudKit Settings removed - using built-in backend -->
-	
 	<!-- Notifications Settings -->
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app uses notifications to remind you about pending debt payments, due dates, and daily summaries.</string>
@@ -113,19 +111,22 @@
 	<true/>
 	<key>UIAccessibilityIsAssistiveTouchRunning</key>
 	<true/>
+	<key>UIAccessibilityIsClosedCaptioningEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsDarkerSystemColorsEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsLargerTextEnabled</key>
+	<true/>
+	<key>UIAccessibilityIsMonoAudioEnabled</key>
+	<true/>
 	
-	<!-- Storage Settings - iCloud removed -->
-	
-	<!-- Background App Refresh -->
+	<!-- Background Modes - Fixed for App Store validation -->
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>background-processing</string>
-		<string>background-fetch</string>
 		<string>remote-notification</string>
 		<string>location</string>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>
-		<string>background-app-refresh</string>
 	</array>
 	
 	<!-- iOS 18.6+ Notification Capabilities -->
@@ -218,62 +219,6 @@
 		</dict>
 	</array>
 	
-	<!-- Advanced Accessibility -->
-	<key>UIAccessibilityIsVoiceOverRunning</key>
-	<true/>
-	<key>UIAccessibilityIsReduceMotionEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsReduceTransparencyEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsBoldTextEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsGrayscaleEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsInvertColorsEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsOnOffSwitchLabelsEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsShakeToUndoEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSpeakScreenEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSpeakSelectionEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSwitchControlRunning</key>
-	<true/>
-	<key>UIAccessibilityIsAssistiveTouchRunning</key>
-	<true/>
-	<key>UIAccessibilityIsClosedCaptioningEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsDarkerSystemColorsEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsLargerTextEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsMonoAudioEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsReduceMotionEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsReduceTransparencyEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsShakeToUndoEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSpeakScreenEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSpeakSelectionEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsSwitchControlRunning</key>
-	<true/>
-	<key>UIAccessibilityIsAssistiveTouchRunning</key>
-	<true/>
-	<key>UIAccessibilityIsClosedCaptioningEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsDarkerSystemColorsEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsLargerTextEnabled</key>
-	<true/>
-	<key>UIAccessibilityIsMonoAudioEnabled</key>
-	<true/>
-	
 	<!-- Focus Mode Integration -->
 	<key>NSFocusStatusUsageDescription</key>
 	<string>This app integrates with Focus mode to provide distraction-free debt management.</string>
@@ -290,12 +235,6 @@
 	<key>NSAllowsArbitraryLoadsInWebContent</key>
 	<false/>
 	
-	<!-- SharePlay -->
-	<key>NSSupportsLiveActivities</key>
-	<true/>
-	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
-	<true/>
-	
 	<!-- Display & Brightness -->
 	<key>UIUserInterfaceStyle</key>
 	<string>Automatic</string>
@@ -307,10 +246,6 @@
 	<true/>
 	<key>UIHapticFeedbackEnabled</key>
 	<true/>
-	
-	<!-- Auto-Lock -->
-	<key>UIApplicationExitsOnSuspend</key>
-	<false/>
 	
 	<!-- True Tone -->
 	<key>UIWhitePointAdaptivityStyle</key>

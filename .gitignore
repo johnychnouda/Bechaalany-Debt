@@ -44,6 +44,20 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# iOS build directories
+ios/build/
+ios/Runner.xcworkspace/xcshareddata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Distribution directories
+ad_hoc_distribution/
+multi_device_distribution/
+offline_distribution/
+remote_distribution/
+testflight_distribution/
+testflight_setup/
+
 # Hive database files
 *.hive
 *.lock

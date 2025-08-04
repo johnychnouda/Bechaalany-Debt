@@ -1,160 +1,183 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-// import 'dart:io'; // Removed unused import
-import 'ios18_service.dart';
+import 'dart:io';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
+  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
-
-  // iOS 18.6+ specific features - removed unused static fields
 
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    // Initialize iOS 18.6+ notification capabilities
-    await _initializeIOS18Features();
+    // Initialize notification settings
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    await _notifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+
+    // Request permissions
+    await _requestPermissions();
     
     _isInitialized = true;
+    print('Notification service initialized successfully');
   }
 
-  /// Initialize iOS 18.6+ specific features
-  Future<void> _initializeIOS18Features() async {
-    // Initialize iOS 18.6+ notification service
-    await IOS18Service.initialize();
-    
-    // iOS 18.6+ notification categories and actions
-    await _setupNotificationCategories();
-    
-    // Configure interruption levels for different notification types
-    await _configureInterruptionLevels();
-    
-    // Enable background app refresh for smart notifications
-    await _enableBackgroundProcessing();
+  Future<void> _requestPermissions() async {
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notifications.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      if (androidImplementation != null) {
+        await androidImplementation.requestNotificationsPermission();
+      }
+    }
+
+    if (Platform.isIOS) {
+      try {
+        // iOS notification permissions are handled automatically by the initialization
+        // The DarwinInitializationSettings already requests permissions
+        print('iOS notification permissions requested during initialization');
+      } catch (e) {
+        // Handle iOS notification permission request error
+        print('iOS notification permission request failed: $e');
+      }
+    }
   }
 
-  /// Setup notification categories for iOS 18.6+
-  Future<void> _setupNotificationCategories() async {
-    // iOS 18.6+ notification categories are handled by IOS18Service
-    print('Setting up iOS 18.6+ notification categories');
-  }
-
-  /// Configure interruption levels for different notification types
-  Future<void> _configureInterruptionLevels() async {
-    // iOS 18.6+ interruption levels:
-    // - active: Standard notifications
-    // - timeSensitive: Important but not critical
-    // - critical: Emergency notifications
-    // - passive: Silent notifications
-    print('Configuring iOS 18.6+ interruption levels');
-  }
-
-  /// Enable background processing for smart notifications
-  Future<void> _enableBackgroundProcessing() async {
-    // iOS 18.6+ background processing capabilities
-    print('Enabling iOS 18.6+ background processing');
-  }
-
-  /// Send smart notification with iOS 18.6+ features
-  Future<void> _sendSmartNotification({
-    required String title,
-    required String body,
-    required String category,
-    required String interruptionLevel,
-    String? payload,
-  }) async {
-    // Use iOS 18.6+ service for smart notifications
-    await IOS18Service.sendSmartNotification(
-      title: title,
-      body: body,
-      category: category,
-      interruptionLevel: interruptionLevel,
-      payload: payload,
-      userInfo: {
-        'app': 'Bechaalany Debt App',
-        'version': '1.0.0',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      },
-      threadIdentifier: category,
-    );
-  }
-
-  /// Send immediate smart notification
-  Future<void> _sendImmediateSmartNotification({
-    required String title,
-    required String body,
-    String? payload,
-    String interruptionLevel = 'active',
-  }) async {
-    await _sendSmartNotification(
-      title: title,
-      body: body,
-      category: 'immediate',
-      interruptionLevel: interruptionLevel,
-      payload: payload,
-    );
+  void _onNotificationTapped(NotificationResponse response) {
+    // Handle notification tap
+    print('Notification tapped: ${response.payload}');
   }
 
   // ===== IMMEDIATE ACTION NOTIFICATIONS =====
 
-  /// Show success notification with iOS 18.6+ features
+  /// Show success notification
   Future<void> showSuccessNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
-    await _sendImmediateSmartNotification(
+    await _showNotification(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647, // Keep within 32-bit int limit
       title: title,
       body: body,
       payload: payload,
-      interruptionLevel: 'active',
+      type: 'success',
     );
   }
 
-  /// Show error notification with iOS 18.6+ features
+  /// Show error notification
   Future<void> showErrorNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
-    await _sendImmediateSmartNotification(
+    await _showNotification(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647, // Keep within 32-bit int limit
       title: title,
       body: body,
       payload: payload,
-      interruptionLevel: 'timeSensitive',
+      type: 'error',
     );
   }
 
-  /// Show info notification with iOS 18.6+ features
+  /// Show info notification
   Future<void> showInfoNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
-    await _sendImmediateSmartNotification(
+    await _showNotification(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647, // Keep within 32-bit int limit
       title: title,
       body: body,
       payload: payload,
-      interruptionLevel: 'passive',
+      type: 'info',
     );
   }
 
-  /// Show warning notification with iOS 18.6+ features
+  /// Show warning notification
   Future<void> showWarningNotification({
     required String title,
     required String body,
     String? payload,
   }) async {
-    await _sendImmediateSmartNotification(
+    await _showNotification(
+      id: DateTime.now().millisecondsSinceEpoch % 2147483647, // Keep within 32-bit int limit
       title: title,
       body: body,
       payload: payload,
-      interruptionLevel: 'active',
+      type: 'warning',
     );
+  }
+
+  Future<void> _showNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+    required String type,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'bechaalany_debt_app',
+      'Bechaalany Debt App',
+      channelDescription: 'Notifications for debt management app',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    const DarwinNotificationDetails iOSPlatformChannelSpecifics =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'default',
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iOSPlatformChannelSpecifics,
+    );
+
+    await _notifications.show(
+      id,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: payload,
+    );
+
+    print('Notification sent: $title - $body');
   }
 
   // Customer-related notifications
@@ -201,27 +224,138 @@ class NotificationService {
 
   Future<void> showDebtPaidNotification(dynamic debt) async {
     await showSuccessNotification(
-      title: 'Payment Received',
+      title: 'Debt Paid',
       body: '${debt.customerName} has paid \$${debt.amount.toStringAsFixed(2)}',
       payload: 'debt_paid_${debt.id}',
     );
   }
 
+  Future<void> showPartialPaymentNotification(dynamic debt, double amount) async {
+    await showInfoNotification(
+      title: 'Partial Payment',
+      body: '${debt.customerName} paid \$${amount.toStringAsFixed(2)}',
+      payload: 'partial_payment_${debt.id}',
+    );
+  }
+
   Future<void> showDebtDeletedNotification(String customerName, double amount) async {
     await showInfoNotification(
-      title: 'Debt Removed',
-      body: 'Debt of \$${amount.toStringAsFixed(2)} for $customerName has been deleted',
+      title: 'Debt Deleted',
+      body: 'Removed \$${amount.toStringAsFixed(2)} debt for $customerName',
       payload: 'debt_deleted',
     );
   }
 
-  // Payment-related notifications
-  Future<void> showPaymentAppliedNotification(dynamic debt, double paymentAmount) async {
-    await showSuccessNotification(
-      title: 'Payment Applied',
-      body: '\$${paymentAmount.toStringAsFixed(2)} applied to ${debt.customerName}\'s debt',
-      payload: 'payment_applied_${debt.id}',
+  // Payment reminder notifications
+  Future<void> showPaymentReminderNotification(dynamic debt) async {
+    await showWarningNotification(
+      title: 'Payment Reminder',
+      body: '${debt.customerName} owes \$${debt.remainingAmount.toStringAsFixed(2)}',
+      payload: 'payment_reminder_${debt.id}',
     );
+  }
+
+  Future<void> showOverduePaymentNotification(dynamic debt) async {
+    await showErrorNotification(
+      title: 'Overdue Payment',
+      body: '${debt.customerName} has an overdue payment of \$${debt.remainingAmount.toStringAsFixed(2)}',
+      payload: 'overdue_payment_${debt.id}',
+    );
+  }
+
+  // Backup notifications
+  Future<void> showBackupCreatedNotification() async {
+    await showSuccessNotification(
+      title: 'Backup Created',
+      body: 'Your data has been backed up successfully',
+      payload: 'backup_created',
+    );
+  }
+
+  Future<void> showBackupRestoredNotification() async {
+    await showSuccessNotification(
+      title: 'Backup Restored',
+      body: 'Your data has been restored from backup',
+      payload: 'backup_restored',
+    );
+  }
+
+  Future<void> showBackupFailedNotification(String error) async {
+    await showErrorNotification(
+      title: 'Backup Failed',
+      body: 'Failed to create backup: $error',
+      payload: 'backup_failed',
+    );
+  }
+
+  // Export notifications
+  Future<void> showExportSuccessNotification(String format) async {
+    await showSuccessNotification(
+      title: 'Export Successful',
+      body: 'Your data has been exported as $format',
+      payload: 'export_success',
+    );
+  }
+
+  Future<void> showExportFailedNotification(String error) async {
+    await showErrorNotification(
+      title: 'Export Failed',
+      body: 'Failed to export data: $error',
+      payload: 'export_failed',
+    );
+  }
+
+  // Settings notifications
+  Future<void> showSettingsUpdatedNotification() async {
+    await showSuccessNotification(
+      title: 'Settings Updated',
+      body: 'Your app settings have been saved',
+      payload: 'settings_updated',
+    );
+  }
+
+  // Daily summary notifications
+  Future<void> showDailySummaryNotification({
+    required int totalCustomers,
+    required int totalDebts,
+    required double totalAmount,
+    required double totalPaid,
+  }) async {
+    await showInfoNotification(
+      title: 'Daily Summary',
+      body: '$totalCustomers customers, $totalDebts debts, \$${totalAmount.toStringAsFixed(2)} total, \$${totalPaid.toStringAsFixed(2)} paid',
+      payload: 'daily_summary',
+    );
+  }
+
+  // Weekly report notifications
+  Future<void> showWeeklyReportNotification({
+    required int newCustomers,
+    required int newDebts,
+    required double totalRevenue,
+  }) async {
+    await showInfoNotification(
+      title: 'Weekly Report',
+      body: '$newCustomers new customers, $newDebts new debts, \$${totalRevenue.toStringAsFixed(2)} revenue',
+      payload: 'weekly_report',
+    );
+  }
+
+  // Cancel all notifications
+  Future<void> cancelAllNotifications() async {
+    await _notifications.cancelAll();
+    print('All notifications cancelled');
+  }
+
+  // Cancel specific notification
+  Future<void> cancelNotification(int id) async {
+    await _notifications.cancel(id);
+    print('Notification cancelled: $id');
+  }
+
+  // Get pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _notifications.pendingNotificationRequests();
   }
 
   // Category-related notifications
@@ -250,19 +384,19 @@ class NotificationService {
   }
 
   // Product-related notifications
-  Future<void> showProductDeletedNotification(String productName) async {
-    await showInfoNotification(
-      title: 'Product Deleted',
-      body: '$productName has been removed from inventory',
-      payload: 'product_deleted',
-    );
-  }
-
   Future<void> showProductUpdatedNotification(String productName) async {
     await showSuccessNotification(
       title: 'Product Updated',
       body: '$productName has been updated successfully',
       payload: 'product_updated',
+    );
+  }
+
+  Future<void> showProductDeletedNotification(String productName) async {
+    await showInfoNotification(
+      title: 'Product Deleted',
+      body: '$productName has been removed from inventory',
+      payload: 'product_deleted',
     );
   }
 
@@ -291,9 +425,16 @@ class NotificationService {
     );
   }
 
-  // ===== SYSTEM NOTIFICATIONS =====
+  // Payment-related notifications
+  Future<void> showPaymentAppliedNotification(dynamic debt, double paymentAmount) async {
+    await showSuccessNotification(
+      title: 'Payment Applied',
+      body: '\$${paymentAmount.toStringAsFixed(2)} applied to ${debt.customerName}\'s debt',
+      payload: 'payment_applied_${debt.id}',
+    );
+  }
 
-  // Settings and system notifications
+  // System notifications
   Future<void> showDataExportedNotification() async {
     await showSuccessNotification(
       title: 'Data Exported',
@@ -345,102 +486,5 @@ class NotificationService {
       body: body,
       payload: payload,
     );
-  }
-
-  Future<void> cancelNotification(int id) async {
-    // Cancel specific notification using iOS 18.6+ service
-    await IOS18Service.cancelNotification(id.toString());
-  }
-
-  Future<void> cancelAllNotifications() async {
-    // Cancel all notifications using iOS 18.6+ service
-    await IOS18Service.cancelAllNotifications();
-  }
-
-  Future<List<dynamic>> getPendingNotifications() async {
-    // Get pending notifications using iOS 18.6+ service
-    return await IOS18Service.getPendingNotifications();
-  }
-
-  /// Update notification settings for iOS 18.6+
-  Future<void> updateNotificationSettings({
-    required bool paymentRemindersEnabled,
-    required bool dailySummaryEnabled,
-    required bool weeklyReportEnabled,
-    required TimeOfDay dailySummaryTime,
-    required int weeklyReportWeekday,
-    required TimeOfDay weeklyReportTime,
-    required String interruptionLevel,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    await prefs.setBool('payment_reminders_enabled', paymentRemindersEnabled);
-    await prefs.setBool('daily_summary_enabled', dailySummaryEnabled);
-    await prefs.setBool('weekly_report_enabled', weeklyReportEnabled);
-    await prefs.setInt('daily_summary_hour', dailySummaryTime.hour);
-    await prefs.setInt('daily_summary_minute', dailySummaryTime.minute);
-    await prefs.setInt('weekly_report_weekday', weeklyReportWeekday);
-    await prefs.setInt('weekly_report_hour', weeklyReportTime.hour);
-    await prefs.setInt('weekly_report_minute', weeklyReportTime.minute);
-    await prefs.setString('interruption_level', interruptionLevel);
-
-    // Update iOS 18.6+ notification settings
-    await IOS18Service.updateNotificationSettings(
-      paymentRemindersEnabled: paymentRemindersEnabled,
-      dailySummaryEnabled: dailySummaryEnabled,
-      weeklyReportEnabled: weeklyReportEnabled,
-      interruptionLevel: interruptionLevel,
-      focusModeIntegration: true,
-      dynamicIslandEnabled: true,
-      liveActivitiesEnabled: true,
-    );
-  }
-
-  /// Load notification settings
-  Future<Map<String, dynamic>> loadNotificationSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    return {
-      'paymentRemindersEnabled': prefs.getBool('payment_reminders_enabled') ?? true,
-      'dailySummaryEnabled': prefs.getBool('daily_summary_enabled') ?? true,
-      'weeklyReportEnabled': prefs.getBool('weekly_report_enabled') ?? true,
-      'dailySummaryHour': prefs.getInt('daily_summary_hour') ?? 9,
-      'dailySummaryMinute': prefs.getInt('daily_summary_minute') ?? 0,
-      'weeklyReportWeekday': prefs.getInt('weekly_report_weekday') ?? DateTime.monday,
-      'weeklyReportHour': prefs.getInt('weekly_report_hour') ?? 10,
-      'weeklyReportMinute': prefs.getInt('weekly_report_minute') ?? 0,
-      'interruptionLevel': prefs.getString('interruption_level') ?? 'active',
-    };
-  }
-
-  // Save notification preferences
-  Future<void> saveNotificationPreferences({
-    required bool enabled,
-    required bool pendingPayments,
-    required bool dailySummary,
-    required TimeOfDay reminderTime,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notifications_enabled', enabled);
-    await prefs.setBool('notifications_pending_payments', pendingPayments);
-    await prefs.setBool('notifications_daily_summary', dailySummary);
-    await prefs.setInt('notifications_reminder_hour', reminderTime.hour);
-    await prefs.setInt('notifications_reminder_minute', reminderTime.minute);
-  }
-
-  // Load notification preferences
-  Future<Map<String, dynamic>> loadNotificationPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    return {
-      'enabled': prefs.getBool('notifications_enabled') ?? true,
-      'pendingPayments': prefs.getBool('notifications_pending_payments') ?? true,
-      'dailySummary': prefs.getBool('notifications_daily_summary') ?? true,
-      'reminderHour': prefs.getInt('notifications_reminder_hour') ?? 9,
-      'reminderMinute': prefs.getInt('notifications_reminder_minute') ?? 0,
-    };
-  }
-
-  /// Dispose resources
-  void dispose() {
-    // No timers to dispose since we removed scheduled notifications
   }
 } 

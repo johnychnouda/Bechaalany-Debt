@@ -315,8 +315,8 @@ class AppState extends ChangeNotifier {
   
   // Setup connectivity monitoring
   void _setupConnectivityListener() {
-    Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      _isOnline = result != ConnectivityResult.none;
+    Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
+      _isOnline = results.isNotEmpty && results.any((result) => result != ConnectivityResult.none);
       if (_isOnline) {
         _syncData();
       }
