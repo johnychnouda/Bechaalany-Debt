@@ -206,16 +206,31 @@ class _SplashScreenState extends State<SplashScreen>
                             opacity: _textOpacityAnimation.value,
                             child: Column(
                               children: [
-                                // App name with elegant styling
-                                Text(
-                                  'Bechaalany Connect',
-                                  style: AppTheme.title1.copyWith(
-                                    color: Colors.black,
-                                    fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.5,
-                                  ),
+                                // App name with elegant styling - split colors
+                                RichText(
                                   textAlign: TextAlign.center,
+                                  text: TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'Bechaalany ',
+                                        style: AppTheme.title1.copyWith(
+                                          color: Colors.black,
+                                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: 'Connect',
+                                        style: AppTheme.title1.copyWith(
+                                          color: Colors.red,
+                                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                                 
                                 SizedBox(height: AppTheme.spacing12),

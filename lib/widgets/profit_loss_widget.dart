@@ -54,14 +54,45 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        // Calculate revenue from product sales + ALL customer payments (including cleared debts)
-        final productRevenue = appState.productPurchases.fold<double>(0.0, (sum, purchase) => sum + purchase.totalAmount);
+        // Calculate PROFIT from product sales (selling price - cost price)
+        final productRevenue = appState.productPurchases.fold<double>(0.0, (sum, purchase) => 
+          sum + (purchase.totalAmount - purchase.costPrice)
+        );
         
         // Get ALL payment activities (including from cleared debts)
         final allPaymentActivities = appState.activities.where((activity) => 
           activity.type == ActivityType.payment && activity.paymentAmount != null
         ).toList();
-        final paymentRevenue = allPaymentActivities.fold<double>(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+        
+        // Calculate profit portion from customer payments
+        final paymentRevenue = allPaymentActivities.fold<double>(0.0, (sum, activity) {
+          try {
+            // Find the debt this payment is for
+            final debt = appState.debts.firstWhere((debt) => debt.id == activity.debtId);
+            
+            // Find the related product purchase to get cost price
+            final productPurchase = appState.productPurchases.firstWhere(
+              (purchase) => purchase.customerId == debt.customerId && 
+                           purchase.subcategoryName == debt.subcategoryName,
+              orElse: () => appState.productPurchases.firstWhere(
+                (purchase) => purchase.customerId == debt.customerId,
+                orElse: () => appState.productPurchases.first,
+              ),
+            );
+            
+            // Calculate profit ratio: (selling price - cost price) / selling price
+            final profitRatio = debt.amount > 0 ? 
+              (debt.amount - productPurchase.costPrice) / debt.amount : 0.0;
+            
+            // Calculate profit from this payment
+            final profitFromPayment = (activity.paymentAmount ?? 0) * profitRatio;
+            
+            return sum + profitFromPayment;
+          } catch (e) {
+            // If debt not found or no product purchase, assume 50% profit ratio as fallback
+            return sum + ((activity.paymentAmount ?? 0) * 0.5);
+          }
+        });
         
         final totalRevenue = productRevenue + paymentRevenue;
         

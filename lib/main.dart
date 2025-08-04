@@ -12,6 +12,7 @@ import 'models/partial_payment.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
+import 'services/backup_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -144,11 +145,19 @@ void main() async {
         // Handle recreation error silently
       }
     }
-  } catch (e) {
-    // Handle initialization error silently
-  }
-  
-  runApp(const BechaalanyDebtApp());
+      } catch (e) {
+      // Handle initialization error silently
+    }
+    
+    // Initialize automatic daily backup service
+    try {
+      final backupService = BackupService();
+      await backupService.initializeDailyBackup();
+    } catch (e) {
+      // Handle backup service initialization error silently
+    }
+    
+    runApp(const BechaalanyDebtApp());
 }
 
 class BechaalanyDebtApp extends StatelessWidget {

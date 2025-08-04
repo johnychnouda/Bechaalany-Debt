@@ -5,6 +5,7 @@ import '../providers/app_state.dart';
 import '../services/data_service.dart';
 import '../services/backup_service.dart';
 import '../services/notification_service.dart';
+import '../services/backup_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 
@@ -20,14 +21,33 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final BackupService _backupService = BackupService();
   List<String> _availableBackups = [];
   bool _isLoading = false;
+<<<<<<< Updated upstream
   bool _isDailyBackupEnabled = true;
   String _nextBackupTime = '';
+=======
+  bool _isAutomaticBackupEnabled = true;
+  DateTime? _lastBackupTime;
+>>>>>>> Stashed changes
 
   @override
   void initState() {
     super.initState();
     _loadBackups();
+<<<<<<< Updated upstream
     _loadDailyBackupSettings();
+=======
+    _loadBackupSettings();
+  }
+
+  Future<void> _loadBackupSettings() async {
+    final isEnabled = await _backupService.isAutomaticBackupEnabled();
+    final lastBackup = await _backupService.getLastBackupTime();
+    
+    setState(() {
+      _isAutomaticBackupEnabled = isEnabled;
+      _lastBackupTime = lastBackup;
+    });
+>>>>>>> Stashed changes
   }
 
   Future<void> _loadBackups() async {
@@ -61,24 +81,11 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
-      await _dataService.createBackup();
+      await _backupService.createManualBackup();
       await _loadBackups();
-      
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Backup Created',
-          body: 'Backup created successfully',
-        );
-      }
+      await _loadBackupSettings();
     } catch (e) {
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Backup Failed',
-          body: 'Error creating backup: $e',
-        );
-      }
+      // Error notification is handled by backup service
     } finally {
       setState(() {
         _isLoading = false;
@@ -356,10 +363,10 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     // Backup Creation Section
                     _buildBackupCreationSection(),
                     
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     
-                    // Daily Backup Section
-                    _buildDailyBackupSection(),
+                    // Automatic Backup Settings Section
+                    _buildAutomaticBackupSection(),
                     
                     const SizedBox(height: 24),
                     
@@ -461,7 +468,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     );
   }
 
-  Widget _buildDailyBackupSection() {
+  Widget _buildAutomaticBackupSection() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.dynamicSurface(context),
@@ -481,12 +488,12 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.dynamicSuccess(context).withAlpha(26),
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     CupertinoIcons.clock,
-                    color: AppColors.dynamicSuccess(context),
+                    color: AppColors.dynamicPrimary(context),
                     size: 24,
                   ),
                 ),
@@ -497,14 +504,14 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     children: [
                       Text(
                         'Automatic Daily Backup',
-                        style: AppTheme.getDynamicTitle2(context).copyWith(
+                        style: AppTheme.getDynamicTitle3(context).copyWith(
                           color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Automatically backup your data daily at 12 AM',
+                        'Automatically backup your data daily at 12:00 AM',
                         style: AppTheme.getDynamicFootnote(context).copyWith(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 15,
@@ -513,77 +520,79 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     ],
                   ),
                 ),
+                CupertinoSwitch(
+                  value: _isAutomaticBackupEnabled,
+                  onChanged: (value) async {
+                    await _backupService.setAutomaticBackupEnabled(value);
+                    setState(() {
+                      _isAutomaticBackupEnabled = value;
+                    });
+                  },
+                  activeColor: AppColors.dynamicPrimary(context),
+                ),
               ],
             ),
-            const SizedBox(height: 20),
             
-            // Daily Backup Toggle with better styling
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.dynamicBackground(context),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppColors.dynamicBorder(context),
-                  width: 0.5,
+            if (_lastBackupTime != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicBackground(context),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.dynamicBorder(context),
+                    width: 0.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.checkmark_circle,
+                      color: Colors.green,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Last backup: ${_formatLastBackupTime()}',
+                        style: AppTheme.getDynamicFootnote(context).copyWith(
+                          color: AppColors.dynamicTextSecondary(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              _isDailyBackupEnabled 
-                                ? CupertinoIcons.checkmark_circle_fill
-                                : CupertinoIcons.circle,
-                              color: _isDailyBackupEnabled 
-                                ? AppColors.dynamicSuccess(context)
-                                : AppColors.dynamicTextSecondary(context),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Daily Backup',
-                              style: AppTheme.getDynamicBody(context).copyWith(
-                                color: AppColors.dynamicTextPrimary(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _isDailyBackupEnabled 
-                            ? 'Next backup in $_nextBackupTime'
-                            : 'Automatic backups disabled',
-                          style: AppTheme.getDynamicFootnote(context).copyWith(
-                            color: AppColors.dynamicTextSecondary(context),
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  CupertinoSwitch(
-                    value: _isDailyBackupEnabled,
-                    onChanged: _toggleDailyBackup,
-                    activeColor: AppColors.dynamicSuccess(context),
-                  ),
-                ],
-              ),
-            ),
-            
-
+            ],
+>>>>>>> Stashed changes
           ],
         ),
       ),
     );
   }
 
+<<<<<<< Updated upstream
+=======
+  String _formatLastBackupTime() {
+    if (_lastBackupTime == null) return 'Never';
+    
+    final now = DateTime.now();
+    final difference = now.difference(_lastBackupTime!);
+    
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+>>>>>>> Stashed changes
   Widget _buildAvailableBackupsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
