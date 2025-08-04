@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
-
 import '../services/notification_service.dart';
 
 class AddCustomerScreen extends StatefulWidget {
@@ -26,6 +25,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   bool _isIdDuplicate = false;
   bool _isPhoneDuplicate = false;
   bool _isEmailDuplicate = false;
+  String _countryCode = '+961'; // Default country code for Lebanon
+  final _fullPhoneController = TextEditingController(); // Controller for full phone number
 
   @override
   void initState() {
@@ -33,11 +34,13 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     if (widget.customer != null) {
       _idController.text = widget.customer!.id;
       _nameController.text = widget.customer!.name;
-      _phoneController.text = widget.customer!.phone;
+      _fullPhoneController.text = widget.customer!.phone;
       _emailController.text = widget.customer!.email ?? '';
       _addressController.text = widget.customer!.address ?? '';
     } else {
       _idController.text = '';
+      // Set default country code for Lebanon (+961)
+      _fullPhoneController.text = '+961';
     }
   }
 
@@ -46,6 +49,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     _idController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _fullPhoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
     super.dispose();
@@ -111,8 +115,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     // Remove all non-digit characters
     final digitsOnly = phone.replaceAll(RegExp(r'[^\d]'), '');
     
-    // Check if it's a valid phone number (7-15 digits)
-    if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+    // Check if it's a valid phone number (minimum 8 digits, maximum 15 digits)
+    if (digitsOnly.length < 8 || digitsOnly.length > 15) {
       return false;
     }
     
@@ -120,6 +124,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     final phoneRegex = RegExp(r'^[\d\s\-\+\(\)]+$');
     return phoneRegex.hasMatch(phone);
   }
+
+
 
   // Validate email domain
   bool _isValidEmailDomain(String email) {
@@ -165,7 +171,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     }
 
     // Check for duplicate phone number and show confirmation dialog
-    final phone = _phoneController.text.trim();
+    final phone = _fullPhoneController.text.trim();
     if (_isDuplicatePhone(phone)) {
       final duplicateCustomer = _getCustomerWithPhone(phone);
       if (duplicateCustomer != null && duplicateCustomer.id.isNotEmpty) {
@@ -184,7 +190,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       final customer = Customer(
         id: _idController.text.trim(),
         name: _nameController.text.trim(),
-        phone: _phoneController.text.trim(),
+        phone: _fullPhoneController.text.trim(),
         email: email.isEmpty ? null : email,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         createdAt: widget.customer?.createdAt ?? DateTime.now(),
@@ -274,6 +280,61 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     ) ?? false;
   }
 
+  // Custom phone input widget with editable country code
+  Widget _buildPhoneInput({
+    required String label,
+    required String placeholder,
+    required Function(String) onChanged,
+    required String? Function(String?) validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.dynamicBorder(context),
+              width: 1,
+            ),
+          ),
+          child: TextFormField(
+            controller: _fullPhoneController,
+            keyboardType: TextInputType.phone,
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 16,
+            ),
+            decoration: InputDecoration(
+              hintText: placeholder,
+              hintStyle: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 16,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+            ),
+            onChanged: onChanged,
+            validator: validator,
+          ),
+        ),
+      ],
+    );
+  }
+
 
 
   @override
@@ -360,12 +421,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildModernField(
+                  _buildPhoneInput(
                     label: 'Phone Number *',
-                    controller: _phoneController,
                     placeholder: 'Enter phone number',
-                    icon: Icons.phone,
-                    keyboardType: TextInputType.phone,
+                    onChanged: (value) {
+                      setState(() {
+                        _isPhoneDuplicate = _isDuplicatePhone(value.trim());
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Please enter phone number';
@@ -373,17 +436,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       
                       // Check phone number format
                       if (!_isValidPhoneNumber(value.trim())) {
-                        return 'Please enter a valid phone number (7-15 digits)';
+                        return 'Please enter a valid phone number (minimum 8 digits)';
                       }
                       
                       // Note: Duplicate phone number validation is handled in _saveCustomer with confirmation dialog
                       
                       return null;
-                    },
-                    onChanged: (value) {
-                      setState(() {
-                        _isPhoneDuplicate = _isDuplicatePhone(value.trim());
-                      });
                     },
                   ),
                   if (_isPhoneDuplicate && _phoneController.text.trim().isNotEmpty)

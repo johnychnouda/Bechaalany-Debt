@@ -296,12 +296,12 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
       
       switch (_selectedFormat) {
         case 'PDF':
-          filePath = await _exportService.exportToPDF(customers, debts);
+          filePath = await _exportService.exportToPDF(customers, debts, appState.productPurchases);
           formatName = 'PDF';
           break;
         case 'Excel':
         default:
-          filePath = await _exportService.exportToExcel(customers, debts);
+          filePath = await _exportService.exportToExcel(customers, debts, appState.productPurchases);
           formatName = 'Excel';
           break;
       }

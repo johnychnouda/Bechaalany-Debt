@@ -7,15 +7,14 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:cross_file/cross_file.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/product_purchase.dart';
 
 class DataExportImportService {
   static final DataExportImportService _instance = DataExportImportService._internal();
   factory DataExportImportService() => _instance;
   DataExportImportService._internal();
 
-
-
-  Future<String> exportToExcel(List<Customer> customers, List<Debt> debts) async {
+  Future<String> exportToExcel(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases) async {
     try {
       // Create Excel workbook
       final excel = Excel.createExcel();
@@ -23,20 +22,110 @@ class DataExportImportService {
       // Remove the default Sheet1
       excel.delete('Sheet1');
       
+      // Create Summary sheet
+      final summarySheet = excel['Summary'];
+      
+      // Add title and date
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'DEBT MANAGEMENT SYSTEM - DATA EXPORT';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = 'Generated on: ${_formatDate(DateTime.now())}';
+      
+      // Style title
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+      
+      // Add summary statistics
+      final totalAmount = debts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaid = debts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      final totalRemaining = debts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      final pendingDebts = debts.where((debt) => debt.status == DebtStatus.pending).length;
+      final paidDebts = debts.where((debt) => debt.status == DebtStatus.paid).length;
+      
+      // Calculate total revenue (profit)
+      double totalRevenue = 0.0;
+      
+      // Revenue from product sales (profit)
+      for (final purchase in productPurchases) {
+        totalRevenue += (purchase.totalAmount - purchase.costPrice);
+      }
+      
+      // Revenue from partial payments (profit portion)
+      for (final debt in debts) {
+        if (debt.paidAmount > 0) {
+          // Find associated product purchase
+          ProductPurchase? productPurchase;
+          try {
+            productPurchase = productPurchases.firstWhere(
+              (purchase) => purchase.customerId == debt.customerId && 
+                           purchase.subcategoryName == debt.description,
+            );
+          } catch (e) {
+            try {
+              productPurchase = productPurchases.firstWhere(
+                (purchase) => purchase.customerId == debt.customerId,
+              );
+            } catch (e) {
+              productPurchase = productPurchases.isNotEmpty ? productPurchases.first : null;
+            }
+          }
+          
+          if (productPurchase != null) {
+            final profitRatio = (debt.amount - productPurchase.costPrice) / debt.amount;
+            final paymentProfit = debt.paidAmount * profitRatio;
+            totalRevenue += paymentProfit;
+          } else {
+            // Fallback: assume 50% profit
+            totalRevenue += debt.paidAmount * 0.5;
+          }
+        }
+      }
+      
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).value = 'SUMMARY STATISTICS';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4)).value = 'Total Customers: ${customers.length}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = 'Total Debts: ${debts.length}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = 'Pending Debts: $pendingDebts';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = 'Paid Debts: $paidDebts';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 8)).value = 'Total Amount: ${_formatCurrency(totalAmount)}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 9)).value = 'Total Paid: ${_formatCurrency(totalPaid)}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10)).value = 'Total Remaining: ${_formatCurrency(totalRemaining)}';
+      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 11)).value = 'Total Revenue (Profit): ${_formatCurrency(totalRevenue)}';
+      
+      // Style summary section
+      for (int row = 3; row <= 11; row++) {
+        final cell = summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row));
+        cell.cellStyle = CellStyle(
+          bold: row == 3,
+          fontSize: row == 3 ? 14 : 12,
+          horizontalAlign: HorizontalAlign.Left,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+      
       // Create Customers sheet
       final customersSheet = excel['Customers'];
       
-      // Add headers for customers
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Customer ID';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Name';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Phone';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Email';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Address';
-      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Date Added';
+      // Add title
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'CUSTOMERS LIST';
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = 'Total Customers: ${customers.length}';
       
-      // Style headers - make them bold and centered
-      for (int col = 0; col < 6; col++) {
-        final cell = customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+      // Style title
+      customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+      
+      // Add headers for customers (starting from row 3)
+      final headers = ['Customer ID', 'Name', 'Phone', 'Email', 'Address', 'Date Added', 'Total Debts', 'Total Amount'];
+      for (int col = 0; col < headers.length; col++) {
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 2)).value = headers[col];
+        
+        // Style headers
+        final cell = customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 2));
         cell.cellStyle = CellStyle(
           bold: true,
           horizontalAlign: HorizontalAlign.Center,
@@ -47,7 +136,9 @@ class DataExportImportService {
       // Add customer data
       for (int i = 0; i < customers.length; i++) {
         final customer = customers[i];
-        final rowIndex = i + 1;
+        final rowIndex = i + 3;
+        final customerDebts = debts.where((debt) => debt.customerId == customer.id).toList();
+        final customerTotalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
         
         customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = customer.id;
         customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = customer.name;
@@ -55,9 +146,11 @@ class DataExportImportService {
         customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = customer.email ?? '';
         customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = customer.address ?? '';
         customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = _formatDate(customer.createdAt);
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = customerDebts.length;
+        customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = _formatCurrency(customerTotalAmount);
         
         // Style data rows - center all content
-        for (int col = 0; col < 6; col++) {
+        for (int col = 0; col < headers.length; col++) {
           final cell = customersSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
           cell.cellStyle = CellStyle(
             horizontalAlign: HorizontalAlign.Center,
@@ -66,25 +159,28 @@ class DataExportImportService {
         }
       }
       
-      // Note: Column widths are automatically adjusted by Excel
-      
       // Create Debts sheet
       final debtsSheet = excel['Debts'];
       
-      // Add headers for debts
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Customer ID';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = 'Customer';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = 'Description';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = 'Amount';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: 0)).value = 'Paid';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: 0)).value = 'Remaining';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: 0)).value = 'Status';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: 0)).value = 'Date';
-      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0)).value = 'Notes';
+      // Add title
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'DEBTS LIST';
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = 'Total Debts: ${debts.length}';
       
-      // Style headers - make them bold and centered
-      for (int col = 0; col < 9; col++) {
-        final cell = debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0));
+      // Style title
+      debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+      
+      // Add headers for debts (starting from row 3)
+      final debtHeaders = ['Customer ID', 'Customer Name', 'Description', 'Amount', 'Paid Amount', 'Remaining', 'Status', 'Date Created', 'Notes', 'Category', 'Subcategory'];
+      for (int col = 0; col < debtHeaders.length; col++) {
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 2)).value = debtHeaders[col];
+        
+        // Style headers
+        final cell = debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 2));
         cell.cellStyle = CellStyle(
           bold: true,
           horizontalAlign: HorizontalAlign.Center,
@@ -95,7 +191,7 @@ class DataExportImportService {
       // Add debt data
       for (int i = 0; i < debts.length; i++) {
         final debt = debts[i];
-        final rowIndex = i + 1;
+        final rowIndex = i + 3;
         
         debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = debt.customerId;
         debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = debt.customerName;
@@ -106,9 +202,11 @@ class DataExportImportService {
         debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = _formatDebtStatus(debt.status);
         debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex)).value = _formatDate(debt.createdAt);
         debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex)).value = debt.notes ?? '';
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex)).value = debt.categoryName ?? '';
+        debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex)).value = debt.subcategoryName ?? '';
         
         // Style data rows - center all content
-        for (int col = 0; col < 9; col++) {
+        for (int col = 0; col < debtHeaders.length; col++) {
           final cell = debtsSheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex));
           cell.cellStyle = CellStyle(
             horizontalAlign: HorizontalAlign.Center,
@@ -116,52 +214,6 @@ class DataExportImportService {
           );
         }
       }
-      
-      // Note: Column widths are automatically adjusted by Excel
-      
-      // Create Summary sheet
-      final summarySheet = excel['Summary'];
-      
-      // Add summary data
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = 'Debt Management Summary';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = 'Generated on: ${_formatDate(DateTime.now())}';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).value = 'Total Customers:';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3)).value = customers.length;
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4)).value = 'Total Debts:';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 4)).value = debts.length;
-      
-      final totalAmount = debts.fold<double>(0, (sum, debt) => sum + debt.amount);
-      final totalPaid = debts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-      final totalRemaining = debts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-      
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = 'Total Amount:';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 5)).value = _formatCurrency(totalAmount);
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = 'Total Paid:';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6)).value = _formatCurrency(totalPaid);
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = 'Total Remaining:';
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7)).value = _formatCurrency(totalRemaining);
-      
-      // Style summary sheet - make title bold and centered
-      summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = CellStyle(
-        bold: true,
-        fontSize: 16,
-        horizontalAlign: HorizontalAlign.Center,
-      );
-      
-      // Style all summary data - center align
-      for (int row = 0; row <= 7; row++) {
-        for (int col = 0; col < 2; col++) {
-          final cell = summarySheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: row));
-          if (cell.value != null) {
-            cell.cellStyle = CellStyle(
-              horizontalAlign: HorizontalAlign.Center,
-              verticalAlign: VerticalAlign.Center,
-            );
-          }
-        }
-      }
-      
-      // Note: Column widths are automatically adjusted by Excel
       
       // Save to temporary file
       final directory = await getTemporaryDirectory();
@@ -175,9 +227,55 @@ class DataExportImportService {
     }
   }
 
-  Future<String> exportToPDF(List<Customer> customers, List<Debt> debts) async {
+  Future<String> exportToPDF(List<Customer> customers, List<Debt> debts, List<ProductPurchase> productPurchases) async {
     try {
       final pdf = pw.Document();
+      
+      // Calculate summary statistics
+      final totalAmount = debts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      final totalPaid = debts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+      final totalRemaining = debts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      final pendingDebts = debts.where((debt) => debt.status == DebtStatus.pending).length;
+      final paidDebts = debts.where((debt) => debt.status == DebtStatus.paid).length;
+      
+      // Calculate total revenue (profit)
+      double totalRevenue = 0.0;
+      
+      // Revenue from product sales (profit)
+      for (final purchase in productPurchases) {
+        totalRevenue += (purchase.totalAmount - purchase.costPrice);
+      }
+      
+      // Revenue from partial payments (profit portion)
+      for (final debt in debts) {
+        if (debt.paidAmount > 0) {
+          // Find associated product purchase
+          ProductPurchase? productPurchase;
+          try {
+            productPurchase = productPurchases.firstWhere(
+              (purchase) => purchase.customerId == debt.customerId && 
+                           purchase.subcategoryName == debt.description,
+            );
+          } catch (e) {
+            try {
+              productPurchase = productPurchases.firstWhere(
+                (purchase) => purchase.customerId == debt.customerId,
+              );
+            } catch (e) {
+              productPurchase = productPurchases.isNotEmpty ? productPurchases.first : null;
+            }
+          }
+          
+          if (productPurchase != null) {
+            final profitRatio = (debt.amount - productPurchase.costPrice) / debt.amount;
+            final paymentProfit = debt.paidAmount * profitRatio;
+            totalRevenue += paymentProfit;
+          } else {
+            // Fallback: assume 50% profit
+            totalRevenue += debt.paidAmount * 0.5;
+          }
+        }
+      }
       
       // Add title page
       pdf.addPage(
@@ -185,33 +283,81 @@ class DataExportImportService {
           pageFormat: PdfPageFormat.a4,
           build: (pw.Context context) {
             return pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Header(
-                  level: 0,
-                  child: pw.Text('Debt Management Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                // Header with logo/icon
+                pw.Container(
+                  width: double.infinity,
+                  padding: pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue,
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        'DEBT MANAGEMENT SYSTEM',
+                        style: pw.TextStyle(
+                          fontSize: 24,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.white,
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        'COMPREHENSIVE DATA REPORT',
+                        style: pw.TextStyle(
+                          fontSize: 14,
+                          color: PdfColors.white,
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
-                pw.SizedBox(height: 20),
-                pw.Text('Generated on: ${_formatDate(DateTime.now())}', style: pw.TextStyle(fontSize: 12)),
                 pw.SizedBox(height: 30),
                 
-                // Summary section
+                // Generation date
                 pw.Container(
                   padding: pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(),
+                    color: PdfColors.grey100,
                     borderRadius: pw.BorderRadius.circular(5),
+                  ),
+                  child: pw.Text(
+                    'Generated on: ${_formatDate(DateTime.now())}',
+                    style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ),
+                pw.SizedBox(height: 30),
+                
+                // Summary statistics
+                pw.Container(
+                  padding: pw.EdgeInsets.all(15),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColors.blue, width: 2),
+                    borderRadius: pw.BorderRadius.circular(10),
                   ),
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('Summary', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 10),
-                      pw.Text('Total Customers: ${customers.length}'),
-                      pw.Text('Total Debts: ${debts.length}'),
-                      pw.Text('Total Amount: ${_formatCurrency(debts.fold<double>(0, (sum, debt) => sum + debt.amount))}'),
-                      pw.Text('Total Paid: ${_formatCurrency(debts.fold<double>(0, (sum, debt) => sum + debt.paidAmount))}'),
-                      pw.Text('Total Remaining: ${_formatCurrency(debts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount))}'),
+                      pw.Text(
+                        'SUMMARY STATISTICS',
+                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                      pw.SizedBox(height: 15),
+                      _buildSummaryRow('Total Customers', '${customers.length}'),
+                      _buildSummaryRow('Total Debts', '${debts.length}'),
+                      _buildSummaryRow('Pending Debts', '$pendingDebts'),
+                      _buildSummaryRow('Paid Debts', '$paidDebts'),
+                      pw.Divider(color: PdfColors.grey),
+                      _buildSummaryRow('Total Amount', _formatCurrency(totalAmount)),
+                      _buildSummaryRow('Total Paid', _formatCurrency(totalPaid)),
+                      _buildSummaryRow('Total Remaining', _formatCurrency(totalRemaining)),
+                      _buildSummaryRow('Total Revenue (Profit)', _formatCurrency(totalRevenue)),
                     ],
                   ),
                 ),
@@ -230,34 +376,58 @@ class DataExportImportService {
               return pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Header(
-                    level: 0,
-                    child: pw.Text('Customers', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  // Page header
+                  pw.Container(
+                    width: double.infinity,
+                    padding: pw.EdgeInsets.all(15),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue,
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Text(
+                      'CUSTOMERS LIST',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
                   ),
                   pw.SizedBox(height: 20),
                   
                   // Customers table
                   pw.Table(
-                    border: pw.TableBorder.all(),
+                    border: pw.TableBorder.all(color: PdfColors.blue, width: 1),
                     children: [
                       // Header row
                       pw.TableRow(
+                        decoration: pw.BoxDecoration(color: PdfColors.grey200),
                         children: [
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Customer ID', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Name', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Phone', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Email', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          _buildTableHeader('Customer ID'),
+                          _buildTableHeader('Name'),
+                          _buildTableHeader('Phone'),
+                          _buildTableHeader('Email'),
+                          _buildTableHeader('Total Debts'),
+                          _buildTableHeader('Total Amount'),
                         ],
                       ),
                       // Data rows
-                      ...customers.map((customer) => pw.TableRow(
-                        children: [
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(customer.id)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(customer.name)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(customer.phone)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(customer.email ?? '')),
-                        ],
-                      )),
+                      ...customers.map((customer) {
+                        final customerDebts = debts.where((debt) => debt.customerId == customer.id).toList();
+                        final customerTotalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+                        
+                        return pw.TableRow(
+                          children: [
+                            _buildTableCell(customer.id),
+                            _buildTableCell(customer.name),
+                            _buildTableCell(customer.phone),
+                            _buildTableCell(customer.email ?? ''),
+                            _buildTableCell('${customerDebts.length}'),
+                            _buildTableCell(_formatCurrency(customerTotalAmount)),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ],
@@ -276,34 +446,53 @@ class DataExportImportService {
               return pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Header(
-                    level: 0,
-                    child: pw.Text('Debts', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  // Page header
+                  pw.Container(
+                    width: double.infinity,
+                    padding: pw.EdgeInsets.all(15),
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue,
+                      borderRadius: pw.BorderRadius.circular(8),
+                    ),
+                    child: pw.Text(
+                      'DEBTS LIST',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.white,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
                   ),
                   pw.SizedBox(height: 20),
                   
                   // Debts table
                   pw.Table(
-                    border: pw.TableBorder.all(),
+                    border: pw.TableBorder.all(color: PdfColors.blue, width: 1),
                     children: [
                       // Header row
                       pw.TableRow(
+                        decoration: pw.BoxDecoration(color: PdfColors.grey200),
                         children: [
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Customer ID', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Customer', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Description', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text('Status', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                          _buildTableHeader('Customer'),
+                          _buildTableHeader('Description'),
+                          _buildTableHeader('Amount'),
+                          _buildTableHeader('Paid'),
+                          _buildTableHeader('Remaining'),
+                          _buildTableHeader('Status'),
+                          _buildTableHeader('Date'),
                         ],
                       ),
                       // Data rows
                       ...debts.map((debt) => pw.TableRow(
                         children: [
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(debt.customerId)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(debt.customerName)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(debt.description)),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(_formatCurrency(debt.amount))),
-                          pw.Padding(padding: pw.EdgeInsets.all(5), child: pw.Text(_formatDebtStatus(debt.status))),
+                          _buildTableCell(debt.customerName),
+                          _buildTableCell(debt.description),
+                          _buildTableCell(_formatCurrency(debt.amount)),
+                          _buildTableCell(_formatCurrency(debt.paidAmount)),
+                          _buildTableCell(_formatCurrency(debt.remainingAmount)),
+                          _buildTableCell(_formatDebtStatus(debt.status)),
+                          _buildTableCell(_formatDate(debt.createdAt)),
                         ],
                       )),
                     ],
@@ -331,6 +520,48 @@ class DataExportImportService {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 
+  // Helper methods for PDF formatting
+  pw.Widget _buildSummaryRow(String label, String value) {
+    return pw.Padding(
+      padding: pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.normal),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildTableHeader(String text) {
+    return pw.Padding(
+      padding: pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildTableCell(String text) {
+    return pw.Padding(
+      padding: pw.EdgeInsets.all(6),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(fontSize: 9),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
   String _formatCurrency(double amount) {
     return '\$${amount.toStringAsFixed(2)}';
   }
@@ -341,6 +572,8 @@ class DataExportImportService {
         return 'Pending';
       case DebtStatus.paid:
         return 'Paid';
+      default:
+        return 'Pending';
     }
   }
 
@@ -396,8 +629,6 @@ class DataExportImportService {
       throw Exception('Failed to share export file: $e');
     }
   }
-
-
 
   Future<void> validateImportData(Map<String, dynamic> importData) async {
     final customers = importData['customers'] as List<Customer>;

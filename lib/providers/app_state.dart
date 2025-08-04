@@ -1062,7 +1062,7 @@ class AppState extends ChangeNotifier {
 
   Future<String> exportData() async {
     try {
-      final filePath = await _exportImportService.exportToExcel(_customers, _debts);
+      final filePath = await _exportImportService.exportToExcel(_customers, _debts, _productPurchases);
       return filePath;
     } catch (e) {
       // Error exporting data
