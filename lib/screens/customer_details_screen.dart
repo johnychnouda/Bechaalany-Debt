@@ -464,33 +464,39 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Debts Section (only show if showDebtsSection is true)
-                if (widget.showDebtsSection) ...[
-                  // Debts Section Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'DEBTS',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.dynamicTextPrimary(context),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Debts List
-                  customerAllDebts.isEmpty
-                      ? Container(
+                      
+                      // Divider before debts list
+                      if (widget.showDebtsSection && customerAllDebts.isNotEmpty) ...[
+                        const Divider(height: 32, thickness: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'DEBTS',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Debts List
+                        ...customerAllDebts.map((debt) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _DebtCard(
+                            debt: debt,
+                            onMarkAsPaid: () => _markAsPaid(debt),
+                            onDelete: () => _deleteDebt(debt),
+                          ),
+                        )),
+                      ],
+                      
+                      // Show empty state if no debts
+                      if (widget.showDebtsSection && customerAllDebts.isEmpty) ...[
+                        const Divider(height: 32, thickness: 1),
+                        Container(
                           padding: const EdgeInsets.all(32),
                           child: Column(
                             children: [
@@ -518,21 +524,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               ),
                             ],
                           ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: customerAllDebts.length,
-                          itemBuilder: (context, index) {
-                            final debt = customerAllDebts[index];
-                            return _DebtCard(
-                              debt: debt,
-                              onMarkAsPaid: () => _markAsPaid(debt),
-                              onDelete: () => _deleteDebt(debt),
-                            );
-                          },
                         ),
-                ],
+                      ],
+                    ],
+                  ),
+                ),
+                
+
                 
                 const SizedBox(height: 20),
               ],
