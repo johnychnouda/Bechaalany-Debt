@@ -17,6 +17,7 @@ import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/receipt_sharing_service.dart';
+import 'add_customer_screen.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -779,6 +780,17 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
   
   void _showContactSharingOptions() {
+    // Debug: Print customer contact information
+    print('Customer: ${widget.customer.name}');
+    print('Phone: "${widget.customer.phone}" (length: ${widget.customer.phone.length})');
+    print('Email: "${widget.customer.email}" (isNull: ${widget.customer.email == null})');
+    
+    // Check available contact methods
+    final hasPhone = widget.customer.phone.isNotEmpty;
+    final hasEmail = widget.customer.email != null && widget.customer.email!.isNotEmpty;
+    
+    print('Has phone: $hasPhone, Has email: $hasEmail');
+    
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
@@ -791,16 +803,58 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               color: AppColors.dynamicTextPrimary(context),
             ),
           ),
-          message: Text(
-            'Choose how to send the receipt to ${widget.customer.name}',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.dynamicTextSecondary(context),
-            ),
+          message: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose how to send the receipt to ${widget.customer.name}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Show available contact methods
+              Text(
+                'Available contact methods:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (hasPhone) ...[
+                Text(
+                  '• Phone: ${widget.customer.phone}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+              if (hasEmail) ...[
+                Text(
+                  '• Email: ${widget.customer.email}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+              if (!hasPhone && !hasEmail) ...[
+                Text(
+                  '• No contact methods available',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+            ],
           ),
           actions: [
             // WhatsApp option
-            if (widget.customer.phone.isNotEmpty)
+            if (hasPhone)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -810,7 +864,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      CupertinoIcons.chat_bubble_2_fill,
+                      CupertinoIcons.chat_bubble_2,
                       color: Colors.green,
                       size: 20,
                     ),
@@ -827,7 +881,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               ),
             
             // Email option
-            if (widget.customer.email != null && widget.customer.email!.isNotEmpty)
+            if (hasEmail)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -853,8 +907,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ),
               ),
             
-            // SMS option (fallback for customers without email)
-            if (widget.customer.phone.isNotEmpty)
+            // SMS option (always show if phone is available)
+            if (hasPhone)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -879,10 +933,37 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   ],
                 ),
               ),
+            
+            // Add contact information option if no methods available
+            if (!hasPhone && !hasEmail)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showAddContactInfoDialog(context);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.person_add,
+                      color: AppColors.dynamicPrimary(context),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Add Contact Information',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
           cancelButton: CupertinoActionSheetAction(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context),
             },
             child: Text(
               'Cancel',
@@ -895,7 +976,63 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         );
       },
     );
-    }
+  }
+  
+  void _showAddContactInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Add Contact Information',
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          content: Text(
+            'To send receipts, customers need either a phone number or email address. You can add this information by editing the customer profile.',
+            style: TextStyle(
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to edit customer screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddCustomerScreen(customer: widget.customer),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dynamicPrimary(context),
+              ),
+              child: Text(
+                'Edit Customer',
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
   
   Future<void> _shareReceiptViaWhatsApp() async {
     try {

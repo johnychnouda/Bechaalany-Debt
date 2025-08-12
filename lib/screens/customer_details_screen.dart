@@ -63,7 +63,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     // Customer debts are loaded in build method
   }
   
-  void _showReceiptSharingOptions(BuildContext context, AppState appState) {
+    void _showReceiptSharingOptions(BuildContext context, AppState appState) {
+    // Debug: Print customer contact information
+    print('Customer: ${_currentCustomer.name}');
+    print('Phone: "${_currentCustomer.phone}" (length: ${_currentCustomer.phone.length})');
+    print('Email: "${_currentCustomer.email}" (isNull: ${_currentCustomer.email == null})');
+    
+    // Check available contact methods
+    final hasPhone = _currentCustomer.phone.isNotEmpty;
+    final hasEmail = _currentCustomer.email != null && _currentCustomer.email!.isNotEmpty;
+    
+    print('Has phone: $hasPhone, Has email: $hasEmail');
+    
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
@@ -76,16 +87,58 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               color: AppColors.dynamicTextPrimary(context),
             ),
           ),
-          message: Text(
-            'Choose how to send the receipt to ${_currentCustomer.name}',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.dynamicTextSecondary(context),
-            ),
+          message: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Choose how to send the receipt to ${_currentCustomer.name}',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Show available contact methods
+              Text(
+                'Available contact methods:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (hasPhone) ...[
+                Text(
+                  '• Phone: ${_currentCustomer.phone}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+              if (hasEmail) ...[
+                Text(
+                  '• Email: ${_currentCustomer.email}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+              if (!hasPhone && !hasEmail) ...[
+                Text(
+                  '• No contact methods available',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
+              ],
+            ],
           ),
           actions: [
             // WhatsApp option
-            if (_currentCustomer.phone.isNotEmpty)
+            if (hasPhone)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -112,7 +165,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               ),
             
             // Email option
-            if (_currentCustomer.email != null && _currentCustomer.email!.isNotEmpty)
+            if (hasEmail)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -138,8 +191,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 ),
               ),
             
-            // SMS option (fallback for customers without email)
-            if (_currentCustomer.phone.isNotEmpty)
+            // SMS option (always show if phone is available)
+            if (hasPhone)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
@@ -164,6 +217,33 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   ],
                 ),
               ),
+            
+            // Add contact information option if no methods available
+            if (!hasPhone && !hasEmail)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _showAddContactInfoDialog(context);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.person_add,
+                      color: AppColors.dynamicPrimary(context),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Add Contact Information',
+                      style: TextStyle(
+                        color: AppColors.dynamicPrimary(context),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
           cancelButton: CupertinoActionSheetAction(
             onPressed: () {
@@ -180,7 +260,63 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         );
       },
     );
-    }
+  }
+  
+  void _showAddContactInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Add Contact Information',
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          content: Text(
+            'To send receipts, customers need either a phone number or email address. You can add this information by editing the customer profile.',
+            style: TextStyle(
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to edit customer screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddCustomerScreen(customer: _currentCustomer),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dynamicPrimary(context),
+              ),
+              child: Text(
+                'Edit Customer',
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
   
   Future<void> _shareReceiptViaWhatsApp(AppState appState) async {
     try {
