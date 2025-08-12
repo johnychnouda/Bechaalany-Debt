@@ -5,7 +5,9 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/category.dart';
 import '../providers/app_state.dart';
+import '../utils/currency_formatter.dart';
 import '../services/notification_service.dart';
+import '../widgets/expandable_chip_dropdown.dart';
 
 class AddDebtScreen extends StatefulWidget {
   final Customer? customer;
@@ -17,50 +19,15 @@ class AddDebtScreen extends StatefulWidget {
 }
 
 class _AddDebtScreenState extends State<AddDebtScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
   Customer? _selectedCustomer;
-  bool _isLoading = false;
-  
-  // Product selection
   ProductCategory? _selectedCategory;
-  Subcategory? _selectedProduct;
+  Subcategory? _selectedSubcategory;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _selectedCustomer = widget.customer;
-    
-    // Add listener to description controller for real-time validation
-    _descriptionController.addListener(() {
-      setState(() {}); // Rebuild to show/hide warning icon
-    });
-  }
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    _amountController.dispose();
-    super.dispose();
-  }
-  
-  void _onProductSelected(Subcategory product) {
-    setState(() {
-      _selectedProduct = product;
-      _selectedCategory = null;
-      // Find the category for this product
-      final appState = Provider.of<AppState>(context, listen: false);
-      for (final category in appState.categories) {
-        if (category.subcategories.any((s) => s.id == product.id)) {
-          _selectedCategory = category;
-          break;
-        }
-      }
-      // Auto-fill amount and description
-      _amountController.text = product.sellingPrice.toString();
-      _descriptionController.text = '${product.name} - ${product.description ?? ''}'.trim();
-    });
   }
 
 
@@ -68,21 +35,20 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
 
 
   Future<void> _saveDebt() async {
-    if (_formKey.currentState?.validate() == true && _selectedCustomer != null && _selectedProduct != null) {
+    if (_selectedCustomer != null && _selectedSubcategory != null) {
       setState(() {
         _isLoading = true;
       });
 
       try {
         final appState = Provider.of<AppState>(context, listen: false);
-        final amount = double.parse(_amountController.text.replaceAll(',', ''));
         
         final debt = Debt(
           id: appState.generateDebtId(),
           customerId: _selectedCustomer!.id,
           customerName: _selectedCustomer!.name,
-          description: _descriptionController.text.trim(),
-          amount: amount,
+          description: _selectedSubcategory!.name,
+          amount: _selectedSubcategory!.sellingPrice,
           type: DebtType.credit,
           status: DebtStatus.pending,
           createdAt: DateTime.now(),
@@ -113,200 +79,398 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
     }
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
-        title: Text('Add Debt for ${_selectedCustomer?.name ?? "Customer"}'),
+        title: Text('Add Debt for ${_selectedCustomer?.name ?? "Customer"}', 
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+        backgroundColor: AppColors.dynamicSurface(context),
+        elevation: 0,
+        iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
+        titleTextStyle: TextStyle(
+          color: AppColors.dynamicTextPrimary(context),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: Consumer<AppState>(
+        builder: (context, appState, child) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Category Selection
+                _buildExpandableCategorySelection(appState),
+                
+                const SizedBox(height: 24),
+                
+                // Product Selection
+                _buildExpandableSubcategorySelection(appState),
+                
+                const SizedBox(height: 24),
+                
+                // Product Details
+                _buildProductDetails(),
+                
+                const SizedBox(height: 32),
+                
+                // Add Debt Button
+                _buildAddDebtButton(),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildExpandableCategorySelection(AppState appState) {
+    final categories = appState.categories.whereType<ProductCategory>().toList();
+    
+    if (categories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.orange.withAlpha(26),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.withAlpha(77)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Selection
-            Consumer<AppState>(
-              builder: (context, appState, child) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Select Product *',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+            Row(
+              children: [
+                Icon(Icons.warning, color: Colors.orange),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No categories available',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppColors.border),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ExpansionTile(
-                        title: Text(
-                          _selectedProduct?.name ?? 'Choose a product',
-                          style: TextStyle(
-                            color: _selectedProduct != null 
-                                ? AppColors.textPrimary 
-                                : AppColors.textLight,
-                          ),
-                        ),
-                        subtitle: _selectedProduct != null 
-                            ? Text('${_selectedProduct!.sellingPrice} ${_selectedProduct!.sellingPriceCurrency}')
-                            : null,
-                        children: [
-                          // Category selection
-                          if (appState.categories.isNotEmpty) ...[
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedCategory?.id,
-                                decoration: const InputDecoration(
-                                  labelText: 'Category',
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: [
-                                  const DropdownMenuItem(
-                                    value: null,
-                                    child: Text('All Categories'),
-                                  ),
-                                  ...appState.categories.map((category) => DropdownMenuItem(
-                                    value: category.id,
-                                    child: Text(category.name),
-                                  )),
-                                ],
-                                onChanged: (categoryId) {
-                                  setState(() {
-                                    _selectedCategory = categoryId != null 
-                                        ? appState.categories.firstWhere((c) => c.id == categoryId)
-                                        : null;
-                                    _selectedProduct = null;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          
-                          // Product selection
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: DropdownButtonFormField<String>(
-                              value: _selectedProduct?.id,
-                              decoration: const InputDecoration(
-                                labelText: 'Product *',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Select a product'),
-                                ),
-                                ...(_selectedCategory != null 
-                                    ? _selectedCategory!.subcategories
-                                    : appState.categories.expand((c) => c.subcategories)
-                                ).map((product) => DropdownMenuItem(
-                                  value: product.id,
-                                  child: Text('${product.name} - ${product.sellingPrice} ${product.sellingPriceCurrency}'),
-                                )),
-                              ],
-                              onChanged: (productId) {
-                                if (productId != null) {
-                                  final product = (_selectedCategory != null 
-                                      ? _selectedCategory!.subcategories
-                                      : appState.categories.expand((c) => c.subcategories)
-                                  ).firstWhere((p) => p.id == productId);
-                                  _onProductSelected(product);
-                                }
-                              },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Please select a product';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            // Description field (auto-filled from product, but editable)
-            TextFormField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: 'Description',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.description),
-                helperText: 'Auto-filled from product selection (can be edited)',
-              ),
-              validator: (value) {
-                // Description is now optional since it's auto-filled
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            // Amount field
-            TextFormField(
-              controller: _amountController,
-              decoration: const InputDecoration(
-                labelText: 'Amount *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
-              ),
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter an amount';
-                }
-                final cleanValue = value.replaceAll(',', '');
-                if (double.tryParse(cleanValue) == null) {
-                  return 'Please enter a valid number';
-                }
-                if (double.parse(cleanValue) <= 0) {
-                  return 'Amount must be greater than 0';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 32),
-            
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveDebt,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Add Debt',
-                        style: TextStyle(fontSize: 16),
-                      ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'You need to add categories and products first. Go to the Products tab to create categories and products.',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 14,
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return ExpandableChipDropdown<ProductCategory>(
+      label: 'Category',
+      value: _selectedCategory,
+      items: categories,
+      itemToString: (category) => category.name,
+      onChanged: (category) {
+        setState(() {
+          _selectedCategory = category;
+          _selectedSubcategory = null;
+        });
+      },
+      placeholder: 'Select Category',
+    );
+  }
+
+  Widget _buildExpandableSubcategorySelection(AppState appState) {
+    final subcategories = _selectedCategory?.subcategories ?? [];
+    
+    if (_selectedCategory != null && subcategories.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.blue.withAlpha(26),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.withAlpha(77)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info, color: Colors.blue),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No products in ${_selectedCategory!.name}',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Add products to this category in the Products tab.',
+              style: TextStyle(
+                color: Colors.blue,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ExpandableChipDropdown<Subcategory>(
+      label: 'Product',
+      value: _selectedSubcategory,
+      items: subcategories,
+      itemToString: (subcategory) => subcategory.name,
+      onChanged: (subcategory) {
+        setState(() {
+          _selectedSubcategory = subcategory;
+        });
+      },
+      placeholder: 'Select Product',
+      enabled: _selectedCategory != null,
+    );
+  }
+
+  Widget _buildProductDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Product Details',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.dynamicBorder(context)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_selectedSubcategory != null) ...[
+                // Product Name with larger, more prominent display
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicPrimary(context).withAlpha(51)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.inventory_2,
+                        size: 24,
+                        color: AppColors.dynamicPrimary(context),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedSubcategory!.name,
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Category and Price in a clean layout
+                Row(
+                  children: [
+                    // Category Info
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSurface(context),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.dynamicBorder(context)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.category,
+                                  size: 16,
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Category',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicTextSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _selectedCategory?.name ?? 'Not selected',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.dynamicTextPrimary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Unit Price
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSuccess(context).withAlpha(26),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.dynamicSuccess(context).withAlpha(51)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.attach_money,
+                                  size: 16,
+                                  color: AppColors.dynamicSuccess(context),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Unit Price',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicSuccess(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice, storedCurrency: _selectedSubcategory!.sellingPriceCurrency),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.dynamicSuccess(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                // No Product Selected State - More helpful
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicWarning(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicWarning(context).withAlpha(51)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: AppColors.dynamicWarning(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'No Product Selected',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please select a category and product above to see product details and pricing information.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.dynamicTextSecondary(context),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddDebtButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading || _selectedSubcategory == null ? null : _saveDebt,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.dynamicPrimary(context),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Text(
+                'Add Debt',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
       ),
     );
   }
