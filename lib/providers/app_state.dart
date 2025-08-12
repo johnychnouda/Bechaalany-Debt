@@ -161,8 +161,7 @@ class AppState extends ChangeNotifier {
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue directly from debts, not from payments
-    // This ensures we get the profit from the actual debt amounts
+    // Calculate revenue from the amount actually paid, respecting partial payments
     for (final debt in _debts) {
       // Only calculate revenue for debts that have been paid (fully or partially)
       if (debt.paidAmount > 0) {
@@ -180,10 +179,11 @@ class AppState extends ChangeNotifier {
               // Calculate profit ratio: (selling price - cost price) / selling price
               final profitRatio = (sellingPrice - costPrice) / sellingPrice;
               
-              // Calculate revenue from the DEBT AMOUNT
-              final debtAmount = debt.amount;
-              final profitFromDebt = debtAmount * profitRatio;
-              totalRevenue += profitFromDebt;
+              // Calculate revenue from the AMOUNT ACTUALLY PAID, not the debt amount
+              // This respects partial payments and shows actual profit earned
+              final amountPaid = debt.paidAmount;
+              final profitFromAmountPaid = amountPaid * profitRatio;
+              totalRevenue += profitFromAmountPaid;
             }
           } catch (e) {
             // If subcategory not found, use inferred values
@@ -191,8 +191,8 @@ class AppState extends ChangeNotifier {
               final sellingPrice = 15.0;
               final costPrice = 1.0;
               final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-              final profitFromDebt = debt.amount * profitRatio;
-              totalRevenue += profitFromDebt;
+              final profitFromAmountPaid = debt.paidAmount * profitRatio;
+              totalRevenue += profitFromAmountPaid;
             }
           }
         } else {
@@ -201,8 +201,8 @@ class AppState extends ChangeNotifier {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromDebt = debt.amount * profitRatio;
-            totalRevenue += profitFromDebt;
+            final profitFromAmountPaid = debt.paidAmount * profitRatio;
+            totalRevenue += profitFromAmountPaid;
           }
         }
       }
