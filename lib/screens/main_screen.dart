@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
-import 'debt_history_screen.dart';
+
 import 'products_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -18,7 +18,6 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
-    const DebtHistoryScreen(),
     const ProductsScreen(),
   ];
 
@@ -113,15 +112,9 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 _buildNavigationItem(
                   index: 2,
-                  icon: Icons.account_balance_wallet_rounded,
-                  label: 'Debts',
-                  isSelected: _currentIndex == 2,
-                ),
-                _buildNavigationItem(
-                  index: 3,
                   icon: Icons.inventory_2_rounded,
                   label: 'Products',
-                  isSelected: _currentIndex == 3,
+                  isSelected: _currentIndex == 2,
                 ),
               ],
             ),
