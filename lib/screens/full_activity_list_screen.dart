@@ -199,10 +199,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   }
 
   Widget _buildActivityItem(Activity activity) {
-    // Determine if this is a full payment
-    bool isFullPayment = activity.type == ActivityType.payment && 
-                        activity.paymentAmount != null && 
-                        activity.newStatus == DebtStatus.paid;
+    // Determine if this is a full payment using the helper method
+    bool isFullPayment = activity.isPaymentCompleted;
 
     IconData icon;
     Color iconColor;

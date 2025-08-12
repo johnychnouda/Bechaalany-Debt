@@ -458,7 +458,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
 
   Widget _buildPaymentActivityItem(Activity activity) {
-    final isFullPayment = activity.paymentAmount == activity.amount;
+    final isFullPayment = activity.isPaymentCompleted;
     final paymentColor = isFullPayment ? AppColors.dynamicSuccess(context) : AppColors.dynamicWarning(context);
     
     return Container(

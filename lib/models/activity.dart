@@ -122,4 +122,16 @@ class Activity extends HiveObject {
       debtId: debtId ?? this.debtId,
     );
   }
+  
+  // Helper method to determine if a payment activity completed a debt
+  bool get isPaymentCompleted {
+    if (type != ActivityType.payment || paymentAmount == null) {
+      return false;
+    }
+    
+    // A payment is considered completed if:
+    // 1. The new status is 'paid', OR
+    // 2. The payment amount equals or exceeds the debt amount
+    return newStatus == DebtStatus.paid || (paymentAmount! >= amount);
+  }
 } 

@@ -637,9 +637,8 @@ class AppState extends ChangeNotifier {
         paidAt: DateTime.now(), // Update to latest payment time
       );
       
+      // Update the debt in storage first
       await _dataService.updateDebt(_debts[index]);
-      _clearCache();
-      notifyListeners();
       
       // AUTOMATICALLY track payment activity (for both partial and full payments)
       // If this payment makes the debt fully paid, show the remaining amount as payment
@@ -647,7 +646,14 @@ class AppState extends ChangeNotifier {
           ? (originalDebt.amount - originalDebt.paidAmount) 
           : paymentAmount;
       
-      await addPaymentActivity(originalDebt, paymentAmountToShow, originalDebt.status, _debts[index].status);
+      // Determine the correct status for the activity
+      final oldStatus = originalDebt.status;
+      final newStatus = _debts[index].status;
+      
+      await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
+      
+      _clearCache();
+      notifyListeners();
       
       if (_isOnline) {
         await _syncService.syncDebts([_debts[index]]);
