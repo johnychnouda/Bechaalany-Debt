@@ -149,31 +149,46 @@ class ReceiptSharingService {
     String? specificDebtId,
   ) async {
     try {
+      print('Starting PDF generation for customer: ${customer.name}');
+      print('Customer debts count: ${customerDebts.length}');
+      print('Partial payments count: ${partialPayments.length}');
+      print('Activities count: ${activities.length}');
+      
       final pdf = PdfFontUtils.createDocumentWithFonts();
-      await _buildReceiptPDF(pdf, customer, customerDebts, partialPayments, activities, specificDate, specificDebtId);
+      print('PDF document created successfully');
+      
+      await buildReceiptPDF(pdf, customer, customerDebts, partialPayments, activities, specificDate, specificDebtId);
+      print('PDF content built successfully');
       
       final directory = await getTemporaryDirectory();
       final now = DateTime.now();
       final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
       final fileName = '${customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_Receipt_${dateStr}_ID${customer.id}.pdf';
       
+      print('Saving PDF to: ${directory.path}/$fileName');
+      
       if (!await directory.exists()) {
         await directory.create(recursive: true);
+        print('Directory created successfully');
       }
       
       final file = File('${directory.path}/$fileName');
       final pdfBytes = await pdf.save();
+      print('PDF saved to bytes, size: ${pdfBytes.length}');
+      
       await file.writeAsBytes(pdfBytes);
+      print('PDF file written successfully to: ${file.path}');
       
       return file;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error generating PDF receipt: $e');
+      print('Stack trace: $stackTrace');
       return null;
     }
   }
   
   /// Build the PDF receipt content
-  static Future<void> _buildReceiptPDF(
+  static Future<void> buildReceiptPDF(
     pw.Document pdf,
     Customer customer,
     List<Debt> customerDebts,
@@ -237,7 +252,7 @@ class ReceiptSharingService {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(8),
         build: (pw.Context context) {
-          return _buildPDFPage(
+          return buildPDFPage(
             pageItems: allItems,
             allItems: allItems,
             remainingAmount: remainingAmount,
@@ -252,7 +267,7 @@ class ReceiptSharingService {
   }
   
   /// Build PDF page content
-  static pw.Widget _buildPDFPage({
+  static pw.Widget buildPDFPage({
     required List<Map<String, dynamic>> pageItems,
     required List<Map<String, dynamic>> allItems,
     required double remainingAmount,
