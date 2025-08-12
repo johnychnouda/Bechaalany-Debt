@@ -907,26 +907,26 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ),
               ),
             
-            // SMS option (always show if phone is available)
+            // Save to iPhone option (always show if phone is available)
             if (hasPhone)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(context);
-                  _shareReceiptViaSMS();
+                  _saveReceiptToIPhone();
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      CupertinoIcons.text_bubble,
-                      color: Colors.orange,
+                      CupertinoIcons.arrow_down_circle,
+                      color: AppColors.primary,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Send via SMS',
+                      'Save to iPhone',
                       style: TextStyle(
-                        color: Colors.orange,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1100,9 +1100,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     }
   }
   
-  Future<void> _shareReceiptViaSMS() async {
+  Future<void> _saveReceiptToIPhone() async {
     try {
-      final success = await ReceiptSharingService.shareReceiptViaSMS(
+      // Generate PDF receipt
+      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
         widget.customer,
         widget.customerDebts,
         widget.partialPayments,
@@ -1111,24 +1112,27 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         widget.specificDebtId,
       );
       
-      if (success) {
+      if (pdfFile != null) {
+        // Use the existing share functionality to save to iPhone
+        await Share.shareXFiles([XFile(pdfFile.path)]);
+        
         final notificationService = NotificationService();
         await notificationService.showSuccessNotification(
-          title: 'SMS App Opened',
-          body: 'Your SMS app has been opened. The receipt message has been prepared.',
+          title: 'Receipt Saved',
+          body: 'Receipt has been saved to your iPhone. You can now share it via any app.',
         );
       } else {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
-          title: 'SMS Error',
-          body: 'Could not open SMS app. Please check if you have an SMS app installed.',
+          title: 'Save Error',
+          body: 'Failed to generate receipt for saving.',
         );
       }
     } catch (e) {
       final notificationService = NotificationService();
       await notificationService.showErrorNotification(
-        title: 'SMS Error',
-        body: 'Failed to open SMS app: $e',
+        title: 'Save Error',
+        body: 'Failed to save receipt: $e',
       );
     }
   }

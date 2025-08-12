@@ -25,7 +25,7 @@ class ReceiptSharingService {
   ) async {
     try {
       // Generate PDF receipt
-      final pdfFile = await _generateReceiptPDF(
+      final pdfFile = await generateReceiptPDF(
         customer, 
         customerDebts, 
         partialPayments, 
@@ -73,7 +73,7 @@ class ReceiptSharingService {
   ) async {
     try {
       // Generate PDF receipt
-      final pdfFile = await _generateReceiptPDF(
+      final pdfFile = await generateReceiptPDF(
         customer, 
         customerDebts, 
         partialPayments, 
@@ -140,7 +140,7 @@ class ReceiptSharingService {
   }
   
   /// Generate PDF receipt for sharing
-  static Future<File?> _generateReceiptPDF(
+  static Future<File?> generateReceiptPDF(
     Customer customer,
     List<Debt> customerDebts,
     List<PartialPayment> partialPayments,
