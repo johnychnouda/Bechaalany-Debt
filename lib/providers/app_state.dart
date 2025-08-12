@@ -161,7 +161,7 @@ class AppState extends ChangeNotifier {
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue from the amount actually paid, respecting partial payments
+    // Calculate revenue from debts, with proper logic for partial vs full payments
     for (final debt in _debts) {
       // Only calculate revenue for debts that have been paid (fully or partially)
       if (debt.paidAmount > 0) {
@@ -179,11 +179,17 @@ class AppState extends ChangeNotifier {
               // Calculate profit ratio: (selling price - cost price) / selling price
               final profitRatio = (sellingPrice - costPrice) / sellingPrice;
               
-              // Calculate revenue from the AMOUNT ACTUALLY PAID, not the debt amount
-              // This respects partial payments and shows actual profit earned
-              final amountPaid = debt.paidAmount;
-              final profitFromAmountPaid = amountPaid * profitRatio;
-              totalRevenue += profitFromAmountPaid;
+              // If debt is fully paid, calculate revenue from the full debt amount
+              // If debt is partially paid, calculate revenue from the amount paid
+              if (debt.isFullyPaid) {
+                // Debt is fully paid - calculate profit from the full sale
+                final profitFromFullDebt = debt.amount * profitRatio;
+                totalRevenue += profitFromFullDebt;
+              } else {
+                // Debt is partially paid - calculate profit from amount paid
+                final profitFromPartialPayment = debt.paidAmount * profitRatio;
+                totalRevenue += profitFromPartialPayment;
+              }
             }
           } catch (e) {
             // If subcategory not found, use inferred values
@@ -191,8 +197,14 @@ class AppState extends ChangeNotifier {
               final sellingPrice = 15.0;
               final costPrice = 1.0;
               final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-              final profitFromAmountPaid = debt.paidAmount * profitRatio;
-              totalRevenue += profitFromAmountPaid;
+              
+              if (debt.isFullyPaid) {
+                final profitFromFullDebt = debt.amount * profitRatio;
+                totalRevenue += profitFromFullDebt;
+              } else {
+                final profitFromPartialPayment = debt.paidAmount * profitRatio;
+                totalRevenue += profitFromPartialPayment;
+              }
             }
           }
         } else {
@@ -201,8 +213,14 @@ class AppState extends ChangeNotifier {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromAmountPaid = debt.paidAmount * profitRatio;
-            totalRevenue += profitFromAmountPaid;
+            
+            if (debt.isFullyPaid) {
+              final profitFromFullDebt = debt.amount * profitRatio;
+              totalRevenue += profitFromFullDebt;
+            } else {
+              final profitFromPartialPayment = debt.paidAmount * profitRatio;
+              totalRevenue += profitFromPartialPayment;
+            }
           }
         }
       }
