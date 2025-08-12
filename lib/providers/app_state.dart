@@ -157,6 +157,121 @@ class AppState extends ChangeNotifier {
     return totalFromActivities + totalFromPartialPayments;
   }
   
+  // Get total historical revenue across all customers (including deleted debts)
+  double get totalHistoricalRevenue {
+    double totalRevenue = 0.0;
+    
+    // Calculate revenue from all payment activities
+    for (final activity in _activities.where((a) => a.type == ActivityType.payment)) {
+      if (activity.paymentAmount != null && activity.paymentAmount! > 0) {
+        // Find the debt to get product information
+        final debt = _debts.firstWhere(
+          (d) => d.id == activity.debtId,
+          orElse: () => Debt(
+            id: '',
+            customerId: '',
+            customerName: '',
+            description: '',
+            amount: 0,
+            type: DebtType.credit,
+            status: DebtStatus.pending,
+            createdAt: DateTime.now(),
+          ),
+        );
+        
+        // Calculate revenue based on product information
+        if (debt.subcategoryName != null) {
+          try {
+            final subcategory = _categories
+                .expand((category) => category.subcategories)
+                .firstWhere((sub) => sub.name == debt.subcategoryName);
+            
+            final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
+            final costPrice = subcategory.costPrice;
+            
+            if (sellingPrice != null && costPrice != null) {
+              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+              final profitFromPayment = activity.paymentAmount! * profitRatio;
+              totalRevenue += profitFromPayment;
+            }
+          } catch (e) {
+            // If subcategory not found, use inferred values
+            if (debt.description.toLowerCase().contains('alfa')) {
+              final sellingPrice = 15.0;
+              final costPrice = 1.0;
+              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+              final profitFromPayment = activity.paymentAmount! * profitRatio;
+              totalRevenue += profitFromPayment;
+            }
+          }
+        } else {
+          // No subcategory, use inferred values
+          if (debt.description.toLowerCase().contains('alfa')) {
+            final sellingPrice = 15.0;
+            final costPrice = 1.0;
+            final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+            final profitFromPayment = activity.paymentAmount! * profitRatio;
+            totalRevenue += profitFromPayment;
+          }
+        }
+      }
+    }
+    
+    // Calculate revenue from all partial payments
+    for (final partialPayment in _partialPayments) {
+      final debt = _debts.firstWhere(
+        (d) => d.id == partialPayment.debtId,
+        orElse: () => Debt(
+          id: '',
+          customerId: '',
+          customerName: '',
+          description: '',
+          amount: 0,
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      if (debt.subcategoryName != null) {
+        try {
+          final subcategory = _categories
+              .expand((category) => category.subcategories)
+              .firstWhere((sub) => sub.name == debt.subcategoryName);
+          
+          final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
+          final costPrice = subcategory.costPrice;
+          
+          if (sellingPrice != null && costPrice != null) {
+            final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+            final profitFromPayment = partialPayment.amount * profitRatio;
+            totalRevenue += profitFromPayment;
+          }
+        } catch (e) {
+          // If subcategory not found, use inferred values
+          if (debt.description.toLowerCase().contains('alfa')) {
+            final sellingPrice = 15.0;
+            final costPrice = 1.0;
+            final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+            final profitFromPayment = partialPayment.amount * profitRatio;
+            totalRevenue += profitFromPayment;
+          }
+        }
+      } else {
+        // No subcategory, use inferred values
+        if (debt.description.toLowerCase().contains('alfa')) {
+          final sellingPrice = 15.0;
+          final costPrice = 1.0;
+          final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+          final profitFromPayment = partialPayment.amount * profitRatio;
+          totalRevenue += profitFromPayment;
+        }
+      }
+    }
+    
+    return totalRevenue;
+  }
+  
   // Initialize the app state
   Future<void> initialize() async {
     _isLoading = true;
