@@ -161,66 +161,28 @@ class AppState extends ChangeNotifier {
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue from all payment activities
+    // Group payments by debt to calculate revenue correctly
+    final Map<String, double> debtTotalPayments = {};
+    
+    // Collect all payments for each debt
     for (final activity in _activities.where((a) => a.type == ActivityType.payment)) {
-      if (activity.paymentAmount != null && activity.paymentAmount! > 0) {
-        // Find the debt to get product information
-        final debt = _debts.firstWhere(
-          (d) => d.id == activity.debtId,
-          orElse: () => Debt(
-            id: '',
-            customerId: '',
-            customerName: '',
-            description: '',
-            amount: 0,
-            type: DebtType.credit,
-            status: DebtStatus.pending,
-            createdAt: DateTime.now(),
-          ),
-        );
-        
-        // Calculate revenue based on product information
-        if (debt.subcategoryName != null) {
-          try {
-            final subcategory = _categories
-                .expand((category) => category.subcategories)
-                .firstWhere((sub) => sub.name == debt.subcategoryName);
-            
-            final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
-            final costPrice = subcategory.costPrice;
-            
-            if (sellingPrice != null && costPrice != null) {
-              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-              final profitFromPayment = activity.paymentAmount! * profitRatio;
-              totalRevenue += profitFromPayment;
-            }
-          } catch (e) {
-            // If subcategory not found, use inferred values
-            if (debt.description.toLowerCase().contains('alfa')) {
-              final sellingPrice = 15.0;
-              final costPrice = 1.0;
-              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-              final profitFromPayment = activity.paymentAmount! * profitRatio;
-              totalRevenue += profitFromPayment;
-            }
-          }
-        } else {
-          // No subcategory, use inferred values
-          if (debt.description.toLowerCase().contains('alfa')) {
-            final sellingPrice = 15.0;
-            final costPrice = 1.0;
-            final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromPayment = activity.paymentAmount! * profitRatio;
-            totalRevenue += profitFromPayment;
-          }
-        }
+      if (activity.paymentAmount != null && activity.paymentAmount! > 0 && activity.debtId != null) {
+        debtTotalPayments[activity.debtId!] = (debtTotalPayments[activity.debtId!] ?? 0) + activity.paymentAmount!;
       }
     }
     
-    // Calculate revenue from all partial payments
     for (final partialPayment in _partialPayments) {
+      debtTotalPayments[partialPayment.debtId] = (debtTotalPayments[partialPayment.debtId] ?? 0) + partialPayment.amount;
+    }
+    
+    // Calculate revenue from total payments per debt (not individual payments)
+    for (final entry in debtTotalPayments.entries) {
+      final debtId = entry.key;
+      final totalPaidForDebt = entry.value;
+      
+      // Find the debt to get product information
       final debt = _debts.firstWhere(
-        (d) => d.id == partialPayment.debtId,
+        (d) => d.id == debtId,
         orElse: () => Debt(
           id: '',
           customerId: '',
@@ -233,6 +195,7 @@ class AppState extends ChangeNotifier {
         ),
       );
       
+      // Calculate revenue based on product information
       if (debt.subcategoryName != null) {
         try {
           final subcategory = _categories
@@ -243,9 +206,12 @@ class AppState extends ChangeNotifier {
           final costPrice = subcategory.costPrice;
           
           if (sellingPrice != null && costPrice != null) {
+            // Calculate profit ratio: (selling price - cost price) / selling price
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromPayment = partialPayment.amount * profitRatio;
-            totalRevenue += profitFromPayment;
+            
+            // Calculate revenue from TOTAL amount paid for this debt
+            final profitFromTotalPayment = totalPaidForDebt * profitRatio;
+            totalRevenue += profitFromTotalPayment;
           }
         } catch (e) {
           // If subcategory not found, use inferred values
@@ -253,8 +219,8 @@ class AppState extends ChangeNotifier {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromPayment = partialPayment.amount * profitRatio;
-            totalRevenue += profitFromPayment;
+            final profitFromTotalPayment = totalPaidForDebt * profitRatio;
+            totalRevenue += profitFromTotalPayment;
           }
         }
       } else {
@@ -263,8 +229,8 @@ class AppState extends ChangeNotifier {
           final sellingPrice = 15.0;
           final costPrice = 1.0;
           final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-          final profitFromPayment = partialPayment.amount * profitRatio;
-          totalRevenue += profitFromPayment;
+          final profitFromTotalPayment = totalPaidForDebt * profitRatio;
+          totalRevenue += profitFromTotalPayment;
         }
       }
     }
