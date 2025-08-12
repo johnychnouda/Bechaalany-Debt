@@ -780,201 +780,227 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
   
   void _showContactSharingOptions() {
-    // Debug: Print customer contact information
-    print('Customer: ${widget.customer.name}');
-    print('Phone: "${widget.customer.phone}" (length: ${widget.customer.phone.length})');
-    print('Email: "${widget.customer.email}" (isNull: ${widget.customer.email == null})');
-    
     // Check available contact methods
     final hasPhone = widget.customer.phone.isNotEmpty;
     final hasEmail = widget.customer.email != null && widget.customer.email!.isNotEmpty;
     
-    print('Has phone: $hasPhone, Has email: $hasEmail');
-    
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
-        return CupertinoActionSheet(
-          title: Text(
-            'Send Receipt to Customer',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.dynamicTextPrimary(context),
+        return Container(
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemBackground.resolveFrom(context),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(16),
             ),
           ),
-          message: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose how to send the receipt to ${widget.customer.name}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.dynamicTextSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Show available contact methods
-              Text(
-                'Available contact methods:',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.dynamicTextSecondary(context),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (hasPhone) ...[
-                Text(
-                  '• Phone: ${widget.customer.phone}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.dynamicTextSecondary(context),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 8, bottom: 16),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemGrey4.resolveFrom(context),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ],
-              if (hasEmail) ...[
-                Text(
-                  '• Email: ${widget.customer.email}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.dynamicTextSecondary(context),
+                
+                // Title
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'Send Receipt',
+                    style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle.copyWith(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ],
-              if (!hasPhone && !hasEmail) ...[
-                Text(
-                  '• No contact methods available',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.dynamicTextSecondary(context),
+                
+                // Subtitle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Text(
+                    'Choose how to send the receipt to ${widget.customer.name}',
+                    style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                      fontSize: 16,
+                      color: CupertinoColors.systemGrey.resolveFrom(context),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
+                
+                const SizedBox(height: 24),
+                
+                // Action buttons
+                if (hasPhone) ...[
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.chat_bubble_2,
+                    title: 'Send via WhatsApp',
+                    subtitle: 'Share directly to customer',
+                    color: CupertinoColors.systemGreen,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _shareReceiptViaWhatsApp();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                if (hasEmail) ...[
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.mail,
+                    title: 'Send via Email',
+                    subtitle: 'Email with PDF attachment',
+                    color: CupertinoColors.systemBlue,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _shareReceiptViaEmail();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                if (hasPhone) ...[
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.arrow_down_circle,
+                    title: 'Save to iPhone',
+                    subtitle: 'Download to Files or Photos',
+                    color: CupertinoColors.systemBlue,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _saveReceiptToIPhone();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                if (!hasPhone && !hasEmail) ...[
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.person_add,
+                    title: 'Add Contact Information',
+                    subtitle: 'Add phone or email to share receipts',
+                    color: CupertinoColors.systemBlue,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showAddContactInfoDialog(context);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                
+                const SizedBox(height: 16),
+                
+                // Cancel button
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      color: CupertinoColors.systemGrey6.resolveFrom(context),
+                      borderRadius: BorderRadius.circular(12),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: CupertinoColors.systemBlue.resolveFrom(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
               ],
-            ],
-          ),
-          actions: [
-            // WhatsApp option
-            if (hasPhone)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _shareReceiptViaWhatsApp();
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.chat_bubble_2,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Send via WhatsApp',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            
-            // Email option
-            if (hasEmail)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _shareReceiptViaEmail();
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.mail,
-                      color: Colors.blue,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Send via Email',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            
-            // Save to iPhone option (always show if phone is available)
-            if (hasPhone)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _saveReceiptToIPhone();
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.arrow_down_circle,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Save to iPhone',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            
-            // Add contact information option if no methods available
-            if (!hasPhone && !hasEmail)
-              CupertinoActionSheetAction(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _showAddContactInfoDialog(context);
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      CupertinoIcons.person_add,
-                      color: AppColors.dynamicPrimary(context),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Add Contact Information',
-                      style: TextStyle(
-                        color: AppColors.dynamicTextPrimary(context),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-          cancelButton: CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context),
-            },
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: CupertinoColors.destructiveRed,
-                fontWeight: FontWeight.w600,
-              ),
             ),
           ),
         );
       },
+    );
+  }
+  
+  Widget _buildActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemGrey6.resolveFrom(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: CupertinoColors.systemGrey5.resolveFrom(context),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.label.resolveFrom(context),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                                         Text(
+                       subtitle,
+                       style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                         fontSize: 14,
+                         color: CupertinoColors.systemGrey.resolveFrom(context),
+                       ),
+                     ),
+                  ],
+                ),
+              ),
+              Icon(
+                CupertinoIcons.chevron_right,
+                color: CupertinoColors.systemGrey3.resolveFrom(context),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
   
