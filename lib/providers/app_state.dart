@@ -161,7 +161,8 @@ class AppState extends ChangeNotifier {
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue from debts, with proper logic for partial vs full payments
+    // Calculate revenue using proportional profit recognition
+    // Formula: Recognized Profit = Total Profit × (Amount Paid ÷ Selling Price)
     for (final debt in _debts) {
       // Only calculate revenue for debts that have been paid (fully or partially)
       if (debt.paidAmount > 0) {
@@ -176,35 +177,21 @@ class AppState extends ChangeNotifier {
             final costPrice = subcategory.costPrice;
             
             if (sellingPrice != null && costPrice != null) {
-              // Calculate profit ratio: (selling price - cost price) / selling price
-              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
+              // Calculate total profit for this debt
+              final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
               
-              // If debt is fully paid, calculate revenue from the full debt amount
-              // If debt is partially paid, calculate revenue from the amount paid
-              if (debt.isFullyPaid) {
-                // Debt is fully paid - calculate profit from the full sale
-                final profitFromFullDebt = debt.amount * profitRatio;
-                totalRevenue += profitFromFullDebt;
-              } else {
-                // Debt is partially paid - calculate profit from amount paid
-                final profitFromPartialPayment = debt.paidAmount * profitRatio;
-                totalRevenue += profitFromPartialPayment;
-              }
+              // Calculate proportional profit based on amount paid
+              final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
+              totalRevenue += proportionalProfit;
             }
           } catch (e) {
             // If subcategory not found, use inferred values
             if (debt.description.toLowerCase().contains('alfa')) {
               final sellingPrice = 15.0;
               final costPrice = 1.0;
-              final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-              
-              if (debt.isFullyPaid) {
-                final profitFromFullDebt = debt.amount * profitRatio;
-                totalRevenue += profitFromFullDebt;
-              } else {
-                final profitFromPartialPayment = debt.paidAmount * profitRatio;
-                totalRevenue += profitFromPartialPayment;
-              }
+              final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
+              final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
+              totalRevenue += proportionalProfit;
             }
           }
         } else {
@@ -212,15 +199,9 @@ class AppState extends ChangeNotifier {
           if (debt.description.toLowerCase().contains('alfa')) {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
-            final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            
-            if (debt.isFullyPaid) {
-              final profitFromFullDebt = debt.amount * profitRatio;
-              totalRevenue += profitFromFullDebt;
-            } else {
-              final profitFromPartialPayment = debt.paidAmount * profitRatio;
-              totalRevenue += profitFromPartialPayment;
-            }
+            final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
+            final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
+            totalRevenue += proportionalProfit;
           }
         }
       }
