@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
@@ -9,6 +10,7 @@ import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
+import '../services/receipt_sharing_service.dart';
 import 'add_debt_screen.dart';
 import 'add_customer_screen.dart';
 import '../constants/app_colors.dart';
@@ -60,7 +62,231 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   void _loadCustomerDebts() {
     // Customer debts are loaded in build method
   }
-
+  
+  void _showReceiptSharingOptions(BuildContext context, AppState appState) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoActionSheet(
+          title: Text(
+            'Send Receipt to Customer',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          message: Text(
+            'Choose how to send the receipt to ${_currentCustomer.name}',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+          ),
+          actions: [
+            // WhatsApp option
+            if (_currentCustomer.phone.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaWhatsApp(appState);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.chat_bubble_2,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via WhatsApp',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Email option
+            if (_currentCustomer.email != null && _currentCustomer.email!.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaEmail(appState);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.mail,
+                      color: Colors.blue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via Email',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // SMS option (fallback for customers without email)
+            if (_currentCustomer.phone.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaSMS(appState);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.text_bubble,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via SMS',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: CupertinoColors.destructiveRed,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    }
+  
+  Future<void> _shareReceiptViaWhatsApp(AppState appState) async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
+        _currentCustomer,
+        appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        appState.partialPayments.where((p) => 
+          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
+        ).toList(),
+        appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        null, // No specific date filter
+        null, // No specific debt filter
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'WhatsApp Opened',
+          body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'WhatsApp Error',
+          body: 'Could not open WhatsApp. Please check if it\'s installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'WhatsApp Error',
+        body: 'Failed to open WhatsApp: $e',
+      );
+    }
+  }
+  
+  Future<void> _shareReceiptViaEmail(AppState appState) async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaEmail(
+        _currentCustomer,
+        appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        appState.partialPayments.where((p) => 
+          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
+        ).toList(),
+        appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        null, // No specific date filter
+        null, // No specific debt filter
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Email App Opened',
+          body: 'Your email app has been opened. Please attach the PDF receipt manually.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Email Error',
+          body: 'Could not open email app. Please check if you have an email app installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Email Error',
+        body: 'Failed to open email app: $e',
+      );
+    }
+  }
+  
+  Future<void> _shareReceiptViaSMS(AppState appState) async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaSMS(
+        _currentCustomer,
+        appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        appState.partialPayments.where((p) => 
+          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
+        ).toList(),
+        appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        null, // No specific date filter
+        null, // No specific debt filter
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'SMS App Opened',
+          body: 'Your SMS app has been opened. The receipt message has been prepared.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'SMS Error',
+          body: 'Could not open SMS app. Please check if you have an SMS app installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'SMS Error',
+        body: 'Failed to open SMS app: $e',
+      );
+    }
+  }
+  
   Future<void> _markAsPaid(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
     
@@ -231,6 +457,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             backgroundColor: AppColors.dynamicSurface(context),
             elevation: 0,
             actions: [
+              // Receipt sharing button
+              IconButton(
+                onPressed: () => _showReceiptSharingOptions(context, appState),
+                icon: Icon(
+                  Icons.receipt_long,
+                  color: AppColors.dynamicPrimary(context),
+                ),
+                tooltip: 'Share Receipt',
+              ),
+              // Edit customer button
               IconButton(
                 onPressed: () async {
                   final result = await Navigator.push(

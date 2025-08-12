@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:cross_file/cross_file.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,6 +16,7 @@ import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
 import '../utils/debt_description_utils.dart';
+import '../services/receipt_sharing_service.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -113,6 +113,16 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           color: AppColors.dynamicTextPrimary(context),
         ),
         actions: [
+          // Contact sharing button
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => _showContactSharingOptions(),
+            child: Icon(
+              CupertinoIcons.person_crop_circle_badge_plus,
+              color: AppColors.primary,
+            ),
+          ),
+          // Regular share button
           CupertinoButton(
             padding: EdgeInsets.zero,
             onPressed: () => _shareReceipt(),
@@ -767,7 +777,225 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       );
     }
   }
-
+  
+  void _showContactSharingOptions() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoActionSheet(
+          title: Text(
+            'Send Receipt to Customer',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          message: Text(
+            'Choose how to send the receipt to ${widget.customer.name}',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+          ),
+          actions: [
+            // WhatsApp option
+            if (widget.customer.phone.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaWhatsApp();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.chat_bubble_2_fill,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via WhatsApp',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Email option
+            if (widget.customer.email != null && widget.customer.email!.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaEmail();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.mail,
+                      color: Colors.blue,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via Email',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // SMS option (fallback for customers without email)
+            if (widget.customer.phone.isNotEmpty)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _shareReceiptViaSMS();
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.text_bubble,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Send via SMS',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: CupertinoColors.destructiveRed,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    }
+  
+  Future<void> _shareReceiptViaWhatsApp() async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
+        widget.customer,
+        widget.customerDebts,
+        widget.partialPayments,
+        widget.activities,
+        widget.specificDate,
+        widget.specificDebtId,
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'WhatsApp Opened',
+          body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'WhatsApp Error',
+          body: 'Could not open WhatsApp. Please check if it\'s installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'WhatsApp Error',
+        body: 'Failed to open WhatsApp: $e',
+      );
+    }
+  }
+  
+  Future<void> _shareReceiptViaEmail() async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaEmail(
+        widget.customer,
+        widget.customerDebts,
+        widget.partialPayments,
+        widget.activities,
+        widget.specificDate,
+        widget.specificDebtId,
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Email App Opened',
+          body: 'Your email app has been opened. Please attach the PDF receipt manually.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Email Error',
+          body: 'Could not open email app. Please check if you have an email app installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Email Error',
+        body: 'Failed to open email app: $e',
+      );
+    }
+  }
+  
+  Future<void> _shareReceiptViaSMS() async {
+    try {
+      final success = await ReceiptSharingService.shareReceiptViaSMS(
+        widget.customer,
+        widget.customerDebts,
+        widget.partialPayments,
+        widget.activities,
+        widget.specificDate,
+        widget.specificDebtId,
+      );
+      
+      if (success) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'SMS App Opened',
+          body: 'Your SMS app has been opened. The receipt message has been prepared.',
+        );
+      } else {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'SMS Error',
+          body: 'Could not open SMS app. Please check if you have an SMS app installed.',
+        );
+      }
+    } catch (e) {
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'SMS Error',
+        body: 'Failed to open SMS app: $e',
+      );
+    }
+  }
+  
   Future<void> _exportAsPDF() async {
     try {
       final pdf = PdfFontUtils.createDocumentWithFonts();
