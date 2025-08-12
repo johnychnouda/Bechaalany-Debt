@@ -100,13 +100,38 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     );
   }
 
+  Future<bool> _confirmClearPaidDebt(BuildContext context, Debt debt) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear Paid Debt'),
+          content: Text(
+            'Are you sure you want to clear this paid debt?\n\n'
+            'Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}\n'
+            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}\n\n'
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dynamicPrimary(context),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Clear Debt'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
   Future<void> _deleteDebt(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
-    
-    // Don't allow deletion of fully paid debts
-    if (debt.isFullyPaid) {
-      return;
-    }
     
     return showDialog<void>(
       context: context,
@@ -424,10 +449,38 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         // Debts List
                         ...customerAllDebts.map((debt) => Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _DebtCard(
-                            debt: debt,
-                            onMarkAsPaid: () => _markAsPaid(debt),
-                            onDelete: () => _deleteDebt(debt),
+                          child: Dismissible(
+                            key: Key(debt.id),
+                            direction: debt.isFullyPaid ? DismissDirection.endToStart : DismissDirection.none,
+                            confirmDismiss: (direction) async {
+                              if (debt.isFullyPaid) {
+                                return await _confirmClearPaidDebt(context, debt);
+                              }
+                              return false;
+                            },
+                            onDismissed: (direction) {
+                              if (debt.isFullyPaid) {
+                                _deleteDebt(debt);
+                              }
+                            },
+                            background: debt.isFullyPaid ? Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              decoration: BoxDecoration(
+                                color: AppColors.dynamicPrimary(context),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.delete_sweep,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ) : null,
+                            child: _DebtCard(
+                              debt: debt,
+                              onMarkAsPaid: () => _markAsPaid(debt),
+                              onDelete: () => _deleteDebt(debt),
+                            ),
                           ),
                         )),
                         
@@ -729,28 +782,19 @@ class _DebtCard extends StatelessWidget {
               ),
             ],
             
-            // Show clear button for fully paid debts
+            // Show hint for paid debts that can be cleared
             if (debt.isFullyPaid) ...[
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.dynamicPrimary(context),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'Swipe left to clear this paid debt',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                    fontStyle: FontStyle.italic,
                   ),
-                  onPressed: () => _clearPaidDebt(context),
-                  child: const Text(
-                    'Clear Paid Debt',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],
@@ -873,38 +917,7 @@ class _DebtCard extends StatelessWidget {
     appState.applyPartialPayment(debt.id, paymentAmount);
   }
   
-  void _clearPaidDebt(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Clear Paid Debt'),
-          content: Text(
-            'Are you sure you want to clear this paid debt?\n\n'
-            'Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}\n'
-            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}\n\n'
-            'This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.dynamicError(context),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                onDelete(); // Use the existing delete callback to remove the debt
-              },
-              child: const Text('Clear Debt'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
 }
 
 class _PaymentOption extends StatelessWidget {
