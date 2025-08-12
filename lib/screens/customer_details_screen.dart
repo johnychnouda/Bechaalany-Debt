@@ -681,6 +681,7 @@ class _DebtCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Show payment buttons for unpaid/partially paid debts
             if (!debt.isFullyPaid) ...[
               const SizedBox(height: 12),
               Row(
@@ -725,6 +726,32 @@ class _DebtCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+            
+            // Show clear button for fully paid debts
+            if (debt.isFullyPaid) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.dynamicPrimary(context),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () => _clearPaidDebt(context),
+                  child: const Text(
+                    'Clear Paid Debt',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ],
           ],
@@ -844,6 +871,39 @@ class _DebtCard extends StatelessWidget {
     // Use the new partial payment method
     final appState = Provider.of<AppState>(context, listen: false);
     appState.applyPartialPayment(debt.id, paymentAmount);
+  }
+  
+  void _clearPaidDebt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Clear Paid Debt'),
+          content: Text(
+            'Are you sure you want to clear this paid debt?\n\n'
+            'Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}\n'
+            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}\n\n'
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dynamicError(context),
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                onDelete(); // Use the existing delete callback to remove the debt
+              },
+              child: const Text('Clear Debt'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
