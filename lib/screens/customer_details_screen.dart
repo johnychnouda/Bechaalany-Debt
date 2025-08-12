@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/activity.dart';
+
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
@@ -178,6 +178,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddDebtScreen(customer: _currentCustomer),
+                ),
+              );
+              // Refresh the debt list if a debt was added
+              if (result == true) {
+                _loadCustomerDebts();
+              }
+            },
+            backgroundColor: AppColors.dynamicPrimary(context),
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.add),
+          ),
           appBar: AppBar(
             title: Text(
               _currentCustomer.name,
@@ -458,41 +475,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   // Debts Section Header
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'DEBTS',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.dynamicTextPrimary(context),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddDebtScreen(customer: _currentCustomer),
-                              ),
-                            );
-                            
-                            // Refresh the debt list if a debt was added
-                            if (result == true) {
-                              _loadCustomerDebts();
-                            }
-                          },
-                          child: Text(
-                            'Add Debt',
-                            style: TextStyle(
-                              color: AppColors.dynamicPrimary(context),
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'DEBTS',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.dynamicTextPrimary(context),
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                   
