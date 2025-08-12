@@ -343,7 +343,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
       MaterialPageRoute(
         builder: (context) => CustomerDetailsScreen(
           customer: customer,
-          showDebtsSection: false,
+          showDebtsSection: true,
         ),
       ),
     );
