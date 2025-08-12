@@ -161,72 +161,107 @@ class AppState extends ChangeNotifier {
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue using proportional profit recognition
-    // Formula: Recognized Profit = Total Profit × (Amount Paid ÷ Selling Price)
+    // Calculate revenue from payment activities and partial payments directly
+    // This avoids double-counting issues from debt state calculations
     print('=== REVENUE CALCULATION DEBUG ===');
-    print('Total debts: ${_debts.length}');
-    print('Debts with paidAmount > 0: ${_debts.where((d) => d.paidAmount > 0).length}');
+    print('Total payment activities: ${_activities.where((a) => a.type == ActivityType.payment).length}');
+    print('Total partial payments: ${_partialPayments.length}');
     
-    for (final debt in _debts) {
-      // Only calculate revenue for debts that have been paid (fully or partially)
-      if (debt.paidAmount > 0) {
-        print('\n--- Processing Debt: ${debt.id} ---');
-        print('Debt amount: ${debt.amount}');
-        print('Paid amount: ${debt.paidAmount}');
-        print('Subcategory name: ${debt.subcategoryName}');
-        print('Description: ${debt.description}');
-        
-        // Calculate revenue based on product information
-        if (debt.subcategoryName != null) {
-          try {
-            final subcategory = _categories
-                .expand((category) => category.subcategories)
-                .firstWhere((sub) => sub.name == debt.subcategoryName);
+    // Group all payments by debt ID to calculate total paid per debt
+    final Map<String, double> debtTotalPayments = {};
+    
+    // Collect payments from activities
+    for (final activity in _activities.where((a) => a.type == ActivityType.payment)) {
+      if (activity.paymentAmount != null && activity.paymentAmount! > 0 && activity.debtId != null) {
+        debtTotalPayments[activity.debtId!] = (debtTotalPayments[activity.debtId!] ?? 0) + activity.paymentAmount!;
+        print('Activity payment: ${activity.debtId} -> ${activity.paymentAmount}');
+      }
+    }
+    
+    // Collect payments from partial payments
+    for (final partialPayment in _partialPayments) {
+      debtTotalPayments[partialPayment.debtId] = (debtTotalPayments[partialPayment.debtId] ?? 0) + partialPayment.amount;
+      print('Partial payment: ${partialPayment.debtId} -> ${partialPayment.amount}');
+    }
+    
+    print('Debt total payments: $debtTotalPayments');
+    
+    // Calculate revenue for each debt based on total payments
+    for (final entry in debtTotalPayments.entries) {
+      final debtId = entry.key;
+      final totalPaidForDebt = entry.value;
+      
+      // Find the debt to get product information
+      final debt = _debts.firstWhere(
+        (d) => d.id == debtId,
+        orElse: () => Debt(
+          id: '',
+          customerId: '',
+          customerName: '',
+          description: '',
+          amount: 0,
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+        ),
+      );
+      
+      print('\n--- Processing Debt: $debtId ---');
+      print('Debt amount: ${debt.amount}');
+      print('Total paid for this debt: $totalPaidForDebt');
+      print('Subcategory name: ${debt.subcategoryName}');
+      print('Description: ${debt.description}');
+      
+      // Calculate revenue based on product information
+      if (debt.subcategoryName != null) {
+        try {
+          final subcategory = _categories
+              .expand((category) => category.subcategories)
+              .firstWhere((sub) => sub.name == debt.subcategoryName);
+          
+          final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
+          final costPrice = subcategory.costPrice;
+          
+          print('Subcategory found: ${subcategory.name}');
+          print('Selling price: $sellingPrice');
+          print('Cost price: $costPrice');
+          
+          if (sellingPrice != null && costPrice != null) {
+            // Calculate total profit for this debt
+            final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
+            print('Total profit: $totalProfit');
             
-            final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
-            final costPrice = subcategory.costPrice;
+            // Calculate proportional profit based on total amount paid
+            final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
+            print('Proportional profit: $proportionalProfit');
             
-            print('Subcategory found: ${subcategory.name}');
-            print('Selling price: $sellingPrice');
-            print('Cost price: $costPrice');
-            
-            if (sellingPrice != null && costPrice != null) {
-              // Calculate total profit for this debt
-              final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-              print('Total profit: $totalProfit');
-              
-              // Calculate proportional profit based on amount paid
-              final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
-              print('Proportional profit: $proportionalProfit');
-              
-              totalRevenue += proportionalProfit;
-              print('Running total revenue: $totalRevenue');
-            }
-          } catch (e) {
-            print('Subcategory not found, using inferred values');
-            // If subcategory not found, use inferred values
-            if (debt.description.toLowerCase().contains('alfa')) {
-              final sellingPrice = 15.0;
-              final costPrice = 1.0;
-              final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-              final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
-              totalRevenue += proportionalProfit;
-              print('Inferred Alfa - Total profit: $totalProfit, Proportional profit: $proportionalProfit');
-              print('Running total revenue: $totalRevenue');
-            }
+            totalRevenue += proportionalProfit;
+            print('Running total revenue: $totalRevenue');
           }
-        } else {
-          print('No subcategory, using inferred values');
-          // No subcategory, use inferred values
+        } catch (e) {
+          print('Subcategory not found, using inferred values');
+          // If subcategory not found, use inferred values
           if (debt.description.toLowerCase().contains('alfa')) {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
             final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-            final proportionalProfit = totalProfit * (debt.paidAmount / debt.amount);
+            final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
             totalRevenue += proportionalProfit;
             print('Inferred Alfa - Total profit: $totalProfit, Proportional profit: $proportionalProfit');
             print('Running total revenue: $totalRevenue');
           }
+        }
+      } else {
+        print('No subcategory, use inferred values');
+        // No subcategory, use inferred values
+        if (debt.description.toLowerCase().contains('alfa')) {
+          final sellingPrice = 15.0;
+          final costPrice = 1.0;
+          final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
+          final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
+          totalRevenue += proportionalProfit;
+          print('Inferred Alfa - Total profit: $totalProfit, Proportional profit: $proportionalProfit');
+          print('Running total revenue: $totalRevenue');
         }
       }
     }
