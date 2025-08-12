@@ -209,9 +209,11 @@ class AppState extends ChangeNotifier {
             // Calculate profit ratio: (selling price - cost price) / selling price
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
             
-            // Calculate revenue from TOTAL amount paid for this debt
-            final profitFromTotalPayment = totalPaidForDebt * profitRatio;
-            totalRevenue += profitFromTotalPayment;
+            // Calculate revenue from the DEBT AMOUNT, not total payments
+            // This ensures we get the profit from the actual sale, not from overpayments
+            final debtAmount = debt.amount;
+            final profitFromDebt = debtAmount * profitRatio;
+            totalRevenue += profitFromDebt;
           }
         } catch (e) {
           // If subcategory not found, use inferred values
@@ -219,8 +221,8 @@ class AppState extends ChangeNotifier {
             final sellingPrice = 15.0;
             final costPrice = 1.0;
             final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-            final profitFromTotalPayment = totalPaidForDebt * profitRatio;
-            totalRevenue += profitFromTotalPayment;
+            final profitFromDebt = debt.amount * profitRatio;
+            totalRevenue += profitFromDebt;
           }
         }
       } else {
@@ -229,8 +231,8 @@ class AppState extends ChangeNotifier {
           final sellingPrice = 15.0;
           final costPrice = 1.0;
           final profitRatio = (sellingPrice - costPrice) / sellingPrice;
-          final profitFromTotalPayment = totalPaidForDebt * profitRatio;
-          totalRevenue += profitFromTotalPayment;
+          final profitFromDebt = debt.amount * profitRatio;
+          totalRevenue += profitFromDebt;
         }
       }
     }
