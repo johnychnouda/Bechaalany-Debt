@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
@@ -187,13 +188,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Calculate total pending debt (current remaining amount)
         final totalPendingDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
-        // Calculate total paid (only from active debts)
-        double totalPaid = 0.0;
+        // Calculate total paid from payment activities (preserves payment history even when debts are cleared)
+        final customerPaymentActivities = appState.activities.where((a) => 
+          a.customerId == _currentCustomer.id && 
+          a.type == ActivityType.payment
+        ).toList();
         
-        // Add payments from active debts only
-        for (final debt in allCustomerDebts) {
-          totalPaid += debt.paidAmount;
-        }
+        double totalPaid = customerPaymentActivities.fold(0.0, (sum, activity) => 
+          sum + (activity.paymentAmount ?? 0)
+        );
         
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
