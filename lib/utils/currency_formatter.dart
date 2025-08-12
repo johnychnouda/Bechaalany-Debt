@@ -4,22 +4,24 @@ import '../providers/app_state.dart';
 import '../models/currency_settings.dart';
 
 class CurrencyFormatter {
-  static String formattedExchangeRate(CurrencySettings settings) {
-    return settings.exchangeRate.toStringAsFixed(2);
+  static String? formattedExchangeRate(CurrencySettings settings) {
+    if (settings.exchangeRate == null) return null;
+    return settings.exchangeRate!.toStringAsFixed(2);
   }
-  static String reverseFormattedExchangeRate(CurrencySettings settings) {
-    return (1 / settings.exchangeRate).toStringAsFixed(2);
+  static String? reverseFormattedExchangeRate(CurrencySettings settings) {
+    if (settings.exchangeRate == null) return null;
+    return (1 / settings.exchangeRate!).toStringAsFixed(2);
   }
 
   static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     
-    if (settings != null && storedCurrency != null) {
+    if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
       // If stored currency is LBP, convert to USD using exchange rate
       if (storedCurrency.toUpperCase() == 'LBP') {
         // Convert LBP to USD by dividing by exchange rate
-        final convertedAmount = amount / settings.exchangeRate;
+        final convertedAmount = amount / settings.exchangeRate!;
         return '${convertedAmount.toStringAsFixed(2)}\$';
       } else {
         // Already in USD, format as is
@@ -35,9 +37,11 @@ class CurrencyFormatter {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     
-    if (settings != null) {
+    if (settings != null && settings.exchangeRate != null) {
       final convertedAmount = settings.convertAmount(amount);
-      return '${_formatNumberWithCommas(convertedAmount, settings.targetCurrency)} ${settings.targetCurrency}';
+      if (convertedAmount != null) {
+        return '${_formatNumberWithCommas(convertedAmount, settings.targetCurrency)} ${settings.targetCurrency}';
+      }
     }
     
     // Fallback to USD
@@ -48,9 +52,11 @@ class CurrencyFormatter {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     
-    if (settings != null) {
+    if (settings != null && settings.exchangeRate != null) {
       final convertedAmount = settings.convertAmount(amount);
-      return _formatNumberWithCommas(convertedAmount, settings.targetCurrency);
+      if (convertedAmount != null) {
+        return _formatNumberWithCommas(convertedAmount, settings.targetCurrency);
+      }
     }
     
     // Fallback to USD
@@ -156,35 +162,35 @@ class CurrencyFormatter {
   }
 
   // Convert amount using current exchange rate
-  static double convertAmount(BuildContext context, double amount) {
+  static double? convertAmount(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
     return appState.convertAmount(amount);
   }
 
   // Convert amount back to base currency
-  static double convertBack(BuildContext context, double amount) {
+  static double? convertBack(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
     return appState.convertBack(amount);
   }
 
   // Get formatted exchange rate for display
-  static String getFormattedExchangeRate(BuildContext context) {
+  static String? getFormattedExchangeRate(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     if (settings != null) {
       return settings.formattedRate;
     }
-    return '1 USD = 1.00 USD';
+    return null;
   }
 
   // Get reverse formatted exchange rate for display
-  static String getReverseFormattedExchangeRate(BuildContext context) {
+  static String? getReverseFormattedExchangeRate(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     if (settings != null) {
       return settings.reverseFormattedRate;
     }
-    return '1 USD = 1.00 USD';
+    return null;
   }
 
 

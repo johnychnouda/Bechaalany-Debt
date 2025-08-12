@@ -1032,20 +1032,20 @@ class AppState extends ChangeNotifier {
   }
 
   // Currency conversion methods
-  double convertAmount(double amount) {
+  double? convertAmount(double amount) {
     final settings = _currencySettings;
     if (settings != null) {
       return settings.convertAmount(amount);
     }
-    return amount; // Return original amount if no settings
+    return null; // Return null if no settings
   }
 
-  double convertBack(double amount) {
+  double? convertBack(double amount) {
     final settings = _currencySettings;
     if (settings != null) {
       return settings.convertBack(amount);
     }
-    return amount; // Return original amount if no settings
+    return null; // Return null if no settings
   }
 
   // Cache management methods
@@ -1062,7 +1062,7 @@ class AppState extends ChangeNotifier {
 
   Future<String> exportData() async {
     try {
-              final filePath = await _exportImportService.exportToExcel(_customers, _debts, _productPurchases, _categories.whereType<ProductCategory>().toList());
+      final filePath = await _exportImportService.exportToPDF(_customers, _debts, _productPurchases, _categories.whereType<ProductCategory>().toList());
       return filePath;
     } catch (e) {
       // Error exporting data

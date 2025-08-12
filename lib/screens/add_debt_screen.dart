@@ -230,7 +230,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.attach_money),
               ),
-              keyboardType: TextInputType.number,
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter an amount';

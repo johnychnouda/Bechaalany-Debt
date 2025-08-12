@@ -8,7 +8,6 @@ import '../services/notification_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'export_data_screen.dart';
-import 'import_data_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -84,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 [
                   _buildNavigationRow(
                     'Export Data',
-                    'Export to PDF or Excel formats',
+                    'Export to PDF format',
                     CupertinoIcons.square_arrow_up,
                     () => Navigator.of(context).push(
                       CupertinoPageRoute(
@@ -93,18 +92,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   _buildNavigationRow(
-                    'Import Data',
-                    'Import from Excel spreadsheet',
-                    CupertinoIcons.square_arrow_down,
-                    () => Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (context) => const ImportDataScreen(),
-                      ),
-                    ),
-                  ),
-                  _buildNavigationRow(
-                    'Clear All Data',
-                    'Remove all customers, debts, products, and activities',
+                    'Clear Debts & Activities',
+                    'Remove all debts, activities, and all payment records',
                     CupertinoIcons.trash,
                     () => _showClearDataDialog(),
                   ),
@@ -373,17 +362,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final dataService = DataService();
     final stats = dataService.getDataStatistics();
     
-    final title = 'Clear All Data';
+    final title = 'Clear Debts & Activities';
     final message = 'This will permanently delete:\n'
-        '• ${stats['customers']} customers\n'
         '• ${stats['debts']} debts\n'
-        '• ${stats['categories']} product categories\n'
-        '• ${stats['product_purchases']} product purchases\n'
         '• ${stats['activities']} activities\n'
-        '• ${stats['partial_payments']} partial payments\n\n'
+        '• ${stats['partial_payments']} payment records\n\n'
         '⚠️ This action cannot be undone!\n'
-        '💾 Your backups will be preserved.';
-    final actionText = 'Clear All Data';
+        '💾 Customers & products will be preserved';
+    final actionText = 'Clear Debts & Activities';
     
     showCupertinoDialog(
       context: context,
@@ -426,7 +412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const CupertinoActivityIndicator(),
                 const SizedBox(height: 16),
                 Text(
-                  'Clearing all data...',
+                  'Clearing debts and activities...',
                   style: TextStyle(
                     color: AppColors.dynamicTextPrimary(context),
                     fontSize: 16,
@@ -438,16 +424,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
       
-      // Clear all data
-      await dataService.clearAllData();
+      // Clear only debts and activities
+      await dataService.clearDebts();
       
       // Close loading dialog
       Navigator.pop(context);
       
       // Show success notification
       await notificationService.showSuccessNotification(
-        title: 'Data Cleared Successfully',
-        body: 'The selected data has been removed. Your backups are preserved.',
+        title: 'Debts & Activities Cleared',
+        body: 'Debts and activities have been removed. Your customers and products are preserved.',
       );
       
       // Refresh the app state
@@ -460,7 +446,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Show error notification
       await notificationService.showErrorNotification(
         title: 'Error Clearing Data',
-        body: 'Failed to clear data: $e',
+        body: 'Failed to clear debts and activities: $e',
       );
     }
   }

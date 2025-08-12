@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
@@ -20,75 +19,58 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
   final NotificationService _notificationService = NotificationService();
   bool _isExporting = false;
   // String? _exportedFilePath; // Removed unused field
-  String _selectedFormat = 'Excel'; // Default format
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(
-          'Export Data',
-          style: AppTheme.getDynamicTitle3(context).copyWith(
-            color: AppColors.dynamicTextPrimary(context),
-          ),
-        ),
-        backgroundColor: AppColors.dynamicSurface(context),
-        border: null,
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Export Data'),
       ),
       child: SafeArea(
-        child: Material(
-          color: Colors.transparent,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              const SizedBox(height: 16),
-              
-              // Export Options Section
-              _buildExportOptionsSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Export Button
-              _buildExportButton(),
-              
-              const SizedBox(height: 24),
-              
-              // Help Text
-              _buildHelpText(),
-            ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+            _buildExportOptionsSection(),
+            const SizedBox(height: 24),
+            _buildExportButton(),
+            const SizedBox(height: 24),
+            _buildInfoSection(),
+          ],
           ),
         ),
       ),
     );
   }
 
+
+
   Widget _buildExportOptionsSection() {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: AppColors.dynamicBorder(context),
-          width: 0.5,
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.dynamicTextPrimary(context).withAlpha(8),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          _buildExportOption(
-            'Excel Format',
-            'Export as Excel spreadsheet',
-            CupertinoIcons.table,
-            'Native Excel format with multiple sheets',
-            true,
-            'Excel',
-          ),
           _buildExportOption(
             'PDF Report',
             'Generate detailed PDF report',
             CupertinoIcons.doc_richtext,
             'Professional report with charts and summaries',
-            true, // Now implemented
+            true,
             'PDF',
           ),
         ],
@@ -107,26 +89,26 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: available 
-                  ? AppColors.dynamicPrimary(context).withAlpha(26)
-                  : AppColors.dynamicTextSecondary(context).withAlpha(26),
-                borderRadius: BorderRadius.circular(8),
+                  ? AppColors.dynamicPrimary(context).withAlpha(20)
+                  : AppColors.dynamicTextSecondary(context).withAlpha(20),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon, 
                 color: available 
                   ? AppColors.dynamicPrimary(context)
                   : AppColors.dynamicTextSecondary(context),
-                size: 18,
+                size: 22,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,15 +120,16 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                         ? AppColors.dynamicTextPrimary(context)
                         : AppColors.dynamicTextSecondary(context),
                       fontWeight: FontWeight.w600,
-                      fontSize: 17,
+                      fontSize: 18,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle,
                     style: AppTheme.getDynamicFootnote(context).copyWith(
                       color: AppColors.dynamicTextSecondary(context),
-                      fontSize: 15,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -154,7 +137,8 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
                     description,
                     style: AppTheme.getDynamicCaption1(context).copyWith(
                       color: AppColors.dynamicTextSecondary(context),
-                      fontSize: 13,
+                      fontSize: 14,
+                      height: 1.3,
                     ),
                   ),
                 ],
@@ -162,43 +146,37 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
             ),
             if (!available)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.dynamicTextSecondary(context).withAlpha(26),
-                  borderRadius: BorderRadius.circular(4),
+                  color: AppColors.dynamicTextSecondary(context).withAlpha(20),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   'Coming Soon',
                   style: AppTheme.getDynamicCaption1(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             if (available)
               GestureDetector(
                 onTap: () {
-                  setState(() {
-                    _selectedFormat = format;
-                  });
+                  // Only PDF option available
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _selectedFormat == format 
-                      ? AppColors.dynamicPrimary(context)
-                      : AppColors.dynamicPrimary(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.dynamicPrimary(context),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    _selectedFormat == format ? 'Selected' : 'Select',
+                    'Selected',
                     style: AppTheme.getDynamicCaption1(context).copyWith(
-                      color: _selectedFormat == format 
-                        ? AppColors.dynamicSurface(context)
-                        : AppColors.dynamicPrimary(context),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      color: AppColors.dynamicSurface(context),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -213,59 +191,82 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
     return Container(
       width: double.infinity,
       child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         color: AppColors.dynamicPrimary(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onPressed: _isExporting ? null : _exportData,
         child: _isExporting
           ? Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 CupertinoActivityIndicator(color: AppColors.dynamicSurface(context)),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Text(
                   'Exporting...',
                   style: AppTheme.getDynamicBody(context).copyWith(
                     color: AppColors.dynamicSurface(context),
                     fontWeight: FontWeight.w600,
-                    fontSize: 17,
+                    fontSize: 18,
                   ),
                 ),
               ],
             )
-          : Text(
-              'Export Data',
-              style: AppTheme.getDynamicBody(context).copyWith(
-                color: AppColors.dynamicSurface(context),
-                fontWeight: FontWeight.w600,
-                fontSize: 17,
-              ),
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.square_arrow_up,
+                  color: AppColors.dynamicSurface(context),
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Export Data',
+                  style: AppTheme.getDynamicBody(context).copyWith(
+                    color: AppColors.dynamicSurface(context),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
             ),
       ),
     );
   }
 
-  Widget _buildHelpText() {
+  Widget _buildInfoSection() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.dynamicPrimary(context).withAlpha(26),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.dynamicPrimary(context).withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicPrimary(context).withAlpha(30),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
-          Icon(
-            CupertinoIcons.info_circle,
-            color: AppColors.dynamicPrimary(context),
-            size: 16,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.dynamicPrimary(context).withAlpha(30),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              CupertinoIcons.info_circle,
+              color: AppColors.dynamicPrimary(context),
+              size: 18,
+            ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Your exported data will include all customers, debts, and payment history. The file can be shared via email, AirDrop, or saved to Files app.',
               style: AppTheme.getDynamicCaption1(context).copyWith(
                 color: AppColors.dynamicTextSecondary(context),
-                fontSize: 14,
+                fontSize: 15,
+                height: 1.4,
               ),
             ),
           ),
@@ -292,30 +293,13 @@ class _ExportDataScreenState extends State<ExportDataScreen> {
         return;
       }
 
-      String filePath;
-      String formatName;
+      final filePath = await _exportService.exportToPDF(customers, debts, appState.productPurchases, appState.categories.whereType<ProductCategory>().toList());
       
-      switch (_selectedFormat) {
-        case 'PDF':
-          filePath = await _exportService.exportToPDF(customers, debts, appState.productPurchases, appState.categories.whereType<ProductCategory>().toList());
-          formatName = 'PDF';
-          break;
-        case 'Excel':
-        default:
-          filePath = await _exportService.exportToExcel(customers, debts, appState.productPurchases, appState.categories.whereType<ProductCategory>().toList());
-          formatName = 'Excel';
-          break;
-      }
-      
-      // setState(() { // Removed unused field reference
-      //   _exportedFilePath = filePath;
-      // });
-
       await _exportService.shareExportFile(filePath);
       
       await _notificationService.showSuccessNotification(
         title: 'Export Successful',
-        body: 'Your data has been exported as $formatName and shared successfully.',
+        body: 'Your data has been exported as PDF and shared successfully.',
       );
 
     } catch (e) {

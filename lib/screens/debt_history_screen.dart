@@ -879,7 +879,7 @@ class _GroupedDebtCard extends StatelessWidget {
               const SizedBox(height: 8),
               TextField(
                 controller: amountController,
-                keyboardType: TextInputType.number,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Payment Amount',
                   border: OutlineInputBorder(),

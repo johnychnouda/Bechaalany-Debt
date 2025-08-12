@@ -46,7 +46,6 @@ dependencies:
   pdf: ^3.10.7
   share_plus: ^7.2.1
   # file_picker: ^5.0.1
-  excel: ^2.1.0
   flutter_local_notifications: ^17.2.2
   # iOS 18+ specific dependencies
   # home_widget: ^0.4.1

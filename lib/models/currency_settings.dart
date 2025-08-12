@@ -11,7 +11,7 @@ class CurrencySettings extends HiveObject {
   String targetCurrency;
 
   @HiveField(2)
-  double exchangeRate;
+  double? exchangeRate;
 
   @HiveField(3)
   DateTime lastUpdated;
@@ -22,19 +22,21 @@ class CurrencySettings extends HiveObject {
   CurrencySettings({
     required this.baseCurrency,
     required this.targetCurrency,
-    required this.exchangeRate,
+    this.exchangeRate,
     required this.lastUpdated,
     this.notes,
   });
 
   // Convert amount from base currency to target currency
-  double convertAmount(double amount) {
-    return amount * exchangeRate;
+  double? convertAmount(double amount) {
+    if (exchangeRate == null) return null;
+    return amount * exchangeRate!;
   }
 
   // Convert amount from target currency to base currency
-  double convertBack(double amount) {
-    return amount / exchangeRate;
+  double? convertBack(double amount) {
+    if (exchangeRate == null) return null;
+    return amount / exchangeRate!;
   }
 
   // Helper method to determine decimal places based on currency
@@ -57,15 +59,17 @@ class CurrencySettings extends HiveObject {
   }
 
   // Get formatted exchange rate string
-  String get formattedRate {
+  String? get formattedRate {
+    if (exchangeRate == null) return null;
     final targetDecimals = _getDecimalPlaces(targetCurrency);
-    return '1 $baseCurrency = ${exchangeRate.toStringAsFixed(targetDecimals)} $targetCurrency';
+    return '1 $baseCurrency = ${exchangeRate!.toStringAsFixed(targetDecimals)} $targetCurrency';
   }
 
   // Get reverse formatted exchange rate string
-  String get reverseFormattedRate {
+  String? get reverseFormattedRate {
+    if (exchangeRate == null) return null;
     final baseDecimals = _getDecimalPlaces(baseCurrency);
-    return '1 $targetCurrency = ${(1 / exchangeRate).toStringAsFixed(baseDecimals)} $baseCurrency';
+    return '1 $targetCurrency = ${(1 / exchangeRate!).toStringAsFixed(baseDecimals)} $baseCurrency';
   }
 
   // Copy with method
@@ -101,7 +105,7 @@ class CurrencySettings extends HiveObject {
     return CurrencySettings(
       baseCurrency: json['baseCurrency'] ?? 'USD',
       targetCurrency: json['targetCurrency'] ?? 'LBP',
-      exchangeRate: (json['exchangeRate'] ?? 1.0).toDouble(),
+      exchangeRate: json['exchangeRate'] != null ? json['exchangeRate'].toDouble() : null,
       lastUpdated: DateTime.parse(json['lastUpdated'] ?? DateTime.now().toIso8601String()),
       notes: json['notes'],
     );

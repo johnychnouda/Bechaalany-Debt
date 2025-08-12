@@ -369,6 +369,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     controller: _idController,
                     placeholder: 'Enter customer ID',
                     icon: Icons.tag,
+                    keyboardType: TextInputType.number,
                     enabled: widget.customer == null, // Disable editing when updating existing customer
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -595,6 +596,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           controller: controller,
           enabled: enabled,
           textCapitalization: textCapitalization ?? TextCapitalization.none,
+          keyboardType: keyboardType,
           validator: validator,
           onChanged: onChanged,
           decoration: InputDecoration(

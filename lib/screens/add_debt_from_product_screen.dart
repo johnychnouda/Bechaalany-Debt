@@ -426,7 +426,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         const SizedBox(height: 8),
         TextFormField(
           controller: _quantityController,
-          keyboardType: TextInputType.number,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             hintText: 'Enter quantity',
             hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
@@ -578,9 +578,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       final settings = appState.currencySettings;
       double totalAmount;
       
-      if (_selectedSubcategory!.sellingPriceCurrency == 'LBP' && settings != null) {
+      if (_selectedSubcategory!.sellingPriceCurrency == 'LBP' && settings != null && settings.exchangeRate != null) {
         // Convert LBP to USD using current exchange rate
-        totalAmount = (_selectedSubcategory!.sellingPrice * quantity) / settings.exchangeRate;
+        totalAmount = (_selectedSubcategory!.sellingPrice * quantity) / settings.exchangeRate!;
       } else {
         // Already in USD or no exchange rate available
         totalAmount = _selectedSubcategory!.sellingPrice * quantity;

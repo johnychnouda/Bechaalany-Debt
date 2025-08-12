@@ -182,7 +182,9 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
         children: [
           _buildInfoRow(
             'Current Exchange Rate',
-            '1 $_baseCurrency = ${_addThousandsSeparators(_currentSettings!.exchangeRate.toInt().toString())} $_targetCurrency',
+            _currentSettings!.exchangeRate != null 
+                ? '1 $_baseCurrency = ${_addThousandsSeparators(_currentSettings!.exchangeRate!.toInt().toString())} $_targetCurrency'
+                : 'Not set',
             CupertinoIcons.money_dollar,
             AppColors.dynamicSuccess(context),
           ),
@@ -225,7 +227,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
             CupertinoTextField(
               controller: _exchangeRateController,
               placeholder: 'Enter exchange rate',
-              keyboardType: const TextInputType.numberWithOptions(decimal: false),
+              keyboardType: TextInputType.phone,
               onChanged: (value) {
                 _formatInputOnChange(value);
               },
@@ -345,33 +347,13 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       
       // Only update if the formatted text is different
       if (formatted != value) {
-        final cursorPosition = _exchangeRateController.selection.baseOffset;
-        final newCursorPosition = _calculateNewCursorPosition(value, formatted, cursorPosition);
-        
         _exchangeRateController.text = formatted;
-        _exchangeRateController.selection = TextSelection.collapsed(offset: newCursorPosition);
+        _exchangeRateController.selection = TextSelection.collapsed(offset: formatted.length);
       }
     }
   }
 
-  int _calculateNewCursorPosition(String oldText, String newText, int oldCursorPosition) {
-    // Ensure oldCursorPosition is within bounds of oldText
-    final safeOldPosition = oldCursorPosition.clamp(0, oldText.length);
-    
-    // Count commas before cursor in old text
-    final commasBeforeCursorInOld = oldText.substring(0, safeOldPosition).split(',').length - 1;
-    
-    // Count commas before cursor in new text (use safe position or newText length, whichever is smaller)
-    final safeNewPosition = oldCursorPosition.clamp(0, newText.length);
-    final commasBeforeCursorInNew = newText.substring(0, safeNewPosition).split(',').length - 1;
-    
-    // Adjust cursor position based on comma difference
-    final commaDifference = commasBeforeCursorInNew - commasBeforeCursorInOld;
-    final newCursorPosition = oldCursorPosition + commaDifference;
-    
-    // Ensure cursor position is within bounds
-    return newCursorPosition.clamp(0, newText.length);
-  }
+
 
   String _addThousandsSeparators(String number) {
     final buffer = StringBuffer();

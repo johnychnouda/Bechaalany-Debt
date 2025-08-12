@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -10,6 +11,7 @@ import '../models/currency_settings.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 import '../services/notification_service.dart';
+import 'currency_settings_screen.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
@@ -587,7 +589,36 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     // Get current exchange rate from app state
     final appState = Provider.of<AppState>(context, listen: false);
-    final currentExchangeRate = appState.currencySettings?.exchangeRate ?? 89000;
+    final currentExchangeRate = appState.currencySettings?.exchangeRate;
+    
+    // Check if exchange rate is set
+    if (currentExchangeRate == null) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Exchange Rate Required'),
+          content: const Text('Please set an exchange rate in Currency Settings before editing products with LBP pricing.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            CupertinoDialogAction(
+              child: const Text('Go to Settings'),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CurrencySettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     
     // Set initial values based on currency
     if (selectedCurrency == 'LBP') {
@@ -678,7 +709,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         labelText: 'Cost Price',
                         hintText: 'Enter cost price',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
                           ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
                           : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
@@ -690,7 +721,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         labelText: 'Selling Price',
                         hintText: 'Enter selling price',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
                           ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
                           : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
@@ -882,7 +913,36 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     // Get current exchange rate from app state
     final appState = Provider.of<AppState>(context, listen: false);
-    final currentExchangeRate = appState.currencySettings?.exchangeRate ?? 89000;
+    final currentExchangeRate = appState.currencySettings?.exchangeRate;
+    
+    // Check if exchange rate is set
+    if (currentExchangeRate == null) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Exchange Rate Required'),
+          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP pricing.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            CupertinoDialogAction(
+              child: const Text('Go to Settings'),
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CurrencySettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     
     // Add listeners to trigger rebuild when text changes
     nameController.addListener(() {});
@@ -960,7 +1020,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         labelText: 'Cost Price',
                         hintText: 'Enter cost price',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
                           ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
                           : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
@@ -988,7 +1048,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         labelText: 'Selling Price',
                         hintText: 'Enter selling price',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
                           ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
                           : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
@@ -1555,7 +1615,9 @@ class _ProductCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            '1 ${settings.baseCurrency} = ${_addThousandsSeparators(settings.exchangeRate.toInt().toString())} ${settings.targetCurrency}',
+            settings.exchangeRate != null
+                ? '1 ${settings.baseCurrency} = ${_addThousandsSeparators(settings.exchangeRate!.toInt().toString())} ${settings.targetCurrency}'
+                : 'Rate not set',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
