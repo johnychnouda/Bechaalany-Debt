@@ -487,71 +487,41 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         const Divider(height: 32, thickness: 1),
                       ],
                       
-                      // Show empty state if no debts
-                      if (widget.showDebtsSection && customerAllDebts.isEmpty) ...[
-                        Container(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.attach_money,
-                                size: 64,
-                                color: AppColors.dynamicTextSecondary(context),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No debts found',
-                                style: TextStyle(
-                                  color: AppColors.dynamicTextPrimary(context),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add a new debt to get started',
-                                style: TextStyle(
-                                  color: AppColors.dynamicTextSecondary(context),
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(height: 32, thickness: 1),
-                      ],
+
                       
                       // Summary Totals (shown below debts)
-                      // Total Debt
-                      ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.dynamicError(context).withAlpha(26), // 0.1 * 255
-                            borderRadius: BorderRadius.circular(8),
+                      // Total Pending Debt (only show if there are pending debts)
+                      if (totalPendingDebt > 0) ...[
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.dynamicError(context).withAlpha(26), // 0.1 * 255
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.attach_money,
+                              color: AppColors.dynamicError(context),
+                              size: 16,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.attach_money,
-                            color: AppColors.dynamicError(context),
-                            size: 16,
+                          title: Text(
+                            'Total Pending Debt',
+                            style: TextStyle(
+                              fontSize: 17,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                          subtitle: Text(
+                            CurrencyFormatter.formatAmount(context, totalPendingDebt),
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: AppColors.dynamicError(context),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                        title: Text(
-                          'Total Pending Debt',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppColors.dynamicTextPrimary(context),
-                          ),
-                        ),
-                        subtitle: Text(
-                          CurrencyFormatter.formatAmount(context, totalPendingDebt),
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: AppColors.dynamicError(context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
+                      ],
                       // Total Paid
                       ListTile(
                         leading: Container(
