@@ -852,20 +852,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   const SizedBox(height: 12),
                 ],
                 
-                if (hasEmail) ...[
-                  _buildActionButton(
-                    context: context,
-                    icon: CupertinoIcons.mail,
-                    title: 'Send via Email',
-                    subtitle: 'Email with PDF attachment',
-                    color: CupertinoColors.systemBlue,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _shareReceiptViaEmail();
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
+
                 
                 if (hasPhone) ...[
                   _buildActionButton(

@@ -214,6 +214,9 @@ class ReceiptSharingService {
     
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
+    // Calculate total paid amount (sum of all partial payments)
+    final totalPaidAmount = partialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    
     final sanitizedCustomerName = PdfFontUtils.sanitizeText(customer.name);
     final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(customer.phone);
     final sanitizedCustomerId = PdfFontUtils.sanitizeText(customer.id);
@@ -256,6 +259,7 @@ class ReceiptSharingService {
             pageItems: allItems,
             allItems: allItems,
             remainingAmount: remainingAmount,
+            totalPaidAmount: totalPaidAmount,
             sanitizedCustomerName: sanitizedCustomerName,
             sanitizedCustomerPhone: sanitizedCustomerPhone,
             sanitizedCustomerId: sanitizedCustomerId,
@@ -271,6 +275,7 @@ class ReceiptSharingService {
     required List<Map<String, dynamic>> pageItems,
     required List<Map<String, dynamic>> allItems,
     required double remainingAmount,
+    required double totalPaidAmount,
     required String sanitizedCustomerName,
     required String sanitizedCustomerPhone,
     required String sanitizedCustomerId,
@@ -458,19 +463,35 @@ class ReceiptSharingService {
               pw.Row(
                 children: [
                   pw.Expanded(
-                    child: PdfFontUtils.createGracefulText(
-                      remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                          ? 'ALL DEBTS FULLY PAID'
-                          : 'TOTAL REMAINING AMOUNT',
-                      fontSize: 10,
-                      fontWeight: pw.FontWeight.bold,
-                      color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                          ? PdfColor.fromInt(0xFF2E7D32)
-                          : PdfColor.fromInt(0xFFD32F2F),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        PdfFontUtils.createGracefulText(
+                          remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
+                              ? 'ALL DEBTS FULLY PAID'
+                              : 'TOTAL REMAINING AMOUNT',
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
+                              ? PdfColor.fromInt(0xFF2E7D32)
+                              : PdfColor.fromInt(0xFFD32F2F),
+                        ),
+                        if (remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty) ...[
+                          pw.SizedBox(height: 2),
+                          PdfFontUtils.createGracefulText(
+                            'Total Paid: ${_formatCurrency(totalPaidAmount)}',
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.normal,
+                            color: PdfColor.fromInt(0xFF2E7D32),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   PdfFontUtils.createGracefulText(
-                    _formatCurrency(remainingAmount),
+                    remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
+                        ? _formatCurrency(totalPaidAmount)
+                        : _formatCurrency(remainingAmount),
                     fontSize: 12,
                     fontWeight: pw.FontWeight.bold,
                     color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
