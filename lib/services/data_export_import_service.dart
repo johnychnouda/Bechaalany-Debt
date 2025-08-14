@@ -24,48 +24,8 @@ class DataExportImportService {
       final pendingDebts = debts.where((debt) => debt.status == DebtStatus.pending).length;
       final paidDebts = debts.where((debt) => debt.status == DebtStatus.paid).length;
       
-      // Calculate total revenue as profit from all paid amounts (full + partial payments)
+      // TODO: Implement proper revenue calculation logic
       double totalRevenue = 0.0;
-      
-      // Revenue from all paid amounts (profit)
-      for (final debt in debts) {
-        if (debt.paidAmount > 0) {
-          // Handle case where originalSellingPrice might not be set for existing debts
-          double? sellingPrice = debt.originalSellingPrice;
-          if (sellingPrice == null && debt.subcategoryName != null) {
-            // Try to find the subcategory and get its current selling price
-            try {
-              final subcategory = categories
-                  .expand((category) => category.subcategories)
-                  .firstWhere((sub) => sub.name == debt.subcategoryName);
-              sellingPrice = subcategory.sellingPrice;
-            } catch (e) {
-              // If subcategory not found, skip this debt
-              continue;
-            }
-          }
-          
-          if (sellingPrice != null) {
-            // Find the subcategory to get cost price
-            try {
-              final subcategory = categories
-                  .expand((category) => category.subcategories)
-                  .firstWhere((sub) => sub.name == debt.subcategoryName);
-              
-              // Calculate profit ratio: (selling price - cost price) / selling price
-              final profitRatio = (sellingPrice! - subcategory.costPrice) / sellingPrice!;
-              
-              // Calculate actual profit from paid amount: paid amount * profit ratio
-              final profitFromPaidAmount = debt.paidAmount * profitRatio;
-              totalRevenue += profitFromPaidAmount;
-            } catch (e) {
-              // If subcategory not found, assume 50% profit ratio
-              final profitFromPaidAmount = debt.paidAmount * 0.5;
-              totalRevenue += profitFromPaidAmount;
-            }
-          }
-        }
-      }
       
       // Add title page
       pdf.addPage(
@@ -147,7 +107,7 @@ class DataExportImportService {
                       _buildSummaryRow('Total Amount', _formatCurrency(totalAmount)),
                       _buildSummaryRow('Total Paid', _formatCurrency(totalPaid)),
                       _buildSummaryRow('Total Remaining', _formatCurrency(totalRemaining)),
-                      _buildSummaryRow('Total Revenue (Profit)', _formatCurrency(totalRevenue)),
+                      _buildSummaryRow('Total Revenue', _formatCurrency(totalRevenue)),
                     ],
                   ),
                 ),

@@ -11,7 +11,12 @@ import '../widgets/expandable_chip_dropdown.dart';
 import '../widgets/searchable_customer_field.dart';
 
 class AddDebtFromProductScreen extends StatefulWidget {
-  const AddDebtFromProductScreen({super.key});
+  final Customer? customer; // Optional customer parameter
+  
+  const AddDebtFromProductScreen({
+    super.key,
+    this.customer,
+  });
 
   @override
   State<AddDebtFromProductScreen> createState() => _AddDebtFromProductScreenState();
@@ -23,6 +28,15 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   Subcategory? _selectedSubcategory;
   final TextEditingController _quantityController = TextEditingController(text: '1');
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If a customer was passed, pre-select it
+    if (widget.customer != null) {
+      _selectedCustomer = widget.customer;
+    }
+  }
 
   @override
   void dispose() {
@@ -53,17 +67,32 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Customer Selection
-                SearchableCustomerField(
-                  selectedCustomer: _selectedCustomer,
-                  customers: appState.customers,
-                  onCustomerSelected: (customer) {
-                    setState(() {
-                      _selectedCustomer = customer;
-                    });
-                  },
-                  label: 'Customer',
-                                      placeholder: 'Search by name or ID',
-                ),
+                if (widget.customer != null) ...[
+                  // Show pre-selected customer (read-only)
+                  Text(
+                    'Customer',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.dynamicTextPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPreSelectedCustomer(widget.customer!),
+                ] else ...[
+                  // Show customer search field
+                  SearchableCustomerField(
+                    selectedCustomer: _selectedCustomer,
+                    customers: appState.customers,
+                    onCustomerSelected: (customer) {
+                      setState(() {
+                        _selectedCustomer = customer;
+                      });
+                    },
+                    label: 'Customer',
+                    placeholder: 'Search by name or ID',
+                  ),
+                ],
                 
                 const SizedBox(height: 24),
                 
@@ -93,7 +122,32 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     );
   }
 
-
+  Widget _buildPreSelectedCustomer(Customer customer) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context).withAlpha(26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.dynamicBorder(context).withAlpha(77)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.person, color: AppColors.dynamicPrimary(context)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              customer.name,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.dynamicTextPrimary(context),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildExpandableCategorySelection(AppState appState) {
     final categories = appState.categories.whereType<ProductCategory>().toList();

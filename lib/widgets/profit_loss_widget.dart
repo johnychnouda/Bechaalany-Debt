@@ -57,6 +57,9 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
         // Use historical revenue that includes all payments (even from deleted debts)
         final totalRevenue = appState.totalHistoricalRevenue;
         
+        // Debug: Print the revenue value
+        print('DEBUG: Widget received totalRevenue: $totalRevenue');
+        
         // Calculate total debts: sum of all debt amounts minus total partial payments
         final totalDebtAmount = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.amount);
         final totalPartialPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);

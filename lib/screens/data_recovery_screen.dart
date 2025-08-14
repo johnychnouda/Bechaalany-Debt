@@ -449,16 +449,33 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     if (_lastBackupTime == null) return 'Never';
     
     final now = DateTime.now();
-    final difference = now.difference(_lastBackupTime!);
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final backupDate = DateTime(_lastBackupTime!.year, _lastBackupTime!.month, _lastBackupTime!.day);
     
-    if (difference.inDays > 0) {
-      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    // Convert to 12-hour format with AM/PM and seconds
+    int hour12 = _lastBackupTime!.hour == 0 ? 12 : (_lastBackupTime!.hour > 12 ? _lastBackupTime!.hour - 12 : _lastBackupTime!.hour);
+    String minute = _lastBackupTime!.minute.toString().padLeft(2, '0');
+    String second = _lastBackupTime!.second.toString().padLeft(2, '0');
+    String ampm = _lastBackupTime!.hour < 12 ? 'am' : 'pm';
+    String timeString = '$hour12:$minute:$second $ampm';
+    
+    if (backupDate == today) {
+      return 'Today at $timeString';
+    } else if (backupDate == yesterday) {
+      return 'Yesterday at $timeString';
     } else {
-      return 'Just now';
+      // Show full date and time for backups older than yesterday
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      
+      String month = months[_lastBackupTime!.month - 1];
+      String day = _lastBackupTime!.day.toString().padLeft(2, '0');
+      String year = _lastBackupTime!.year.toString();
+      
+      return '$month $day, $year at $timeString';
     }
   }
 

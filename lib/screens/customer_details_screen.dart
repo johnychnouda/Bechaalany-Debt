@@ -13,7 +13,7 @@ import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
 import '../services/receipt_sharing_service.dart';
-import 'add_debt_screen.dart';
+import 'add_debt_from_product_screen.dart';
 import 'add_customer_screen.dart';
 import '../constants/app_colors.dart';
 
@@ -63,6 +63,21 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
   void _loadCustomerDebts() {
     // Customer debts are loaded in build method
+  }
+  
+  // Helper method to format dates
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final debtDate = DateTime(date.year, date.month, date.day);
+    
+    if (debtDate == today) {
+      return 'Today';
+    } else if (debtDate == today.subtract(const Duration(days: 1))) {
+      return 'Yesterday';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
   
     void _showReceiptSharingOptions(BuildContext context, AppState appState) {
@@ -592,7 +607,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => AddDebtScreen(customer: _currentCustomer),
+                  builder: (context) => AddDebtFromProductScreen(customer: _currentCustomer),
                 ),
               );
               // Refresh the debt list if a debt was added
@@ -841,42 +856,145 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         const SizedBox(height: 16),
                         
                         // Debts List
-                        ...customerAllDebts.map((debt) => Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Dismissible(
-                            key: Key(debt.id),
-                            direction: debt.isFullyPaid ? DismissDirection.endToStart : DismissDirection.none,
-                            confirmDismiss: (direction) async {
-                              if (debt.isFullyPaid) {
-                                return await _confirmClearPaidDebt(context, debt);
-                              }
-                              return false;
-                            },
-                            onDismissed: (direction) {
-                              if (debt.isFullyPaid) {
-                                _deleteDebt(debt);
-                              }
-                            },
-                            background: debt.isFullyPaid ? Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              decoration: BoxDecoration(
-                                color: AppColors.dynamicPrimary(context),
-                                borderRadius: BorderRadius.circular(12),
+                        ...customerAllDebts.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final debt = entry.value;
+                          final isLastDebt = index == customerAllDebts.length - 1;
+                          
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Dismissible(
+                              key: Key(debt.id),
+                              direction: debt.isFullyPaid ? DismissDirection.endToStart : DismissDirection.none,
+                              confirmDismiss: (direction) async {
+                                if (debt.isFullyPaid) {
+                                  return await _confirmClearPaidDebt(context, debt);
+                                }
+                                return false;
+                              },
+                              onDismissed: (direction) {
+                                if (debt.isFullyPaid) {
+                                  _deleteDebt(debt);
+                                }
+                              },
+                              background: debt.isFullyPaid ? Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dynamicPrimary(context),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.delete_sweep,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ) : null,
+                              child: Column(
+                                children: [
+                                  // Simple debt display without individual action buttons
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.dynamicSurface(context),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: AppColors.dynamicBorder(context),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.dynamicPrimary(context).withAlpha(26),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            Icons.attach_money,
+                                            color: AppColors.dynamicPrimary(context),
+                                            size: 20,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                '${debt.description}',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.dynamicTextPrimary(context),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Created: ${_formatDate(debt.createdAt)}',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: AppColors.dynamicTextSecondary(context),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          CurrencyFormatter.formatAmount(context, debt.amount),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicTextPrimary(context),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  // Show consolidated action buttons only under the last debt
+                                  if (isLastDebt && customerAllDebts.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    // Consolidated Action Buttons
+                                    Row(
+                                      children: [
+                                        if (totalPendingDebt > 0) ...[
+                                          // Make Payment button for all pending debts
+                                          Expanded(
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => _showConsolidatedPaymentDialog(context, customerAllDebts),
+                                              icon: const Icon(Icons.payment, size: 16),
+                                              label: const Text('Make Payment'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppColors.dynamicPrimary(context),
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                        ],
+                                        // Delete All button
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () => _showDeleteAllDebtsDialog(context, customerAllDebts),
+                                            icon: const Icon(Icons.delete_forever, size: 16),
+                                            label: const Text('Delete All'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.dynamicError(context),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 12),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.delete_sweep,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ) : null,
-                            child: _DebtCard(
-                              debt: debt,
-                              onMarkAsPaid: () => _markAsPaid(debt),
-                              onDelete: () => _deleteDebt(debt),
                             ),
-                          ),
-                        )),
+                          );
+                        }),
                         
                         const Divider(height: 32, thickness: 1),
                       ],
@@ -960,230 +1078,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       },
     );
   }
-}
-
-class _DebtCard extends StatelessWidget {
-  final Debt debt;
-  final VoidCallback onMarkAsPaid;
-  final VoidCallback onDelete;
-
-  const _DebtCard({
-    required this.debt,
-    required this.onMarkAsPaid,
-    required this.onDelete,
-  });
-
-  Color _getStatusColor() {
-    if (debt.isFullyPaid) {
-      return Colors.green;
-    } else if (debt.isPartiallyPaid) {
-      return Colors.blue;
-    } else {
-      return Colors.orange;
-    }
-  }
-
-  String _getStatusText() {
-    if (debt.isFullyPaid) {
-      return 'Paid';
-    } else if (debt.isPartiallyPaid) {
-      return 'Partially Paid';
-    } else {
-      return 'Pending';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.dynamicBorder(context),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor().withAlpha(26), // 0.1 * 255
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    debt.isFullyPaid 
-                        ? Icons.check_circle 
-                        : debt.isPartiallyPaid 
-                            ? Icons.payment 
-                            : Icons.attach_money,
-                    color: _getStatusColor(),
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DebtDescriptionUtils.cleanDescription(debt.description),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        debt.status == DebtStatus.paid 
-                            ? 'Paid: ${_formatDate(debt.paidAt ?? debt.createdAt)}'
-                            : 'Created: ${_formatDate(debt.createdAt)}',
-                        style: TextStyle(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 13,
-                        ),
-                      ),
-                      
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      debt.status == DebtStatus.paid 
-                          ? CurrencyFormatter.formatAmount(context, debt.amount)
-                          : CurrencyFormatter.formatAmount(context, debt.remainingAmount),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                    if (debt.status == DebtStatus.pending && debt.paidAmount > 0) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Paid: ${CurrencyFormatter.formatAmount(context, debt.paidAmount)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.dynamicSuccess(context),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor().withAlpha(26), // 0.1 * 255
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _getStatusText(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _getStatusColor(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            // Show payment buttons for unpaid/partially paid debts
-            if (!debt.isFullyPaid) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.dynamicSuccess(context),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: () => _showPaymentOptions(context),
-                      child: const Text(
-                        'Make Payment',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.dynamicError(context),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: onDelete,
-                      child: const Text(
-                        'Delete',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            
-            // Show hint for paid debts that can be cleared
-            if (debt.isFullyPaid) ...[
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  'Swipe left to clear this paid debt',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.dynamicTextSecondary(context),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = date.difference(now).inDays;
+  
+  // Show consolidated payment dialog for all debts
+  void _showConsolidatedPaymentDialog(BuildContext context, List<Debt> allDebts) {
+    final pendingDebts = allDebts.where((d) => !d.isFullyPaid).toList();
+    final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     
-    if (difference < 0) {
-      return '${difference.abs()} days ago';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
-    } else {
-      return 'in $difference days';
-    }
-  }
-
-  void _showPaymentOptions(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -1193,27 +1093,25 @@ class _DebtCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}'),
-              Text('Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
-              Text('Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}'),
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
               const SizedBox(height: 16),
               const Text('Payment Options:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               _PaymentOption(
                 title: 'Pay Full Amount',
-                subtitle: 'Mark this debt as fully paid',
+                subtitle: 'Mark all debts as fully paid',
                 onTap: () {
                   Navigator.of(dialogContext).pop();
-                  onMarkAsPaid();
+                  _markAllDebtsAsPaid(pendingDebts);
                 },
               ),
               const SizedBox(height: 8),
               _PaymentOption(
                 title: 'Partial Payment',
-                subtitle: 'Enter amount to pay',
+                subtitle: 'Enter amount to pay across all debts',
                 onTap: () {
                   Navigator.of(dialogContext).pop();
-                  _showPartialPaymentDialog(context);
+                  _showConsolidatedPartialPaymentDialog(context, pendingDebts);
                 },
               ),
             ],
@@ -1228,8 +1126,10 @@ class _DebtCard extends StatelessWidget {
       },
     );
   }
-
-  void _showPartialPaymentDialog(BuildContext context) {
+  
+  // Show consolidated partial payment dialog
+  void _showConsolidatedPartialPaymentDialog(BuildContext context, List<Debt> pendingDebts) {
+    final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     final TextEditingController amountController = TextEditingController();
     
     showDialog(
@@ -1240,11 +1140,11 @@ class _DebtCard extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Remaining Amount: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}'),
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
               const SizedBox(height: 8),
               TextField(
                 controller: amountController,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Payment Amount',
                   border: OutlineInputBorder(
@@ -1262,9 +1162,9 @@ class _DebtCard extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 final amount = double.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
-                if (amount > 0 && amount <= debt.remainingAmount) {
+                if (amount > 0 && amount <= totalRemaining) {
                   Navigator.of(dialogContext).pop();
-                  _applyPartialPayment(amount, context);
+                  _applyConsolidatedPartialPayment(amount, pendingDebts, context);
                 }
               },
               child: const Text('Apply Payment'),
@@ -1274,15 +1174,97 @@ class _DebtCard extends StatelessWidget {
       },
     );
   }
-
-  void _applyPartialPayment(double paymentAmount, BuildContext context) {
-    // Use the new partial payment method
+  
+  // Apply consolidated partial payment across all pending debts
+  void _applyConsolidatedPartialPayment(double paymentAmount, List<Debt> pendingDebts, BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    appState.applyPartialPayment(debt.id, paymentAmount);
+    
+    // Use the existing method that handles payment across multiple debts
+    final debtIds = pendingDebts.map((debt) => debt.id).toList();
+    appState.applyPaymentAcrossDebts(debtIds, paymentAmount);
   }
   
-
+  // Mark all debts as paid
+  void _markAllDebtsAsPaid(List<Debt> pendingDebts) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    for (final debt in pendingDebts) {
+      if (!debt.isFullyPaid) {
+        appState.markDebtAsPaid(debt.id);
+      }
+    }
+  }
+  
+  // Show delete all debts dialog
+  void _showDeleteAllDebtsDialog(BuildContext context, List<Debt> allDebts) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete All Debts'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete all debts for ${_currentCustomer.name}?'),
+              const SizedBox(height: 16),
+              Text('Total Debts: ${allDebts.length}'),
+              const SizedBox(height: 8),
+              const Text(
+                'This action cannot be undone. All debt history will be permanently deleted.',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _deleteAllDebts(allDebts);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete All'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Delete all debts for the customer
+  Future<void> _deleteAllDebts(List<Debt> allDebts) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    try {
+      for (final debt in allDebts) {
+        await appState.deleteDebt(debt.id);
+      }
+      _loadCustomerDebts(); // Re-load after deletion
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to delete some debts: $e',
+        );
+      }
+    }
+  }
 }
+
+
+
+
 
 class _PaymentOption extends StatelessWidget {
   final String title;

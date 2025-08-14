@@ -56,12 +56,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
   @override
   void initState() {
     super.initState();
-    _filterProducts();
+    // Delay the initial filter to ensure AppState is fully loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _filterProducts();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Automatically refresh when dependencies change (AppState updates)
+    final appState = Provider.of<AppState>(context, listen: false);
+    if (appState.categories.isNotEmpty && _filteredProducts.isEmpty) {
+      _filterProducts();
+    }
   }
 
   void _filterProducts() {
     final appState = Provider.of<AppState>(context, listen: false);
     List<Subcategory> allSubcategories = [];
+    
+    // If no categories are loaded yet, wait for them to load
+    if (appState.categories.isEmpty) {
+      return;
+    }
     
     for (final category in appState.categories) {
       allSubcategories.addAll(category.subcategories);
@@ -121,7 +139,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           
           comparison = categoryNameA.compareTo(categoryNameB);
           break;
-        case 'Profit':
+        case 'Revenue':
           comparison = a.profit.compareTo(b.profit);
           break;
         default:
@@ -276,6 +294,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   color: AppColors.dynamicTextSecondary(context),
                                 ),
                               ),
+                              // Add refresh button for automatic refresh
+                              if (appState.categories.isEmpty) ...[
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    _filterProducts();
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Refresh'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.dynamicPrimary(context),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         )
@@ -1578,7 +1611,7 @@ class _ProductCard extends StatelessWidget {
                     Expanded(
                       child: _buildInfoChip(
                         context,
-                        subcategory.profit >= 0 ? 'Profit' : 'Loss',
+                        subcategory.profit >= 0 ? 'Revenue' : 'Loss',
                         CurrencyFormatter.formatAmount(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.trending_up,
                         subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : Colors.red,
@@ -1679,4 +1712,6 @@ class _ProductCard extends StatelessWidget {
     
     return buffer.toString();
   }
+  
+
 } 

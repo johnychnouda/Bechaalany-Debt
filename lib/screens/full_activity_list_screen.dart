@@ -4,7 +4,6 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
-import '../models/debt.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 
@@ -365,7 +364,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }
     
     final minute = date.minute.toString().padLeft(2, '0');
-    return '$hour:$minute $period';
+    final second = date.second.toString().padLeft(2, '0');
+    return '$hour:$minute:$second $period';
   }
 
   String _formatDayDate(DateTime date) {
@@ -393,7 +393,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
-        return 'Daily Activity - ${_getDayName(today)}';
+        return 'Last 24 Hours Activity';
       case ActivityView.weekly:
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
@@ -434,7 +434,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   String _getEmptyMessage(ActivityView view) {
     switch (view) {
       case ActivityView.daily:
-        return 'No activity today\nAdd debts or make payments to see activity here';
+        return 'No activity in the last 24 hours\nAdd debts or make payments to see activity here';
       case ActivityView.weekly:
         return 'No activity this week\nAdd debts or make payments to see activity here';
       case ActivityView.monthly:
@@ -450,9 +450,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
-        // Show activities created today
-        final startDate = today;
-        final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        // Show activities from the last 24 hours instead of just today
+        final startDate = now.subtract(const Duration(hours: 24));
+        final endDate = now;
         return _getActivitiesForPeriod(appState, startDate, endDate);
         
       case ActivityView.weekly:
@@ -485,11 +485,20 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         continue; // Skip cleared activities
       }
       
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
+      // Check if activity date is within the period
+      bool isWithinPeriod;
+      
+      // For daily view (24-hour rolling window), use exact time comparison
+      if (startDate.hour > 0 || endDate.hour > 0) {
+        isWithinPeriod = activity.date.isAfter(startDate) && activity.date.isBefore(endDate);
+      } else {
+        // For other views (weekly, monthly, yearly), use date-only comparison
+        final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+        isWithinPeriod = (activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+                        (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate));
+      }
+      
+      if (isWithinPeriod) {
         // Additional filter: For payment activities, check if they're still relevant
         if (activity.type == ActivityType.payment && activity.debtId == null) {
           // Check if this activity is for a customer who still has pending debts

@@ -443,7 +443,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const AddDebtFromProductScreen(),
+              builder: (context) => AddDebtFromProductScreen(),
             ),
           );
         },

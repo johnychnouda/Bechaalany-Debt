@@ -67,6 +67,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         widget: const ProfitLossWidget(),
         isEnabled: true,
       ),
+
       DashboardWidget(
         id: 'total_debtors',
         title: 'Total Customers and Debtors',

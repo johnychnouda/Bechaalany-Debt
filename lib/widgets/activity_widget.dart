@@ -1,13 +1,13 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-import '../providers/app_state.dart';
-import '../utils/currency_formatter.dart';
+import '../constants/app_theme.dart';
 import '../models/activity.dart';
-import '../models/debt.dart';
+import '../providers/app_state.dart';
 import '../screens/full_activity_list_screen.dart';
+import '../widgets/empty_state_widget.dart';
 import '../utils/debt_description_utils.dart';
+import '../utils/currency_formatter.dart';
 
 class ActivityWidget extends StatefulWidget {
   const ActivityWidget({super.key});
@@ -18,7 +18,7 @@ class ActivityWidget extends StatefulWidget {
 
 class _ActivityWidgetState extends State<ActivityWidget> {
   ActivityView _currentView = ActivityView.daily;
-  Timer? _timer;
+  // Timer variable removed since we no longer need it
 
   // void _cycleView() { // Removed unused method
   //   setState(() {
@@ -93,17 +93,12 @@ class _ActivityWidgetState extends State<ActivityWidget> {
   @override
   void initState() {
     super.initState();
-    // Start timer to update time ago text every minute
-    _timer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    // Timer no longer needed since we show actual dates and times
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    // No timer to dispose
     super.dispose();
   }
 
@@ -113,7 +108,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
       builder: (context, appState, child) {
         return Card(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -134,7 +129,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Today\'s Activity',
+                        'Last 24 Hours Activity',
                         style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -166,7 +161,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 
                 // Content based on current view
                 _buildCurrentView(appState),
@@ -179,22 +174,23 @@ class _ActivityWidgetState extends State<ActivityWidget> {
   }
 
   Widget _buildCurrentView(AppState appState) {
-    return _buildActivitiesList(appState, 'Today\'s Activity');
+    return _buildActivitiesList(appState, 'Last 24 Hours Activity');
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, ActivityView view) {
     final activities = <Activity>[];
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
     
     // Define date ranges based on view
     DateTime startDate, endDate;
     switch (view) {
       case ActivityView.daily:
-        startDate = today;
-        endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        // For daily view, show activities from the last 24 hours instead of just today
+        startDate = now.subtract(const Duration(hours: 24));
+        endDate = now;
         break;
       case ActivityView.weekly:
+        final today = DateTime(now.year, now.month, now.day);
         startDate = today.subtract(Duration(days: today.weekday - 1));
         endDate = startDate.add(const Duration(days: 6));
         break;
@@ -214,12 +210,19 @@ class _ActivityWidgetState extends State<ActivityWidget> {
         continue;
       }
       
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
-        activities.add(activity);
+      // Check if activity date is within the period
+      if (view == ActivityView.daily) {
+        // For daily view, use exact time comparison (last 24 hours)
+        if (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)) {
+          activities.add(activity);
+        }
+      } else {
+        // For other views, use date-only comparison
+        final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+        if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+            (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+          activities.add(activity);
+        }
       }
     }
 
@@ -232,23 +235,25 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     final activities = _getActivitiesForPeriod(appState, ActivityView.daily);
     
     if (activities.isEmpty) {
-      return Center(
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 20),
             Icon(
-              Icons.inbox_outlined,
-              size: 48,
-              color: Colors.grey[400],
+              Icons.history_outlined,
+              size: 20,
+              color: Colors.grey[600],
             ),
             const SizedBox(height: 8),
             Text(
-              'No recent activity',
+              'All caught up!',
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -263,15 +268,6 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 12),
         ...topActivities.map((activity) => _buildActivityItem(activity)),
       ],
     );
@@ -311,7 +307,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: backgroundColor,
@@ -408,16 +404,25 @@ class _ActivityWidgetState extends State<ActivityWidget> {
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
     
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
+    // Convert to 12-hour format with AM/PM and seconds
+    int hour12 = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+    String ampm = dateTime.hour < 12 ? 'am' : 'pm';
+    String timeString = '$hour12:$minute:$second $ampm';
+    
+    // Compare the actual date part
+    final activityDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (activityDate == today) {
+      return 'Today at $timeString';
+    } else if (activityDate == yesterday) {
+      return 'Yesterday at $timeString';
     } else {
-      // Show full date and time for activities older than 1 day
+      // Show full date and time for activities older than yesterday
       const months = [
         'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
@@ -425,13 +430,9 @@ class _ActivityWidgetState extends State<ActivityWidget> {
       
       String month = months[dateTime.month - 1];
       String day = dateTime.day.toString().padLeft(2, '0');
+      String year = dateTime.year.toString();
       
-      // Convert to 12-hour format with AM/PM
-      int hour12 = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
-      String minute = dateTime.minute.toString().padLeft(2, '0');
-      String ampm = dateTime.hour < 12 ? 'am' : 'pm';
-      
-      return '$month $day, $hour12:$minute $ampm';
+      return '$month $day, $year at $timeString';
     }
   }
 } 

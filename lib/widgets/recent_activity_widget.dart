@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 
 import '../models/activity.dart';
-import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
@@ -45,10 +44,10 @@ class RecentActivityWidget extends StatelessWidget {
                         size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Today\'s Activity',
+                        'Last 24 Hours Activity',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -119,12 +118,12 @@ class RecentActivityWidget extends StatelessWidget {
                       }
                       
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
                           children: [
                             Container(
-                              width: 40,
-                              height: 40,
+                              width: 32,
+                              height: 32,
                               decoration: BoxDecoration(
                                 color: backgroundColor,
                                 borderRadius: BorderRadius.circular(8),
@@ -132,7 +131,7 @@ class RecentActivityWidget extends StatelessWidget {
                               child: Icon(
                                 icon,
                                 color: iconColor,
-                                size: 20,
+                                size: 16,
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -224,7 +223,7 @@ class RecentActivityWidget extends StatelessWidget {
   String _getPeriodTitle(ActivityPeriod period) {
     switch (period) {
       case ActivityPeriod.daily:
-        return 'Today\'s Activity';
+        return 'Last 24 Hours Activity';
       case ActivityPeriod.weekly:
         return 'Weekly Activity';
       case ActivityPeriod.monthly:
@@ -270,12 +269,19 @@ class RecentActivityWidget extends StatelessWidget {
         continue; // Skip cleared activities
       }
       
-      // Check if activity date is within the period (inclusive)
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-          (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
-        
-        activities.add(activity);
+      // Check if activity date is within the period
+      if (startDate.hour == 0 && startDate.minute == 0 && startDate.second == 0) {
+        // This is a date-only range (weekly, monthly, yearly)
+        final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+        if ((activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
+            (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate))) {
+          activities.add(activity);
+        }
+      } else {
+        // This is a time-based range (daily - last 24 hours)
+        if (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)) {
+          activities.add(activity);
+        }
       }
     }
 
@@ -297,16 +303,35 @@ class RecentActivityWidget extends StatelessWidget {
 
   String _getTimeAgo(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(dateTime);
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
     
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}h ago';
+    // Convert to 12-hour format with AM/PM and seconds
+    int hour12 = dateTime.hour == 0 ? 12 : (dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour);
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+    String ampm = dateTime.hour < 12 ? 'am' : 'pm';
+    String timeString = '$hour12:$minute:$second $ampm';
+    
+    // Compare the actual date part
+    final activityDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+    
+    if (activityDate == today) {
+      return 'Today at $timeString';
+    } else if (activityDate == yesterday) {
+      return 'Yesterday at $timeString';
     } else {
-      return '${difference.inDays}d ago';
+      // Show full date and time for activities older than yesterday
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      
+      String month = months[dateTime.month - 1];
+      String day = dateTime.day.toString().padLeft(2, '0');
+      String year = dateTime.year.toString();
+      
+      return '$month $day, $year at $timeString';
     }
   }
 } 

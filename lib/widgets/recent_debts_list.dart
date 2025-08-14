@@ -185,16 +185,35 @@ class _DebtCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final difference = date.difference(now).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
     
-    if (difference < 0) {
-      return '${difference.abs()} days ago';
-    } else if (difference == 0) {
-      return 'Today';
-    } else if (difference == 1) {
-      return 'Tomorrow';
+    // Convert to 12-hour format with AM/PM and seconds
+    int hour12 = date.hour == 0 ? 12 : (date.hour > 12 ? date.hour - 12 : date.hour);
+    String minute = date.minute.toString().padLeft(2, '0');
+    String second = date.second.toString().padLeft(2, '0');
+    String ampm = date.hour < 12 ? 'am' : 'pm';
+    String timeString = '$hour12:$minute:$second $ampm';
+    
+    // Compare the actual date part
+    final activityDate = DateTime(date.year, date.month, date.day);
+    
+    if (activityDate == today) {
+      return 'Today at $timeString';
+    } else if (activityDate == yesterday) {
+      return 'Yesterday at $timeString';
     } else {
-      return 'in $difference days';
+      // Show full date and time for activities older than yesterday
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      
+      String month = months[date.month - 1];
+      String day = date.day.toString().padLeft(2, '0');
+      String year = date.year.toString();
+      
+      return '$month $day, $year at $timeString';
     }
   }
 } 

@@ -9,6 +9,7 @@ class EmptyStateWidget extends StatelessWidget {
   final Color? iconColor;
   final VoidCallback? onAction;
   final String? actionText;
+  final bool compact;
 
   const EmptyStateWidget({
     super.key,
@@ -18,12 +19,13 @@ class EmptyStateWidget extends StatelessWidget {
     this.iconColor,
     this.onAction,
     this.actionText,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(compact ? 16 : 40),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -33,7 +35,7 @@ class EmptyStateWidget extends StatelessWidget {
             AppColors.dynamicSurface(context).withAlpha(153), // 0.6 * 255
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(compact ? 12 : 16),
         border: Border.all(
           color: AppColors.primary.withAlpha(26), // 0.1 * 255
           width: 1,
@@ -50,36 +52,38 @@ class EmptyStateWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(compact ? 12 : 20),
             decoration: BoxDecoration(
               color: (iconColor ?? AppColors.primary).withAlpha(26), // 0.1 * 255
-              borderRadius: BorderRadius.circular(50),
+              borderRadius: BorderRadius.circular(compact ? 30 : 50),
             ),
             child: Icon(
               icon,
-              size: 48,
+              size: compact ? 24 : 48,
               color: iconColor ?? AppColors.primary,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: compact ? 12 : 24),
           Text(
             title,
             style: AppTheme.title2.copyWith(
               color: AppColors.dynamicTextPrimary(context),
               fontWeight: FontWeight.w600,
+              fontSize: compact ? 14 : null,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 12),
           Text(
             message,
             style: AppTheme.body.copyWith(
               color: AppColors.dynamicTextSecondary(context),
+              fontSize: compact ? 12 : null,
             ),
             textAlign: TextAlign.center,
           ),
           if (onAction != null && actionText != null) ...[
-            const SizedBox(height: 24),
+            SizedBox(height: compact ? 12 : 24),
             ElevatedButton.icon(
               onPressed: onAction,
               icon: const Icon(Icons.add, size: 18),
@@ -130,9 +134,10 @@ class EmptyStates {
 
   static Widget noRecentActivity() {
     return const EmptyStateWidget(
-      title: 'No Recent Activity',
-      message: 'Activity will appear here as you add customers and debts.',
+      title: 'All caught up!',
+      message: 'No new activity in the last 24 hours',
       icon: Icons.access_time_outlined,
+      compact: true,
     );
   }
 

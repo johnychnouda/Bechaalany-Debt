@@ -157,116 +157,221 @@ class AppState extends ChangeNotifier {
     return totalFromActivities + totalFromPartialPayments;
   }
   
-  // Get total historical revenue across all customers (including deleted debts)
+  // Debug method to help identify missing products
+  void debugMissingProducts() {
+    print('=== MISSING PRODUCTS ANALYSIS ===');
+    
+    // Get all unique product names mentioned in activities
+    final mentionedProducts = <String>{};
+    for (final activity in _activities) {
+      if (activity.description.isNotEmpty) {
+        // Look for product names in descriptions
+        final words = activity.description.toLowerCase().split(' ');
+        for (final word in words) {
+          if (word.length > 2 && !word.contains('(') && !word.contains(')') && !word.contains(':') && !word.contains('-') && !word.contains('debt') && !word.contains('payment')) {
+            mentionedProducts.add(word);
+          }
+        }
+      }
+    }
+    
+    // Get all existing product names
+    final existingProducts = <String>{};
+    for (final category in _categories) {
+      for (final subcategory in category.subcategories) {
+        existingProducts.add(subcategory.name.toLowerCase());
+      }
+    }
+    
+    // Find missing products
+    final missingProducts = mentionedProducts.difference(existingProducts);
+    
+    print('EXISTING PRODUCTS in system:');
+    for (final category in _categories) {
+      for (final subcategory in category.subcategories) {
+        print('  - "${subcategory.name}" (Category: ${category.name})');
+      }
+    }
+    
+    print('\nPRODUCT NAMES mentioned in activities:');
+    for (final product in mentionedProducts) {
+      print('  - "$product"');
+    }
+    
+    if (missingProducts.isNotEmpty) {
+      print('\nMISSING PRODUCTS that activities reference:');
+      for (final product in missingProducts) {
+        print('  - "$product" (referenced in activities but not in products list)');
+      }
+      
+      print('\nACTIVITIES that reference missing products:');
+      for (final activity in _activities) {
+        for (final missingProduct in missingProducts) {
+          if (activity.description.toLowerCase().contains(missingProduct)) {
+            print('  - ${activity.description} (references "$missingProduct")');
+          }
+        }
+      }
+    } else {
+      print('\nNo missing products detected - all referenced products exist in the system.');
+    }
+    
+    print('=== END MISSING PRODUCTS ANALYSIS ===');
+  }
+
+  // Debug method to check specific product revenue expectations
+  void debugCheckProductRevenue(String productName) {
+    print('=== CHECKING REVENUE FOR PRODUCT: $productName ===');
+    
+    // Find the product
+    Subcategory? foundProduct;
+    for (final category in _categories) {
+      for (final subcategory in category.subcategories) {
+        if (subcategory.name.toLowerCase().contains(productName.toLowerCase()) ||
+            productName.toLowerCase().contains(subcategory.name.toLowerCase())) {
+          foundProduct = subcategory;
+          break;
+        }
+      }
+      if (foundProduct != null) break;
+    }
+    
+    if (foundProduct != null) {
+      final profit = foundProduct.sellingPrice - foundProduct.costPrice;
+      print('Found product: ${foundProduct.name}');
+      print('Cost Price: ${foundProduct.costPrice}');
+      print('Selling Price: ${foundProduct.sellingPrice}');
+      print('Expected Profit per unit: $profit');
+      
+      // Check how many payments exist for this product
+      final productPayments = _activities.where((a) => 
+        a.type == ActivityType.payment && 
+        (a.description.toLowerCase().contains(foundProduct!.name.toLowerCase()) ||
+         foundProduct.name.toLowerCase().contains(a.description.toLowerCase()))
+      ).toList();
+      
+      print('Payment activities for this product: ${productPayments.length}');
+      for (final payment in productPayments) {
+        print('  - ${payment.description}: ${payment.paymentAmount} (${payment.date})');
+      }
+      
+      // Check debts for this product
+      final productDebts = _debts.where((d) => 
+        d.subcategoryName?.toLowerCase().contains(foundProduct?.name.toLowerCase() ?? '') == true ||
+        d.description.toLowerCase().contains(foundProduct?.name.toLowerCase() ?? '')
+      ).toList();
+      
+      print('Current debts for this product: ${productDebts.length}');
+      for (final debt in productDebts) {
+        print('  - ${debt.description}: ${debt.amount} (Status: ${debt.status})');
+      }
+      
+    } else {
+      print('Product "$productName" not found in system');
+      
+      // Show all activities that might contain this product name
+      print('\nSearching for activities that might contain "$productName":');
+      final relatedActivities = _activities.where((a) => 
+        a.description.toLowerCase().contains(productName.toLowerCase())
+      ).toList();
+      
+      if (relatedActivities.isNotEmpty) {
+        print('Found ${relatedActivities.length} activities containing "$productName":');
+        for (final activity in relatedActivities) {
+          print('  - ${activity.type}: ${activity.description} - Amount: ${activity.paymentAmount ?? activity.amount}');
+        }
+      } else {
+        print('No activities found containing "$productName"');
+      }
+      
+      // Show all existing product names for comparison
+      print('\nAll existing product names for comparison:');
+      for (final category in _categories) {
+        for (final subcategory in category.subcategories) {
+          print('  - "${subcategory.name}"');
+        }
+      }
+    }
+    print('=== END PRODUCT REVENUE CHECK ===');
+  }
+
+  // Debug method to print all products and their profit margins
+  void debugPrintProducts() {
+    print('=== PRODUCT DEBUG ===');
+    print('Total Categories: ${_categories.length}');
+    for (final category in _categories) {
+      print('Category: ${category.name}');
+      for (final subcategory in category.subcategories) {
+        final profit = subcategory.sellingPrice - subcategory.costPrice;
+        print('  - ${subcategory.name}: Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}, Profit: $profit');
+      }
+    }
+    print('=== END PRODUCT DEBUG ===');
+  }
+
+  // Get total revenue from actual payments received from customers (including cleared debts)
   double get totalHistoricalRevenue {
     double totalRevenue = 0.0;
     
-    // Calculate revenue from payment activities and partial payments directly
-    // This avoids double-counting issues from debt state calculations
     print('=== REVENUE CALCULATION DEBUG ===');
-    print('Total payment activities: ${_activities.where((a) => a.type == ActivityType.payment).length}');
-    print('Total partial payments: ${_partialPayments.length}');
+    print('Calculating revenue from ALL products sold (regardless of payment status)...');
     
-    // Group all payments by debt ID to calculate total paid per debt
-    final Map<String, double> debtTotalPayments = {};
+    // Get all unique products that were sold by looking at debt descriptions
+    final Set<String> soldProducts = <String>{};
     
-    // Collect payments from activities
-    for (final activity in _activities.where((a) => a.type == ActivityType.payment)) {
-      if (activity.paymentAmount != null && activity.paymentAmount! > 0 && activity.debtId != null) {
-        debtTotalPayments[activity.debtId!] = (debtTotalPayments[activity.debtId!] ?? 0) + activity.paymentAmount!;
-        print('Activity payment: ${activity.debtId} -> ${activity.paymentAmount}');
+    // Add products from current debts
+    for (final debt in _debts) {
+      if (debt.description.isNotEmpty) {
+        soldProducts.add(debt.description.toLowerCase());
       }
     }
     
-    // Collect payments from partial payments
-    for (final partialPayment in _partialPayments) {
-      debtTotalPayments[partialPayment.debtId] = (debtTotalPayments[partialPayment.debtId] ?? 0) + partialPayment.amount;
-      print('Partial payment: ${partialPayment.debtId} -> ${partialPayment.amount}');
+    // Add products from debt activities (for cleared debts)
+    for (final activity in _activities) {
+      if (activity.type == ActivityType.newDebt && activity.description.isNotEmpty) {
+        soldProducts.add(activity.description.toLowerCase());
+      }
     }
     
-    print('Debt total payments: $debtTotalPayments');
+    print('Found ${soldProducts.length} unique products sold: ${soldProducts.join(', ')}');
     
-    // Calculate revenue for each debt based on total payments
-    for (final entry in debtTotalPayments.entries) {
-      final debtId = entry.key;
-      final totalPaidForDebt = entry.value;
+    // Calculate revenue as total profit from all products sold
+    for (final productName in soldProducts) {
+      print('  -> Processing product: $productName');
       
-      // Find the debt to get product information
-      final debt = _debts.firstWhere(
-        (d) => d.id == debtId,
-        orElse: () => Debt(
-          id: '',
-          customerId: '',
-          customerName: '',
-          description: '',
-          amount: 0,
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: DateTime.now(),
-        ),
-      );
-      
-      print('\n--- Processing Debt: $debtId ---');
-      print('Debt amount: ${debt.amount}');
-      print('Total paid for this debt: $totalPaidForDebt');
-      print('Subcategory name: ${debt.subcategoryName}');
-      print('Description: ${debt.description}');
-      
-      // Calculate revenue based on product information
-      if (debt.subcategoryName != null) {
-        try {
-          final subcategory = _categories
-              .expand((category) => category.subcategories)
-              .firstWhere((sub) => sub.name == debt.subcategoryName);
-          
-          final sellingPrice = debt.originalSellingPrice ?? subcategory.sellingPrice;
-          final costPrice = subcategory.costPrice;
-          
-          print('Subcategory found: ${subcategory.name}');
-          print('Selling price: $sellingPrice');
-          print('Cost price: $costPrice');
-          
-          if (sellingPrice != null && costPrice != null) {
-            // Calculate total profit for this debt
-            final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-            print('Total profit: $totalProfit');
-            
-            // Calculate proportional profit based on total amount paid
-            final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
-            print('Proportional profit: $proportionalProfit');
-            
-            totalRevenue += proportionalProfit;
-            print('Running total revenue: $totalRevenue');
-          }
-        } catch (e) {
-          print('Subcategory not found, using inferred values');
-          // If subcategory not found, use inferred values
-          if (debt.description.toLowerCase().contains('alfa')) {
-            final sellingPrice = 15.0;
-            final costPrice = 1.0;
-            final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-            final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
-            totalRevenue += proportionalProfit;
-            print('Inferred Alfa - Total profit: $totalProfit, Proportional profit: $proportionalProfit');
-            print('Running total revenue: $totalRevenue');
+      // Try to find the product by description match
+      Subcategory? foundSubcategory;
+      for (final category in _categories) {
+        for (final subcategory in category.subcategories) {
+          if (productName.contains(subcategory.name.toLowerCase()) ||
+              subcategory.name.toLowerCase().contains(productName)) {
+            foundSubcategory = subcategory;
+            print('  -> Found product by description match: ${subcategory.name}');
+            break;
           }
         }
+        if (foundSubcategory != null) break;
+      }
+      
+      if (foundSubcategory != null) {
+        // Revenue is the full profit from this product (regardless of payment status)
+        final profitMargin = foundSubcategory.sellingPrice - foundSubcategory.costPrice;
+        totalRevenue += profitMargin;
+        
+        print('  -> Found product: ${foundSubcategory.name}');
+        print('  -> Cost: ${foundSubcategory.costPrice}, Selling: ${foundSubcategory.sellingPrice}');
+        print('  -> Profit margin: $profitMargin');
+        print('  -> Revenue from this product: $profitMargin (full profit)');
       } else {
-        print('No subcategory, use inferred values');
-        // No subcategory, use inferred values
-        if (debt.description.toLowerCase().contains('alfa')) {
-          final sellingPrice = 15.0;
-          final costPrice = 1.0;
-          final totalProfit = debt.amount * ((sellingPrice - costPrice) / sellingPrice);
-          final proportionalProfit = totalProfit * (totalPaidForDebt / debt.amount);
-          totalRevenue += proportionalProfit;
-          print('Inferred Alfa - Total profit: $totalProfit, Proportional profit: $proportionalProfit');
-          print('Running total revenue: $totalRevenue');
-        }
+        print('  -> Product not found for description: $productName');
       }
     }
     
-    print('\n=== FINAL REVENUE: $totalRevenue ===');
+    print('\n=== FINAL REVENUE CALCULATION ===');
+    print('Total Revenue from ALL Products Sold: $totalRevenue');
+    print('Unique Products Sold: ${soldProducts.length}');
+    print('Current Active Debts: ${_debts.length}');
+    print('=== END REVENUE CALCULATION ===');
     
     return totalRevenue;
   }
@@ -300,6 +405,9 @@ class AppState extends ChangeNotifier {
       
       // AUTOMATICALLY create missing payment activities for existing paid debts
       await createMissingPaymentActivitiesForAllPaidDebts();
+      
+      // Clean up existing fake payment activities that were created by the old logic
+      await cleanupFakePaymentActivities();
       
       // Clean up invalid activities
       await _cleanupInvalidActivities();
@@ -414,7 +522,35 @@ class AppState extends ChangeNotifier {
             activity.type == ActivityType.payment && 
             activity.debtId == debt.id);
           
-          if (!hasPaymentActivity) {
+          // CRITICAL FIX: Don't create payment activities for debts that are suspicious
+          // This prevents creating fake "Payment completed" activities for cleared debts
+          bool shouldCreatePaymentActivity = !hasPaymentActivity;
+          
+          // Additional checks to prevent fake payment activities
+          if (shouldCreatePaymentActivity) {
+            // Check if this debt was created with the full amount already paid
+            // This suggests it's a debt that was cleared immediately, not a real payment
+            if (debt.paidAmount == debt.amount && debt.createdAt.isAtSameMomentAs(debt.paidAt ?? debt.createdAt)) {
+              shouldCreatePaymentActivity = false;
+              print('DEBUG: Skipping payment activity creation for debt ${debt.id} - appears to be immediately cleared');
+            }
+            
+            // Check if there are other payment activities for the same customer around the same time
+            // This suggests the debt was paid through other means
+            final customerPaymentActivities = _activities.where((a) => 
+              a.type == ActivityType.payment && 
+              a.customerId == debt.customerId &&
+              a.date.isAfter(debt.createdAt.subtract(const Duration(minutes: 5))) &&
+              a.date.isBefore(debt.createdAt.add(const Duration(minutes: 5)))
+            ).toList();
+            
+            if (customerPaymentActivities.isNotEmpty) {
+              shouldCreatePaymentActivity = false;
+              print('DEBUG: Skipping payment activity creation for debt ${debt.id} - customer has other payment activities');
+            }
+          }
+          
+          if (shouldCreatePaymentActivity) {
             // Create a payment activity for the full paid amount
             await addPaymentActivity(debt, debt.paidAmount, DebtStatus.pending, DebtStatus.paid);
           }
@@ -616,13 +752,24 @@ class AppState extends ChangeNotifier {
       
       // Create a summary activity to preserve payment history before deleting
       if (debt.paidAmount > 0) {
+        // Create a detailed description that includes product information for better revenue calculation
+        String detailedDescription = 'Cleared debt: ${debt.description}';
+        
+        // Add product information if available to help with revenue calculation
+        if (debt.subcategoryName != null) {
+          detailedDescription += ' (Product: ${debt.subcategoryName})';
+        }
+        if (debt.categoryName != null) {
+          detailedDescription += ' (Category: ${debt.categoryName})';
+        }
+        
         final summaryActivity = Activity(
           id: 'summary_${debt.id}_${DateTime.now().millisecondsSinceEpoch}',
           date: DateTime.now(),
           type: ActivityType.debtCleared,
           customerName: debt.customerName,
           customerId: debt.customerId,
-          description: 'Cleared debt: ${debt.description}',
+          description: detailedDescription,
           amount: debt.amount,
           paymentAmount: debt.paidAmount,
           oldStatus: debt.status,
@@ -829,7 +976,7 @@ class AppState extends ChangeNotifier {
   Future<void> removeActivitiesByCustomerAndAmount(String customerName, double amount) async {
     try {
       final activitiesToRemove = _activities.where((activity) => 
-        activity.customerName == customerName && 
+        activity.customerName.toLowerCase() == customerName.toLowerCase() && 
         activity.paymentAmount == amount
       ).toList();
       
@@ -1634,7 +1781,53 @@ class AppState extends ChangeNotifier {
     return sortedCustomers.take(5).toList();
   }
 
-
+  // Clean up existing fake payment activities that were created by the old logic
+  Future<void> cleanupFakePaymentActivities() async {
+    try {
+      final activitiesToRemove = <Activity>[];
+      
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && activity.debtId != null) {
+          // Check if this payment activity represents a fake "full payment" for a cleared debt
+          final debt = _debts.firstWhere(
+            (d) => d.id == activity.debtId,
+            orElse: () => Debt(
+              id: '',
+              customerId: '',
+              customerName: '',
+              description: '',
+              amount: 0,
+              type: DebtType.credit,
+              status: DebtStatus.pending,
+              createdAt: DateTime.now(),
+            ),
+          );
+          
+          // If the debt doesn't exist anymore (was deleted) and the payment amount equals the debt amount
+          // this is likely a fake payment activity that should be removed
+          if (debt.id.isEmpty && activity.paymentAmount == activity.amount) {
+            activitiesToRemove.add(activity);
+            print('DEBUG: Marking fake payment activity for removal: ${activity.description} - Amount: ${activity.paymentAmount}');
+          }
+        }
+      }
+      
+      // Remove the fake activities
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.remove(activity);
+        print('DEBUG: Removed fake payment activity: ${activity.description}');
+      }
+      
+      if (activitiesToRemove.isNotEmpty) {
+        _clearCache();
+        notifyListeners();
+        print('DEBUG: Cleaned up ${activitiesToRemove.length} fake payment activities');
+      }
+    } catch (e) {
+      print('DEBUG: Error cleaning up fake payment activities: $e');
+    }
+  }
 
 
 } 

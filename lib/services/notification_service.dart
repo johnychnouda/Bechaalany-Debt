@@ -71,6 +71,58 @@ class NotificationService {
     print('Notification tapped: ${response.payload}');
   }
 
+  // ===== NOTIFICATION SETTINGS =====
+
+  /// Load notification settings from SharedPreferences
+  Future<Map<String, dynamic>> loadNotificationSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    return {
+      'interruptionLevel': prefs.getString('interruptionLevel') ?? 'active',
+      'paymentRemindersEnabled': prefs.getBool('paymentRemindersEnabled') ?? false,
+      'dailySummaryEnabled': prefs.getBool('dailySummaryEnabled') ?? false,
+      'weeklyReportEnabled': prefs.getBool('weeklyReportEnabled') ?? false,
+      'dailySummaryTime': prefs.getString('dailySummaryTime'),
+      'weeklyReportWeekday': prefs.getInt('weeklyReportWeekday') ?? DateTime.monday,
+      'weeklyReportTime': prefs.getString('weeklyReportTime'),
+    };
+  }
+
+  /// Update notification settings and save to SharedPreferences
+  Future<void> updateNotificationSettings({
+    bool? paymentRemindersEnabled,
+    bool? dailySummaryEnabled,
+    bool? weeklyReportEnabled,
+    TimeOfDay? dailySummaryTime,
+    int? weeklyReportWeekday,
+    TimeOfDay? weeklyReportTime,
+    String? interruptionLevel,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    if (paymentRemindersEnabled != null) {
+      await prefs.setBool('paymentRemindersEnabled', paymentRemindersEnabled);
+    }
+    if (dailySummaryEnabled != null) {
+      await prefs.setBool('dailySummaryEnabled', dailySummaryEnabled);
+    }
+    if (weeklyReportEnabled != null) {
+      await prefs.setBool('weeklyReportEnabled', weeklyReportEnabled);
+    }
+    if (dailySummaryTime != null) {
+      await prefs.setString('dailySummaryTime', '${dailySummaryTime.hour}:${dailySummaryTime.minute}');
+    }
+    if (weeklyReportWeekday != null) {
+      await prefs.setInt('weeklyReportWeekday', weeklyReportWeekday);
+    }
+    if (weeklyReportTime != null) {
+      await prefs.setString('weeklyReportTime', '${weeklyReportTime.hour}:${weeklyReportTime.minute}');
+    }
+    if (interruptionLevel != null) {
+      await prefs.setString('interruptionLevel', interruptionLevel);
+    }
+  }
+
   // ===== IMMEDIATE ACTION NOTIFICATIONS =====
 
   /// Show success notification

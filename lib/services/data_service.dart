@@ -514,13 +514,42 @@ class DataService {
 
   Future<void> deleteDebt(String debtId) async {
     try {
-      _debtBoxSafe.delete(debtId);
-      // Also delete related partial payments
-      final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
-      for (final payment in partialPayments) {
-        _partialPaymentBoxSafe.delete(payment.id);
+      // Get the debt before deleting it to preserve payment history
+      final debt = _debtBoxSafe.get(debtId);
+      if (debt != null && debt.paidAmount > 0) {
+        // CRITICAL: Preserve partial payments for revenue calculation
+        // We'll store them in a special "historical payments" box to maintain revenue
+        final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
+        
+        print('Preserving ${partialPayments.length} partial payments for debt $debtId before deletion');
+        
+        // Store historical payment records for revenue calculation
+        for (final payment in partialPayments) {
+          // Create a historical payment record with all necessary information
+          final historicalPayment = PartialPayment(
+            id: 'historical_${payment.id}_${DateTime.now().millisecondsSinceEpoch}',
+            debtId: 'historical_${debtId}',
+            amount: payment.amount,
+            paidAt: payment.paidAt,
+            notes: 'Historical payment: ${debt.description} (Product: ${debt.subcategoryName ?? 'Unknown'}) - Amount: ${payment.amount}',
+          );
+          
+          // Store in the same box but with historical prefix to avoid conflicts
+          _partialPaymentBoxSafe.put(historicalPayment.id, historicalPayment);
+          print('Preserved historical payment: ${historicalPayment.id} for ${historicalPayment.amount}');
+        }
+        
+        // Now safely delete the original payments
+        for (final payment in partialPayments) {
+          _partialPaymentBoxSafe.delete(payment.id);
+        }
       }
+      
+      // Now delete the debt
+      _debtBoxSafe.delete(debtId);
+      print('Debt $debtId deleted, payment history preserved for revenue calculation');
     } catch (e) {
+      print('Error in deleteDebt: $e');
       rethrow;
     }
   }
