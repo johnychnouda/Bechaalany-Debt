@@ -69,14 +69,27 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
     final debtDate = DateTime(date.year, date.month, date.day);
     
+    // Format time as HH:MM AM/PM
+    final hour = date.hour;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final timeString = '$displayHour:$minute $period';
+    
     if (debtDate == today) {
-      return 'Today';
-    } else if (debtDate == today.subtract(const Duration(days: 1))) {
-      return 'Yesterday';
+      return 'Today at $timeString';
+    } else if (debtDate == yesterday) {
+      return 'Yesterday at $timeString';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      // Format: DD/MM/YYYY at HH:MM AM/PM
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year.toString();
+      
+      return 'Created on $day/$month/$year at $timeString';
     }
   }
   
@@ -810,56 +823,74 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 
                 const SizedBox(height: 16),
                 
-                // Financial Summary Section
+                // Financial Summary Section - Simple Style
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: AppColors.dynamicSurface(context),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(13), // 0.05 * 255
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    border: Border.all(
+                      color: AppColors.dynamicBorder(context),
+                      width: 1,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Simple Header
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'FINANCIAL SUMMARY',
-                          style: AppTheme.getDynamicSubheadline(context).copyWith(
-                            color: AppColors.dynamicTextSecondary(context),
-                            letterSpacing: 0.5,
-                            fontWeight: FontWeight.bold,
+                          'Financial Summary',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
                         ),
                       ),
                       
-                      // Debts List (shown first)
+                      // Debts List
                       if (widget.showDebtsSection && customerAllDebts.isNotEmpty) ...[
+                        // Section Title
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'DEBTS',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.dynamicTextPrimary(context),
-                              letterSpacing: 0.5,
-                            ),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Active Debts',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dynamicError(context).withAlpha(20),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${customerAllDebts.where((d) => !d.isFullyPaid).length} pending',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicError(context),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
                         
-                        // Debts List
+                        // Simple Debts List
                         ...customerAllDebts.asMap().entries.map((entry) {
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerAllDebts.length - 1;
+                          final isPaid = debt.isFullyPaid;
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -882,186 +913,213 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 padding: const EdgeInsets.only(right: 20),
                                 decoration: BoxDecoration(
                                   color: AppColors.dynamicPrimary(context),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
                                   Icons.delete_sweep,
                                   color: Colors.white,
-                                  size: 24,
+                                  size: 20,
                                 ),
                               ) : null,
-                              child: Column(
-                                children: [
-                                  // Simple debt display without individual action buttons
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.dynamicSurface(context),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: AppColors.dynamicBorder(context),
-                                        width: 0.5,
-                                      ),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isPaid 
+                                      ? AppColors.dynamicSuccess(context).withAlpha(10)
+                                      : AppColors.dynamicPrimary(context).withAlpha(15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isPaid 
+                                        ? AppColors.dynamicSuccess(context).withAlpha(30)
+                                        : AppColors.dynamicPrimary(context).withAlpha(40),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isPaid ? Icons.check_circle : Icons.shopping_bag,
+                                      color: isPaid 
+                                          ? AppColors.dynamicSuccess(context)
+                                          : AppColors.dynamicPrimary(context),
+                                      size: 20,
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.dynamicPrimary(context).withAlpha(26),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Icon(
-                                            Icons.attach_money,
-                                            color: AppColors.dynamicPrimary(context),
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
                                             children: [
                                               Text(
-                                                '${debt.description}',
+                                                debt.description,
                                                 style: TextStyle(
                                                   fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
+                                                  fontWeight: FontWeight.w500,
                                                   color: AppColors.dynamicTextPrimary(context),
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Created: ${_formatDate(debt.createdAt)}',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  color: AppColors.dynamicTextSecondary(context),
+                                              if (isPaid) ...[
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.dynamicSuccess(context),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: const Text(
+                                                    'Paid',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                    ),
+                                                  ),
                                                 ),
-                                              ),
+                                              ],
                                             ],
                                           ),
-                                        ),
-                                        Text(
-                                          CurrencyFormatter.formatAmount(context, debt.amount),
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.dynamicTextPrimary(context),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Show consolidated action buttons only under the last debt
-                                  if (isLastDebt && customerAllDebts.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
-                                    // Consolidated Action Buttons
-                                    Row(
-                                      children: [
-                                        if (totalPendingDebt > 0) ...[
-                                          // Make Payment button for all pending debts
-                                          Expanded(
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _showConsolidatedPaymentDialog(context, customerAllDebts),
-                                              icon: const Icon(Icons.payment, size: 16),
-                                              label: const Text('Make Payment'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: AppColors.dynamicPrimary(context),
-                                                foregroundColor: Colors.white,
-                                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                              ),
+                                          Text(
+                                            'Created ${_formatDate(debt.createdAt)}',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.dynamicTextSecondary(context),
                                             ),
                                           ),
-                                          const SizedBox(width: 12),
                                         ],
-                                        // Delete All button
-                                        Expanded(
-                                          child: ElevatedButton.icon(
-                                            onPressed: () => _showDeleteAllDebtsDialog(context, customerAllDebts),
-                                            icon: const Icon(Icons.delete_forever, size: 16),
-                                            label: const Text('Delete All'),
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: AppColors.dynamicError(context),
-                                              foregroundColor: Colors.white,
-                                              padding: const EdgeInsets.symmetric(vertical: 12),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                      ),
+                                    ),
+                                    Text(
+                                      CurrencyFormatter.formatAmount(context, debt.amount),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: isPaid 
+                                            ? AppColors.dynamicSuccess(context)
+                                            : AppColors.dynamicTextPrimary(context),
+                                      ),
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
                             ),
                           );
                         }),
                         
-                        const Divider(height: 32, thickness: 1),
+                        // Simple Action Buttons
+                        if (customerAllDebts.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                if (totalPendingDebt > 0) ...[
+                                  Expanded(
+                                    child: ElevatedButton.icon(
+                                      onPressed: () => _showConsolidatedPaymentDialog(context, customerAllDebts),
+                                      icon: const Icon(Icons.payment, size: 16),
+                                      label: const Text('Make Payment'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.dynamicPrimary(context),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _showDeleteAllDebtsDialog(context, customerAllDebts),
+                                    icon: Icon(
+                                      Icons.delete_forever, 
+                                      size: 16,
+                                      color: AppColors.dynamicError(context),
+                                    ),
+                                    label: Text(
+                                      'Delete All',
+                                      style: TextStyle(
+                                        color: AppColors.dynamicError(context),
+                                      ),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.dynamicError(context).withAlpha(20),
+                                      foregroundColor: AppColors.dynamicError(context),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                       ],
                       
-
-                      
-                      // Summary Totals (shown below debts)
-                      // Total Pending Debt (only show if there are pending debts)
-                      if (totalPendingDebt > 0) ...[
-                        ListTile(
-                          leading: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.dynamicError(context).withAlpha(26), // 0.1 * 255
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.attach_money,
-                              color: AppColors.dynamicError(context),
-                              size: 16,
-                            ),
-                          ),
-                          title: Text(
-                            'Total Pending Debt',
-                            style: TextStyle(
-                              fontSize: 17,
-                              color: AppColors.dynamicTextPrimary(context),
-                            ),
-                          ),
-                          subtitle: Text(
-                            CurrencyFormatter.formatAmount(context, totalPendingDebt),
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppColors.dynamicError(context),
-                              fontWeight: FontWeight.w600,
-                            ),
+                      // Simple Summary
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSurface(context),
+                          borderRadius: const BorderRadius.vertical(
+                            bottom: Radius.circular(12),
                           ),
                         ),
-                      ],
-                      // Total Paid
-                      ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.dynamicSuccess(context).withAlpha(26), // 0.1 * 255
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.check_circle,
-                            color: AppColors.dynamicSuccess(context),
-                            size: 16,
-                          ),
-                        ),
-                        title: Text(
-                          'Total Paid',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: AppColors.dynamicTextPrimary(context),
-                          ),
-                        ),
-                        subtitle: Text(
-                          CurrencyFormatter.formatAmount(context, totalPaid),
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: AppColors.dynamicSuccess(context),
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Column(
+                          children: [
+                            if (totalPendingDebt > 0) ...[
+                              Row(
+                                children: [
+                                  Text(
+                                    'Total Pending:',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.dynamicTextPrimary(context),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    CurrencyFormatter.formatAmount(context, totalPendingDebt),
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dynamicError(context),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            Row(
+                              children: [
+                                Text(
+                                  'Total Paid:',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.dynamicTextPrimary(context),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  CurrencyFormatter.formatAmount(context, totalPaid),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.dynamicSuccess(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ],

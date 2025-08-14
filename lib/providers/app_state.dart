@@ -316,28 +316,42 @@ class AppState extends ChangeNotifier {
     print('=== REVENUE CALCULATION DEBUG ===');
     print('Calculating revenue from ALL products sold (regardless of payment status)...');
     
-    // Get all unique products that were sold by looking at debt descriptions
-    final Set<String> soldProducts = <String>{};
-    
-    // Add products from current debts
+    // Debug: Show all current debts
+    print('Current debts count: ${_debts.length}');
     for (final debt in _debts) {
-      if (debt.description.isNotEmpty) {
-        soldProducts.add(debt.description.toLowerCase());
+      print('  -> Debt: ${debt.customerName} - ${debt.description} - \$${debt.amount}');
+    }
+    
+    // Debug: Show all activities
+    print('Current activities count: ${_activities.length}');
+    for (final activity in _activities) {
+      if (activity.type == ActivityType.newDebt) {
+        print('  -> Activity: ${activity.customerName} - ${activity.description} - \$${activity.amount}');
       }
     }
     
-    // Add products from debt activities (for cleared debts)
+    // Count actual quantities of products sold from activities only (to avoid double-counting)
+    // Activities contain the complete purchase history including cleared debts
+    final Map<String, int> productQuantities = <String, int>{};
+    
+    // Only count products from activities to avoid double-counting with current debts
     for (final activity in _activities) {
       if (activity.type == ActivityType.newDebt && activity.description.isNotEmpty) {
-        soldProducts.add(activity.description.toLowerCase());
+        final productName = activity.description.toLowerCase();
+        productQuantities[productName] = (productQuantities[productName] ?? 0) + 1;
+        print('  -> Added activity product: $productName (customer: ${activity.customerName})');
       }
     }
     
-    print('Found ${soldProducts.length} unique products sold: ${soldProducts.join(', ')}');
+    print('Found ${productQuantities.length} unique products sold: ${productQuantities.keys.join(', ')}');
+    print('Product quantities: $productQuantities');
     
-    // Calculate revenue as total profit from all products sold
-    for (final productName in soldProducts) {
-      print('  -> Processing product: $productName');
+    // Calculate revenue as total profit from all products sold (including quantities)
+    for (final entry in productQuantities.entries) {
+      final productName = entry.key;
+      final quantity = entry.value;
+      
+      print('  -> Processing product: $productName (quantity: $quantity)');
       
       // Try to find the product by description match
       Subcategory? foundSubcategory;
@@ -354,14 +368,16 @@ class AppState extends ChangeNotifier {
       }
       
       if (foundSubcategory != null) {
-        // Revenue is the full profit from this product (regardless of payment status)
+        // Revenue is the profit margin multiplied by quantity sold
         final profitMargin = foundSubcategory.sellingPrice - foundSubcategory.costPrice;
-        totalRevenue += profitMargin;
+        final totalProfitForProduct = profitMargin * quantity;
+        totalRevenue += totalProfitForProduct;
         
         print('  -> Found product: ${foundSubcategory.name}');
         print('  -> Cost: ${foundSubcategory.costPrice}, Selling: ${foundSubcategory.sellingPrice}');
-        print('  -> Profit margin: $profitMargin');
-        print('  -> Revenue from this product: $profitMargin (full profit)');
+        print('  -> Profit margin per unit: $profitMargin');
+        print('  -> Quantity sold: $quantity');
+        print('  -> Total profit for this product: $totalProfitForProduct');
       } else {
         print('  -> Product not found for description: $productName');
       }
@@ -369,7 +385,8 @@ class AppState extends ChangeNotifier {
     
     print('\n=== FINAL REVENUE CALCULATION ===');
     print('Total Revenue from ALL Products Sold: $totalRevenue');
-    print('Unique Products Sold: ${soldProducts.length}');
+    print('Unique Products Sold: ${productQuantities.length}');
+    print('Total Product Units Sold: ${productQuantities.values.fold(0, (sum, quantity) => sum + quantity)}');
     print('Current Active Debts: ${_debts.length}');
     print('=== END REVENUE CALCULATION ===');
     
