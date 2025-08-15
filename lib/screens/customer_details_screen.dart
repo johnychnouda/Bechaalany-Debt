@@ -595,7 +595,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         
         // Calculate total pending debt (current remaining amount)
-        final totalPendingDebt = allCustomerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        final totalPendingDebt = allCustomerDebts.where((d) => d.remainingAmount > 0).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
         // Calculate total paid from payment activities (preserves payment history even when debts are cleared)
         final customerPaymentActivities = appState.activities.where((a) => 
@@ -873,7 +873,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  '${customerAllDebts.where((d) => !d.isFullyPaid).length} pending',
+                                  '${customerAllDebts.where((d) => d.remainingAmount > 0).length} pending',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -890,25 +890,26 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerAllDebts.length - 1;
-                          final isPaid = debt.isFullyPaid;
+                          // Debt is only fully paid when remaining amount is exactly 0
+                          final isPaid = debt.remainingAmount == 0;
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Dismissible(
                               key: Key(debt.id),
-                              direction: debt.isFullyPaid ? DismissDirection.endToStart : DismissDirection.none,
+                              direction: debt.remainingAmount == 0 ? DismissDirection.endToStart : DismissDirection.none,
                               confirmDismiss: (direction) async {
-                                if (debt.isFullyPaid) {
+                                if (debt.remainingAmount == 0) {
                                   return await _confirmClearPaidDebt(context, debt);
                                 }
                                 return false;
                               },
                               onDismissed: (direction) {
-                                if (debt.isFullyPaid) {
+                                if (debt.remainingAmount == 0) {
                                   _deleteDebt(debt);
                                 }
                               },
-                              background: debt.isFullyPaid ? Container(
+                              background: debt.remainingAmount == 0 ? Container(
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.only(right: 20),
                                 decoration: BoxDecoration(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -17,6 +18,7 @@ import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/receipt_sharing_service.dart';
+import '../providers/app_state.dart';
 import 'add_customer_screen.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
@@ -440,6 +442,23 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                   color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Delete button for debt management
+              GestureDetector(
+                onTap: () => _showDeleteDebtDialog(debt),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(26),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: AppColors.error,
+                  ),
                 ),
               ),
             ],
@@ -1587,5 +1606,61 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
 
   String _formatCurrency(double amount) {
     return '${amount.toStringAsFixed(2)} USD';
+  }
+
+  /// Show delete debt confirmation dialog
+  void _showDeleteDebtDialog(Debt debt) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Debt'),
+          content: Text(
+            'Are you sure you want to delete this debt?\n\n'
+            'Product: ${debt.description}\n'
+            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}\n\n'
+            'This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deleteDebt(debt);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Delete debt and refresh the screen
+  Future<void> _deleteDebt(Debt debt) async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.deleteDebt(debt.id);
+      
+      if (mounted) {
+        // Refresh the screen data
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete debt: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 } 

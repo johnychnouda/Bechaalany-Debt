@@ -49,6 +49,8 @@ class Debt extends HiveObject {
   final double? originalSellingPrice; // Original selling price at time of debt creation
   @HiveField(14)
   final String? categoryName; // Category name at time of debt creation
+  @HiveField(15)
+  final double? originalCostPrice; // Original cost price at time of debt creation - CRITICAL for revenue calculation
 
   Debt({
     required this.id,
@@ -66,6 +68,7 @@ class Debt extends HiveObject {
     this.subcategoryName,
     this.originalSellingPrice,
     this.categoryName,
+    this.originalCostPrice,
   });
 
   factory Debt.fromJson(Map<String, dynamic> json) {
@@ -93,6 +96,9 @@ class Debt extends HiveObject {
           ? (json['originalSellingPrice'] as num).toDouble() 
           : null,
       categoryName: json['categoryName'] as String?,
+      originalCostPrice: json['originalCostPrice'] != null 
+          ? (json['originalCostPrice'] as num).toDouble() 
+          : null,
     );
   }
 
@@ -113,6 +119,7 @@ class Debt extends HiveObject {
       'subcategoryName': subcategoryName,
       'originalSellingPrice': originalSellingPrice,
       'categoryName': categoryName,
+      'originalCostPrice': originalCostPrice,
     };
   }
 
@@ -132,6 +139,7 @@ class Debt extends HiveObject {
     String? subcategoryName,
     double? originalSellingPrice,
     String? categoryName,
+    double? originalCostPrice,
   }) {
     return Debt(
       id: id ?? this.id,
@@ -149,6 +157,7 @@ class Debt extends HiveObject {
       subcategoryName: subcategoryName ?? this.subcategoryName,
       originalSellingPrice: originalSellingPrice ?? this.originalSellingPrice,
       categoryName: categoryName ?? this.categoryName,
+      originalCostPrice: originalCostPrice ?? this.originalCostPrice,
     );
   }
 
@@ -167,4 +176,27 @@ class Debt extends HiveObject {
   bool get isFullyPaid => paidAmount >= amount;
 
   bool get isPartiallyPaid => paidAmount > 0 && paidAmount < amount;
+
+  // PROFESSIONAL REVENUE CALCULATION PROPERTIES
+  /// Original revenue (profit) for this debt at creation time
+  double get originalRevenue {
+    if (originalSellingPrice == null || originalCostPrice == null) return 0.0;
+    return originalSellingPrice! - originalCostPrice!;
+  }
+
+  /// Revenue per dollar of debt amount (for proportional calculations)
+  double get revenuePerDollar {
+    if (amount <= 0) return 0.0;
+    return originalRevenue / amount;
+  }
+
+  /// Revenue earned from paid amount (proportional)
+  double get earnedRevenue {
+    return revenuePerDollar * paidAmount;
+  }
+
+  /// Remaining potential revenue
+  double get remainingRevenue {
+    return revenuePerDollar * remainingAmount;
+  }
 } 

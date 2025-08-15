@@ -662,6 +662,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         subcategoryId: _selectedSubcategory!.id,
         subcategoryName: _selectedSubcategory!.name,
         originalSellingPrice: _selectedSubcategory!.sellingPrice,
+        originalCostPrice: _selectedSubcategory!.costPrice, // CRITICAL: Store original cost for revenue calculation
         categoryName: _selectedCategory!.name,
       );
 

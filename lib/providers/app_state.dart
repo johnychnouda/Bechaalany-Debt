@@ -17,6 +17,9 @@ import '../services/data_export_import_service.dart';
 import '../services/backup_service.dart';
 import '../services/ios18_service.dart';
 
+import '../services/revenue_calculation_service.dart';
+import '../services/data_migration_service.dart';
+
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
@@ -24,6 +27,7 @@ class AppState extends ChangeNotifier {
   // CloudKit service removed - using built-in backend
   final DataExportImportService _exportImportService = DataExportImportService();
   final BackupService _backupService = BackupService();
+  final DataMigrationService _migrationService = DataMigrationService();
   // final IOS18Service _ios18Service = IOS18Service(); // Commented out - static methods don't need instance
 
   
@@ -309,88 +313,55 @@ class AppState extends ChangeNotifier {
     print('=== END PRODUCT DEBUG ===');
   }
 
-  // Get total revenue from actual payments received from customers (including cleared debts)
+  // PROFESSIONAL REVENUE CALCULATION - Based on product profit margins
+  // Revenue is calculated from actual product costs and selling prices at purchase time
+  // This ensures revenue integrity and professional accounting standards
   double get totalHistoricalRevenue {
-    double totalRevenue = 0.0;
-    
-    print('=== REVENUE CALCULATION DEBUG ===');
-    print('Calculating revenue from ALL products sold (regardless of payment status)...');
-    
-    // Debug: Show all current debts
-    print('Current debts count: ${_debts.length}');
-    for (final debt in _debts) {
-      print('  -> Debt: ${debt.customerName} - ${debt.description} - \$${debt.amount}');
+    return RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities);
+  }
+
+  // Get customer-specific revenue for financial summaries
+  double getCustomerRevenue(String customerId) {
+    return RevenueCalculationService().calculateCustomerRevenue(customerId, _debts);
+  }
+
+  // Get customer potential revenue (from unpaid amounts)
+  double getCustomerPotentialRevenue(String customerId) {
+    return RevenueCalculationService().calculateCustomerPotentialRevenue(customerId, _debts);
+  }
+
+  // Get detailed revenue breakdown for a customer
+  Map<String, dynamic> getCustomerRevenueBreakdown(String customerId) {
+    return RevenueCalculationService().getCustomerRevenueBreakdown(customerId, _debts);
+  }
+
+  // Get comprehensive dashboard revenue summary
+  Map<String, dynamic> getDashboardRevenueSummary() {
+    return RevenueCalculationService().getDashboardRevenueSummary(_debts, activities: _activities);
+  }
+
+  // DATA MIGRATION METHODS - Critical for revenue calculation accuracy
+  /// Run data migration to ensure all debts have cost price information
+  Future<void> runDataMigration() async {
+    try {
+      await _migrationService.migrateDebtCostPrices();
+      // Reload data after migration
+      await _loadData();
+      notifyListeners();
+    } catch (e) {
+      print('Data migration failed: $e');
+      rethrow;
     }
-    
-    // Debug: Show all activities
-    print('Current activities count: ${_activities.length}');
-    for (final activity in _activities) {
-      if (activity.type == ActivityType.newDebt) {
-        print('  -> Activity: ${activity.customerName} - ${activity.description} - \$${activity.amount}');
-      }
-    }
-    
-    // Count actual quantities of products sold from activities only (to avoid double-counting)
-    // Activities contain the complete purchase history including cleared debts
-    final Map<String, int> productQuantities = <String, int>{};
-    
-    // Only count products from activities to avoid double-counting with current debts
-    for (final activity in _activities) {
-      if (activity.type == ActivityType.newDebt && activity.description.isNotEmpty) {
-        final productName = activity.description.toLowerCase();
-        productQuantities[productName] = (productQuantities[productName] ?? 0) + 1;
-        print('  -> Added activity product: $productName (customer: ${activity.customerName})');
-      }
-    }
-    
-    print('Found ${productQuantities.length} unique products sold: ${productQuantities.keys.join(', ')}');
-    print('Product quantities: $productQuantities');
-    
-    // Calculate revenue as total profit from all products sold (including quantities)
-    for (final entry in productQuantities.entries) {
-      final productName = entry.key;
-      final quantity = entry.value;
-      
-      print('  -> Processing product: $productName (quantity: $quantity)');
-      
-      // Try to find the product by description match
-      Subcategory? foundSubcategory;
-      for (final category in _categories) {
-        for (final subcategory in category.subcategories) {
-          if (productName.contains(subcategory.name.toLowerCase()) ||
-              subcategory.name.toLowerCase().contains(productName)) {
-            foundSubcategory = subcategory;
-            print('  -> Found product by description match: ${subcategory.name}');
-            break;
-          }
-        }
-        if (foundSubcategory != null) break;
-      }
-      
-      if (foundSubcategory != null) {
-        // Revenue is the profit margin multiplied by quantity sold
-        final profitMargin = foundSubcategory.sellingPrice - foundSubcategory.costPrice;
-        final totalProfitForProduct = profitMargin * quantity;
-        totalRevenue += totalProfitForProduct;
-        
-        print('  -> Found product: ${foundSubcategory.name}');
-        print('  -> Cost: ${foundSubcategory.costPrice}, Selling: ${foundSubcategory.sellingPrice}');
-        print('  -> Profit margin per unit: $profitMargin');
-        print('  -> Quantity sold: $quantity');
-        print('  -> Total profit for this product: $totalProfitForProduct');
-      } else {
-        print('  -> Product not found for description: $productName');
-      }
-    }
-    
-    print('\n=== FINAL REVENUE CALCULATION ===');
-    print('Total Revenue from ALL Products Sold: $totalRevenue');
-    print('Unique Products Sold: ${productQuantities.length}');
-    print('Total Product Units Sold: ${productQuantities.values.fold(0, (sum, quantity) => sum + quantity)}');
-    print('Current Active Debts: ${_debts.length}');
-    print('=== END REVENUE CALCULATION ===');
-    
-    return totalRevenue;
+  }
+
+  /// Validate data integrity and get migration status
+  Future<Map<String, dynamic>> validateDataIntegrity() async {
+    return await _migrationService.validateDataIntegrity();
+  }
+
+  /// Get migration recommendations
+  List<String> getMigrationRecommendations(Map<String, dynamic> integrityReport) {
+    return _migrationService.getMigrationRecommendations(integrityReport);
   }
   
   // Initialize the app state
@@ -431,6 +402,9 @@ class AppState extends ChangeNotifier {
       
       // Remove specific problematic activities
       await removeActivitiesByCustomerAndAmount('Johny Chnouda', 400.0);
+      
+      // CRITICAL: Run data migration to ensure revenue calculation accuracy
+      await runDataMigration();
       
       // Setup connectivity listener
       _setupConnectivityListener();
@@ -767,9 +741,16 @@ class AppState extends ChangeNotifier {
     try {
       final debt = _debts.firstWhere((d) => d.id == debtId);
       
-      // Create a summary activity to preserve payment history before deleting
+      // CRITICAL: If this debt was already paid, we need to preserve the revenue data
+      // before deleting it, so total revenue doesn't get affected
       if (debt.paidAmount > 0) {
-        // Create a detailed description that includes product information for better revenue calculation
+        print('DELETE DEBT: Preserving revenue data for paid debt ${debt.id}');
+        print('  - Description: ${debt.description}');
+        print('  - Paid Amount: \$${debt.paidAmount}');
+        print('  - Original Revenue: \$${debt.originalRevenue}');
+        print('  - Earned Revenue: \$${debt.earnedRevenue}');
+        
+        // Create a comprehensive summary activity that preserves ALL revenue information
         String detailedDescription = 'Cleared debt: ${debt.description}';
         
         // Add product information if available to help with revenue calculation
@@ -778,6 +759,11 @@ class AppState extends ChangeNotifier {
         }
         if (debt.categoryName != null) {
           detailedDescription += ' (Category: ${debt.categoryName})';
+        }
+        
+        // Add revenue information to the description for audit purposes
+        if (debt.originalRevenue > 0) {
+          detailedDescription += ' [Revenue: \$${debt.originalRevenue}]';
         }
         
         final summaryActivity = Activity(
@@ -792,10 +778,15 @@ class AppState extends ChangeNotifier {
           oldStatus: debt.status,
           newStatus: DebtStatus.paid,
           debtId: debt.id,
+          // Store revenue data in the activity for future reference
+          notes: 'Revenue: \$${debt.originalRevenue}, Cost: \$${debt.originalCostPrice}, Selling: \$${debt.originalSellingPrice}',
         );
         await _addActivity(summaryActivity);
+        
+        print('DELETE DEBT: Created revenue preservation activity: ${summaryActivity.id}');
       }
       
+      // Now delete the debt
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
       _clearCache();
@@ -804,7 +795,10 @@ class AppState extends ChangeNotifier {
       if (_isOnline) {
         await _syncService.deleteDebt(debtId);
       }
+      
+      print('DELETE DEBT: Successfully deleted debt ${debt.id}');
     } catch (e) {
+      print('DELETE DEBT: Error deleting debt: $e');
       rethrow;
     }
   }

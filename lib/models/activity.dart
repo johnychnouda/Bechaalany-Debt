@@ -36,6 +36,8 @@ class Activity extends HiveObject {
   final DebtStatus? newStatus;
   @HiveField(10)
   final String? debtId; // Reference to the original debt (if still exists)
+  @HiveField(11)
+  final String? notes; // Additional notes for revenue tracking and audit purposes
 
   Activity({
     required this.id,
@@ -49,6 +51,7 @@ class Activity extends HiveObject {
     this.oldStatus,
     this.newStatus,
     this.debtId,
+    this.notes,
   });
 
   factory Activity.fromJson(Map<String, dynamic> json) {
@@ -76,6 +79,7 @@ class Activity extends HiveObject {
             )
           : null,
       debtId: json['debtId'] as String?,
+      notes: json['notes'] as String?,
     );
   }
 
@@ -92,6 +96,7 @@ class Activity extends HiveObject {
       'oldStatus': oldStatus?.toString().split('.').last,
       'newStatus': newStatus?.toString().split('.').last,
       'debtId': debtId,
+      'notes': notes,
     };
   }
 
@@ -107,6 +112,7 @@ class Activity extends HiveObject {
     DebtStatus? oldStatus,
     DebtStatus? newStatus,
     String? debtId,
+    String? notes,
   }) {
     return Activity(
       id: id ?? this.id,
@@ -120,6 +126,7 @@ class Activity extends HiveObject {
       oldStatus: oldStatus ?? this.oldStatus,
       newStatus: newStatus ?? this.newStatus,
       debtId: debtId ?? this.debtId,
+      notes: notes ?? this.notes,
     );
   }
   

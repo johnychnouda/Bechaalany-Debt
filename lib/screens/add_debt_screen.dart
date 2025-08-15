@@ -52,6 +52,11 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           type: DebtType.credit,
           status: DebtStatus.pending,
           createdAt: DateTime.now(),
+          subcategoryId: _selectedSubcategory!.id,
+          subcategoryName: _selectedSubcategory!.name,
+          originalSellingPrice: _selectedSubcategory!.sellingPrice,
+          originalCostPrice: _selectedSubcategory!.costPrice, // CRITICAL: Store original cost for revenue calculation
+          categoryName: _selectedCategory!.name,
         );
 
         await appState.addDebt(debt);
