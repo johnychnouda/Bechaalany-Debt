@@ -1,6 +1,7 @@
 import '../models/debt.dart';
 import '../models/partial_payment.dart';
 import '../models/activity.dart';
+import '../providers/app_state.dart';
 
 /// Professional Revenue Calculation Service
 /// Handles all revenue calculations with audit trail and precision
@@ -12,7 +13,8 @@ class RevenueCalculationService {
 
   /// Calculate total revenue from all customer payments
   /// This is the main method used in the dashboard
-  double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities}) {
+  /// Now considers customer-level debt status for accurate revenue recognition
+  double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     
     print('=== REVENUE CALCULATION DEBUG ===');
@@ -30,16 +32,35 @@ class RevenueCalculationService {
       print('  - Earned Revenue: \$${debt.earnedRevenue}');
       print('  - Is Fully Paid: ${debt.isFullyPaid}');
       
-      if (debt.isFullyPaid) {
-        // For fully paid debts, count the full original revenue
-        totalRevenue += debt.originalRevenue;
-        print('  - FULLY PAID: Adding full revenue \$${debt.originalRevenue}');
-      } else if (debt.paidAmount > 0) {
-        // For partially paid debts, count the proportional earned revenue
-        totalRevenue += debt.earnedRevenue;
-        print('  - PARTIALLY PAID: Adding earned revenue \$${debt.earnedRevenue}');
+      // NEW LOGIC: Revenue is only recognized when customer is fully settled
+      // Individual debt status is determined by customer's overall debt status
+      if (appState != null) {
+        final customerId = debt.customerId;
+        final isCustomerFullyPaid = appState.isCustomerFullyPaid(customerId);
+        final isCustomerPartiallyPaid = appState.isCustomerPartiallyPaid(customerId);
+        
+        if (isCustomerFullyPaid) {
+          // Customer has settled ALL debts - recognize full revenue for this debt
+          totalRevenue += debt.originalRevenue;
+          print('  - CUSTOMER FULLY SETTLED: Adding full revenue \$${debt.originalRevenue}');
+        } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
+          // Customer has made some payments but not settled all debts - recognize proportional revenue
+          totalRevenue += debt.earnedRevenue;
+          print('  - CUSTOMER PARTIALLY SETTLED: Adding earned revenue \$${debt.earnedRevenue}');
+        } else {
+          print('  - CUSTOMER PENDING: No revenue recognized yet');
+        }
       } else {
-        print('  - PENDING: No revenue yet');
+        // Fallback to old logic if AppState not provided
+        if (debt.isFullyPaid) {
+          totalRevenue += debt.originalRevenue;
+          print('  - FALLBACK: FULLY PAID - Adding full revenue \$${debt.originalRevenue}');
+        } else if (debt.paidAmount > 0) {
+          totalRevenue += debt.earnedRevenue;
+          print('  - FALLBACK: PARTIALLY PAID - Adding earned revenue \$${debt.earnedRevenue}');
+        } else {
+          print('  - FALLBACK: PENDING - No revenue yet');
+        }
       }
     }
     
@@ -207,7 +228,8 @@ class RevenueCalculationService {
 
   /// Get revenue summary for dashboard
   /// Provides aggregated revenue data for the main dashboard
-  Map<String, dynamic> getDashboardRevenueSummary(List<Debt> allDebts, {List<Activity>? activities}) {
+  /// Now considers customer-level debt status for accurate revenue recognition
+  Map<String, dynamic> getDashboardRevenueSummary(List<Debt> allDebts, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     double totalPotentialRevenue = 0.0;
     double totalPaidAmount = 0.0;
@@ -219,13 +241,28 @@ class RevenueCalculationService {
     for (final debt in allDebts) {
       customerIds.add(debt.customerId);
       
-      // Calculate revenue based on payment status
-      if (debt.isFullyPaid) {
-        // For fully paid debts, count the full original revenue
-        totalRevenue += debt.originalRevenue;
-      } else if (debt.paidAmount > 0) {
-        // For partially paid debts, count the proportional earned revenue
-        totalRevenue += debt.earnedRevenue;
+      // NEW LOGIC: Revenue is only recognized when customer is fully settled
+      // Individual debt status is determined by customer's overall debt status
+      if (appState != null) {
+        final customerId = debt.customerId;
+        final isCustomerFullyPaid = appState.isCustomerFullyPaid(customerId);
+        final isCustomerPartiallyPaid = appState.isCustomerPartiallyPaid(customerId);
+        
+        if (isCustomerFullyPaid) {
+          // Customer has settled ALL debts - recognize full revenue for this debt
+          totalRevenue += debt.originalRevenue;
+        } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
+          // Customer has made some payments but not settled all debts - recognize proportional revenue
+          totalRevenue += debt.earnedRevenue;
+        }
+        // If customer is pending, no revenue is recognized
+      } else {
+        // Fallback to old logic if AppState not provided
+        if (debt.isFullyPaid) {
+          totalRevenue += debt.originalRevenue;
+        } else if (debt.paidAmount > 0) {
+          totalRevenue += debt.earnedRevenue;
+        }
       }
       
       totalPotentialRevenue += debt.remainingRevenue;

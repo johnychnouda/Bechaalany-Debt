@@ -176,6 +176,9 @@ class Debt extends HiveObject {
   bool get isFullyPaid => paidAmount >= amount;
 
   bool get isPartiallyPaid => paidAmount > 0 && paidAmount < amount;
+  
+  // NOTE: These getters only check individual debt status
+  // For customer-level status, use AppState methods that consider all customer debts
 
   // PROFESSIONAL REVENUE CALCULATION PROPERTIES
   /// Original revenue (profit) for this debt at creation time

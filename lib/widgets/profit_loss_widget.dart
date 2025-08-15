@@ -167,22 +167,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                     subtitle: 'From unpaid amounts',
                   ),
                   const SizedBox(height: 12),
-                  // Debug button for testing revenue calculation
-                  Container(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => _testRevenueCalculation(context, appState),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Test Revenue Calculation'),
-                    ),
-                  ),
+
                 ],
               ),
             ),
@@ -243,49 +228,5 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
 
   // Removed _calculateTotalExpenses method as we now use totalDebt from AppState
 
-  /// Test revenue calculation and show debug information
-  void _testRevenueCalculation(BuildContext context, AppState appState) async {
-    try {
-      // Run data migration first
-      await appState.runDataMigration();
-      
-      // Get revenue summary
-      final revenueSummary = appState.getDashboardRevenueSummary();
-      
-      // Show debug dialog
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Revenue Calculation Test'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Total Debts: ${appState.debts.length}'),
-                Text('Total Revenue: \$${appState.totalHistoricalRevenue}'),
-                Text('Revenue Summary:'),
-                ...revenueSummary.entries.map((entry) => 
-                  Text('  ${entry.key}: ${entry.value}')
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close'),
-              ),
-            ],
-          );
-        },
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Test failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+
 } 

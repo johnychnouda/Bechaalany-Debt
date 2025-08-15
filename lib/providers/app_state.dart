@@ -317,7 +317,7 @@ class AppState extends ChangeNotifier {
   // Revenue is calculated from actual product costs and selling prices at purchase time
   // This ensures revenue integrity and professional accounting standards
   double get totalHistoricalRevenue {
-    return RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities);
+    return RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
   }
 
   // Get customer-specific revenue for financial summaries
@@ -337,7 +337,7 @@ class AppState extends ChangeNotifier {
 
   // Get comprehensive dashboard revenue summary
   Map<String, dynamic> getDashboardRevenueSummary() {
-    return RevenueCalculationService().getDashboardRevenueSummary(_debts, activities: _activities);
+    return RevenueCalculationService().getDashboardRevenueSummary(_debts, activities: _activities, appState: this);
   }
 
   // DATA MIGRATION METHODS - Critical for revenue calculation accuracy
@@ -1839,6 +1839,64 @@ class AppState extends ChangeNotifier {
       print('DEBUG: Error cleaning up fake payment activities: $e');
     }
   }
-
+  
+  // Customer-level debt status methods (considers ALL customer debts)
+  bool isCustomerFullyPaid(String customerId) {
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    if (customerDebts.isEmpty) return true;
+    
+    // Customer is only fully paid when ALL their debts have no remaining amount
+    return customerDebts.every((d) => d.remainingAmount == 0);
+  }
+  
+  bool isCustomerPartiallyPaid(String customerId) {
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    if (customerDebts.isEmpty) return false;
+    
+    // Customer is partially paid when they have some payments but not all debts settled
+    final hasAnyPayments = customerDebts.any((d) => d.paidAmount > 0);
+    final hasUnpaidDebts = customerDebts.any((d) => d.remainingAmount > 0);
+    
+    return hasAnyPayments && hasUnpaidDebts;
+  }
+  
+  bool isCustomerPending(String customerId) {
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    if (customerDebts.isEmpty) return false;
+    
+    // Customer is pending when they have no payments on any debts
+    return customerDebts.every((d) => d.paidAmount == 0);
+  }
+  
+  // Get customer-level debt status text
+  String getCustomerDebtStatusText(String customerId) {
+    if (isCustomerFullyPaid(customerId)) {
+      return 'Fully Paid';
+    } else if (isCustomerPartiallyPaid(customerId)) {
+      return 'Partially Paid';
+    } else if (isCustomerPending(customerId)) {
+      return 'Pending';
+    } else {
+      return 'Unknown';
+    }
+  }
+  
+  // Get customer-level pending count (ALL debts are pending until customer is fully settled)
+  int getCustomerPendingDebtsCount(String customerId) {
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    
+    // BUSINESS RULE: ALL debts are considered pending until customer settles ALL their debts
+    if (isCustomerFullyPaid(customerId)) {
+      return 0; // No pending debts when customer is fully settled
+    } else {
+      return customerDebts.length; // All debts are pending when customer is not fully settled
+    }
+  }
+  
+  // Get customer-level total remaining amount
+  double getCustomerTotalRemainingAmount(String customerId) {
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    return customerDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+  }
 
 } 
