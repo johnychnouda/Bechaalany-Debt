@@ -141,15 +141,20 @@ class AppState extends ChangeNotifier {
     final deduplicatedActivities = <Activity>[];
     final seenDescriptions = <String>{};
     
-    for (final activity in paymentActivities) {
-      // For "Payment across multiple debts", only count the first occurrence
-      if (activity.description == 'Payment across multiple debts') {
-        if (!seenDescriptions.contains('Payment across multiple debts')) {
-          deduplicatedActivities.add(activity);
-          seenDescriptions.add('Payment across multiple debts');
-        }
-      } else {
-        // For individual debt payments, only count if we haven't seen this debt name
+    // First, check if there's a consolidated "Payment across multiple debts" activity
+    final consolidatedPayments = paymentActivities.where((a) => 
+      a.description == 'Payment across multiple debts'
+    ).toList();
+    
+    if (consolidatedPayments.isNotEmpty) {
+      // If consolidated payment exists, only count the first one and skip individual debt payments
+      // This prevents double-counting the same payment
+      deduplicatedActivities.add(consolidatedPayments.first);
+      seenDescriptions.add('Payment across multiple debts');
+      print('  - Using consolidated payment: \$${consolidatedPayments.first.paymentAmount}');
+    } else {
+      // If no consolidated payment, count individual debt payments
+      for (final activity in paymentActivities) {
         final debtName = activity.description;
         if (!seenDescriptions.contains(debtName)) {
           deduplicatedActivities.add(activity);
