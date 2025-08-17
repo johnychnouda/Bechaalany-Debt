@@ -637,6 +637,12 @@ class DataService {
           status: DebtStatus.paid,
           paidAt: DateTime.now(),
           paidAmount: debt.amount,
+          // CRITICAL: Preserve product information for revenue calculation
+          subcategoryId: debt.subcategoryId,
+          subcategoryName: debt.subcategoryName,
+          originalCostPrice: debt.originalCostPrice,
+          originalSellingPrice: debt.originalSellingPrice,
+          categoryName: debt.categoryName,
         );
         _debtBoxSafe.put(debtId, updatedDebt);
       }

@@ -607,6 +607,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           sum + (activity.paymentAmount ?? 0)
         );
         
+        // Use the comprehensive method that includes both activities and partial payments
+        // This ensures consistency between Financial Summary and Activity History
+        totalPaid = appState.getCustomerTotalHistoricalPayments(_currentCustomer.id);
+        
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
             .where((d) => d.customerId == _currentCustomer.id)
@@ -850,8 +854,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ),
                       ),
                       
-                      // Debts List
-                      if (widget.showDebtsSection && customerAllDebts.isNotEmpty) ...[
+                      // Debts List - Only show when there are pending debts
+                      if (widget.showDebtsSection && !appState.isCustomerFullyPaid(widget.customer.id)) ...[
                         // Section Title
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -885,14 +889,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           ),
                         ),
                         
-                        // Simple Debts List
+                        // Simple Debts List - Show all debts with proper status
                         ...customerAllDebts.asMap().entries.map((entry) {
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerAllDebts.length - 1;
-                          // Debt status is determined by customer-level status, not individual debt status
-                          // A debt is only "paid" when the customer has settled ALL their debts
-                          final isPaid = appState.isCustomerFullyPaid(widget.customer.id);
+                                      // Individual debt status - ALL debts stay pending until customer settles TOTAL debt
+            // This ensures consistent UI behavior and proper business logic
+            final isPaid = appState.isCustomerFullyPaid(widget.customer.id); // Customer-level status
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -992,15 +996,36 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                         ],
                                       ),
                                     ),
-                                    Text(
-                                      CurrencyFormatter.formatAmount(context, debt.amount),
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isPaid 
-                                            ? AppColors.dynamicSuccess(context)
-                                            : AppColors.dynamicTextPrimary(context),
-                                      ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          CurrencyFormatter.formatAmount(context, debt.amount),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: isPaid 
+                                                ? AppColors.dynamicSuccess(context)
+                                                : AppColors.dynamicTextPrimary(context),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Individual delete button for each debt
+                                        GestureDetector(
+                                          onTap: () => _showDeleteDebtDialog(context, debt),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.dynamicError(context).withAlpha(20),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Icon(
+                                              Icons.close,
+                                              size: 16,
+                                              color: AppColors.dynamicError(context),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -1009,8 +1034,58 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           );
                         }),
                         
-                        // Simple Action Buttons
-                        if (customerAllDebts.isNotEmpty) ...[
+                        // Show message when customer has no pending debts
+                        if (widget.showDebtsSection && appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: AppColors.dynamicSuccess(context).withAlpha(10),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: AppColors.dynamicSuccess(context).withAlpha(30),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.dynamicSuccess(context),
+                                    size: 24,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'All Debts Settled!',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicSuccess(context),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'This customer has no outstanding debts.',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: AppColors.dynamicTextSecondary(context),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        
+                        // Simple Action Buttons - Only show when there are pending debts
+                        if (!appState.isCustomerFullyPaid(widget.customer.id)) ...[
                           const SizedBox(height: 16),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1034,30 +1109,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   ),
                                   const SizedBox(width: 12),
                                 ],
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _showDeleteAllDebtsDialog(context, customerAllDebts),
-                                    icon: Icon(
-                                      Icons.delete_forever, 
-                                      size: 16,
-                                      color: AppColors.dynamicError(context),
-                                    ),
-                                    label: Text(
-                                      'Delete All',
-                                      style: TextStyle(
-                                        color: AppColors.dynamicError(context),
-                                      ),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.dynamicError(context).withAlpha(20),
-                                      foregroundColor: AppColors.dynamicError(context),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+
                               ],
                             ),
                           ),
@@ -1299,6 +1351,56 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         );
       },
     );
+  }
+  
+  // Show dialog to confirm deletion of a single debt
+  void _showDeleteDebtDialog(BuildContext context, Debt debt) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete Debt'),
+          content: Text(
+            'Are you sure you want to delete the debt "${debt.description}" for \$${debt.amount}?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await _deleteSingleDebt(debt);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Delete a single debt
+  Future<void> _deleteSingleDebt(Debt debt) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    try {
+      await appState.deleteDebt(debt.id);
+      _loadCustomerDebts(); // Re-load after deletion
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Error',
+          body: 'Failed to delete debt: $e',
+        );
+      }
+    }
   }
   
   // Delete all debts for the customer
