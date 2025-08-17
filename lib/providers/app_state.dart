@@ -141,50 +141,18 @@ class AppState extends ChangeNotifier {
     final deduplicatedActivities = <Activity>[];
     final seenDescriptions = <String>{};
     
-    // First, check if there's a consolidated "Payment across multiple debts" activity
-    final consolidatedPayments = paymentActivities.where((a) => 
-      a.description == 'Payment across multiple debts'
-    ).toList();
+    // Simple approach: Count all unique payment activities by description and amount
+    // This avoids complex deduplication logic that was causing issues
+    final uniquePayments = <String, double>{};
     
-    if (consolidatedPayments.isNotEmpty) {
-      // If consolidated payment exists, we need to calculate the total from the actual debt amounts
-      // because the consolidated payment amount might not represent the full total
-      print('  - Found consolidated payment: \$${consolidatedPayments.first.paymentAmount}');
-      print('  - But we need to calculate the actual total from individual debt payments');
-      
-      // Get all unique debt names from individual payment activities
-      final individualDebtPayments = <String, double>{};
-      for (final activity in paymentActivities) {
-        if (activity.description != 'Payment across multiple debts') {
-          final debtName = activity.description;
-          if (!individualDebtPayments.containsKey(debtName)) {
-            individualDebtPayments[debtName] = activity.paymentAmount ?? 0;
-          }
-        }
-      }
-      
-      // Add the individual debt payments to get the correct total
-      for (final entry in individualDebtPayments.entries) {
-        deduplicatedActivities.add(Activity(
-          id: 'calculated_${entry.key}',
-          date: DateTime.now(),
-          type: ActivityType.payment,
-          customerName: paymentActivities.first.customerName,
-          customerId: paymentActivities.first.customerId,
-          description: entry.key,
-          amount: entry.value,
-          paymentAmount: entry.value,
-        ));
-        print('  - Added calculated debt payment: ${entry.key} - \$${entry.value}');
-      }
-    } else {
-      // If no consolidated payment, count individual debt payments
-      for (final activity in paymentActivities) {
-        final debtName = activity.description;
-        if (!seenDescriptions.contains(debtName)) {
-          deduplicatedActivities.add(activity);
-          seenDescriptions.add(debtName);
-        }
+    for (final activity in paymentActivities) {
+      final key = '${activity.description}_${activity.paymentAmount}';
+      if (!uniquePayments.containsKey(key)) {
+        uniquePayments[key] = activity.paymentAmount ?? 0;
+        deduplicatedActivities.add(activity);
+        print('  - Added unique payment: ${activity.description} - \$${activity.paymentAmount}');
+      } else {
+        print('  - Skipped duplicate: ${activity.description} - \$${activity.paymentAmount}');
       }
     }
     
