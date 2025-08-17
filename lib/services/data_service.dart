@@ -506,6 +506,27 @@ class DataService {
   
   Future<void> updateDebt(Debt debt) async {
     try {
+      // CRITICAL SAFEGUARD: Ensure cost price information is preserved
+      final existingDebt = _debtBoxSafe.get(debt.id);
+      if (existingDebt != null) {
+        // If the existing debt has cost price info but the new one doesn't, preserve it
+        if (existingDebt.originalCostPrice != null && debt.originalCostPrice == null) {
+          print('WARNING: Attempting to update debt ${debt.id} but cost price would be lost!');
+          print('Preserving existing cost price: \$${existingDebt.originalCostPrice}');
+          
+          final safeguardedDebt = debt.copyWith(
+            originalCostPrice: existingDebt.originalCostPrice,
+            originalSellingPrice: existingDebt.originalSellingPrice ?? debt.originalSellingPrice,
+            subcategoryId: existingDebt.subcategoryId ?? debt.subcategoryId,
+            subcategoryName: existingDebt.subcategoryName ?? debt.subcategoryName,
+            categoryName: existingDebt.categoryName ?? debt.categoryName,
+          );
+          
+          _debtBoxSafe.put(debt.id, safeguardedDebt);
+          return;
+        }
+      }
+      
       _debtBoxSafe.put(debt.id, debt);
     } catch (e) {
       rethrow;
@@ -605,17 +626,16 @@ class DataService {
     try {
       final debt = _debtBoxSafe.get(debtId);
       if (debt != null) {
-        final updatedDebt = Debt(
-          id: debt.id,
-          customerId: debt.customerId,
-          customerName: debt.customerName,
-          amount: debt.amount,
-          description: debt.description,
-          type: debt.type,
+        // CRITICAL SAFEGUARD: Ensure we never lose cost price information
+        if (debt.originalCostPrice == null || debt.originalSellingPrice == null) {
+          print('WARNING: Attempting to mark debt as paid but cost price information is missing!');
+          print('Debt ID: $debtId, Description: ${debt.description}');
+          print('This should not happen with the current safeguards in place.');
+        }
+        
+        final updatedDebt = debt.copyWith(
           status: DebtStatus.paid,
-          createdAt: debt.createdAt,
           paidAt: DateTime.now(),
-          notes: debt.notes,
           paidAmount: debt.amount,
         );
         _debtBoxSafe.put(debtId, updatedDebt);

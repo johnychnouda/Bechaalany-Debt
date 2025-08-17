@@ -313,10 +313,63 @@ class AppState extends ChangeNotifier {
     print('=== END PRODUCT DEBUG ===');
   }
 
+  /// Debug method to identify debts with missing cost prices
+  void debugDebtsWithMissingCostPrices() {
+    print('=== DEBTS WITH MISSING COST PRICES ANALYSIS ===');
+    
+    int totalDebts = _debts.length;
+    int debtsWithCostPrice = 0;
+    int debtsWithSellingPrice = 0;
+    int debtsWithSubcategory = 0;
+    
+    for (final debt in _debts) {
+      if (debt.originalCostPrice != null) debtsWithCostPrice++;
+      if (debt.originalSellingPrice != null) debtsWithSellingPrice++;
+      if (debt.subcategoryId != null) debtsWithSubcategory++;
+      
+      if (debt.originalCostPrice == null || debt.originalSellingPrice == null) {
+        print('DEBT WITH MISSING PRICES: ${debt.description}');
+        print('  - ID: ${debt.id}');
+        print('  - Customer: ${debt.customerName}');
+        print('  - Amount: \$${debt.amount}');
+        print('  - Cost Price: ${debt.originalCostPrice}');
+        print('  - Selling Price: ${debt.originalSellingPrice}');
+        print('  - Subcategory ID: ${debt.subcategoryId}');
+        print('  - Subcategory Name: ${debt.subcategoryName}');
+        print('  - Category Name: ${debt.categoryName}');
+        print('  - Created: ${debt.createdAt}');
+        print('  - Status: ${debt.status}');
+        print('  - Paid Amount: \$${debt.paidAmount}');
+        print('  ---');
+      }
+    }
+    
+    print('SUMMARY:');
+    print('  - Total Debts: $totalDebts');
+    print('  - With Cost Price: $debtsWithCostPrice');
+    print('  - With Selling Price: $debtsWithSellingPrice');
+    print('  - With Subcategory: $debtsWithSubcategory');
+    print('  - Missing Cost Price: ${totalDebts - debtsWithCostPrice}');
+    print('  - Missing Selling Price: ${totalDebts - debtsWithSellingPrice}');
+    print('  - Missing Subcategory: ${totalDebts - debtsWithSubcategory}');
+    print('=== END ANALYSIS ===');
+  }
+
   // PROFESSIONAL REVENUE CALCULATION - Based on product profit margins
   // Revenue is calculated from actual product costs and selling prices at purchase time
   // This ensures revenue integrity and professional accounting standards
   double get totalHistoricalRevenue {
+    // AUTOMATIC SAFEGUARD: Check if any debts are missing cost prices and auto-migrate
+    final debtsWithMissingCosts = _debts.where((debt) => 
+      debt.originalCostPrice == null || debt.originalSellingPrice == null
+    ).toList();
+    
+    if (debtsWithMissingCosts.isNotEmpty) {
+      print('Revenue calculation detected ${debtsWithMissingCosts.length} debts with missing cost prices - auto-migrating...');
+      // Trigger auto-migration in background
+      Future.microtask(() => autoMigrateRemainingDebts());
+    }
+    
     return RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
   }
 
@@ -350,6 +403,130 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Data migration failed: $e');
+      rethrow;
+    }
+  }
+
+  /// Automatically migrate any remaining debts with missing cost prices
+  /// This runs automatically and ensures all debts have proper cost information
+  Future<void> autoMigrateRemainingDebts() async {
+    try {
+      // Identify debts that still need migration
+      final debtsNeedingMigration = _debts.where((debt) => 
+        debt.originalCostPrice == null || 
+        debt.originalSellingPrice == null ||
+        debt.subcategoryId == null
+      ).toList();
+      
+      if (debtsNeedingMigration.isEmpty) {
+        return; // All debts are properly configured
+      }
+      
+      print('Auto-migrating ${debtsNeedingMigration.length} debts with missing cost prices...');
+      
+      // Try to match them with existing products by name
+      for (final debt in debtsNeedingMigration) {
+        // Try to find a matching subcategory by name
+        Subcategory? matchingSubcategory;
+        String? categoryName;
+        
+        for (final category in _categories) {
+          for (final subcategory in category.subcategories) {
+            if (subcategory.name.toLowerCase() == debt.description.toLowerCase() ||
+                debt.description.toLowerCase().contains(subcategory.name.toLowerCase()) ||
+                subcategory.name.toLowerCase().contains(debt.description.toLowerCase())) {
+              matchingSubcategory = subcategory;
+              categoryName = category.name;
+              break;
+            }
+          }
+          if (matchingSubcategory != null) break;
+        }
+        
+        if (matchingSubcategory != null) {
+          // Update the debt with the missing information
+          final updatedDebt = debt.copyWith(
+            originalCostPrice: matchingSubcategory.costPrice,
+            originalSellingPrice: matchingSubcategory.sellingPrice,
+            subcategoryId: matchingSubcategory.id,
+            subcategoryName: matchingSubcategory.name,
+            categoryName: categoryName,
+          );
+          
+          await updateDebt(updatedDebt);
+          print('Auto-migrated debt: ${debt.description} with cost price \$${matchingSubcategory.costPrice}');
+        }
+      }
+      
+    } catch (e) {
+      print('Error during auto-migration: $e');
+      // Don't rethrow - this should be silent and automatic
+    }
+  }
+
+  /// Manually trigger migration for any remaining debts with missing cost prices
+  Future<void> forceMigrationForRemainingDebts() async {
+    try {
+      print('=== FORCING MIGRATION FOR REMAINING DEBTS ===');
+      
+      // First, identify debts that still need migration
+      final debtsNeedingMigration = _debts.where((debt) => 
+        debt.originalCostPrice == null || 
+        debt.originalSellingPrice == null ||
+        debt.subcategoryId == null
+      ).toList();
+      
+      if (debtsNeedingMigration.isEmpty) {
+        print('No debts need migration - all are properly configured');
+        return;
+      }
+      
+      print('Found ${debtsNeedingMigration.length} debts that need migration');
+      
+      // Try to match them with existing products by name
+      for (final debt in debtsNeedingMigration) {
+        print('Attempting to migrate debt: ${debt.description}');
+        
+        // Try to find a matching subcategory by name
+        Subcategory? matchingSubcategory;
+        String? categoryName;
+        
+        for (final category in _categories) {
+          for (final subcategory in category.subcategories) {
+            if (subcategory.name.toLowerCase() == debt.description.toLowerCase() ||
+                debt.description.toLowerCase().contains(subcategory.name.toLowerCase()) ||
+                subcategory.name.toLowerCase().contains(debt.description.toLowerCase())) {
+              matchingSubcategory = subcategory;
+              categoryName = category.name;
+              break;
+            }
+          }
+          if (matchingSubcategory != null) break;
+        }
+        
+        if (matchingSubcategory != null) {
+          print('Found matching subcategory: ${matchingSubcategory.name}');
+          
+          // Update the debt with the missing information
+          final updatedDebt = debt.copyWith(
+            originalCostPrice: matchingSubcategory.costPrice,
+            originalSellingPrice: matchingSubcategory.sellingPrice,
+            subcategoryId: matchingSubcategory.id,
+            subcategoryName: matchingSubcategory.name,
+            categoryName: categoryName,
+          );
+          
+          await updateDebt(updatedDebt);
+          print('Successfully migrated debt: ${debt.description}');
+        } else {
+          print('No matching subcategory found for debt: ${debt.description}');
+        }
+      }
+      
+      print('=== MIGRATION COMPLETE ===');
+      
+    } catch (e) {
+      print('Error during forced migration: $e');
       rethrow;
     }
   }
@@ -405,6 +582,9 @@ class AppState extends ChangeNotifier {
       
       // CRITICAL: Run data migration to ensure revenue calculation accuracy
       await runDataMigration();
+      
+      // AUTOMATIC: Run additional auto-migration for any remaining debts
+      await autoMigrateRemainingDebts();
       
       // Setup connectivity listener
       _setupConnectivityListener();

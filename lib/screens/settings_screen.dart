@@ -99,7 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildNavigationRow(
                     'Data Recovery',
-                    'Backup and restore your data',
+                    'Recover data from backups',
                     CupertinoIcons.arrow_clockwise,
                     () => Navigator.of(context).push(
                       CupertinoPageRoute(
@@ -214,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             CupertinoSwitch(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.dynamicPrimary(context),
+              activeColor: AppColors.primary,
             ),
           ],
         ),
@@ -332,8 +332,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // CloudKit status method removed - using built-in backend
-
   void _showAppInfo() {
     showCupertinoDialog(
       context: context,
@@ -450,4 +448,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
   }
-} 
+}
