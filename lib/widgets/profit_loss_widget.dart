@@ -166,42 +166,6 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                     AppColors.warning,
                     subtitle: 'From unpaid amounts',
                   ),
-                  const SizedBox(height: 12),
-                  
-                  // Temporary cleanup button for fully paid debts
-                  Container(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await appState.forceCleanupFullyPaidDebts();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('✅ Cleaned up fully paid debts!'),
-                              backgroundColor: Colors.green,
-                          ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('❌ Error during cleanup: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('🧹 Clean Up Fully Paid Debts'),
-                    ),
-                  ),
-                  
 
 
 

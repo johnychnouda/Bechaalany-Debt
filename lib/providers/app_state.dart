@@ -565,17 +565,12 @@ class AppState extends ChangeNotifier {
       // Load data
       await _loadData();
       
-      // Clean up existing debt descriptions (remove "Qty: x" text)
-      await cleanUpDebtDescriptions();
+
       
       // AUTOMATICALLY create missing payment activities for existing paid debts
       await createMissingPaymentActivitiesForAllPaidDebts();
       
-      // Clean up existing fake payment activities that were created by the old logic
-      await cleanupFakePaymentActivities();
-      
-      // Clean up invalid activities
-      await _cleanupInvalidActivities();
+
       
       // Remove specific problematic activities
       await removeActivitiesByCustomerAndAmount('Johny Chnouda', 400.0);
@@ -585,9 +580,6 @@ class AppState extends ChangeNotifier {
       
       // AUTOMATIC: Run additional auto-migration for any remaining debts
       await autoMigrateRemainingDebts();
-      
-      // Clean up any fully paid debts that should have been auto-deleted
-      await _cleanupFullyPaidDebts();
       
       // Validate debt product data integrity
       validateDebtProductData();
@@ -1039,8 +1031,7 @@ class AppState extends ChangeNotifier {
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
       
-      // CRITICAL: Clean up all activities related to this deleted debt
-      await _cleanupDebtRelatedActivities(debtId);
+
       
       _clearCache();
       notifyListeners();
@@ -1198,104 +1189,11 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Clean up old activities that shouldn't be there
-  Future<void> _cleanupInvalidActivities() async {
-    final activitiesToRemove = <Activity>[];
-    
-          for (final activity in _activities) {
-        if (activity.type == ActivityType.payment && activity.debtId == null) {
-          // Check if this activity is for a debt that was already fully paid
-          final customerDebts = _debts.where((d) => d.customerId == activity.customerId).toList();
-          final allDebtsFullyPaid = customerDebts.every((d) => d.isFullyPaid);
-          
-          if (allDebtsFullyPaid) {
-            // This activity should be removed as it's for already paid debts
-            // Check if this is an old activity (more than 24 hours old)
-            final isOldActivity = DateTime.now().difference(activity.date).inHours > 24;
-            
-            if (isOldActivity) {
-              activitiesToRemove.add(activity);
-            }
-          }
-        }
-      }
-      
-      for (final activity in activitiesToRemove) {
-        await _dataService.deleteActivity(activity.id);
-        _activities.remove(activity);
-      }
-      
-      if (activitiesToRemove.isNotEmpty) {
-        _clearCache();
-        notifyListeners();
-      }
-  }
+
   
-  // Clean up fully paid debts that should have been auto-deleted
-  Future<void> _cleanupFullyPaidDebts() async {
-    try {
-      final debtsToRemove = <Debt>[];
-      
-      for (final debt in _debts) {
-        // Check both the isFullyPaid getter and the actual payment amounts
-        final isFullyPaidByGetter = debt.isFullyPaid;
-        final isFullyPaidByAmount = debt.paidAmount >= debt.amount;
-        
-        if (isFullyPaidByGetter || isFullyPaidByAmount) {
-          print('🧹 Found fully paid debt to cleanup: ${debt.description} (${debt.customerName})');
-          print('  - Amount: \$${debt.amount}');
-          print('  - Paid: \$${debt.paidAmount}');
-          print('  - isFullyPaid getter: $isFullyPaidByGetter');
-          print('  - isFullyPaid by amount: $isFullyPaidByAmount');
-          debtsToRemove.add(debt);
-        }
-      }
-      
-      if (debtsToRemove.isNotEmpty) {
-        print('🧹 Cleaning up ${debtsToRemove.length} fully paid debts...');
-        
-        for (final debt in debtsToRemove) {
-          await deleteDebt(debt.id);
-        }
-        
-        print('✅ Successfully cleaned up ${debtsToRemove.length} fully paid debts');
-      } else {
-        print('🧹 No fully paid debts found to cleanup');
-      }
-    } catch (e) {
-      print('❌ Error during debt cleanup: $e');
-    }
-  }
+
   
-  // Clean up all activities related to a deleted debt
-  Future<void> _cleanupDebtRelatedActivities(String debtId) async {
-    try {
-      final activitiesToRemove = <Activity>[];
-      
-      // Find all activities that reference this debt
-      for (final activity in _activities) {
-        if (activity.debtId == debtId) {
-          print('🧹 Found activity to cleanup: ${activity.type} - ${activity.description}');
-          activitiesToRemove.add(activity);
-        }
-      }
-      
-      if (activitiesToRemove.isNotEmpty) {
-        print('🧹 Cleaning up ${activitiesToRemove.length} debt-related activities...');
-        
-        for (final activity in activitiesToRemove) {
-          await _dataService.deleteActivity(activity.id);
-          _activities.remove(activity);
-        }
-        
-        print('✅ Successfully cleaned up ${activitiesToRemove.length} debt-related activities');
-      } else {
-        print('🧹 No debt-related activities found to cleanup');
-      }
-    } catch (e) {
-      print('❌ Error during activity cleanup: $e');
-    }
-  }
+
 
   // Manual cleanup method to remove specific activities
   Future<void> removeActivityById(String activityId) async {
@@ -1589,37 +1487,7 @@ class AppState extends ChangeNotifier {
 
 
 
-  // Clean up existing debt descriptions by removing "Qty: x" text
-  Future<void> cleanUpDebtDescriptions() async {
-    try {
-      // Cleaning up debt descriptions
-      int updatedCount = 0;
-      
-      for (final debt in _debts) {
-        if (debt.description.contains(' - Qty:')) {
-          final cleanedDescription = debt.description.split(' - Qty:')[0];
-          final updatedDebt = debt.copyWith(description: cleanedDescription);
-          
-          await _dataService.updateDebt(updatedDebt);
-          final index = _debts.indexWhere((d) => d.id == debt.id);
-          if (index != -1) {
-            _debts[index] = updatedDebt;
-          }
-          updatedCount++;
-        }
-      }
-      
-      if (updatedCount > 0) {
-        _clearCache();
-        notifyListeners();
-        // Updated $updatedCount debt descriptions
-      } else {
-        // No debt descriptions needed cleaning
-      }
-    } catch (e) {
-      // Error cleaning up debt descriptions
-    }
-  }
+
 
   // Generate unique IDs
   String generateCustomerId() {
@@ -2121,53 +1989,7 @@ class AppState extends ChangeNotifier {
     return sortedCustomers.take(5).toList();
   }
 
-  // Clean up existing fake payment activities that were created by the old logic
-  Future<void> cleanupFakePaymentActivities() async {
-    try {
-      final activitiesToRemove = <Activity>[];
-      
-      for (final activity in _activities) {
-        if (activity.type == ActivityType.payment && activity.debtId != null) {
-          // Check if this payment activity represents a fake "full payment" for a cleared debt
-          final debt = _debts.firstWhere(
-            (d) => d.id == activity.debtId,
-            orElse: () => Debt(
-              id: '',
-              customerId: '',
-              customerName: '',
-              description: '',
-              amount: 0,
-              type: DebtType.credit,
-              status: DebtStatus.pending,
-              createdAt: DateTime.now(),
-            ),
-          );
-          
-          // If the debt doesn't exist anymore (was deleted) and the payment amount equals the debt amount
-          // this is likely a fake payment activity that should be removed
-          if (debt.id.isEmpty && activity.paymentAmount == activity.amount) {
-            activitiesToRemove.add(activity);
-            print('DEBUG: Marking fake payment activity for removal: ${activity.description} - Amount: ${activity.paymentAmount}');
-          }
-        }
-      }
-      
-      // Remove the fake activities
-      for (final activity in activitiesToRemove) {
-        await _dataService.deleteActivity(activity.id);
-        _activities.remove(activity);
-        print('DEBUG: Removed fake payment activity: ${activity.description}');
-      }
-      
-      if (activitiesToRemove.isNotEmpty) {
-        _clearCache();
-        notifyListeners();
-        print('DEBUG: Cleaned up ${activitiesToRemove.length} fake payment activities');
-      }
-    } catch (e) {
-      print('DEBUG: Error cleaning up fake payment activities: $e');
-    }
-  }
+
   
   // Customer-level debt status methods (considers ALL customer debts)
   bool isCustomerFullyPaid(String customerId) {
@@ -2297,42 +2119,7 @@ class AppState extends ChangeNotifier {
     print('  - Integrity: ${(completeDebts / totalDebts * 100).toStringAsFixed(1)}%');
   }
   
-  // Force cleanup of fully paid debts (for immediate fixes)
-  Future<void> forceCleanupFullyPaidDebts() async {
-    try {
-      print('🧹 Force cleaning up fully paid debts...');
-      
-      int cleanedCount = 0;
-      
-      // Find and remove all fully paid debts
-      final fullyPaidDebts = _debts.where((d) => d.paidAmount >= d.amount).toList();
-      
-      for (final debt in fullyPaidDebts) {
-        print('🧹 Found fully paid debt to remove: ${debt.description}');
-        print('  - Created: ${debt.createdAt}');
-        print('  - Amount: \$${debt.amount}');
-        print('  - Paid: \$${debt.paidAmount}');
-        print('  - Status: ${debt.status}');
-        
-        await deleteDebt(debt.id);
-        cleanedCount++;
-      }
-      
-      if (cleanedCount > 0) {
-        print('🔄 Reloading data after cleanup...');
-        _clearCache();
-        await _loadData();
-        notifyListeners();
-        print('✅ Force cleanup completed. Removed $cleanedCount fully paid debts.');
-      } else {
-        print('✅ No fully paid debts found to clean up.');
-      }
-      
-    } catch (e) {
-      print('❌ Error during force cleanup: $e');
-      rethrow;
-    }
-  }
+
   
   // Fix product data for a single debt
   Future<void> _fixSingleDebtProductData(Debt debt) async {
