@@ -137,13 +137,37 @@ class AppState extends ChangeNotifier {
       a.type == ActivityType.payment
     ).toList();
     
+    // Remove duplicate payment activities to fix the $85 vs $70 issue
+    final deduplicatedActivities = <Activity>[];
+    final seenDescriptions = <String>{};
+    
+    for (final activity in paymentActivities) {
+      // For "Payment across multiple debts", only count the first occurrence
+      if (activity.description == 'Payment across multiple debts') {
+        if (!seenDescriptions.contains('Payment across multiple debts')) {
+          deduplicatedActivities.add(activity);
+          seenDescriptions.add('Payment across multiple debts');
+        }
+      } else {
+        // For individual debt payments, only count if we haven't seen this debt name
+        final debtName = activity.description;
+        if (!seenDescriptions.contains(debtName)) {
+          deduplicatedActivities.add(activity);
+          seenDescriptions.add(debtName);
+        }
+      }
+    }
+    
     // Debug: Print all payment activities for this customer
     print('=== DEBUG: Payment Activities for Customer $customerId ===');
-    for (final activity in paymentActivities) {
+    print('Original activities: ${paymentActivities.length}');
+    print('Deduplicated activities: ${deduplicatedActivities.length}');
+    
+    for (final activity in deduplicatedActivities) {
       print('  - ${activity.type}: ${activity.description} - Amount: ${activity.paymentAmount ?? activity.amount} - Date: ${activity.date}');
     }
     
-    final totalFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+    final totalFromActivities = deduplicatedActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
     
     print('  - Total calculated: \$${totalFromActivities}');
     print('=== END DEBUG ===');
@@ -1266,7 +1290,7 @@ class AppState extends ChangeNotifier {
       
 
       
-      // Apply payment to each valid debt
+      // Apply payment to each valid debt WITHOUT creating individual payment activities
       for (final debtId in validDebtIds) {
         if (remainingPayment <= 0) break;
         
