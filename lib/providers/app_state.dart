@@ -1209,11 +1209,12 @@ class AppState extends ChangeNotifier {
       }
       
       // AUTOMATICALLY delete fully paid debts to keep the system clean
-      if (isThisDebtFullyPaid) {
-        print('🔄 Auto-deleting fully paid debt: ${originalDebt.description}');
-        await deleteDebt(originalDebt.id);
-        return; // Exit early since debt was deleted
-      }
+      // DISABLED: Keep fully paid debts visible for better UX
+      // if (isThisDebtFullyPaid) {
+      //   print('🔄 Auto-deleting fully paid debt: ${originalDebt.description}');
+      //   await deleteDebt(originalDebt.id);
+      //   return; // Exit early since debt was deleted
+      // }
       
       _clearCache();
       notifyListeners();

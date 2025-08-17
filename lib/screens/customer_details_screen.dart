@@ -616,6 +616,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .where((d) => d.customerId == _currentCustomer.id)
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        
+        // Filter to show only active debts (not fully paid) in the UI
+        final customerActiveDebts = customerAllDebts.where((d) => !d.isFullyPaid).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -877,7 +880,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                                               child: Text(
-                                '${appState.getCustomerPendingDebtsCount(widget.customer.id)} pending',
+                                '${customerActiveDebts.length} pending',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -889,11 +892,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           ),
                         ),
                         
-                        // Simple Debts List - Show all debts with proper status
-                        ...customerAllDebts.asMap().entries.map((entry) {
+                        // Simple Debts List - Show only active debts (not fully paid)
+                        ...customerActiveDebts.asMap().entries.map((entry) {
                           final index = entry.key;
                           final debt = entry.value;
-                          final isLastDebt = index == customerAllDebts.length - 1;
+                          final isLastDebt = index == customerActiveDebts.length - 1;
                                       // Individual debt status - ALL debts stay pending until customer settles TOTAL debt
             // This ensures consistent UI behavior and proper business logic
             final isPaid = appState.isCustomerFullyPaid(widget.customer.id); // Customer-level status
@@ -1094,7 +1097,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 if (totalPendingDebt > 0) ...[
                                   Expanded(
                                     child: ElevatedButton.icon(
-                                      onPressed: () => _showConsolidatedPaymentDialog(context, customerAllDebts),
+                                      onPressed: () => _showConsolidatedPaymentDialog(context, customerActiveDebts),
                                       icon: const Icon(Icons.payment, size: 16),
                                       label: const Text('Make Payment'),
                                       style: ElevatedButton.styleFrom(
