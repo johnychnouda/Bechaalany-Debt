@@ -72,19 +72,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final yesterday = today.subtract(const Duration(days: 1));
     final debtDate = DateTime(date.year, date.month, date.day);
     
-    // Format time as HH:MM AM/PM
+    // Format time as HH:MM:SS AM/PM
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final timeString = '$displayHour:$minute $period';
+    final timeString = '$displayHour:$minute:$second $period';
     
     if (debtDate == today) {
       return 'Today at $timeString';
     } else if (debtDate == yesterday) {
       return 'Yesterday at $timeString';
     } else {
-      // Format: DD/MM/YYYY at HH:MM AM/PM
+      // Format: DD/MM/YYYY at HH:MM:SS AM/PM
       final day = date.day.toString().padLeft(2, '0');
       final month = date.month.toString().padLeft(2, '0');
       final year = date.year.toString();
@@ -601,7 +602,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         
         // Check if customer has ANY partial payments (this will hide all red X icons)
-        final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
+        // Only consider debts that are still active (have remaining amounts) and have partial payments
+        final customerHasPartialPayments = allCustomerDebts
+            .where((d) => d.remainingAmount > 0) // Only active debts
+            .any((d) => d.paidAmount > 0); // That have partial payments
         
         // Calculate total pending debt (current remaining amount)
         final totalPendingDebt = allCustomerDebts.where((d) => d.remainingAmount > 0).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
@@ -626,8 +630,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Filter to show only active debts (not fully paid) in the UI
-        final customerActiveDebts = customerAllDebts.where((d) => !d.isFullyPaid).toList();
+        // Show only debts that have remaining amounts to be paid
+        // This ensures paid debts don't appear in Active Debts section
+        final customerActiveDebts = customerAllDebts.where((d) => d.remainingAmount > 0).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1260,14 +1265,26 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               const SizedBox(height: 16),
               const Text('Payment Options:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              _PaymentOption(
-                title: 'Pay Full Amount',
-                subtitle: 'Mark all debts as fully paid',
-                onTap: () {
-                  Navigator.of(dialogContext).pop();
-                  _markAllDebtsAsPaid(pendingDebts);
-                },
-              ),
+              // Only show "Pay Full Amount" button when there's actually no remaining balance
+              if (totalRemaining <= 0) ...[
+                _PaymentOption(
+                  title: 'All Debts Paid',
+                  subtitle: 'Customer has no outstanding balance',
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    // No action needed - already fully paid
+                  },
+                ),
+              ] else ...[
+                _PaymentOption(
+                  title: 'Pay Full Amount',
+                  subtitle: 'Enter exact amount to complete all debts',
+                  onTap: () {
+                    Navigator.of(dialogContext).pop();
+                    _showExactPaymentDialog(context, pendingDebts, totalRemaining);
+                  },
+                ),
+              ],
               const SizedBox(height: 8),
               _PaymentOption(
                 title: 'Partial Payment',
@@ -1347,15 +1364,91 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     appState.applyPaymentAcrossDebts(debtIds, paymentAmount);
   }
   
-  // Mark all debts as paid
-  void _markAllDebtsAsPaid(List<Debt> pendingDebts) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    
-    for (final debt in pendingDebts) {
-      if (!debt.isFullyPaid) {
-        appState.markDebtAsPaid(debt.id);
-      }
-    }
+  // Show exact payment dialog to complete all debts
+  void _showExactPaymentDialog(BuildContext context, List<Debt> pendingDebts, double totalRemaining) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Complete All Debts'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicSurface(context),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.dynamicBorder(context),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.payment,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Payment Amount',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            CurrencyFormatter.formatAmount(context, totalRemaining),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'This will mark all remaining debts as fully paid.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _applyConsolidatedPartialPayment(totalRemaining, pendingDebts, context);
+              },
+              child: const Text('Complete Payment'),
+            ),
+          ],
+        );
+      },
+    );
   }
   
   // Show delete all debts dialog

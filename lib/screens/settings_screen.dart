@@ -7,7 +7,7 @@ import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
-import 'export_data_screen.dart';
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -102,20 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               
               const SizedBox(height: 20),
               
-              // Data & Export (Enhanced)
+              // Data Management
               _buildSection(
-                'Data & Export',
+                'Data Management',
                 [
-                  _buildNavigationRow(
-                    'Export Data',
-                    'Export to PDF format',
-                    CupertinoIcons.square_arrow_up,
-                    () => Navigator.of(context).push(
-                      CupertinoPageRoute(
-                        builder: (context) => const ExportDataScreen(),
-                      ),
-                    ),
-                  ),
+
                   _buildNavigationRow(
                     'Clear Debts & Activities',
                     'Remove all debts, activities, and all payment records',
@@ -201,18 +192,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withAlpha(26),
+                color: AppColors.dynamicPrimary(context).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+              child: Icon(
+                icon,
+                size: 18,
+                color: AppColors.dynamicPrimary(context),
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.dynamicTextPrimary(context),
                     ),
                   ),
@@ -229,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: AppColors.dynamicTextSecondary(context),
                     ),
                   ),
@@ -239,7 +235,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             CupertinoSwitch(
               value: value,
               onChanged: onChanged,
-              activeColor: AppColors.primary,
+              activeColor: AppColors.dynamicPrimary(context),
             ),
           ],
         ),
@@ -258,54 +254,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       child: CupertinoButton(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.zero,
         onPressed: onTap,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withAlpha(26),
-                borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: AppColors.dynamicPrimary(context),
+                ),
               ),
-              child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.dynamicTextPrimary(context),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.dynamicTextSecondary(context),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.dynamicTextSecondary(context),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Icon(
-              CupertinoIcons.chevron_right,
-              color: AppColors.dynamicTextSecondary(context),
-              size: 16,
-            ),
-          ],
+              Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String title, String subtitle, IconData icon) {
+  Widget _buildInfoRow(String title, String value, IconData icon) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -316,18 +320,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withAlpha(26),
+                color: AppColors.dynamicPrimary(context).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+              child: Icon(
+                icon,
+                size: 18,
+                color: AppColors.dynamicPrimary(context),
+              ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,15 +345,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.dynamicTextPrimary(context),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    subtitle,
+                    value,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: AppColors.dynamicTextSecondary(context),
                     ),
                   ),
@@ -357,16 +366,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildMessageButtonRow(String title, String subtitle, IconData icon, String currentMessage, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.dynamicBorder(context),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: AppColors.dynamicPrimary(context),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.dynamicTextSecondary(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                CupertinoIcons.chevron_right,
+                size: 16,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showAppInfo() {
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('App Info'),
-        content: const Text('Bechaalany Connect v1.0.0\n\nA comprehensive debt management app for tracking customers, debts, and payments.'),
+        title: Text(
+          'About Bechaalany Debt App',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'A professional debt tracking application designed for businesses and individuals to manage customer debts, track payments, and maintain financial records.\n\nBuilt with Flutter for iOS and Android.',
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 13,
+          ),
+        ),
         actions: [
           CupertinoDialogAction(
-            child: const Text('OK'),
             onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: AppColors.dynamicPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -382,191 +477,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showClearDataDialog() {
-    final dataService = DataService();
-    final stats = dataService.getDataStatistics();
-    
-    final title = 'Clear Debts & Activities';
-    final message = 'This will permanently delete:\n'
-        '• ${stats['debts']} debts\n'
-        '• ${stats['activities']} activities\n'
-        '• ${stats['partial_payments']} payment records\n\n'
-        '⚠️ This action cannot be undone!\n'
-        '💾 Customers & products will be preserved';
-    final actionText = 'Clear Debts & Activities';
-    
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: Text(
+          'Clear Debts & Activities',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'This will permanently delete all debts, activities, and payment records. Your customers and products will be preserved.',
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 13,
+          ),
+        ),
         actions: [
           CupertinoDialogAction(
-            child: const Text('Cancel'),
             onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
           CupertinoDialogAction(
-            isDestructiveAction: true,
-            child: Text(actionText),
             onPressed: () async {
               Navigator.pop(context);
-              await _performDataClearing();
+              
+              // Show loading indicator
+              showCupertinoDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => CupertinoAlertDialog(
+                  content: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CupertinoActivityIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Clearing debts and activities...',
+                          style: TextStyle(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              
+              // Clear all data
+              final appState = Provider.of<AppState>(context, listen: false);
+              await appState.clearAllData();
+              
+              // Hide loading and show success
+              Navigator.pop(context);
+              
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Debts and activities cleared successfully!'),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
             },
+            child: Text(
+              'Clear Debts',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _performDataClearing() async {
-    final dataService = DataService();
-    final notificationService = NotificationService();
-    
-    try {
-      // Show loading dialog
-      showCupertinoDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CupertinoAlertDialog(
-          content: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CupertinoActivityIndicator(),
-                const SizedBox(height: 16),
-                Text(
-                  'Clearing debts and activities...',
-                  style: TextStyle(
-                    color: AppColors.dynamicTextPrimary(context),
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      
-      // Clear only debts and activities
-      await dataService.clearDebts();
-      
-      // Close loading dialog
-      Navigator.pop(context);
-      
-      // Show success notification
-      await notificationService.showSuccessNotification(
-        title: 'Debts & Activities Cleared',
-        body: 'Debts and activities have been removed. Your customers and products are preserved.',
-      );
-      
-      // Refresh the app state
-      Provider.of<AppState>(context, listen: false).refreshData();
-      
-    } catch (e) {
-      // Close loading dialog
-      Navigator.pop(context);
-      
-      // Show error notification
-      await notificationService.showErrorNotification(
-        title: 'Error Clearing Data',
-        body: 'Failed to clear debts and activities: $e',
-      );
-    }
-  }
-  
-  Widget _buildMessageButtonRow(String title, String subtitle, IconData icon, String currentMessage, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.dynamicBorder(context),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with icon, title, and edit button
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.dynamicPrimary(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.dynamicTextPrimary(context),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          // Edit button
-                          CupertinoButton(
-                            padding: const EdgeInsets.all(8),
-                            minSize: 0,
-                            onPressed: onTap,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.dynamicPrimary(context).withAlpha(30),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: AppColors.dynamicPrimary(context).withAlpha(50),
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: Icon(
-                                CupertinoIcons.pencil,
-                                size: 22,
-                                color: AppColors.dynamicPrimary(context),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.dynamicTextSecondary(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-
-            
-
-          ],
-        ),
-      ),
-    );
-  }
-  
   /// Show custom message dialog
   void _showCustomMessageDialog(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);

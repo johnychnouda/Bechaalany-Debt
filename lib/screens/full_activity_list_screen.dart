@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -68,6 +69,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
+
+
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
@@ -486,7 +489,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
-        return 'Last 24 Hours Activity';
+        return 'Today\'s Activity';
       case ActivityView.weekly:
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
@@ -527,7 +530,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   String _getEmptyMessage(ActivityView view) {
     switch (view) {
       case ActivityView.daily:
-        return 'No activity in the last 24 hours\nAdd debts or make payments to see activity here';
+        return 'No activity today\nAdd debts or make payments to see activity here';
       case ActivityView.weekly:
         return 'No activity this week\nAdd debts or make payments to see activity here';
       case ActivityView.monthly:
@@ -650,8 +653,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
-        // Last 24 hours
-        startDate = now.subtract(const Duration(hours: 24));
+        // Today only (not last 24 hours)
+        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0); // Start of today
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59); // End of today
         break;
       case ActivityView.weekly:
@@ -778,7 +781,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   String _getPeriodLabel(ActivityView view) {
     switch (view) {
       case ActivityView.daily:
-        return '24H';
+        return 'TODAY';
       case ActivityView.weekly:
         return 'WEEK';
       case ActivityView.monthly:
@@ -787,9 +790,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         return 'YEAR';
     }
   }
-
-
-
 
 
 

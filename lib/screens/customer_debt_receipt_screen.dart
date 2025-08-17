@@ -79,16 +79,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       }).toList();
     }
     
-    // If no specific date, include all active debts (not fully paid) and fully paid debts
-    return allCustomerDebts.where((debt) {
-      // Include all debts that are not fully paid (pending or partially paid)
-      if (!debt.isFullyPaid) {
-        return true;
-      }
-      
-      // Include fully paid debts for historical reference
-      return debt.isFullyPaid;
-    }).toList();
+    // If no specific date, include only active debts (not fully paid)
+    return allCustomerDebts.where((debt) => !debt.isFullyPaid).toList();
   }
   
   @override

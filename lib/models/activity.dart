@@ -136,9 +136,14 @@ class Activity extends HiveObject {
       return false;
     }
     
-    // A payment is considered completed if:
-    // 1. The new status is 'paid', OR
-    // 2. The payment amount equals or exceeds the debt amount
-    return newStatus == DebtStatus.paid || (paymentAmount! >= amount);
+    // A payment is considered completed ONLY if:
+    // 1. The new status is 'paid' AND
+    // 2. The payment amount is reasonable (not artificially inflated)
+    // This prevents showing "Fully Paid" for wrong amounts like $30.00 when it should be $15.00
+    
+    // Check if this is a reasonable payment amount (not artificially inflated)
+    bool isReasonableAmount = paymentAmount! <= amount * 1.5; // Allow some tolerance for rounding
+    
+    return newStatus == DebtStatus.paid && isReasonableAmount;
   }
 } 

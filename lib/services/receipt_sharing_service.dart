@@ -221,8 +221,14 @@ class ReceiptSharingService {
     
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
-    // Calculate total paid amount (sum of all partial payments)
-    final totalPaidAmount = partialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    // Calculate total paid amount only from partial payments for debts with remaining amounts
+    double totalPaidAmount = 0.0;
+    for (Debt debt in sortedDebts) {
+      if (debt.remainingAmount > 0) {
+        final debtPartialPayments = partialPayments.where((p) => p.debtId == debt.id).toList();
+        totalPaidAmount += debtPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+      }
+    }
     
     final sanitizedCustomerName = PdfFontUtils.sanitizeText(customer.name);
     final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(customer.phone);

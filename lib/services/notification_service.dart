@@ -340,22 +340,9 @@ class NotificationService {
     );
   }
 
-  // Export notifications
-  Future<void> showExportSuccessNotification(String format) async {
-    await showSuccessNotification(
-      title: 'Export Successful',
-      body: 'Your data has been exported as $format',
-      payload: 'export_success',
-    );
-  }
 
-  Future<void> showExportFailedNotification(String error) async {
-    await showErrorNotification(
-      title: 'Export Failed',
-      body: 'Failed to export data: $error',
-      payload: 'export_failed',
-    );
-  }
+
+
 
   // Settings notifications
   Future<void> showSettingsUpdatedNotification() async {
@@ -486,14 +473,7 @@ class NotificationService {
     );
   }
 
-  // System notifications
-  Future<void> showDataExportedNotification() async {
-    await showSuccessNotification(
-      title: 'Data Exported',
-      body: 'Your data has been exported successfully',
-      payload: 'data_exported',
-    );
-  }
+
 
   Future<void> showDataImportedNotification() async {
     await showSuccessNotification(

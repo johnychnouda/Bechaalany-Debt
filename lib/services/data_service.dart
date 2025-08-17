@@ -257,13 +257,12 @@ class DataService {
     }
   }
   
-  // Auto-backup before major operations
+  // Auto-backup before major operations - DISABLED to prevent multiple daily backups
+  // This was causing multiple backups throughout the day instead of just the scheduled daily backup
   Future<void> _autoBackup() async {
-    try {
-      await createBackup();
-    } catch (e) {
-      // Auto-backup failed
-    }
+    // Auto-backup disabled to prevent multiple daily backups
+    // Only the scheduled daily backup at 12 AM will run
+    return;
   }
   
   // Ensure all boxes are open

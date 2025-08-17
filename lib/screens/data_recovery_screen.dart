@@ -34,10 +34,23 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     final isEnabled = await _backupService.isAutomaticBackupEnabled();
     final lastAutomaticBackup = await _backupService.getLastAutomaticBackupTime();
     
-    setState(() {
-      _isAutomaticBackupEnabled = isEnabled;
-      _lastBackupTime = lastAutomaticBackup;
-    });
+    // Validate backup state - if no backups exist but toggle is ON, fix it
+    if (isEnabled && lastAutomaticBackup == null) {
+      await _backupService.clearInvalidBackupTimestamps();
+      // Reload settings after fixing
+      final correctedIsEnabled = await _backupService.isAutomaticBackupEnabled();
+      final correctedLastBackup = await _backupService.getLastAutomaticBackupTime();
+      
+      setState(() {
+        _isAutomaticBackupEnabled = correctedIsEnabled;
+        _lastBackupTime = correctedLastBackup;
+      });
+    } else {
+      setState(() {
+        _isAutomaticBackupEnabled = isEnabled;
+        _lastBackupTime = lastAutomaticBackup;
+      });
+    }
   }
 
   Future<void> _loadBackups() async {
@@ -436,7 +449,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                       ],
                     ),
                   ),
-                ],
+                                ],
               ],
             ),
           ),

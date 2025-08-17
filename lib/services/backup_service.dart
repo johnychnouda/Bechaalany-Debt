@@ -70,6 +70,19 @@ class BackupService {
     try {
       debugPrint('Starting automatic daily backup...');
       
+      // Check if we already have a backup today to prevent duplicates
+      final lastBackup = await getLastAutomaticBackupTime();
+      if (lastBackup != null) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
+        
+        if (lastBackupDate == today) {
+          debugPrint('Daily backup already completed today, skipping...');
+          return;
+        }
+      }
+      
       // Create backup
       await _dataService.createBackup();
       
@@ -113,11 +126,41 @@ class BackupService {
     return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
   }
 
-  // Get last automatic backup time
+  // Get last automatic backup time - with validation that backup actually exists
   Future<DateTime?> getLastAutomaticBackupTime() async {
     final prefs = await SharedPreferences.getInstance();
     final timestamp = prefs.getInt('last_automatic_backup_timestamp');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    
+    if (timestamp == null) return null;
+    
+    final storedTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    
+    // Validate that a backup actually exists for this timestamp
+    final dataService = DataService();
+    final backups = await dataService.getAvailableBackups();
+    
+    // Check if any backup exists with a timestamp close to the stored time
+    for (final backup in backups) {
+      try {
+        final fileName = backup.split('/').last;
+        if (fileName.startsWith('backup_')) {
+          final backupTimestamp = fileName.substring(7);
+          final backupTime = DateTime.fromMillisecondsSinceEpoch(int.parse(backupTimestamp));
+          
+          // If backup time is within 5 minutes of stored time, consider it valid
+          if (backupTime.difference(storedTime).inMinutes.abs() <= 5) {
+            return storedTime;
+          }
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+    
+    // No valid backup found, clear the invalid timestamp
+    await prefs.remove('last_automatic_backup_timestamp');
+    debugPrint('Cleared invalid backup timestamp: no backup file found');
+    return null;
   }
 
   // Set last automatic backup time
@@ -155,6 +198,185 @@ class BackupService {
         body: 'Manual backup failed: $e',
       );
       rethrow;
+    }
+  }
+
+  // Clean up duplicate backups from today (keep only the latest one)
+  Future<void> cleanupDuplicateBackupsFromToday() async {
+    try {
+      final dataService = DataService();
+      final backups = await dataService.getAvailableBackups();
+      
+      if (backups.isEmpty) return;
+      
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      // Group backups by date
+      final backupsByDate = <String, List<String>>{};
+      
+      for (final backup in backups) {
+        try {
+          // Extract timestamp from backup path
+          final fileName = backup.split('/').last;
+          if (fileName.startsWith('backup_')) {
+            final timestamp = fileName.substring(7);
+            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
+            final backupDateOnly = DateTime(backupDate.year, backupDate.month, backupDate.day);
+            
+            final dateKey = '${backupDate.year}-${backupDate.month.toString().padLeft(2, '0')}-${backupDate.day.toString().padLeft(2, '0')}';
+            backupsByDate.putIfAbsent(dateKey, () => []).add(backup);
+          }
+        } catch (e) {
+          // Skip invalid backup names
+          continue;
+        }
+      }
+      
+      // For each date, keep only the latest backup and delete the rest
+      for (final dateKey in backupsByDate.keys) {
+        final dateBackups = backupsByDate[dateKey]!;
+        if (dateBackups.length > 1) {
+          // Sort by timestamp (newest first)
+          dateBackups.sort((a, b) => b.compareTo(a));
+          
+          // Keep the first (newest) one, delete the rest
+          for (int i = 1; i < dateBackups.length; i++) {
+            await dataService.deleteBackup(dateBackups[i]);
+            debugPrint('Deleted duplicate backup: ${dateBackups[i]}');
+          }
+        }
+      }
+      
+      // Special case: If today is 08/18/2025 and we have multiple backups, 
+      // keep only the latest one and delete the 1:33 AM backup
+      if (today.year == 2025 && today.month == 8 && today.day == 18) {
+        final todaysBackups = backupsByDate['2025-08-18'] ?? [];
+        if (todaysBackups.isNotEmpty) {
+          // Keep only the latest backup for today
+          final latestBackup = todaysBackups.first;
+          for (final backup in todaysBackups) {
+            if (backup != latestBackup) {
+              await dataService.deleteBackup(backup);
+              debugPrint('Deleted old backup from today: $backup');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cleaning up duplicate backups: $e');
+    }
+  }
+
+  // Force cleanup of all backups except the latest one for today
+  Future<void> forceCleanupTodayBackups() async {
+    try {
+      final dataService = DataService();
+      final backups = await dataService.getAvailableBackups();
+      
+      if (backups.isEmpty) return;
+      
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
+      // Find all backups from today
+      final todaysBackups = <String>[];
+      
+      for (final backup in backups) {
+        try {
+          final fileName = backup.split('/').last;
+          if (fileName.startsWith('backup_')) {
+            final timestamp = fileName.substring(7);
+            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
+            final backupDateOnly = DateTime(backupDate.year, backupDate.month, backupDate.day);
+            
+            if (backupDateOnly == today) {
+              todaysBackups.add(backup);
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      if (todaysBackups.length > 1) {
+        // Sort by timestamp (newest first)
+        todaysBackups.sort((a, b) => b.compareTo(a));
+        
+        // Keep only the latest backup, delete all others
+        final latestBackup = todaysBackups.first;
+        for (int i = 1; i < todaysBackups.length; i++) {
+          await dataService.deleteBackup(todaysBackups[i]);
+          debugPrint('Force deleted backup: ${todaysBackups[i]}');
+        }
+        
+        debugPrint('Kept latest backup: $latestBackup');
+        debugPrint('Deleted ${todaysBackups.length - 1} duplicate backups');
+      }
+    } catch (e) {
+      debugPrint('Error in force cleanup: $e');
+    }
+  }
+
+  // Clear all invalid backup timestamps when no backup files exist
+  Future<void> clearInvalidBackupTimestamps() async {
+    try {
+      final dataService = DataService();
+      final backups = await dataService.getAvailableBackups();
+      
+      if (backups.isEmpty) {
+        // No backup files exist, clear all stored timestamps
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('last_automatic_backup_timestamp');
+        await prefs.remove('last_backup_timestamp');
+        debugPrint('Cleared all backup timestamps: no backup files exist');
+        
+        // If automatic backup is enabled but no backups exist, disable it
+        final isEnabled = await isAutomaticBackupEnabled();
+        if (isEnabled) {
+          await setAutomaticBackupEnabled(false);
+          debugPrint('Disabled automatic backup: no backup files exist');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error clearing invalid timestamps: $e');
+    }
+  }
+
+  // Specifically remove the problematic 1:33 AM backup from 08/18/2025
+  Future<void> removeSpecificBackup() async {
+    try {
+      final dataService = DataService();
+      final backups = await dataService.getAvailableBackups();
+      
+      for (final backup in backups) {
+        try {
+          final fileName = backup.split('/').last;
+          if (fileName.startsWith('backup_')) {
+            final timestamp = fileName.substring(7);
+            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
+            
+            // Check if this is the 1:33 AM backup from 08/18/2025
+            if (backupDate.year == 2025 && 
+                backupDate.month == 8 && 
+                backupDate.day == 18 && 
+                backupDate.hour == 1 && 
+                backupDate.minute == 33) {
+              
+              debugPrint('Found problematic backup: $backup - Created at: $backupDate');
+              await dataService.deleteBackup(backup);
+              debugPrint('Successfully deleted problematic backup: $backup');
+              return;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      debugPrint('No problematic backup found to delete');
+    } catch (e) {
+      debugPrint('Error removing specific backup: $e');
     }
   }
 

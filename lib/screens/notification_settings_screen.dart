@@ -136,7 +136,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               icon: Icons.settings,
               color: Colors.green,
               notifications: [
-                'Data Export/Import',
+
                 'Cache Cleared',
                 'Sync Complete/Failed',
                 'App Updates',
