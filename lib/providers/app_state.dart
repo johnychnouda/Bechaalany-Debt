@@ -499,8 +499,14 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Create missing payment activities for fully paid debts
+      // Automatically create missing payment activities when data is loaded
       await createMissingPaymentActivitiesForAllPaidDebts();
+      
+      // Also create missing payment activities for partial payments
+      await createMissingPaymentActivitiesForPartialPayments();
+      
+      // Setup connectivity monitoring
+      _setupConnectivityListener();
     } catch (e) {
       // Error loading data
     } finally {
@@ -555,6 +561,60 @@ class AppState extends ChangeNotifier {
       }
     } catch (e) {
       // Error creating missing payment activities
+    }
+  }
+  
+  // Create missing payment activities for partial payments
+  Future<void> createMissingPaymentActivitiesForPartialPayments() async {
+    try {
+      for (final partialPayment in _partialPayments) {
+        // Check if there's already a payment activity for this partial payment
+        final hasPaymentActivity = _activities.any((activity) => 
+          activity.type == ActivityType.payment && 
+          activity.debtId == partialPayment.debtId &&
+          activity.paymentAmount == partialPayment.amount &&
+          (activity.date.difference(partialPayment.paidAt).inMinutes.abs() < 5) // Within 5 minutes
+        );
+        
+        if (!hasPaymentActivity) {
+          // Find the corresponding debt
+          final debt = _debts.firstWhere(
+            (d) => d.id == partialPayment.debtId,
+            orElse: () => Debt(
+              id: '',
+              customerId: '',
+              customerName: '',
+              description: '',
+              amount: 0,
+              type: DebtType.credit,
+              status: DebtStatus.pending,
+              createdAt: DateTime.now(),
+            ),
+          );
+          
+          if (debt.id.isNotEmpty) {
+            // Create a payment activity for this partial payment
+            final activity = Activity(
+              id: 'activity_partial_${partialPayment.id}_${DateTime.now().millisecondsSinceEpoch}',
+              date: partialPayment.paidAt, // Use the original payment date
+              type: ActivityType.payment,
+              customerName: debt.customerName,
+              customerId: debt.customerId,
+              description: debt.description,
+              amount: debt.amount,
+              paymentAmount: partialPayment.amount,
+              oldStatus: DebtStatus.pending,
+              newStatus: debt.isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+              debtId: debt.id,
+            );
+            
+            await _addActivity(activity);
+            print('Created missing payment activity for partial payment: ${partialPayment.id}');
+          }
+        }
+      }
+    } catch (e) {
+      print('Error creating missing payment activities for partial payments: $e');
     }
   }
   
@@ -1334,6 +1394,9 @@ class AppState extends ChangeNotifier {
       
       // Automatically create missing payment activities when data is refreshed
       await createMissingPaymentActivitiesForAllPaidDebts();
+      
+      // Also create missing payment activities for partial payments
+      await createMissingPaymentActivitiesForPartialPayments();
       
       // Use post-frame callback to avoid calling notifyListeners during build
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -607,6 +607,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           sum + (activity.paymentAmount ?? 0)
         );
         
+        // Use the comprehensive method that includes both activities and partial payments
+        // This ensures consistency between Financial Summary and Activity History
+        totalPaid = appState.getCustomerTotalHistoricalPayments(_currentCustomer.id);
+        
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
             .where((d) => d.customerId == _currentCustomer.id)
