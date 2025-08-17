@@ -131,34 +131,15 @@ class AppState extends ChangeNotifier {
 
   // Get total historical payments for a customer (including deleted debts)
   double getCustomerTotalHistoricalPayments(String customerId) {
-    // Get payments from activities
+    // Get payments from activities only - this avoids double-counting with partial payments
     final paymentActivities = _activities.where((a) => 
       a.customerId == customerId && 
       a.type == ActivityType.payment
     ).toList();
     
-    // Get payments from partial payments
-    final partialPayments = _partialPayments.where((p) {
-      final debt = _debts.firstWhere(
-        (d) => d.id == p.debtId,
-        orElse: () => Debt(
-          id: '',
-          customerId: '',
-          customerName: '',
-          description: '',
-          amount: 0,
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: DateTime.now(),
-        ),
-      );
-      return debt.customerId == customerId;
-    }).toList();
-    
     final totalFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
-    final totalFromPartialPayments = partialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
     
-    return totalFromActivities + totalFromPartialPayments;
+    return totalFromActivities;
   }
   
   // Debug method to help identify missing products
