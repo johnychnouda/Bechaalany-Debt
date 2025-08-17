@@ -762,10 +762,24 @@ class AppState extends ChangeNotifier {
         
         // CRITICAL FIX: Check if there's a consolidated payment activity for this customer
         // This prevents creating individual activities when we already have a consolidated one
+        final debt = _debts.firstWhere(
+          (d) => d.id == partialPayment.debtId,
+          orElse: () => Debt(
+            id: '',
+            customerId: '',
+            customerName: '',
+            description: '',
+            amount: 0,
+            type: DebtType.credit,
+            status: DebtStatus.pending,
+            createdAt: DateTime.now(),
+          ),
+        );
+        
         final hasConsolidatedPayment = _activities.any((activity) => 
           activity.type == ActivityType.payment && 
           activity.description == 'Payment across multiple debts' &&
-          activity.customerId == partialPayment.debtId &&
+          activity.customerId == debt.customerId &&
           (activity.date.difference(partialPayment.paidAt).inMinutes.abs() < 5) // Within 5 minutes
         );
         
