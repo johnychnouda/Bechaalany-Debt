@@ -131,13 +131,22 @@ class AppState extends ChangeNotifier {
 
   // Get total historical payments for a customer (including deleted debts)
   double getCustomerTotalHistoricalPayments(String customerId) {
-    // Get payments from activities only - this avoids double-counting with partial payments
+    // Get payments from payment activities only - this avoids double-counting with partial payments
     final paymentActivities = _activities.where((a) => 
       a.customerId == customerId && 
       a.type == ActivityType.payment
     ).toList();
     
+    // Debug: Print all payment activities for this customer
+    print('=== DEBUG: Payment Activities for Customer $customerId ===');
+    for (final activity in paymentActivities) {
+      print('  - ${activity.type}: ${activity.description} - Amount: ${activity.paymentAmount ?? activity.amount} - Date: ${activity.date}');
+    }
+    
     final totalFromActivities = paymentActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+    
+    print('  - Total calculated: \$${totalFromActivities}');
+    print('=== END DEBUG ===');
     
     return totalFromActivities;
   }
