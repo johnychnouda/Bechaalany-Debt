@@ -97,6 +97,9 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     // This excludes new debts that were created after the payment was completed
     final relevantDebts = _getRelevantDebts(widget.customerDebts);
     
+    // Check if customer has ANY partial payments (this will hide all red X icons)
+    final customerHasPartialPayments = widget.customerDebts.any((d) => d.paidAmount > 0);
+    
     final sortedDebts = List<Debt>.from(relevantDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -144,7 +147,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             const SizedBox(height: 24),
             _buildCustomerInfo(),
             const SizedBox(height: 24),
-            _buildDebtDetails(sortedDebts),
+            _buildDebtDetails(sortedDebts, customerHasPartialPayments),
             const SizedBox(height: 24),
             _buildTotalAmount(remainingAmount),
           ],
@@ -265,7 +268,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  Widget _buildDebtDetails(List<Debt> sortedDebts) {
+  Widget _buildDebtDetails(List<Debt> sortedDebts, bool customerHasPartialPayments) {
     List<Map<String, dynamic>> allItems = [];
     
     for (Debt debt in sortedDebts) {
@@ -383,11 +386,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           const SizedBox(height: 20),
           ...allItems.map((item) {
             if (item['type'] == 'debt') {
-              return _buildDebtItem(item['debt']);
+              return _buildDebtItem(item['debt'] as Debt, customerHasPartialPayments);
             } else if (item['type'] == 'payment_activity') {
-              return _buildPaymentActivityItem(item['activity']);
+              return _buildPaymentActivityItem(item['activity'] as Activity);
             } else {
-              return _buildPartialPaymentItem(item['payment']);
+              return _buildPartialPaymentItem(item['payment'] as PartialPayment);
             }
           }).toList(),
         ],
@@ -395,7 +398,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  Widget _buildDebtItem(Debt debt) {
+  Widget _buildDebtItem(Debt debt, bool customerHasPartialPayments) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -445,8 +448,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Delete button for debt management - Only show when no partial payments
-              if (debt.paidAmount == 0) ...[
+              // Delete button for debt management - Only show when customer has NO partial payments at all
+              if (!customerHasPartialPayments) ...[
                 GestureDetector(
                   onTap: () => _showDeleteDebtDialog(debt),
                   child: Container(
@@ -463,7 +466,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   ),
                 ),
               ] else ...[
-                // Show info icon when delete is not available
+                // Show info icon when delete is not available (customer has partial payments)
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(

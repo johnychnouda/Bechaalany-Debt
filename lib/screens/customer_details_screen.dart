@@ -600,6 +600,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Calculate totals from all customer debts (including paid ones)
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         
+        // Check if customer has ANY partial payments (this will hide all red X icons)
+        final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
+        
         // Calculate total pending debt (current remaining amount)
         final totalPendingDebt = allCustomerDebts.where((d) => d.remainingAmount > 0).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
@@ -1032,8 +1035,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        // Individual delete button for each debt - Only show when no partial payments
-                                        if (debt.paidAmount == 0) ...[
+                                        // Individual delete button for each debt - Only show when customer has NO partial payments at all
+                                        if (!customerHasPartialPayments) ...[
                                           GestureDetector(
                                             onTap: () => _showDeleteDebtDialog(context, debt),
                                             child: Container(
@@ -1050,7 +1053,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                             ),
                                           ),
                                         ] else ...[
-                                          // Show info icon when delete is not available
+                                          // Show info icon when delete is not available (customer has partial payments)
                                           Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(

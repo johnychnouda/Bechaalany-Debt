@@ -63,6 +63,9 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
         final totalDebtAmount = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.amount);
         final totalPartialPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
         final totalDebts = totalDebtAmount - totalPartialPayments;
+        
+        // Calculate total payments: sum of all partial payments made by customers
+        final totalPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
 
         return SlideTransition(
           position: _slideAnimation,
@@ -152,6 +155,14 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
+                    'Potential Revenue',
+                    revenueSummary['totalPotentialRevenue'] ?? 0.0,
+                    Icons.trending_up,
+                    AppColors.warning,
+                    subtitle: 'From unpaid amounts',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildProfitLossCard(
                     'Total Debts',
                     totalDebts,
                     Icons.arrow_downward,
@@ -160,11 +171,11 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
-                    'Potential Revenue',
-                    revenueSummary['totalPotentialRevenue'] ?? 0.0,
-                    Icons.trending_up,
-                    AppColors.warning,
-                    subtitle: 'From unpaid amounts',
+                    'Total Payments',
+                    totalPayments,
+                    Icons.payment,
+                    AppColors.info,
+                    subtitle: 'From customer payments',
                   ),
 
 

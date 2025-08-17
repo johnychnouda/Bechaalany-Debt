@@ -755,8 +755,8 @@ class AppState extends ChangeNotifier {
           }
           
           if (shouldCreatePaymentActivity) {
-            // Create a payment activity for the full paid amount
-            await addPaymentActivity(debt, debt.paidAmount, DebtStatus.pending, DebtStatus.paid);
+            // Check if this payment completes multiple debts for the same customer
+            await _checkAndConsolidateMultipleDebtCompletions(debt.customerId, debt.customerName);
           }
         }
       }
@@ -1085,10 +1085,7 @@ class AppState extends ChangeNotifier {
       
       // Remove all activities related to this debt
       final activitiesToRemove = _activities.where((activity) => 
-        activity.debtId == debtId || 
-        (activity.type == ActivityType.newDebt && 
-         activity.description.contains(debt.description) &&
-         activity.customerId == debt.customerId)
+        activity.debtId == debtId
       ).toList();
       
       print('DELETE DEBT: Found ${activitiesToRemove.length} related activities to remove');
@@ -1167,8 +1164,8 @@ class AppState extends ChangeNotifier {
             paidAt: DateTime.now(),
           );
           
-          // Create a fully paid activity only if the debt is actually fully paid
-          await addPaymentActivity(originalDebt, remainingAmount, DebtStatus.pending, DebtStatus.paid);
+          // Check if this payment completes multiple debts for the same customer
+          await _checkAndConsolidateMultipleDebtCompletions(originalDebt.customerId, originalDebt.customerName);
         } else {
           // If not fully paid, just update the paid amount but don't mark as paid
           _debts[index] = _debts[index].copyWith(
@@ -1236,17 +1233,17 @@ class AppState extends ChangeNotifier {
       
       // Only create payment activity if not skipped (prevents duplicate activities)
       if (!skipActivityCreation) {
-        // AUTOMATICALLY track payment activity (for both partial and full payments)
-        // If this payment makes the debt fully paid, show the remaining amount as payment
-        final paymentAmountToShow = isThisDebtFullyPaid && !originalDebt.isFullyPaid 
-            ? (originalDebt.amount - originalDebt.paidAmount) 
-            : paymentAmount;
-        
-        // Determine the correct status for the activity
-        final oldStatus = originalDebt.status;
-        final newStatus = _debts[index].status;
-        
-        await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
+        // Check if this payment completes multiple debts for the same customer
+        if (isThisDebtFullyPaid) {
+          await _checkAndConsolidateMultipleDebtCompletions(originalDebt.customerId, originalDebt.customerName);
+        } else {
+          // Create individual payment activity for partial payment
+          final paymentAmountToShow = paymentAmount;
+          final oldStatus = originalDebt.status;
+          final newStatus = _debts[index].status;
+          
+          await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
+        }
       }
       
       // AUTOMATICALLY delete fully paid debts to keep the system clean
@@ -1273,6 +1270,62 @@ class AppState extends ChangeNotifier {
       await _scheduleNotifications();
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Check if multiple debts were completed simultaneously and consolidate them
+  Future<void> _checkAndConsolidateMultipleDebtCompletions(String customerId, String customerName) async {
+    try {
+      // Get all debts for this customer that were just completed
+      final now = DateTime.now();
+      final recentlyCompletedDebts = _debts.where((debt) => 
+        debt.customerId == customerId && 
+        debt.isFullyPaid && 
+        debt.paidAt != null &&
+        debt.paidAt!.difference(now).inMinutes.abs() <= 1 // Within 1 minute
+      ).toList();
+      
+      if (recentlyCompletedDebts.length > 1) {
+        // Multiple debts completed simultaneously - create consolidated activity
+        final totalAmount = recentlyCompletedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+        final totalPaidAmount = recentlyCompletedDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
+        
+        // Calculate the total payment amount that completed these debts
+        final totalPaymentAmount = recentlyCompletedDebts.fold<double>(0, (sum, debt) => 
+          sum + debt.remainingAmount
+        );
+        
+        // Create consolidated payment completed activity
+        final consolidatedActivity = Activity(
+          id: 'activity_consolidated_${customerId}_${now.millisecondsSinceEpoch}',
+          date: now,
+          type: ActivityType.payment,
+          customerName: customerName,
+          customerId: customerId,
+          description: 'Payment completed across ${recentlyCompletedDebts.length} debts',
+          amount: totalAmount,
+          paymentAmount: totalPaymentAmount,
+          oldStatus: DebtStatus.pending,
+          newStatus: DebtStatus.paid,
+          debtId: null, // No specific debt ID since it's across multiple debts
+          notes: 'Consolidated completion of ${recentlyCompletedDebts.length} debts: ${recentlyCompletedDebts.map((d) => d.description).join(', ')}',
+        );
+        
+        // Add the consolidated activity
+        await _dataService.addActivity(consolidatedActivity);
+        _activities.add(consolidatedActivity);
+        _activities.sort((a, b) => b.date.compareTo(a.date));
+        
+        print('Created consolidated payment activity for ${recentlyCompletedDebts.length} completed debts');
+      } else if (recentlyCompletedDebts.length == 1) {
+        // Single debt completed - create individual payment completed activity
+        final debt = recentlyCompletedDebts.first;
+        final paymentAmount = debt.remainingAmount;
+        
+        await addPaymentActivity(debt, paymentAmount, DebtStatus.pending, DebtStatus.paid);
+      }
+    } catch (e) {
+      print('Error in _checkAndConsolidateMultipleDebtCompletions: $e');
     }
   }
 
