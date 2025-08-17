@@ -1628,14 +1628,16 @@ class _ProductCard extends StatelessWidget {
   }
 
   Widget _buildExchangeRateChip(BuildContext context, CurrencySettings settings) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.systemGray5,
+        color: isDarkMode ? Colors.transparent : AppColors.systemGray5,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: AppColors.systemGray3,
-          width: 0.5,
+          color: isDarkMode ? Colors.transparent : AppColors.systemGray3,
+          width: isDarkMode ? 0 : 0.5,
         ),
       ),
       child: Row(
@@ -1644,7 +1646,7 @@ class _ProductCard extends StatelessWidget {
           Icon(
             Icons.currency_exchange,
             size: 12,
-            color: AppColors.textPrimary,
+            color: isDarkMode ? Colors.red : AppColors.textPrimary,
           ),
           const SizedBox(width: 4),
           Text(
@@ -1654,7 +1656,7 @@ class _ProductCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: AppColors.textPrimary,
+              color: isDarkMode ? Colors.red : AppColors.textPrimary,
             ),
           ),
         ],
