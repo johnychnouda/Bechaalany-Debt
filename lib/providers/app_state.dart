@@ -760,7 +760,16 @@ class AppState extends ChangeNotifier {
           (activity.date.difference(partialPayment.paidAt).inMinutes.abs() < 5) // Within 5 minutes
         );
         
-        if (!hasPaymentActivity) {
+        // CRITICAL FIX: Check if there's a consolidated payment activity for this customer
+        // This prevents creating individual activities when we already have a consolidated one
+        final hasConsolidatedPayment = _activities.any((activity) => 
+          activity.type == ActivityType.payment && 
+          activity.description == 'Payment across multiple debts' &&
+          activity.customerId == partialPayment.debtId &&
+          (activity.date.difference(partialPayment.paidAt).inMinutes.abs() < 5) // Within 5 minutes
+        );
+        
+        if (!hasPaymentActivity && !hasConsolidatedPayment) {
           // Find the corresponding debt
           final debt = _debts.firstWhere(
             (d) => d.id == partialPayment.debtId,
@@ -795,6 +804,8 @@ class AppState extends ChangeNotifier {
             await _addActivity(activity);
             print('Created missing payment activity for partial payment: ${partialPayment.id}');
           }
+        } else if (hasConsolidatedPayment) {
+          print('Skipping individual payment activity for ${partialPayment.id} - consolidated payment exists');
         }
       }
     } catch (e) {
