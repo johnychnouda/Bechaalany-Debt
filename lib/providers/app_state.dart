@@ -1130,7 +1130,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> applyPartialPayment(String debtId, double paymentAmount) async {
+  Future<void> applyPartialPayment(String debtId, double paymentAmount, {bool skipActivityCreation = false}) async {
     try {
       final index = _debts.indexWhere((debt) => debt.id == debtId);
       
@@ -1168,17 +1168,20 @@ class AppState extends ChangeNotifier {
       // Update the debt in storage first
       await _dataService.updateDebt(_debts[index]);
       
-      // AUTOMATICALLY track payment activity (for both partial and full payments)
-      // If this payment makes the debt fully paid, show the remaining amount as payment
-      final paymentAmountToShow = isThisDebtFullyPaid && !originalDebt.isFullyPaid 
-          ? (originalDebt.amount - originalDebt.paidAmount) 
-          : paymentAmount;
-      
-      // Determine the correct status for the activity
-      final oldStatus = originalDebt.status;
-      final newStatus = _debts[index].status;
-      
-      await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
+      // Only create payment activity if not skipped (prevents duplicate activities)
+      if (!skipActivityCreation) {
+        // AUTOMATICALLY track payment activity (for both partial and full payments)
+        // If this payment makes the debt fully paid, show the remaining amount as payment
+        final paymentAmountToShow = isThisDebtFullyPaid && !originalDebt.isFullyPaid 
+            ? (originalDebt.amount - originalDebt.paidAmount) 
+            : paymentAmount;
+        
+        // Determine the correct status for the activity
+        final oldStatus = originalDebt.status;
+        final newStatus = _debts[index].status;
+        
+        await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
+      }
       
       // AUTOMATICALLY delete fully paid debts to keep the system clean
       if (isThisDebtFullyPaid) {
@@ -1292,6 +1295,7 @@ class AppState extends ChangeNotifier {
       for (final debtId in validDebtIds) {
         if (remainingPayment <= 0) break;
         
+        // Use applyPartialPayment but skip activity creation to prevent duplicates
         final index = _debts.indexWhere((debt) => debt.id == debtId);
         if (index == -1) continue;
         
@@ -1299,28 +1303,9 @@ class AppState extends ChangeNotifier {
         final debtRemaining = originalDebt.remainingAmount;
         final paymentForThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
         
-        // Create partial payment record
-        final partialPayment = PartialPayment(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          debtId: debtId,
-          amount: paymentForThisDebt,
-          paidAt: DateTime.now(),
-        );
+        // Call applyPartialPayment with skipActivityCreation = true
+        await applyPartialPayment(debtId, paymentForThisDebt, skipActivityCreation: true);
         
-        await _dataService.addPartialPayment(partialPayment);
-        _partialPayments.add(partialPayment);
-        
-        // Update debt
-        final newTotalPaidAmount = originalDebt.paidAmount + paymentForThisDebt;
-        final isThisDebtFullyPaid = newTotalPaidAmount >= originalDebt.amount;
-        
-        _debts[index] = originalDebt.copyWith(
-          paidAmount: newTotalPaidAmount,
-          status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
-          paidAt: DateTime.now(),
-        );
-        
-        await _dataService.updateDebt(_debts[index]);
         remainingPayment -= paymentForThisDebt;
       }
       
