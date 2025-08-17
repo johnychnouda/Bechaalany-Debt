@@ -131,6 +131,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     style: CupertinoTheme.of(context).textTheme.navLargeTitleTextStyle.copyWith(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
+                      color: CupertinoColors.label.resolveFrom(context), // Use system label color for proper dark/light mode support
                     ),
                   ),
                 ),
@@ -550,29 +551,34 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           title: const Text('Delete Debt'),
           content: Text('Are you sure you want to delete this debt?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                try {
-                  await appState.deleteDebt(debt.id);
-                  _loadCustomerDebts(); // Re-load after deletion
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    try {
+                      await appState.deleteDebt(debt.id);
+                      _loadCustomerDebts(); // Re-load after deletion
 
-                } catch (e) {
-                  if (mounted) {
-                    // Show error notification
-                    final notificationService = NotificationService();
-                    await notificationService.showErrorNotification(
-                      title: 'Error',
-                      body: 'Failed to delete debt: $e',
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    } catch (e) {
+                      if (mounted) {
+                        // Show error notification
+                        final notificationService = NotificationService();
+                        await notificationService.showErrorNotification(
+                          title: 'Error',
+                          body: 'Failed to delete debt: $e',
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                ),
+              ],
             ),
           ],
         );
@@ -647,15 +653,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             backgroundColor: AppColors.dynamicSurface(context),
             elevation: 0,
             actions: [
-              // Receipt sharing button
-              IconButton(
-                onPressed: () => _showReceiptSharingOptions(context, appState),
-                icon: Icon(
-                  Icons.receipt_long,
-                  color: AppColors.dynamicPrimary(context),
-                ),
-                tooltip: 'Share Receipt',
-              ),
               // Edit customer button
               IconButton(
                 onPressed: () async {
@@ -844,16 +841,39 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Simple Header
+                      // Simple Header with Share Button
                       Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'Financial Summary',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.dynamicTextPrimary(context),
-                          ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Financial Summary',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.dynamicTextPrimary(context),
+                                ),
+                              ),
+                            ),
+                            // Receipt sharing button - Only show when customer has pending debts
+                            if (!appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                              IconButton(
+                                onPressed: () => _showReceiptSharingOptions(context, appState),
+                                icon: Icon(
+                                  Icons.receipt_long,
+                                  color: AppColors.dynamicPrimary(context),
+                                  size: 20,
+                                ),
+                                tooltip: 'Share Receipt',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                       
@@ -1012,22 +1032,38 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        // Individual delete button for each debt
-                                        GestureDetector(
-                                          onTap: () => _showDeleteDebtDialog(context, debt),
-                                          child: Container(
+                                        // Individual delete button for each debt - Only show when no partial payments
+                                        if (debt.paidAmount == 0) ...[
+                                          GestureDetector(
+                                            onTap: () => _showDeleteDebtDialog(context, debt),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.dynamicError(context).withAlpha(20),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Icon(
+                                                Icons.close,
+                                                size: 16,
+                                                color: AppColors.dynamicError(context),
+                                              ),
+                                            ),
+                                          ),
+                                        ] else ...[
+                                          // Show info icon when delete is not available
+                                          Container(
                                             padding: const EdgeInsets.all(4),
                                             decoration: BoxDecoration(
-                                              color: AppColors.dynamicError(context).withAlpha(20),
+                                              color: AppColors.dynamicTextSecondary(context).withAlpha(20),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Icon(
-                                              Icons.close,
+                                              Icons.info_outline,
                                               size: 16,
-                                              color: AppColors.dynamicError(context),
+                                              color: AppColors.dynamicTextSecondary(context),
                                             ),
                                           ),
-                                        ),
+                                        ],
                                       ],
                                     ),
                                   ],
@@ -1076,6 +1112,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: AppColors.dynamicTextSecondary(context),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Receipt sharing is only available for customers with pending debts.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.dynamicTextSecondary(context),
+                                            fontStyle: FontStyle.italic,
                                           ),
                                         ),
                                       ],
@@ -1367,20 +1412,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             'Are you sure you want to delete the debt "${debt.description}" for \$${debt.amount}?',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await _deleteSingleDebt(debt);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await _deleteSingleDebt(debt);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Delete'),
+                ),
+              ],
             ),
           ],
         );

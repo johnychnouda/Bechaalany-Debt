@@ -77,6 +77,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               
               const SizedBox(height: 20),
               
+              // WhatsApp Automation Settings
+              _buildSection(
+                'WhatsApp Automation',
+                [
+                  _buildSwitchRow(
+                    'Enable Automated Messages',
+                    'Send WhatsApp messages when debts are fully settled',
+                    CupertinoIcons.chat_bubble_2,
+                    Provider.of<AppState>(context).whatsappAutomationEnabled,
+                    (value) => Provider.of<AppState>(context, listen: false).setWhatsappAutomationEnabled(value),
+                  ),
+                  if (Provider.of<AppState>(context).whatsappAutomationEnabled) ...[
+                    _buildMessageButtonRow(
+                      'Custom Message',
+                      'Personalize your debt settlement message',
+                      CupertinoIcons.text_bubble,
+                      Provider.of<AppState>(context).whatsappCustomMessage,
+                      () => _showCustomMessageDialog(context),
+                    ),
+                  ],
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+              
               // Data & Export (Enhanced)
               _buildSection(
                 'Data & Export',
@@ -447,5 +472,187 @@ class _SettingsScreenState extends State<SettingsScreen> {
         body: 'Failed to clear debts and activities: $e',
       );
     }
+  }
+  
+  Widget _buildMessageButtonRow(String title, String subtitle, IconData icon, String currentMessage, VoidCallback onTap) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.dynamicBorder(context),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with icon, title, and edit button
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.dynamicTextPrimary(context),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Edit button
+                          CupertinoButton(
+                            padding: const EdgeInsets.all(8),
+                            minSize: 0,
+                            onPressed: onTap,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.dynamicPrimary(context).withAlpha(30),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppColors.dynamicPrimary(context).withAlpha(50),
+                                  width: 0.5,
+                                ),
+                              ),
+                              child: Icon(
+                                CupertinoIcons.pencil,
+                                size: 22,
+                                color: AppColors.dynamicPrimary(context),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+
+            
+
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Show custom message dialog
+  void _showCustomMessageDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final currentMessage = appState.whatsappCustomMessage;
+    final textController = TextEditingController(text: currentMessage);
+    
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => Container(
+        width: MediaQuery.of(context).size.width * 0.98, // 98% of screen width
+        constraints: const BoxConstraints(
+          maxWidth: 800, // Much larger maximum width
+          minWidth: 500, // Larger minimum width
+        ),
+        child: CupertinoAlertDialog(
+          title: Text(
+            'Custom WhatsApp Message',
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Column(
+            children: [
+              Text(
+                'Debt Settlement Message:',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontSize: 13,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              CupertinoTextField(
+                controller: textController,
+                placeholder: 'Enter your message here...',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.dynamicTextPrimary(context),
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicBackground(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.dynamicBorder(context),
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                maxLines: 5,
+                minLines: 4,
+                textAlignVertical: TextAlignVertical.top,
+              ),
+            ],
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            CupertinoDialogAction(
+              onPressed: () {
+                final newMessage = textController.text.trim();
+                appState.setWhatsappCustomMessage(newMessage);
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Save',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

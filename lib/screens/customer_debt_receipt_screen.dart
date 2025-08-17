@@ -445,22 +445,38 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Delete button for debt management
-              GestureDetector(
-                onTap: () => _showDeleteDebtDialog(debt),
-                child: Container(
+              // Delete button for debt management - Only show when no partial payments
+              if (debt.paidAmount == 0) ...[
+                GestureDetector(
+                  onTap: () => _showDeleteDebtDialog(debt),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withAlpha(26),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // Show info icon when delete is not available
+                Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withAlpha(26),
+                    color: AppColors.dynamicTextSecondary(context).withAlpha(26),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
-                    Icons.close,
+                    Icons.info_outline,
                     size: 14,
-                    color: AppColors.error,
+                    color: AppColors.dynamicTextSecondary(context),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
           

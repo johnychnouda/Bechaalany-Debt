@@ -154,6 +154,13 @@ class ReceiptSharingService {
       print('Partial payments count: ${partialPayments.length}');
       print('Activities count: ${activities.length}');
       
+      // Check if customer has any pending debts
+      final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
+      if (!hasPendingDebts) {
+        print('Customer ${customer.name} has no pending debts - PDF generation not allowed');
+        return null;
+      }
+      
       final pdf = PdfFontUtils.createDocumentWithFonts();
       print('PDF document created successfully');
       
@@ -221,29 +228,34 @@ class ReceiptSharingService {
     final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(customer.phone);
     final sanitizedCustomerId = PdfFontUtils.sanitizeText(customer.id);
     
-    // Build items list for PDF
+    // Build items list for PDF - Only include remaining debts (not fully paid)
     List<Map<String, dynamic>> allItems = [];
     
     for (Debt debt in sortedDebts) {
-      final cleanedDescription = DebtDescriptionUtils.cleanDescription(debt.description);
-      
-      allItems.add({
-        'type': 'debt',
-        'description': cleanedDescription,
-        'amount': debt.amount,
-        'date': debt.createdAt,
-        'debt': debt,
-      });
-      
-      // Add partial payments for this debt
-      final debtPartialPayments = partialPayments.where((p) => p.debtId == debt.id).toList();
-      for (PartialPayment payment in debtPartialPayments) {
+      // Only include debts that still have remaining amounts
+      if (debt.remainingAmount > 0) {
+        final cleanedDescription = DebtDescriptionUtils.cleanDescription(debt.description);
+        
         allItems.add({
-          'type': 'partial_payment',
-          'description': 'Partial Payment',
-          'amount': payment.amount,
-          'date': payment.paidAt,
+          'type': 'debt',
+          'description': cleanedDescription,
+          'amount': debt.remainingAmount, // Show remaining amount, not original amount
+          'date': debt.createdAt,
+          'debt': debt,
         });
+      }
+      
+      // Only add partial payments for debts that still have remaining amounts
+      if (debt.remainingAmount > 0) {
+        final debtPartialPayments = partialPayments.where((p) => p.debtId == debt.id).toList();
+        for (PartialPayment payment in debtPartialPayments) {
+          allItems.add({
+            'type': 'partial_payment',
+            'description': 'Partial Payment',
+            'amount': payment.amount,
+            'date': payment.paidAt,
+          });
+        }
       }
     }
     
@@ -377,17 +389,18 @@ class ReceiptSharingService {
           pw.SizedBox(height: 8),
         ],
         
-        // Debt Details Header
-        PdfFontUtils.createGracefulText(
-          'DEBT DETAILS',
-          fontSize: 12,
-          fontWeight: pw.FontWeight.bold,
-          color: PdfColor.fromInt(0xFF424242),
-        ),
-        pw.SizedBox(height: 6),
-        
-        // Debt items
-        ...pageItems.asMap().entries.map((entry) {
+        // Debt Details Header - Only show if there are remaining debts
+        if (pageItems.isNotEmpty) ...[
+          PdfFontUtils.createGracefulText(
+            'REMAINING DEBTS',
+            fontSize: 12,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColor.fromInt(0xFF424242),
+          ),
+          pw.SizedBox(height: 6),
+          
+          // Debt items
+          ...pageItems.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
           final isLastItem = index == pageItems.length - 1;
@@ -442,98 +455,76 @@ class ReceiptSharingService {
             ),
           );
         }).toList(),
+        ],
         
-        // Total Amount
+        // Total Amounts
         pw.SizedBox(height: 8),
+        
+        // Total Paid Amount
         pw.Container(
           padding: const pw.EdgeInsets.all(10),
           decoration: pw.BoxDecoration(
-            color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                ? PdfColor.fromInt(0xFFE8F5E8) // Light green background for fully paid
-                : PdfColor.fromInt(0xFFFFEBEE), // Light red background for not fully paid
+            color: PdfColor.fromInt(0xFFE8F5E8), // Light green background for paid amount
             borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
             border: pw.Border.all(
               color: PdfColor.fromInt(0xFFE0E0E0),
               width: 1,
             ),
           ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+          child: pw.Row(
             children: [
-              pw.Row(
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        PdfFontUtils.createGracefulText(
-                          remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                              ? 'ALL DEBTS FULLY PAID'
-                              : 'TOTAL REMAINING AMOUNT',
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                          color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                              ? PdfColor.fromInt(0xFF2E7D32)
-                              : PdfColor.fromInt(0xFFD32F2F),
-                        ),
-                        if (remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty) ...[
-                          pw.SizedBox(height: 2),
-                          PdfFontUtils.createGracefulText(
-                            'Total Paid: ${_formatCurrency(totalPaidAmount)}',
-                            fontSize: 9,
-                            fontWeight: pw.FontWeight.normal,
-                            color: PdfColor.fromInt(0xFF2E7D32),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  PdfFontUtils.createGracefulText(
-                    remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                        ? _formatCurrency(totalPaidAmount)
-                        : _formatCurrency(remainingAmount),
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: remainingAmount == 0 && allItems.where((item) => item['type'] == 'debt').isNotEmpty
-                        ? PdfColor.fromInt(0xFF2E7D32)
-                        : PdfColor.fromInt(0xFFD32F2F),
-                  ),
-                ],
+              pw.Expanded(
+                child: PdfFontUtils.createGracefulText(
+                  'TOTAL PAID AMOUNT',
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromInt(0xFF2E7D32),
+                ),
+              ),
+              PdfFontUtils.createGracefulText(
+                _formatCurrency(totalPaidAmount),
+                fontSize: 12,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColor.fromInt(0xFF2E7D32),
               ),
             ],
           ),
         ),
         
-        // Footer
-        pw.SizedBox(height: 16),
+        pw.SizedBox(height: 8),
+        
+        // Total Remaining Amount
         pw.Container(
-          padding: const pw.EdgeInsets.all(8),
+          padding: const pw.EdgeInsets.all(10),
           decoration: pw.BoxDecoration(
-            color: PdfColor.fromInt(0xFFF5F5F5),
-            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            color: PdfColor.fromInt(0xFFFFEBEE), // Light red background for remaining amount
+            borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12)),
+            border: pw.Border.all(
+              color: PdfColor.fromInt(0xFFE0E0E0),
+              width: 1,
+            ),
           ),
-          child: pw.Column(
+          child: pw.Row(
             children: [
-              pw.Text(
-                'This receipt was generated on ${_formatDateTime(DateTime.now())}',
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColor.fromInt(0xFF666666),
+              pw.Expanded(
+                child: PdfFontUtils.createGracefulText(
+                  'TOTAL REMAINING AMOUNT',
+                  fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromInt(0xFFD32F2F),
+                        ),
+                      ),
+                      PdfFontUtils.createGracefulText(
+                        _formatCurrency(remainingAmount),
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFFD32F2F),
+                      ),
+                    ],
+                  ),
                 ),
-                textAlign: pw.TextAlign.center,
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                'Thank you for your business with Bechaalany Connect',
-                style: pw.TextStyle(
-                  fontSize: 8,
-                  color: PdfColor.fromInt(0xFF666666),
-                ),
-                textAlign: pw.TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+        
+
       ],
     );
   }

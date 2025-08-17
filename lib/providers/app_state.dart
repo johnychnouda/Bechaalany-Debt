@@ -19,6 +19,7 @@ import '../services/ios18_service.dart';
 
 import '../services/revenue_calculation_service.dart';
 import '../services/data_migration_service.dart';
+import '../services/whatsapp_automation_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
@@ -50,6 +51,10 @@ class AppState extends ChangeNotifier {
   // App Settings (Only implemented ones)
   bool _isDarkMode = false;
   bool _autoSyncEnabled = true;
+  
+  // WhatsApp Automation Settings
+  bool _whatsappAutomationEnabled = false;
+  String _whatsappCustomMessage = '';
   
   // Business Settings (Only implemented ones)
   String _defaultCurrency = 'USD';
@@ -84,6 +89,10 @@ class AppState extends ChangeNotifier {
   bool get darkModeEnabled => _isDarkMode;
   String get selectedLanguage => 'English';
   bool get autoSyncEnabled => _autoSyncEnabled;
+  
+  // WhatsApp Automation Getters
+  bool get whatsappAutomationEnabled => _whatsappAutomationEnabled;
+  String get whatsappCustomMessage => _whatsappCustomMessage;
   
   // Business Settings Getters (Only implemented ones)
   String get defaultCurrency => _defaultCurrency;
@@ -620,6 +629,10 @@ class AppState extends ChangeNotifier {
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
       _autoSyncEnabled = prefs.getBool('autoSyncEnabled') ?? true;
       
+      // WhatsApp Automation Settings
+      _whatsappAutomationEnabled = prefs.getBool('whatsappAutomationEnabled') ?? false;
+      _whatsappCustomMessage = prefs.getString('whatsappCustomMessage') ?? '';
+      
       // Business Settings (Only implemented ones)
       _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
       
@@ -648,6 +661,10 @@ class AppState extends ChangeNotifier {
       
       await prefs.setBool('isDarkMode', _isDarkMode);
       await prefs.setBool('autoSyncEnabled', _autoSyncEnabled);
+      
+      // WhatsApp Automation Settings
+      await prefs.setBool('whatsappAutomationEnabled', _whatsappAutomationEnabled);
+      await prefs.setString('whatsappCustomMessage', _whatsappCustomMessage);
       
       // Business Settings (Only implemented ones)
       await prefs.setString('defaultCurrency', _defaultCurrency);
@@ -1064,11 +1081,35 @@ class AppState extends ChangeNotifier {
         print('DELETE DEBT: Complete removal of PENDING debt (no revenue to preserve)');
       }
       
+      print('DELETE DEBT: Starting cleanup of related data...');
+      
+      // Remove all activities related to this debt
+      final activitiesToRemove = _activities.where((activity) => 
+        activity.debtId == debtId || 
+        (activity.type == ActivityType.newDebt && 
+         activity.description.contains(debt.description) &&
+         activity.customerId == debt.customerId)
+      ).toList();
+      
+      print('DELETE DEBT: Found ${activitiesToRemove.length} related activities to remove');
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+        print('DELETE DEBT: Removed related activity: ${activity.id} - ${activity.description}');
+      }
+      
+      // Remove all partial payments related to this debt
+      final partialPaymentsToRemove = _partialPayments.where((payment) => payment.debtId == debtId).toList();
+      print('DELETE DEBT: Found ${partialPaymentsToRemove.length} related partial payments to remove');
+      for (final payment in partialPaymentsToRemove) {
+        await _dataService.deletePartialPayment(payment.id);
+        _partialPayments.removeWhere((p) => p.id == payment.id);
+        print('DELETE DEBT: Removed related partial payment: ${payment.id} - \$${payment.amount}');
+      }
+      
       // Now delete the debt
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
-      
-
       
       _clearCache();
       notifyListeners();
@@ -1215,6 +1256,11 @@ class AppState extends ChangeNotifier {
       //   await deleteDebt(originalDebt.id);
       //   return; // Exit early since debt was deleted
       // }
+      
+      // Check if WhatsApp automation should be triggered
+      if (_whatsappAutomationEnabled && isThisDebtFullyPaid) {
+        await _triggerWhatsAppAutomation(originalDebt.customerId);
+      }
       
       _clearCache();
       notifyListeners();
@@ -1938,6 +1984,19 @@ class AppState extends ChangeNotifier {
     await _saveSettings();
     notifyListeners();
   }
+  
+  // WhatsApp automation settings
+  Future<void> setWhatsappAutomationEnabled(bool enabled) async {
+    _whatsappAutomationEnabled = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+  
+  Future<void> setWhatsappCustomMessage(String message) async {
+    _whatsappCustomMessage = message;
+    await _saveSettings();
+    notifyListeners();
+  }
 
   // Removed unused setter methods
 
@@ -2228,6 +2287,44 @@ class AppState extends ChangeNotifier {
       
     } catch (e) {
       print('❌ Error fixing debt ${debt.description}: $e');
+    }
+  }
+
+  /// Trigger WhatsApp automation when a debt is fully settled
+  Future<void> _triggerWhatsAppAutomation(String customerId) async {
+    try {
+      // Get customer details
+      final customer = _customers.firstWhere((c) => c.id == customerId);
+      
+      // Get all debts for this customer that are now fully paid
+      final settledDebts = _debts.where((d) => 
+        d.customerId == customerId && d.isFullyPaid
+      ).toList();
+      
+      // Get partial payments for these debts
+      final partialPayments = _partialPayments.where((p) => 
+        settledDebts.any((d) => d.id == p.debtId)
+      ).toList();
+      
+      // Check if WhatsApp automation is enabled and custom message exists
+      if (_whatsappAutomationEnabled && _whatsappCustomMessage.isNotEmpty) {
+        // Send WhatsApp message
+        final success = await WhatsAppAutomationService.sendSettlementMessage(
+          customer: customer,
+          settledDebts: settledDebts,
+          partialPayments: partialPayments,
+          customMessage: _whatsappCustomMessage,
+          settlementDate: DateTime.now(),
+        );
+        
+        if (success) {
+          print('✅ WhatsApp message sent successfully to ${customer.name}');
+        } else {
+          print('❌ Failed to send WhatsApp message to ${customer.name}');
+        }
+      }
+    } catch (e) {
+      print('❌ Error in WhatsApp automation: $e');
     }
   }
 
