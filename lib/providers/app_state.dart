@@ -147,11 +147,36 @@ class AppState extends ChangeNotifier {
     ).toList();
     
     if (consolidatedPayments.isNotEmpty) {
-      // If consolidated payment exists, only count the first one and skip individual debt payments
-      // This prevents double-counting the same payment
-      deduplicatedActivities.add(consolidatedPayments.first);
-      seenDescriptions.add('Payment across multiple debts');
-      print('  - Using consolidated payment: \$${consolidatedPayments.first.paymentAmount}');
+      // If consolidated payment exists, we need to calculate the total from the actual debt amounts
+      // because the consolidated payment amount might not represent the full total
+      print('  - Found consolidated payment: \$${consolidatedPayments.first.paymentAmount}');
+      print('  - But we need to calculate the actual total from individual debt payments');
+      
+      // Get all unique debt names from individual payment activities
+      final individualDebtPayments = <String, double>{};
+      for (final activity in paymentActivities) {
+        if (activity.description != 'Payment across multiple debts') {
+          final debtName = activity.description;
+          if (!individualDebtPayments.containsKey(debtName)) {
+            individualDebtPayments[debtName] = activity.paymentAmount ?? 0;
+          }
+        }
+      }
+      
+      // Add the individual debt payments to get the correct total
+      for (final entry in individualDebtPayments.entries) {
+        deduplicatedActivities.add(Activity(
+          id: 'calculated_${entry.key}',
+          date: DateTime.now(),
+          type: ActivityType.payment,
+          customerName: paymentActivities.first.customerName,
+          customerId: paymentActivities.first.customerId,
+          description: entry.key,
+          amount: entry.value,
+          paymentAmount: entry.value,
+        ));
+        print('  - Added calculated debt payment: ${entry.key} - \$${entry.value}');
+      }
     } else {
       // If no consolidated payment, count individual debt payments
       for (final activity in paymentActivities) {
