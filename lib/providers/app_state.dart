@@ -406,6 +406,12 @@ class AppState extends ChangeNotifier {
       // CRITICAL: Run data migration to ensure revenue calculation accuracy
       await runDataMigration();
       
+      // Clean up any fully paid debts that should have been auto-deleted
+      await _cleanupFullyPaidDebts();
+      
+      // Validate debt product data integrity
+      validateDebtProductData();
+      
       // Setup connectivity listener
       _setupConnectivityListener();
       
@@ -741,10 +747,10 @@ class AppState extends ChangeNotifier {
     try {
       final debt = _debts.firstWhere((d) => d.id == debtId);
       
-      // CRITICAL: If this debt was already paid, we need to preserve the revenue data
-      // before deleting it, so total revenue doesn't get affected
+      // DIFFERENT LOGIC FOR PAID vs PENDING DEBTS
       if (debt.paidAmount > 0) {
-        print('DELETE DEBT: Preserving revenue data for paid debt ${debt.id}');
+        // PAID DEBT: Preserve revenue data before deletion
+        print('DELETE DEBT: Preserving revenue data for PAID debt');
         print('  - Description: ${debt.description}');
         print('  - Paid Amount: \$${debt.paidAmount}');
         print('  - Original Revenue: \$${debt.originalRevenue}');
@@ -784,11 +790,18 @@ class AppState extends ChangeNotifier {
         await _addActivity(summaryActivity);
         
         print('DELETE DEBT: Created revenue preservation activity: ${summaryActivity.id}');
+      } else {
+        // PENDING DEBT: Complete removal without preservation
+        print('DELETE DEBT: Complete removal of PENDING debt (no revenue to preserve)');
       }
       
       // Now delete the debt
       await _dataService.deleteDebt(debtId);
       _debts.removeWhere((d) => d.id == debtId);
+      
+      // CRITICAL: Clean up all activities related to this deleted debt
+      await _cleanupDebtRelatedActivities(debtId);
+      
       _clearCache();
       notifyListeners();
       
@@ -924,6 +937,13 @@ class AppState extends ChangeNotifier {
       
       await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
       
+      // AUTOMATICALLY delete fully paid debts to keep the system clean
+      if (isThisDebtFullyPaid) {
+        print('🔄 Auto-deleting fully paid debt: ${originalDebt.description}');
+        await deleteDebt(originalDebt.id);
+        return; // Exit early since debt was deleted
+      }
+      
       _clearCache();
       notifyListeners();
       
@@ -969,6 +989,72 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
       }
+  }
+  
+  // Clean up fully paid debts that should have been auto-deleted
+  Future<void> _cleanupFullyPaidDebts() async {
+    try {
+      final debtsToRemove = <Debt>[];
+      
+      for (final debt in _debts) {
+        // Check both the isFullyPaid getter and the actual payment amounts
+        final isFullyPaidByGetter = debt.isFullyPaid;
+        final isFullyPaidByAmount = debt.paidAmount >= debt.amount;
+        
+        if (isFullyPaidByGetter || isFullyPaidByAmount) {
+          print('🧹 Found fully paid debt to cleanup: ${debt.description} (${debt.customerName})');
+          print('  - Amount: \$${debt.amount}');
+          print('  - Paid: \$${debt.paidAmount}');
+          print('  - isFullyPaid getter: $isFullyPaidByGetter');
+          print('  - isFullyPaid by amount: $isFullyPaidByAmount');
+          debtsToRemove.add(debt);
+        }
+      }
+      
+      if (debtsToRemove.isNotEmpty) {
+        print('🧹 Cleaning up ${debtsToRemove.length} fully paid debts...');
+        
+        for (final debt in debtsToRemove) {
+          await deleteDebt(debt.id);
+        }
+        
+        print('✅ Successfully cleaned up ${debtsToRemove.length} fully paid debts');
+      } else {
+        print('🧹 No fully paid debts found to cleanup');
+      }
+    } catch (e) {
+      print('❌ Error during debt cleanup: $e');
+    }
+  }
+  
+  // Clean up all activities related to a deleted debt
+  Future<void> _cleanupDebtRelatedActivities(String debtId) async {
+    try {
+      final activitiesToRemove = <Activity>[];
+      
+      // Find all activities that reference this debt
+      for (final activity in _activities) {
+        if (activity.debtId == debtId) {
+          print('🧹 Found activity to cleanup: ${activity.type} - ${activity.description}');
+          activitiesToRemove.add(activity);
+        }
+      }
+      
+      if (activitiesToRemove.isNotEmpty) {
+        print('🧹 Cleaning up ${activitiesToRemove.length} debt-related activities...');
+        
+        for (final activity in activitiesToRemove) {
+          await _dataService.deleteActivity(activity.id);
+          _activities.remove(activity);
+        }
+        
+        print('✅ Successfully cleaned up ${activitiesToRemove.length} debt-related activities');
+      } else {
+        print('🧹 No debt-related activities found to cleanup');
+      }
+    } catch (e) {
+      print('❌ Error during activity cleanup: $e');
+    }
   }
 
   // Manual cleanup method to remove specific activities
@@ -1897,6 +1983,199 @@ class AppState extends ChangeNotifier {
   double getCustomerTotalRemainingAmount(String customerId) {
     final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
     return customerDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+  }
+  
+  // Fix missing product data for any debts that lack cost/selling price information
+  Future<void> fixMissingProductData() async {
+    try {
+      print('🔧 Starting product data fix for all debts...');
+      
+      // Find all debts that are missing product information
+      final debtsToFix = <Debt>[];
+      for (final debt in _debts) {
+        if (debt.originalCostPrice == null || debt.originalSellingPrice == null || debt.subcategoryId == null) {
+          debtsToFix.add(debt);
+          print('Found debt needing fix: ${debt.description}');
+          print('  - Missing cost price: ${debt.originalCostPrice == null}');
+          print('  - Missing selling price: ${debt.originalSellingPrice == null}');
+          print('  - Missing subcategoryId: ${debt.subcategoryId == null}');
+        }
+      }
+      
+      if (debtsToFix.isEmpty) {
+        print('✅ All debts have complete product data');
+        return;
+      }
+      
+      print('🔧 Found ${debtsToFix.length} debts needing product data fix...');
+      
+      for (final debt in debtsToFix) {
+        await _fixSingleDebtProductData(debt);
+      }
+      
+      print('🔄 Reloading data and notifying listeners...');
+      _clearCache();
+      await _loadData();
+      notifyListeners();
+      print('✅ Product data fix completed for ${debtsToFix.length} debts');
+      
+    } catch (e) {
+      print('❌ Error fixing product data: $e');
+      rethrow;
+    }
+  }
+  
+  // Validate that all debts have complete product data (for debugging)
+  void validateDebtProductData() {
+    print('🔍 Validating debt product data integrity...');
+    
+    int totalDebts = _debts.length;
+    int completeDebts = 0;
+    int incompleteDebts = 0;
+    
+    for (final debt in _debts) {
+      if (debt.originalCostPrice != null && 
+          debt.originalSellingPrice != null && 
+          debt.subcategoryId != null) {
+        completeDebts++;
+      } else {
+        incompleteDebts++;
+        print('❌ Incomplete debt: ${debt.description}');
+        print('  - Cost Price: ${debt.originalCostPrice}');
+        print('  - Selling Price: ${debt.originalSellingPrice}');
+        print('  - Subcategory ID: ${debt.subcategoryId}');
+      }
+    }
+    
+    print('📊 Debt Product Data Summary:');
+    print('  - Total Debts: $totalDebts');
+    print('  - Complete: $completeDebts');
+    print('  - Incomplete: $incompleteDebts');
+    print('  - Integrity: ${(completeDebts / totalDebts * 100).toStringAsFixed(1)}%');
+  }
+  
+  // Force cleanup of fully paid debts (for immediate fixes)
+  Future<void> forceCleanupFullyPaidDebts() async {
+    try {
+      print('🧹 Force cleaning up fully paid debts...');
+      
+      int cleanedCount = 0;
+      
+      // Find and remove all fully paid debts
+      final fullyPaidDebts = _debts.where((d) => d.paidAmount >= d.amount).toList();
+      
+      for (final debt in fullyPaidDebts) {
+        print('🧹 Found fully paid debt to remove: ${debt.description}');
+        print('  - Created: ${debt.createdAt}');
+        print('  - Amount: \$${debt.amount}');
+        print('  - Paid: \$${debt.paidAmount}');
+        print('  - Status: ${debt.status}');
+        
+        await deleteDebt(debt.id);
+        cleanedCount++;
+      }
+      
+      if (cleanedCount > 0) {
+        print('🔄 Reloading data after cleanup...');
+        _clearCache();
+        await _loadData();
+        notifyListeners();
+        print('✅ Force cleanup completed. Removed $cleanedCount fully paid debts.');
+      } else {
+        print('✅ No fully paid debts found to clean up.');
+      }
+      
+    } catch (e) {
+      print('❌ Error during force cleanup: $e');
+      rethrow;
+    }
+  }
+  
+  // Fix product data for a single debt
+  Future<void> _fixSingleDebtProductData(Debt debt) async {
+    try {
+      print('🔧 Fixing product data for debt: ${debt.description}');
+      
+      // Try to find existing product by name
+      Subcategory? existingProduct;
+      for (final category in _categories) {
+        for (final subcategory in category.subcategories) {
+          if (subcategory.name.toLowerCase() == debt.description.toLowerCase()) {
+            existingProduct = subcategory;
+            print('Found existing product: ${subcategory.name}');
+            break;
+          }
+        }
+        if (existingProduct != null) break;
+      }
+      
+      // If no existing product found, create one with reasonable defaults
+      if (existingProduct == null) {
+        print('Creating new product for: ${debt.description}');
+        
+        // Use debt amount as selling price, estimate cost as 70% of selling price
+        final estimatedCost = debt.amount * 0.7;
+        final estimatedSelling = debt.amount;
+        
+        final defaultCategory = _categories.isNotEmpty ? _categories.first : null;
+        if (defaultCategory != null) {
+          final newProduct = Subcategory(
+            id: '${debt.description.toLowerCase()}_${DateTime.now().millisecondsSinceEpoch}',
+            name: debt.description,
+            costPrice: estimatedCost,
+            sellingPrice: estimatedSelling,
+            createdAt: DateTime.now(),
+            costPriceCurrency: 'USD',
+            sellingPriceCurrency: 'USD',
+          );
+          
+          // Add to default category
+          final updatedCategory = defaultCategory.copyWith(
+            subcategories: [...defaultCategory.subcategories, newProduct],
+          );
+          
+          await _dataService.updateCategory(updatedCategory);
+          
+          // Update the local list
+          final categoryIndex = _categories.indexWhere((c) => c.id == defaultCategory.id);
+          if (categoryIndex != -1) {
+            _categories[categoryIndex] = updatedCategory;
+          }
+          
+          existingProduct = newProduct;
+          print('✅ Created new product: ${newProduct.name} (Cost: \$${newProduct.costPrice}, Selling: \$${newProduct.sellingPrice})');
+        }
+      }
+      
+      if (existingProduct != null) {
+        // Update the debt with product information
+        final updatedDebt = debt.copyWith(
+          subcategoryId: existingProduct.id,
+          subcategoryName: existingProduct.name,
+          originalCostPrice: existingProduct.costPrice,
+          originalSellingPrice: existingProduct.sellingPrice,
+          categoryName: _categories.firstWhere((c) => c.subcategories.any((s) => s.id == existingProduct!.id)).name,
+        );
+        
+        await _dataService.updateDebt(updatedDebt);
+        
+        // Update the local debt list
+        final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+        if (debtIndex != -1) {
+          _debts[debtIndex] = updatedDebt;
+        }
+        
+        print('✅ Fixed debt "${debt.description}" with product data');
+        print('  - Cost Price: \$${updatedDebt.originalCostPrice}');
+        print('  - Selling Price: \$${updatedDebt.originalSellingPrice}');
+        print('  - Revenue: \$${updatedDebt.originalRevenue}');
+      } else {
+        print('❌ Failed to create or find product for: ${debt.description}');
+      }
+      
+    } catch (e) {
+      print('❌ Error fixing debt ${debt.description}: $e');
+    }
   }
 
 } 
