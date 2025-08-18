@@ -629,10 +629,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
         // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show ALL products (including fully paid ones)
+        // 1. If customer has pending debts: show ONLY unpaid products (not fully paid ones)
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
         final customerActiveDebts = totalPendingDebt > 0 
-            ? customerAllDebts  // Show all products when there are pending amounts
+            ? customerAllDebts.where((d) => d.remainingAmount > 0).toList()  // Show only unpaid products
             : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
@@ -1016,8 +1016,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                         const SizedBox(width: 8),
-                                        // Individual delete button for each debt - Only show when customer has NO partial payments at all
-                                        if (!customerHasPartialPayments) ...[
+                                        // Individual delete button for each debt - Only show when this specific product has NO partial payments
+                                        if (debt.paidAmount == 0) ...[
                                           GestureDetector(
                                             onTap: () => _showDeleteDebtDialog(context, debt),
                                             child: Container(
@@ -1034,9 +1034,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                             ),
                                           ),
                                         ] else ...[
-                                          // Show info icon when delete is not available (customer has partial payments)
+                                          // Show info icon when delete is not available (this product has partial payments)
                                           Tooltip(
-                                            message: 'Cannot delete: Customer has partial payments',
+                                            message: 'Cannot delete: This product has partial payments',
                                             child: Container(
                                               padding: const EdgeInsets.all(4),
                                               decoration: BoxDecoration(
