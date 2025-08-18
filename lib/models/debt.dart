@@ -191,22 +191,30 @@ class Debt extends HiveObject {
   /// Original revenue (profit) for this debt at creation time
   double get originalRevenue {
     if (originalSellingPrice == null || originalCostPrice == null) return 0.0;
-    return originalSellingPrice! - originalCostPrice!;
+    final revenue = originalSellingPrice! - originalCostPrice!;
+    // Round to 2 decimal places to avoid floating-point precision errors
+    return ((revenue * 100).round() / 100);
   }
 
   /// Revenue per dollar of debt amount (for proportional calculations)
   double get revenuePerDollar {
     if (amount <= 0) return 0.0;
-    return originalRevenue / amount;
+    final revenuePerDollar = originalRevenue / amount;
+    // Round to 2 decimal places to avoid floating-point precision errors
+    return ((revenuePerDollar * 100).round() / 100);
   }
 
   /// Revenue earned from paid amount (proportional)
   double get earnedRevenue {
-    return revenuePerDollar * paidAmount;
+    final earned = revenuePerDollar * paidAmount;
+    // Round to 2 decimal places to avoid floating-point precision errors
+    return ((earned * 100).round() / 100);
   }
 
   /// Remaining potential revenue
   double get remainingRevenue {
-    return revenuePerDollar * remainingAmount;
+    final remaining = revenuePerDollar * remainingAmount;
+    // Round to 2 decimal places to avoid floating-point precision errors
+    return ((remaining * 100).round() / 100);
   }
 } 
