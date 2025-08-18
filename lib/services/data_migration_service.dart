@@ -5,9 +5,30 @@ import 'data_service.dart';
 
 class DataMigrationService {
   final DataService _dataService;
-  bool _hasRunMigration = false; // Guard against infinite loops
-
+  
   DataMigrationService(this._dataService);
+  
+  /// Runs all necessary data migrations to fix corrupted data
+  /// This should be called once on app startup
+  Future<void> runAllMigrations() async {
+    try {
+      // Fix LBP products with USD amounts
+      await fixLBPProductsWithUSDAmounts();
+      
+      // Update existing debts with storedCurrency field
+      await updateDebtsWithStoredCurrency();
+      
+      // Fix debts with small amounts
+      await fixDebtsWithSmallAmounts();
+      
+      // Fix corrupted currency data
+      await fixCorruptedCurrencyData();
+      
+      print('✅ All migrations completed successfully');
+    } catch (e) {
+      print('❌ Error running migrations: $e');
+    }
+  }
 
   /// Fixes corrupted currency data in products and debts
   /// This handles cases where LBP amounts were incorrectly stored as USD amounts
@@ -281,16 +302,12 @@ class DataMigrationService {
   /// Fixes LBP products that have USD amounts stored incorrectly
   /// This fixes the specific issue with "alfa ushare" and similar products
   Future<void> fixLBPProductsWithUSDAmounts() async {
-    // Remove guard to allow migration to actually run and update debt amounts
-    print('🔧 Starting LBP products fix...');
-    
     try {
       final categories = await _dataService.getCategories();
       final currencySettings = await _dataService.getCurrencySettings();
       final debts = await _dataService.getDebts();
       
       if (currencySettings == null || currencySettings.exchangeRate == null) {
-        print('⚠️ No currency settings found, skipping LBP products fix');
         return;
       }
       
@@ -303,10 +320,6 @@ class DataMigrationService {
         for (final subcategory in category.subcategories) {
           // SPECIAL CASE: Fix alfa ushare specifically to correct values
           if (subcategory.name.toLowerCase() == 'alfa ushare') {
-            print('🔧 Special fix for alfa ushare product');
-            print('  Setting correct LBP values: Cost 225,000 LBP, Selling 342,000 LBP');
-            print('  This keeps the exchange rate card visible while fixing revenue calculation');
-            
             // Convert USD amounts to LBP using actual exchange rate (1 USD = 900,000 LBP)
             // Cost: $0.25 * 900,000 = 225,000 LBP
             // Selling: $0.38 * 900,000 = 342,000 LBP
@@ -319,170 +332,21 @@ class DataMigrationService {
             fixedProducts++;
             
             // Now fix any existing debts for this product
-            print('🔍 Looking for existing debts for alfa ushare...');
-            print('  Subcategory ID: ${subcategory.id}');
-            print('  Subcategory name: "${subcategory.name}"');
-            print('  Total debts in system: ${debts.length}');
-            
-            bool foundMatchingDebt = false;
-            
             for (final debt in debts) {
-              print('  Checking debt: ${debt.id}');
-              print('    Description: "${debt.description}"');
-              print('    Subcategory ID: ${debt.subcategoryId}');
-              print('    Subcategory Name: ${debt.subcategoryName}');
-              print('    Amount: ${debt.amount}');
-              
               // Check each matching condition separately
               bool matchesById = debt.subcategoryId == subcategory.id;
               bool matchesByDescription = debt.description.toLowerCase().contains(subcategory.name.toLowerCase());
               bool matchesBySubcategoryName = debt.subcategoryName?.toLowerCase().contains(subcategory.name.toLowerCase()) == true;
               
-              print('    Matches by ID: $matchesById');
-              print('    Matches by description: $matchesByDescription');
-              print('    Matches by subcategory name: $matchesBySubcategoryName');
-              
               if (matchesById || matchesByDescription || matchesBySubcategoryName) {
-                foundMatchingDebt = true;
-                print('✅ Found matching debt for alfa ushare: ${debt.id}');
-                print('  Old amount: ${debt.amount}');
-                print('  Product selling price: ${subcategory.sellingPrice} ${subcategory.sellingPriceCurrency}');
-                print('  Exchange rate: ${_formatExchangeRate(currencySettings!.exchangeRate!)}');
-                
                 // Recalculate the debt amount based on the fixed product price
                 double newAmount;
                 if (subcategory.sellingPriceCurrency == 'LBP') {
                   // Convert LBP to USD for debt storage
                   newAmount = (subcategory.sellingPrice / currencySettings.exchangeRate!).roundToDouble();
-                  print('  Converting LBP ${subcategory.sellingPrice} to USD: ${newAmount}');
                 } else {
                   newAmount = subcategory.sellingPrice;
-                  print('  Using USD amount directly: ${newAmount}');
                 }
-                
-                print('  New amount: ${newAmount}');
-                
-                // Update the debt with the correct amount
-                final updatedDebt = debt.copyWith(
-                  amount: newAmount,
-                  originalSellingPrice: subcategory.sellingPrice,
-                  originalCostPrice: subcategory.costPrice,
-                  storedCurrency: subcategory.sellingPriceCurrency,
-                );
-                
-                print('  Updating debt with new amount: ${updatedDebt.amount}');
-                print('  Setting storedCurrency to: ${updatedDebt.storedCurrency}');
-                await _dataService.updateDebt(updatedDebt);
-                
-                // Force refresh the debt data to ensure changes are reflected
-                print('  ✅ Debt updated successfully');
-                print('  🔄 Forcing data refresh...');
-                
-                // Clear any cached calculations to ensure UI updates
-                print('  🧹 Clearing cached calculations...');
-                // Force a refresh of the debt data
-                final refreshedDebts = await _dataService.getDebts();
-                print('  📊 Refreshed debt data - Total debts: ${refreshedDebts.length}');
-                
-                // Verify the update by checking if the debt was actually updated
-                print('  🔍 Verifying debt update...');
-                try {
-                  // Get all debts again to see if the update was applied
-                  final updatedDebts = await _dataService.getDebts();
-                  final updatedDebt = updatedDebts.firstWhere((d) => d.id == debt.id);
-                  print('  ✅ Verification successful - Debt amount is now: ${updatedDebt.amount}');
-                } catch (e) {
-                  print('  ❌ Verification failed: $e');
-                }
-                
-                fixedDebts++;
-              } else {
-                print('❌ Debt does not match alfa ushare');
-              }
-            }
-            
-            if (!foundMatchingDebt) {
-              print('⚠️ No matching debt found for alfa ushare!');
-              print('  This means the debt might have a different description or subcategory ID');
-              
-              // Try to find any debt with "alfa ushare" in the description
-              print('🔍 Trying direct search for alfa ushare debts...');
-              for (final debt in debts) {
-                if (debt.description.toLowerCase().contains('alfa ushare') || 
-                    debt.description.toLowerCase().contains('alfa ushare')) {
-                  print('✅ Found alfa ushare debt by direct description search: ${debt.id}');
-                  print('  Description: "${debt.description}"');
-                  print('  Current amount: ${debt.amount}');
-                  
-                  // Calculate the correct amount: 342,000 LBP ÷ 900,000 = 0.38 USD
-                  final correctAmount = (342000 / currencySettings!.exchangeRate!).roundToDouble();
-                  print('  Correct amount: 342,000 LBP ÷ ${currencySettings!.exchangeRate} = ${correctAmount} USD');
-                  
-                  // Update the debt with the correct amount
-                  final updatedDebt = debt.copyWith(
-                    amount: correctAmount,
-                    originalSellingPrice: 342000, // 342,000 LBP
-                    originalCostPrice: 225000,   // 225,000 LBP
-                    storedCurrency: 'LBP',
-                  );
-                  
-                  print('  Updating debt with new amount: ${updatedDebt.amount}');
-                  await _dataService.updateDebt(updatedDebt);
-                  print('  ✅ Direct debt update successful');
-                  fixedDebts++;
-                  break;
-                }
-              }
-            }
-            
-            continue;
-          }
-          
-          // Check if this is a LBP product with suspiciously low amounts (likely USD amounts)
-          if ((subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP') &&
-              (subcategory.costPrice < 1000 || subcategory.sellingPrice < 1000)) {
-            
-            print('🔧 Fixing LBP product with USD amounts: ${subcategory.name}');
-            print('  Old cost price: ${subcategory.costPrice} (should be LBP)');
-            print('  Old selling price: ${subcategory.sellingPrice} (should be LBP)');
-            
-            // Convert the USD amounts to LBP
-            final newCostPriceLBP = subcategory.costPrice * currencySettings!.exchangeRate!;
-            final newSellingPriceLBP = subcategory.sellingPrice * currencySettings.exchangeRate!;
-            
-            // Update the subcategory
-            subcategory.costPrice = newCostPriceLBP;
-            subcategory.sellingPrice = newSellingPriceLBP;
-            subcategory.costPriceCurrency = 'LBP';
-            subcategory.sellingPriceCurrency = 'LBP';
-            
-            print('  ✅ Fixed - New cost price: ${subcategory.costPrice} LBP');
-            print('  ✅ Fixed - New selling price: ${subcategory.sellingPrice} LBP');
-            
-            categoryUpdated = true;
-            fixedProducts++;
-            
-            // Now fix any existing debts for this product
-            for (final debt in debts) {
-              if (debt.subcategoryId == subcategory.id || 
-                  debt.description.toLowerCase().contains(subcategory.name.toLowerCase()) ||
-                  debt.subcategoryName?.toLowerCase().contains(subcategory.name.toLowerCase()) == true) {
-                
-                print('🔧 Fixing existing debt for ${subcategory.name}: ${debt.id}');
-                print('  Old amount: ${debt.amount}');
-                
-                // Recalculate the debt amount based on the fixed product price
-                double newAmount;
-                if (subcategory.sellingPriceCurrency == 'LBP') {
-                  // Convert LBP to USD for debt storage
-                  newAmount = (subcategory.sellingPrice / currencySettings.exchangeRate!).roundToDouble();
-                  print('  Converting LBP ${subcategory.sellingPrice} to USD: ${newAmount}');
-                } else {
-                  newAmount = subcategory.sellingPrice;
-                  print('  Using USD amount directly: ${newAmount}');
-                }
-                
-                print('  New amount: ${newAmount}');
                 
                 // Update the debt with the correct amount and USD values
                 final updatedDebt = debt.copyWith(
@@ -497,10 +361,6 @@ class DataMigrationService {
                   storedCurrency: 'USD', // Always store as USD for consistency
                 );
                 
-                print('  Updating debt with new amount: ${updatedDebt.amount}');
-                print('  Setting originalSellingPrice to USD: ${updatedDebt.originalSellingPrice}');
-                print('  Setting originalCostPrice to USD: ${updatedDebt.originalCostPrice}');
-                print('  Setting storedCurrency to: ${updatedDebt.storedCurrency}');
                 await _dataService.updateDebt(updatedDebt);
                 fixedDebts++;
               }
@@ -513,24 +373,9 @@ class DataMigrationService {
         }
       }
       
-      if (fixedProducts > 0) {
-        print('🎉 Fixed $fixedProducts LBP products with USD amounts');
-      } else {
-        print('✅ No LBP products with USD amounts found');
+      if (fixedProducts > 0 || fixedDebts > 0) {
+        print('✅ Fixed $fixedProducts products and $fixedDebts debts');
       }
-      
-      if (fixedDebts > 0) {
-        print('🎉 Fixed $fixedDebts existing debts with updated amounts');
-      } else {
-        print('✅ No existing debts needed fixing');
-      }
-      
-      // Force refresh of app state to clear cached calculations
-      print('🔄 Migration completed successfully');
-      print('  Total debts should now show the correct amounts in all screens');
-      
-      // Simple completion message - avoid excessive data operations
-      print('✅ Migration finished - restart app or navigate between screens to see updates');
     } catch (e) {
       print('❌ Error fixing LBP products: $e');
     }
@@ -591,7 +436,6 @@ class DataMigrationService {
   /// Updates existing debts with the storedCurrency field
   /// This ensures all debts have the correct currency information
   Future<void> updateDebtsWithStoredCurrency() async {
-    print('🔧 Updating existing debts with storedCurrency field...');
     try {
       final categories = await _dataService.getCategories();
       final debts = await _dataService.getDebts();
@@ -621,21 +465,16 @@ class DataMigrationService {
             if (debt.amount < 1.0) {
               // Very small amounts are likely USD (converted from LBP)
               currency = 'USD';
-              print('🔧 Inferring USD currency for debt ${debt.description} with small amount: ${debt.amount}');
             } else if (debt.amount > 1000) {
               // Large amounts are likely LBP
               currency = 'LBP';
-              print('🔧 Inferring LBP currency for debt ${debt.description} with large amount: ${debt.amount}');
             } else {
               // Medium amounts, default to USD
               currency = 'USD';
-              print('🔧 Setting default USD currency for debt ${debt.description} with amount: ${debt.amount}');
             }
           }
           
           if (currency != null) {
-            print('🔧 Updating debt ${debt.description} with storedCurrency: $currency');
-            
             final updatedDebt = debt.copyWith(storedCurrency: currency);
             await _dataService.updateDebt(updatedDebt);
             updatedDebts++;
@@ -644,9 +483,7 @@ class DataMigrationService {
       }
       
       if (updatedDebts > 0) {
-        print('🎉 Updated $updatedDebts debts with storedCurrency field');
-      } else {
-        print('✅ All debts already have storedCurrency field');
+        print('✅ Updated $updatedDebts debts with storedCurrency field');
       }
     } catch (e) {
       print('❌ Error updating debts with storedCurrency: $e');
@@ -656,7 +493,6 @@ class DataMigrationService {
   /// Fixes debts with very small amounts that are causing display issues
   /// This handles cases where LBP amounts were incorrectly converted to USD
   Future<void> fixDebtsWithSmallAmounts() async {
-    print('🔧 Fixing debts with small amounts...');
     try {
       final debts = await _dataService.getDebts();
       int fixedDebts = 0;
@@ -664,16 +500,12 @@ class DataMigrationService {
       for (final debt in debts) {
         // Check if debt has a very small amount that might be causing display issues
         if (debt.amount > 0 && debt.amount < 0.01) {
-          print('🔧 Found debt with very small amount: ${debt.description} - ${debt.amount}');
-          
           // Special fix for alfa ushare
           if (debt.description.toLowerCase().contains('alfa ushare')) {
-            print('  🔧 Special fix for alfa ushare debt');
             final currencySettings = await _dataService.getCurrencySettings();
             if (currencySettings?.exchangeRate != null) {
               // Set the correct amount: 342,000 LBP ÷ 900,000 = 0.38 USD
               final correctAmount = 342000 / currencySettings!.exchangeRate!;
-              print('  Correcting alfa ushare amount from ${debt.amount} to ${correctAmount}');
               
               final updatedDebt = debt.copyWith(
                 amount: correctAmount,
@@ -719,8 +551,6 @@ class DataMigrationService {
               }
               
               if (newAmount != debt.amount) {
-                print('  🔧 Fixing amount from ${debt.amount} to ${newAmount}');
-                
                 final updatedDebt = debt.copyWith(
                   amount: newAmount,
                   originalSellingPrice: matchingProduct.sellingPrice,
@@ -737,36 +567,10 @@ class DataMigrationService {
       }
       
       if (fixedDebts > 0) {
-        print('🎉 Fixed $fixedDebts debts with small amounts');
-      } else {
-        print('✅ No debts with small amounts found');
+        print('✅ Fixed $fixedDebts debts with small amounts');
       }
     } catch (e) {
       print('❌ Error fixing debts with small amounts: $e');
     }
-  }
-
-  String _formatExchangeRate(double rate) {
-    if (rate.isInfinite || rate.isNaN) {
-      return 'N/A';
-    }
-    
-    // For LBP currency, use thousands comma separator and no decimals
-    if (rate >= 1000) {
-      // Format with thousands comma separator
-      String formatted = rate.toStringAsFixed(0);
-      final RegExp reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
-      formatted = formatted.replaceAllMapped(reg, (Match match) => '${match[1]},');
-      return '$formatted LBP';
-    } else {
-      // For smaller numbers, just add LBP
-      return '${rate.toStringAsFixed(0)} LBP';
-    }
-  }
-  
-  /// Reset the migration flag to allow re-running migration if needed
-  void resetMigrationFlag() {
-    _hasRunMigration = false;
-    print('🔄 Migration flag reset - migration can run again');
   }
 }

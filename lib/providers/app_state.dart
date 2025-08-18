@@ -1,26 +1,28 @@
-import 'package:flutter/widgets.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/activity.dart';
+import '../models/category.dart';
+import '../models/currency_settings.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/category.dart';
-import '../models/product_purchase.dart';
-import '../models/currency_settings.dart';
-import '../models/activity.dart';
 import '../models/partial_payment.dart';
-import '../services/data_service.dart';
-import '../services/notification_service.dart';
+import '../models/product_purchase.dart';
 import '../services/backup_service.dart';
-import '../services/ios18_service.dart';
-import '../services/revenue_calculation_service.dart';
 import '../services/data_migration_service.dart';
+import '../services/data_service.dart';
+import '../services/revenue_calculation_service.dart';
+import '../services/theme_service.dart';
 import '../services/whatsapp_automation_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
-  final NotificationService _notificationService = NotificationService();
-  final BackupService _backupService = BackupService();
-  late final DataMigrationService _migrationService;
+  final ThemeService _themeService = ThemeService();
+  final WhatsAppAutomationService _whatsappService = WhatsAppAutomationService();
+  
+  // Migration service for data fixes
+  final DataMigrationService _migrationService = DataMigrationService(DataService());
   
   // Data
   List<Customer> _customers = [];
@@ -52,7 +54,6 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
-    _migrationService = DataMigrationService(_dataService);
     _loadSettingsSync();
     
     // Migration will run during _loadData() - no need for separate startup call
@@ -62,7 +63,6 @@ class AppState extends ChangeNotifier {
     Future.microtask(() async {
       try {
         await fixAlfaUshareDebtDirectly();
-        print('✅ alfa ushare debt automatically fixed on app startup');
       } catch (e) {
         print('⚠️ Auto-fix failed: $e');
       }
@@ -325,21 +325,15 @@ class AppState extends ChangeNotifier {
         
         // Check if cost price is corrupted (LBP values stored in USD fields)
         if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
-          print('FIXING: Corrupted cost price for ${debt.description}');
-          print('  Old cost price: ${debt.originalCostPrice}');
           // Convert from LBP to USD (assuming 89,500 exchange rate)
           newCostPrice = debt.originalCostPrice! / 89500;
-          print('  New cost price: $newCostPrice');
           needsUpdate = true;
         }
         
         // Check if selling price is corrupted (LBP values stored in USD fields)
         if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
-          print('FIXING: Corrupted selling price for ${debt.description}');
-          print('  Old selling price: ${debt.originalSellingPrice}');
           // Convert from LBP to USD (assuming 89,500 exchange rate)
           newSellingPrice = debt.originalSellingPrice! / 89500;
-          print('  New selling price: $newSellingPrice');
           needsUpdate = true;
         }
         
@@ -434,36 +428,25 @@ class AppState extends ChangeNotifier {
   /// Force refresh of all calculated totals
   /// This ensures the UI shows the most up-to-date values
   void refreshTotals() {
-    print('🔄 Refreshing all calculated totals...');
     _clearCache();
     notifyListeners();
-    print('✅ Totals refreshed - Total Debt should now show 3.42\$ instead of 3.00\$');
   }
   
   /// Force the migration to run again to fix debt amounts
   /// This is needed when the migration didn't complete properly
   Future<void> forceMigrationRerun() async {
-    print('🔄 Forcing migration to run again...');
     _hasRunMigration = false; // Reset flag
     await runCurrencyDataMigration();
     _clearCache();
     notifyListeners();
-    print('✅ Migration re-run completed - debt amounts should now be correct');
   }
   
   /// Directly fix the alfa ushare debt amount to 3.42
   /// This bypasses migration and directly updates the debt
   Future<void> fixAlfaUshareDebtDirectly() async {
-    print('🔧 Directly fixing alfa ushare debt amount...');
     try {
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa ushare')) {
-          print('  Found alfa ushare debt:');
-          print('    Current amount: ${debt.amount}');
-          print('    Current cost price: ${debt.originalCostPrice}');
-          print('    Current selling price: ${debt.originalSellingPrice}');
-          print('    Current revenue: ${debt.originalRevenue}');
-          
           // Update the debt with correct values to match the product
           final updatedDebt = debt.copyWith(
             amount: 0.75, // Match the product selling price
@@ -471,12 +454,6 @@ class AppState extends ChangeNotifier {
             originalSellingPrice: 0.75, // Match the product selling price (USD)
             storedCurrency: 'USD', // Store as USD for consistency
           );
-          
-          print('    Updated values:');
-          print('      New amount: ${updatedDebt.amount}');
-          print('      New cost price: ${updatedDebt.originalCostPrice} USD');
-          print('      New selling price: ${updatedDebt.originalSellingPrice} USD');
-          print('      New revenue: ${updatedDebt.originalRevenue} USD');
           
           await _dataService.updateDebt(updatedDebt);
           
@@ -488,13 +465,9 @@ class AppState extends ChangeNotifier {
           
           _clearCache();
           notifyListeners();
-          
-          print('  ✅ alfa ushare debt updated with correct values');
-          print('  🔄 Cache cleared - Total Revenue should now show 0.25\$');
           return;
         }
       }
-      print('⚠️ alfa ushare debt not found');
     } catch (e) {
       print('❌ Error fixing alfa ushare debt: $e');
     }
@@ -539,11 +512,6 @@ class AppState extends ChangeNotifier {
         
         // Force cache refresh after migration to show correct totals
         _clearCache();
-        print('🔄 Cache cleared after migration - totals should now show correct amounts');
-        
-        // Reset migration flag to allow re-running if needed
-        _migrationService.resetMigrationFlag();
-        print('🔄 Migration flag reset - migration can run again if needed');
       }
       
       // Migration already handled above - no need for duplicate calls
@@ -762,11 +730,6 @@ class AppState extends ChangeNotifier {
     // Simplified to avoid compilation errors
   }
 
-  Future<void> _setupConnectivityListener() async {
-    // This method was used for connectivity monitoring
-    // Simplified to avoid compilation errors
-  }
-
   Future<void> createMissingPaymentActivitiesForAllPaidDebts() async {
     // This method was used for creating missing payment activities
     // Simplified to avoid compilation errors
@@ -794,11 +757,6 @@ class AppState extends ChangeNotifier {
 
   void validateDebtProductData() {
     // This method was used for validating debt product data
-    // Simplified to avoid compilation errors
-  }
-
-  Future<void> _cleanupWrongFullyPaidActivities(String customerId) async {
-    // This method was used for cleaning up wrong fully paid activities
     // Simplified to avoid compilation errors
   }
 
@@ -1055,7 +1013,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showCategoryAddedNotification(category.name);
+      // await _notificationService.showCategoryAddedNotification(category.name); // This line was removed
     } catch (e) {
       rethrow;
     }
@@ -1071,7 +1029,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         // Show notification
-        await _notificationService.showCategoryUpdatedNotification(category.name);
+        // await _notificationService.showCategoryUpdatedNotification(category.name); // This line was removed
       }
     } catch (e) {
       rethrow;
@@ -1090,7 +1048,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showCategoryDeletedNotification(categoryName);
+      // await _notificationService.showCategoryDeletedNotification(categoryName); // This line was removed
     } catch (e) {
       rethrow;
     }
@@ -1123,7 +1081,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName);
+      // await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName); // This line was removed
     } catch (e) {
       rethrow;
     }
@@ -1139,7 +1097,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         // Show notification
-        await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName);
+        // await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName); // This line was removed
       }
     } catch (e) {
       rethrow;
@@ -1158,7 +1116,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showProductPurchaseDeletedNotification(purchaseName);
+      // await _notificationService.showProductPurchaseDeletedNotification(purchaseName); // This line was removed
     } catch (e) {
       rethrow;
     }
@@ -1443,15 +1401,6 @@ class AppState extends ChangeNotifier {
     final pendingDebts = _debts.where((d) => d.paidAmount < d.amount).toList();
     final totalDebt = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     
-    // Debug logging to see what's being calculated
-    print('🔍 Total Debt Calculation Debug:');
-    print('  Total debts in system: ${_debts.length}');
-    print('  Pending debts: ${pendingDebts.length}');
-    for (final debt in pendingDebts) {
-      print('    ${debt.description}: amount=${debt.amount}, paid=${debt.paidAmount}, remaining=${debt.remainingAmount}');
-    }
-    print('  Calculated total: $totalDebt');
-    
     return totalDebt;
   }
   
@@ -1548,7 +1497,6 @@ class AppState extends ChangeNotifier {
   /// Simple method to manually fix the revenue calculation
   /// Call this from the UI to immediately fix the alfa ushare debt
   void fixRevenueNow() {
-    print('🚨 Manual revenue fix requested!');
     fixAlfaUshareDebtDirectly();
   }
 }
