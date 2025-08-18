@@ -57,7 +57,6 @@ class ReceiptSharingService {
       }
       return false;
     } catch (e) {
-      print('Error sharing receipt via WhatsApp: $e');
       return false;
     }
   }
@@ -102,7 +101,6 @@ class ReceiptSharingService {
       }
       return false;
     } catch (e) {
-      print('Error sharing receipt via email: $e');
       return false;
     }
   }
@@ -134,7 +132,6 @@ class ReceiptSharingService {
       }
       return false;
     } catch (e) {
-      print('Error sharing receipt via SMS: $e');
       return false;
     }
   }
@@ -149,47 +146,32 @@ class ReceiptSharingService {
     String? specificDebtId,
   ) async {
     try {
-      print('Starting PDF generation for customer: ${customer.name}');
-      print('Customer debts count: ${customerDebts.length}');
-      print('Partial payments count: ${partialPayments.length}');
-      print('Activities count: ${activities.length}');
-      
       // Check if customer has any pending debts
       final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
       if (!hasPendingDebts) {
-        print('Customer ${customer.name} has no pending debts - PDF generation not allowed');
         return null;
       }
       
       final pdf = PdfFontUtils.createDocumentWithFonts();
-      print('PDF document created successfully');
       
       await buildReceiptPDF(pdf, customer, customerDebts, partialPayments, activities, specificDate, specificDebtId);
-      print('PDF content built successfully');
       
       final directory = await getTemporaryDirectory();
       final now = DateTime.now();
       final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
       final fileName = '${customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_Receipt_${dateStr}_ID${customer.id}.pdf';
       
-      print('Saving PDF to: ${directory.path}/$fileName');
-      
       if (!await directory.exists()) {
         await directory.create(recursive: true);
-        print('Directory created successfully');
       }
       
       final file = File('${directory.path}/$fileName');
       final pdfBytes = await pdf.save();
-      print('PDF saved to bytes, size: ${pdfBytes.length}');
       
       await file.writeAsBytes(pdfBytes);
-      print('PDF file written successfully to: ${file.path}');
       
       return file;
     } catch (e, stackTrace) {
-      print('Error generating PDF receipt: $e');
-      print('Stack trace: $stackTrace');
       return null;
     }
   }

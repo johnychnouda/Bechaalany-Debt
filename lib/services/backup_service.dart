@@ -46,7 +46,7 @@ class BackupService {
       _scheduleNextDayBackup();
     });
     
-    debugPrint('Daily backup scheduled for: $nextBackup (in ${delay.inHours}h ${delay.inMinutes % 60}m)');
+
   }
 
   void _scheduleNextDayBackup() {
@@ -63,12 +63,12 @@ class BackupService {
       _scheduleNextDayBackup();
     });
     
-    debugPrint('Next daily backup scheduled for: $nextBackup');
+
   }
 
   Future<void> _performDailyBackup() async {
     try {
-      debugPrint('Starting automatic daily backup...');
+
       
       // Check if we already have a backup today to prevent duplicates
       final lastBackup = await getLastAutomaticBackupTime();
@@ -78,7 +78,6 @@ class BackupService {
         final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
         
         if (lastBackupDate == today) {
-          debugPrint('Daily backup already completed today, skipping...');
           return;
         }
       }
@@ -95,10 +94,9 @@ class BackupService {
         body: 'Your data has been automatically backed up',
       );
       
-      debugPrint('Daily backup completed successfully');
+
       
     } catch (e) {
-      debugPrint('Error during daily backup: $e');
       
       // Show error notification
       await _notificationService.showErrorNotification(
@@ -159,7 +157,7 @@ class BackupService {
     
     // No valid backup found, clear the invalid timestamp
     await prefs.remove('last_automatic_backup_timestamp');
-    debugPrint('Cleared invalid backup timestamp: no backup file found');
+    
     return null;
   }
 
@@ -243,7 +241,7 @@ class BackupService {
           // Keep the first (newest) one, delete the rest
           for (int i = 1; i < dateBackups.length; i++) {
             await dataService.deleteBackup(dateBackups[i]);
-            debugPrint('Deleted duplicate backup: ${dateBackups[i]}');
+    
           }
         }
       }
@@ -258,13 +256,13 @@ class BackupService {
           for (final backup in todaysBackups) {
             if (backup != latestBackup) {
               await dataService.deleteBackup(backup);
-              debugPrint('Deleted old backup from today: $backup');
+      
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('Error cleaning up duplicate backups: $e');
+
     }
   }
 
@@ -307,14 +305,11 @@ class BackupService {
         final latestBackup = todaysBackups.first;
         for (int i = 1; i < todaysBackups.length; i++) {
           await dataService.deleteBackup(todaysBackups[i]);
-          debugPrint('Force deleted backup: ${todaysBackups[i]}');
+  
         }
         
-        debugPrint('Kept latest backup: $latestBackup');
-        debugPrint('Deleted ${todaysBackups.length - 1} duplicate backups');
-      }
+
     } catch (e) {
-      debugPrint('Error in force cleanup: $e');
     }
   }
 
@@ -329,17 +324,15 @@ class BackupService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('last_automatic_backup_timestamp');
         await prefs.remove('last_backup_timestamp');
-        debugPrint('Cleared all backup timestamps: no backup files exist');
-        
+
         // If automatic backup is enabled but no backups exist, disable it
         final isEnabled = await isAutomaticBackupEnabled();
         if (isEnabled) {
           await setAutomaticBackupEnabled(false);
-          debugPrint('Disabled automatic backup: no backup files exist');
         }
       }
     } catch (e) {
-      debugPrint('Error clearing invalid timestamps: $e');
+
     }
   }
 
@@ -363,9 +356,7 @@ class BackupService {
                 backupDate.hour == 1 && 
                 backupDate.minute == 33) {
               
-              debugPrint('Found problematic backup: $backup - Created at: $backupDate');
               await dataService.deleteBackup(backup);
-              debugPrint('Successfully deleted problematic backup: $backup');
               return;
             }
           }
@@ -374,9 +365,8 @@ class BackupService {
         }
       }
       
-      debugPrint('No problematic backup found to delete');
+
     } catch (e) {
-      debugPrint('Error removing specific backup: $e');
     }
   }
 

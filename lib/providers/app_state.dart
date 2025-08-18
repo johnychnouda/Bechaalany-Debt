@@ -159,90 +159,15 @@ class AppState extends ChangeNotifier {
       if (!uniquePayments.containsKey(key)) {
         uniquePayments[key] = activity.paymentAmount ?? 0;
         deduplicatedActivities.add(activity);
-        print('  - Added unique payment: ${activity.description} - \$${activity.paymentAmount}');
-      } else {
-        print('  - Skipped duplicate: ${activity.description} - \$${activity.paymentAmount}');
-      }
-    }
-    
-    // Debug: Print all payment activities for this customer
-    print('=== DEBUG: Payment Activities for Customer $customerId ===');
-    print('Original activities: ${paymentActivities.length}');
-    print('Deduplicated activities: ${deduplicatedActivities.length}');
-    
-    for (final activity in deduplicatedActivities) {
-      print('  - ${activity.type}: ${activity.description} - Amount: ${activity.paymentAmount ?? activity.amount} - Date: ${activity.date}');
+
     }
     
     final totalFromActivities = deduplicatedActivities.fold(0.0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
     
-    print('  - Total calculated: \$${totalFromActivities}');
-    print('=== END DEBUG ===');
-    
     return totalFromActivities;
   }
   
-  // Debug method to help identify missing products
-  void debugMissingProducts() {
-    print('=== MISSING PRODUCTS ANALYSIS ===');
-    
-    // Get all unique product names mentioned in activities
-    final mentionedProducts = <String>{};
-    for (final activity in _activities) {
-      if (activity.description.isNotEmpty) {
-        // Look for product names in descriptions
-        final words = activity.description.toLowerCase().split(' ');
-        for (final word in words) {
-          if (word.length > 2 && !word.contains('(') && !word.contains(')') && !word.contains(':') && !word.contains('-') && !word.contains('debt') && !word.contains('payment')) {
-            mentionedProducts.add(word);
-          }
-        }
-      }
-    }
-    
-    // Get all existing product names
-    final existingProducts = <String>{};
-    for (final category in _categories) {
-      for (final subcategory in category.subcategories) {
-        existingProducts.add(subcategory.name.toLowerCase());
-      }
-    }
-    
-    // Find missing products
-    final missingProducts = mentionedProducts.difference(existingProducts);
-    
-    print('EXISTING PRODUCTS in system:');
-    for (final category in _categories) {
-      for (final subcategory in category.subcategories) {
-        print('  - "${subcategory.name}" (Category: ${category.name})');
-      }
-    }
-    
-    print('\nPRODUCT NAMES mentioned in activities:');
-    for (final product in mentionedProducts) {
-      print('  - "$product"');
-    }
-    
-    if (missingProducts.isNotEmpty) {
-      print('\nMISSING PRODUCTS that activities reference:');
-      for (final product in missingProducts) {
-        print('  - "$product" (referenced in activities but not in products list)');
-      }
-      
-      print('\nACTIVITIES that reference missing products:');
-      for (final activity in _activities) {
-        for (final missingProduct in missingProducts) {
-          if (activity.description.toLowerCase().contains(missingProduct)) {
-            print('  - ${activity.description} (references "$missingProduct")');
-          }
-        }
-      }
-    } else {
-      print('\nNo missing products detected - all referenced products exist in the system.');
-    }
-    
-    print('=== END MISSING PRODUCTS ANALYSIS ===');
-  }
+
 
   // Debug method to check specific product revenue expectations
   void debugCheckProductRevenue(String productName) {
@@ -275,64 +200,10 @@ class AppState extends ChangeNotifier {
          foundProduct.name.toLowerCase().contains(a.description.toLowerCase()))
       ).toList();
       
-      print('Payment activities for this product: ${productPayments.length}');
-      for (final payment in productPayments) {
-        print('  - ${payment.description}: ${payment.paymentAmount} (${payment.date})');
-      }
-      
-      // Check debts for this product
-      final productDebts = _debts.where((d) => 
-        d.subcategoryName?.toLowerCase().contains(foundProduct?.name.toLowerCase() ?? '') == true ||
-        d.description.toLowerCase().contains(foundProduct?.name.toLowerCase() ?? '')
-      ).toList();
-      
-      print('Current debts for this product: ${productDebts.length}');
-      for (final debt in productDebts) {
-        print('  - ${debt.description}: ${debt.amount} (Status: ${debt.status})');
-      }
-      
-    } else {
-      print('Product "$productName" not found in system');
-      
-      // Show all activities that might contain this product name
-      print('\nSearching for activities that might contain "$productName":');
-      final relatedActivities = _activities.where((a) => 
-        a.description.toLowerCase().contains(productName.toLowerCase())
-      ).toList();
-      
-      if (relatedActivities.isNotEmpty) {
-        print('Found ${relatedActivities.length} activities containing "$productName":');
-        for (final activity in relatedActivities) {
-          print('  - ${activity.type}: ${activity.description} - Amount: ${activity.paymentAmount ?? activity.amount}');
-        }
-      } else {
-        print('No activities found containing "$productName"');
-      }
-      
-      // Show all existing product names for comparison
-      print('\nAll existing product names for comparison:');
-      for (final category in _categories) {
-        for (final subcategory in category.subcategories) {
-          print('  - "${subcategory.name}"');
-        }
-      }
-    }
-    print('=== END PRODUCT REVENUE CHECK ===');
+
   }
 
-  // Debug method to print all products and their profit margins
-  void debugPrintProducts() {
-    print('=== PRODUCT DEBUG ===');
-    print('Total Categories: ${_categories.length}');
-    for (final category in _categories) {
-      print('Category: ${category.name}');
-      for (final subcategory in category.subcategories) {
-        final profit = subcategory.sellingPrice - subcategory.costPrice;
-        print('  - ${subcategory.name}: Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}, Profit: $profit');
-      }
-    }
-    print('=== END PRODUCT DEBUG ===');
-  }
+
 
   /// Debug method to identify debts with missing cost prices
   void debugDebtsWithMissingCostPrices() {
@@ -386,7 +257,6 @@ class AppState extends ChangeNotifier {
     ).toList();
     
     if (debtsWithMissingCosts.isNotEmpty) {
-      print('Revenue calculation detected ${debtsWithMissingCosts.length} debts with missing cost prices - auto-migrating...');
       // Trigger auto-migration in background
       Future.microtask(() => autoMigrateRemainingDebts());
     }
@@ -423,7 +293,6 @@ class AppState extends ChangeNotifier {
       await _loadData();
       notifyListeners();
     } catch (e) {
-      print('Data migration failed: $e');
       rethrow;
     }
   }
@@ -443,7 +312,7 @@ class AppState extends ChangeNotifier {
         return; // All debts are properly configured
       }
       
-      print('Auto-migrating ${debtsNeedingMigration.length} debts with missing cost prices...');
+
       
       // Try to match them with existing products by name
       for (final debt in debtsNeedingMigration) {
@@ -475,7 +344,6 @@ class AppState extends ChangeNotifier {
           );
           
           await updateDebt(updatedDebt);
-          print('Auto-migrated debt: ${debt.description} with cost price \$${matchingSubcategory.costPrice}');
         }
       }
       

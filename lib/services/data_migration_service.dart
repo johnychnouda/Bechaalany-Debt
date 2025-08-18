@@ -23,16 +23,6 @@ class DataMigrationService {
       final debts = _dataService.debts;
       final categories = _dataService.categories;
       
-                print('Migration: Found ${debts.length} debts and ${categories.length} categories');
-          
-          // Debug: Print available categories and subcategories
-          for (final category in categories) {
-            print('Migration: Category: ${category.name}');
-            for (final subcategory in category.subcategories) {
-              print('Migration:   - Subcategory: ${subcategory.name} (Cost: \$${subcategory.costPrice}, Selling: \$${subcategory.sellingPrice})');
-            }
-          }
-      
       int updatedCount = 0;
       int skippedCount = 0;
       
@@ -72,9 +62,6 @@ class DataMigrationService {
             
             await _dataService.updateDebt(updatedDebt);
             updatedCount++;
-            print('Migration: Updated debt ${debt.id} with cost price \$${subcategory.costPrice}');
-          } else {
-            print('Migration: No subcategory found for debt ${debt.id} with subcategoryId ${debt.subcategoryId}');
           }
         } else {
           print('Migration: Debt ${debt.id} has no subcategoryId - trying to find by name match');
@@ -116,9 +103,7 @@ class DataMigrationService {
         }
       }
       
-      print('Migration completed: $updatedCount debts updated, $skippedCount skipped');
     } catch (e) {
-      print('Migration failed: $e');
       rethrow;
     }
   }

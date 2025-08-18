@@ -15,7 +15,6 @@ class WhatsAppAutomationService {
       final canLaunch = await canLaunchUrl(Uri.parse(whatsappUrl));
       return canLaunch;
     } catch (e) {
-      print('Error checking WhatsApp availability: $e');
       return false;
     }
   }
@@ -57,7 +56,6 @@ class WhatsAppAutomationService {
       
       return launched;
     } catch (e) {
-      print('Error sending WhatsApp message: $e');
       return false;
     }
   }

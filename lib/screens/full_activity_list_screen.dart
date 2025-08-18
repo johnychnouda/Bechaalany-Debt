@@ -678,102 +678,61 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         break;
     }
     
-    print('=== REVENUE CALCULATION DEBUG ===');
-    print('View: $view');
-    print('Current time: $now');
-    print('Today: $today');
-    print('Today weekday: ${today.weekday} (1=Monday, 7=Sunday)');
-    print('Start Date: $startDate');
-    print('End Date: $endDate');
+
     
     // Filter debts that were created or had payments within the selected period
     final relevantDebts = <String>{}; // Set to avoid duplicates
     
     // Add debts created within the period (inclusive of boundaries)
     for (final debt in appState.debts) {
-      print('Checking debt: ${debt.description} - Created: ${debt.createdAt}');
-      print('  - Is after startDate (${startDate})? ${debt.createdAt.isAfter(startDate)}');
-      print('  - Is before endDate (${endDate})? ${debt.createdAt.isBefore(endDate)}');
-      print('  - Is within range? ${debt.createdAt.isAtSameMomentAs(startDate) || debt.createdAt.isAtSameMomentAs(endDate) || (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))}');
-      
       // Check if debt was created within the date range (inclusive)
       if (debt.createdAt.isAtSameMomentAs(startDate) || 
           debt.createdAt.isAtSameMomentAs(endDate) ||
           (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))) {
         relevantDebts.add(debt.id);
-        print('✅ Added debt: ${debt.description} - Created: ${debt.createdAt}');
-      } else {
-        print('❌ Debt NOT in range: ${debt.description}');
       }
     }
     
     // Add debts that had payments within the period (inclusive of boundaries)
     for (final activity in appState.activities) {
       if (activity.type == ActivityType.payment) {
-        print('Checking payment activity: ${activity.description} - Date: ${activity.date}');
-        print('  - Is after startDate (${startDate})? ${activity.date.isAfter(startDate)}');
-        print('  - Is before endDate (${endDate})? ${activity.date.isBefore(endDate)}');
-        print('  - Is within range? ${activity.date.isAtSameMomentAs(startDate) || activity.date.isAtSameMomentAs(endDate) || (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))}');
-        
         // Check if payment activity was within the date range (inclusive)
         if ((activity.date.isAtSameMomentAs(startDate) || 
              activity.date.isAtSameMomentAs(endDate) ||
              (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
             activity.debtId != null) {
           relevantDebts.add(activity.debtId!);
-          print('✅ Added payment activity: ${activity.description} - Date: ${activity.date}');
-        } else {
-          print('❌ Payment activity NOT in range: ${activity.description}');
         }
       }
     }
     
-    print('Relevant debt IDs: $relevantDebts');
-    
     // Calculate revenue using the same logic as main dashboard
     double totalRevenue = 0.0;
-    
-    print('Calculating revenue for ${relevantDebts.length} relevant debts...');
     
     for (final debtId in relevantDebts) {
       final associatedDebts = appState.debts.where((d) => d.id == debtId).toList();
       if (associatedDebts.isEmpty) continue;
       
       final debt = associatedDebts.first;
-      print('Processing debt: ${debt.description}');
-      print('  - Cost Price: \$${debt.originalCostPrice}');
-      print('  - Selling Price: \$${debt.originalSellingPrice}');
-      print('  - Paid Amount: \$${debt.paidAmount}');
       
       if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-        final debtRevenue = debt.originalSellingPrice! - debt.originalCostPrice!;
-        print('  - Potential Revenue: \$${debtRevenue}');
+        final debtRevenue = debt.originalSellingPrice - debt.originalCostPrice;
         
         // Check if customer is fully paid (same logic as main dashboard)
         final isCustomerFullyPaid = appState.isCustomerFullyPaid(debt.customerId);
         final isCustomerPartiallyPaid = appState.isCustomerPartiallyPaid(debt.customerId);
         
-        print('  - Customer Fully Paid: $isCustomerFullyPaid');
-        print('  - Customer Partially Paid: $isCustomerPartiallyPaid');
-        
         if (isCustomerFullyPaid) {
           // Customer has settled ALL debts - recognize full revenue for this debt
           totalRevenue += debtRevenue;
-          print('  - ADDING FULL REVENUE: \$${debtRevenue}');
         } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
           // Customer has made some payments but not settled all debts - recognize proportional revenue
           totalRevenue += debt.earnedRevenue;
-          print('  - ADDING PARTIAL REVENUE: \$${debt.earnedRevenue}');
-        } else {
-          print('  - NO REVENUE RECOGNIZED');
         }
         // If customer is pending (no payments), no revenue is recognized
-      } else {
-        print('  - Missing cost/selling price data');
       }
     }
     
-    print('=== FINAL TOTAL REVENUE: \$${totalRevenue} ===');
     return totalRevenue;
   }
 

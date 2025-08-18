@@ -17,21 +17,8 @@ class RevenueCalculationService {
   double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     
-    print('=== REVENUE CALCULATION DEBUG ===');
-    print('Total debts: ${debts.length}');
-    print('Total activities: ${activities?.length ?? 0}');
-    
     // Calculate revenue from all debts based on their payment status
     for (final debt in debts) {
-      print('Debt: ${debt.description}');
-      print('  - Amount: \$${debt.amount}');
-      print('  - Paid: \$${debt.paidAmount}');
-      print('  - Cost Price: \$${debt.originalCostPrice}');
-      print('  - Selling Price: \$${debt.originalSellingPrice}');
-      print('  - Original Revenue: \$${debt.originalRevenue}');
-      print('  - Earned Revenue: \$${debt.earnedRevenue}');
-      print('  - Is Fully Paid: ${debt.isFullyPaid}');
-      
       // NEW LOGIC: Revenue is only recognized when customer is fully settled
       // Individual debt status is determined by customer's overall debt status
       if (appState != null) {
@@ -42,60 +29,42 @@ class RevenueCalculationService {
         if (isCustomerFullyPaid) {
           // Customer has settled ALL debts - recognize full revenue for this debt
           totalRevenue += debt.originalRevenue;
-          print('  - CUSTOMER FULLY SETTLED: Adding full revenue \$${debt.originalRevenue}');
         } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
           // Customer has made some payments but not settled all debts - recognize proportional revenue
           totalRevenue += debt.earnedRevenue;
-          print('  - CUSTOMER PARTIALLY SETTLED: Adding earned revenue \$${debt.earnedRevenue}');
-        } else {
-          print('  - CUSTOMER PENDING: No revenue recognized yet');
         }
+        // If customer is pending, no revenue is recognized
       } else {
         // Fallback to old logic if AppState not provided
         if (debt.isFullyPaid) {
           totalRevenue += debt.originalRevenue;
-          print('  - FALLBACK: FULLY PAID - Adding full revenue \$${debt.originalRevenue}');
         } else if (debt.paidAmount > 0) {
           totalRevenue += debt.earnedRevenue;
-          print('  - FALLBACK: PARTIALLY PAID - Adding earned revenue \$${debt.earnedRevenue}');
-        } else {
-          print('  - FALLBACK: PENDING - No revenue yet');
         }
       }
     }
     
     // CRITICAL: Also calculate revenue from cleared/deleted debts via activities
     if (activities != null) {
-      print('\n=== CHECKING ACTIVITIES FOR CLEARED DEBTS ===');
       for (final activity in activities) {
         if (activity.type == ActivityType.debtCleared && activity.paymentAmount != null && activity.paymentAmount! > 0) {
-          print('Activity: ${activity.description}');
-          print('  - Type: ${activity.type}');
-          print('  - Payment Amount: \$${activity.paymentAmount}');
-          print('  - Notes: ${activity.notes}');
-          
           // Try to extract revenue information from notes
           if (activity.notes != null && activity.notes!.contains('Revenue:')) {
             final revenueMatch = RegExp(r'Revenue: \$([\d.]+)').firstMatch(activity.notes!);
             if (revenueMatch != null) {
               final revenue = double.tryParse(revenueMatch.group(1) ?? '0') ?? 0.0;
               totalRevenue += revenue;
-              print('  - EXTRACTED REVENUE: \$${revenue}');
-              print('  - ADDING to total: \$${revenue}');
             }
           } else {
             // Fallback: estimate revenue based on payment amount and typical profit margins
             // This is a conservative estimate to maintain revenue integrity
             final estimatedRevenue = activity.paymentAmount! * 0.3; // Assume 30% profit margin
             totalRevenue += estimatedRevenue;
-            print('  - ESTIMATED REVENUE: \$${estimatedRevenue} (30% of payment)');
-            print('  - ADDING to total: \$${estimatedRevenue}');
           }
         }
       }
     }
     
-    print('=== FINAL TOTAL REVENUE: \$$totalRevenue ===');
     return totalRevenue;
   }
 

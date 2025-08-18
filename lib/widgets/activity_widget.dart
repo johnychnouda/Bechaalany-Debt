@@ -18,7 +18,7 @@ class ActivityWidget extends StatefulWidget {
 
 class _ActivityWidgetState extends State<ActivityWidget> {
   ActivityView _currentView = ActivityView.daily;
-  // Timer variable removed since we no longer need it
+
 
   // void _cycleView() { // Removed unused method
   //   setState(() {
