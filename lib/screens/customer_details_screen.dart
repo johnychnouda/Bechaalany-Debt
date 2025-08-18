@@ -628,23 +628,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Remove duplicate products by name, keeping only the most recent one
-        final Map<String, Debt> uniqueProducts = {};
-        for (final debt in customerAllDebts) {
-          final productName = debt.description.toLowerCase();
-          if (!uniqueProducts.containsKey(productName) || 
-              debt.createdAt.isAfter(uniqueProducts[productName]!.createdAt)) {
-            uniqueProducts[productName] = debt;
-          }
-        }
-        final customerUniqueDebts = uniqueProducts.values.toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        
         // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show ALL unique products (including fully paid ones) so users can see payment history
+        // 1. If customer has pending debts: show ALL products (including multiple purchases of same product)
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
         final customerActiveDebts = totalPendingDebt > 0 
-            ? customerUniqueDebts  // Show all unique products when there are pending amounts (for partial payment tracking)
+            ? customerAllDebts  // Show all products when there are pending amounts (for partial payment tracking)
             : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
