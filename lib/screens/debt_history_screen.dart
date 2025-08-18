@@ -247,18 +247,140 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       builder: (BuildContext context) {
         String warningMessage = '';
         if (debt.paidAmount > 0) {
-          warningMessage = '\n\n⚠️ WARNING: This debt has partial payments (${CurrencyFormatter.formatAmount(context, debt.paidAmount)}). Deleting it will remove all payment history for this debt.';
+          warningMessage = '\n\n⚠️ WARNING: This debt has partial payments (${CurrencyFormatter.formatAmount(context, debt.paidAmount, storedCurrency: debt.storedCurrency)}). Deleting it will remove all payment history for this debt.';
         }
         
+        // Format the amount properly using stored currency
+        final formattedAmount = CurrencyFormatter.formatAmount(
+          context, 
+          debt.amount, 
+          storedCurrency: debt.storedCurrency
+        );
+        
         return AlertDialog(
-          title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}$warningMessage'),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text('Delete Debt'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to delete this debt?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Debt Details:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Customer: ${debt.customerName}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.attach_money,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Amount: $formattedAmount',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (warningMessage.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withAlpha(77)),
+                  ),
+                  child: Text(
+                    warningMessage.trim(),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.orange[800],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Text(
+                '⚠️ This action cannot be undone.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 try {
@@ -275,7 +397,20 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
         );
@@ -764,12 +899,12 @@ class _GroupedDebtCard extends StatelessWidget {
       // Show individual debt amount
       final debt = debts.first;
       if (debt.isFullyPaid) {
-        return '${CurrencyFormatter.formatAmount(context, debt.amount)} paid';
+        return '${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)} paid';
       } else if (debt.paidAmount > 0) {
-        return 'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount)}';
+        return 'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency)}';
       } else {
         // For new debts with no payments, show just the amount
-        return '${CurrencyFormatter.formatAmount(context, debt.amount)}';
+        return '${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)}';
       }
     }
   }

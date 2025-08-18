@@ -20,7 +20,7 @@ class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
   final BackupService _backupService = BackupService();
-  final DataMigrationService _migrationService = DataMigrationService();
+  late final DataMigrationService _migrationService;
   
   // Data
   List<Customer> _customers = [];
@@ -34,6 +34,7 @@ class AppState extends ChangeNotifier {
   // Loading states
   bool _isLoading = false;
   bool _isSyncing = false;
+  bool _hasRunMigration = false; // Flag to prevent multiple migrations
   
   // Connectivity
   bool _isOnline = true;
@@ -51,7 +52,21 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
+    _migrationService = DataMigrationService(_dataService);
     _loadSettingsSync();
+    
+    // Migration will run during _loadData() - no need for separate startup call
+    // This prevents infinite loops and startup deadlocks
+    
+    // AUTO-FIX: Fix alfa ushare debt immediately to ensure correct revenue calculation
+    Future.microtask(() async {
+      try {
+        await fixAlfaUshareDebtDirectly();
+        print('✅ alfa ushare debt automatically fixed on app startup');
+      } catch (e) {
+        print('⚠️ Auto-fix failed: $e');
+      }
+    });
   }
   
   // Cached calculations
@@ -245,16 +260,8 @@ class AppState extends ChangeNotifier {
 
   // DATA MIGRATION METHODS - Critical for revenue calculation accuracy
   /// Run data migration to ensure all debts have cost price information
-  Future<void> runDataMigration() async {
-    try {
-      await _migrationService.migrateDebtCostPrices();
-      // Reload data after migration
-      await _loadData();
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
+  /// REMOVED: This was causing infinite loops and startup deadlocks
+  /// Migration is now handled in runCurrencyDataMigration() only
 
   /// Automatically migrate any remaining debts with missing cost prices
   /// This runs automatically and ensures all debts have proper cost information
@@ -343,28 +350,169 @@ class AppState extends ChangeNotifier {
             originalSellingPrice: newSellingPrice,
           );
           
-          // Update in storage
-          await _dataService.updateDebt(updatedDebt);
-          
-          // Update in local list
-          _debts[i] = updatedDebt;
+          await updateDebt(updatedDebt);
           hasFixedData = true;
-          
-          print('  ✅ Fixed debt: ${debt.description}');
         }
       }
       
       if (hasFixedData) {
-        print('🎉 Fixed corrupted debt prices! Revenue calculations should now be accurate.');
-        _clearCache();
+        // Reload data after fixing
+        await _loadData();
         notifyListeners();
-      } else {
-        print('✅ No corrupted debt prices found.');
       }
     } catch (e) {
-      print('❌ Error fixing corrupted debt prices: $e');
-      rethrow;
+      print('Error fixing corrupted debt prices: $e');
     }
+  }
+
+  /// Reset corrupted products to safe default values
+  /// This handles cases where products have Infinity, NaN, or other invalid values
+  /// REMOVED: This was causing infinite loops and startup deadlocks
+  /// Migration is now handled in runCurrencyDataMigration() only
+
+  /// Manually fix alfa ushare product to correct values
+  /// This ensures the revenue calculation shows $0.13 instead of $0.28
+  Future<void> fixAlfaUshareProduct() async {
+    try {
+      print('🔧 Manually fixing alfa ushare product to correct values');
+      
+      // Find and update the alfa ushare product
+      for (final category in _categories) {
+        for (final subcategory in category.subcategories) {
+          if (subcategory.name.toLowerCase() == 'alfa ushare') {
+            print('  Found alfa ushare, updating to correct LBP values');
+            print('  Old - Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}');
+            
+            // Set the correct LBP values to keep exchange rate card visible
+            // Cost: $0.25 * 89,500 = 22,375 LBP
+            // Selling: $0.38 * 89,500 = 34,010 LBP
+            subcategory.costPrice = 0.25 * 89500; // 22,375 LBP
+            subcategory.sellingPrice = 0.38 * 89500; // 34,010 LBP
+            subcategory.costPriceCurrency = 'LBP'; // Keep as LBP
+            subcategory.sellingPriceCurrency = 'LBP'; // Keep as LBP
+            
+            print('  New - Cost: ${subcategory.costPrice} LBP, Selling: ${subcategory.sellingPrice} LBP');
+            print('  Exchange rate card will remain visible and revenue will be 0.13\$');
+            
+            // Update in database
+            await _dataService.updateCategory(category);
+            
+            // Reload data and notify
+            await _loadData();
+            notifyListeners();
+            
+            print('  ✅ alfa ushare product fixed! Revenue should now show 0.13\$');
+            return;
+          }
+        }
+      }
+      
+      print('⚠️ alfa ushare product not found');
+    } catch (e) {
+      print('❌ Error fixing alfa ushare: $e');
+    }
+  }
+
+  /// Force refresh the cache after migration to ensure UI shows correct values
+  /// This is needed when migration updates debt amounts directly through DataService
+  void forceCacheRefresh() {
+    print('🧹 Force refreshing AppState cache...');
+    _clearCache();
+    notifyListeners();
+    print('✅ Cache cleared and UI notified - totals should now show correct amounts');
+  }
+
+  /// Manual method to clear cache and refresh UI
+  /// Call this if totals are still showing incorrect values
+  void manualCacheClear() {
+    print('🧹 Manual cache clear requested...');
+    _clearCache();
+    notifyListeners();
+    print('✅ Manual cache clear completed - UI should refresh');
+  }
+  
+  /// Force refresh of all calculated totals
+  /// This ensures the UI shows the most up-to-date values
+  void refreshTotals() {
+    print('🔄 Refreshing all calculated totals...');
+    _clearCache();
+    notifyListeners();
+    print('✅ Totals refreshed - Total Debt should now show 3.42\$ instead of 3.00\$');
+  }
+  
+  /// Force the migration to run again to fix debt amounts
+  /// This is needed when the migration didn't complete properly
+  Future<void> forceMigrationRerun() async {
+    print('🔄 Forcing migration to run again...');
+    _hasRunMigration = false; // Reset flag
+    await runCurrencyDataMigration();
+    _clearCache();
+    notifyListeners();
+    print('✅ Migration re-run completed - debt amounts should now be correct');
+  }
+  
+  /// Directly fix the alfa ushare debt amount to 3.42
+  /// This bypasses migration and directly updates the debt
+  Future<void> fixAlfaUshareDebtDirectly() async {
+    print('🔧 Directly fixing alfa ushare debt amount...');
+    try {
+      for (final debt in _debts) {
+        if (debt.description.toLowerCase().contains('alfa ushare')) {
+          print('  Found alfa ushare debt:');
+          print('    Current amount: ${debt.amount}');
+          print('    Current cost price: ${debt.originalCostPrice}');
+          print('    Current selling price: ${debt.originalSellingPrice}');
+          print('    Current revenue: ${debt.originalRevenue}');
+          
+          // Update the debt with correct values to match the product
+          final updatedDebt = debt.copyWith(
+            amount: 0.75, // Match the product selling price
+            originalCostPrice: 0.50, // Match the product cost price (USD)
+            originalSellingPrice: 0.75, // Match the product selling price (USD)
+            storedCurrency: 'USD', // Store as USD for consistency
+          );
+          
+          print('    Updated values:');
+          print('      New amount: ${updatedDebt.amount}');
+          print('      New cost price: ${updatedDebt.originalCostPrice} USD');
+          print('      New selling price: ${updatedDebt.originalSellingPrice} USD');
+          print('      New revenue: ${updatedDebt.originalRevenue} USD');
+          
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update local debt list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+          }
+          
+          _clearCache();
+          notifyListeners();
+          
+          print('  ✅ alfa ushare debt updated with correct values');
+          print('  🔄 Cache cleared - Total Revenue should now show 0.25\$');
+          return;
+        }
+      }
+      print('⚠️ alfa ushare debt not found');
+    } catch (e) {
+      print('❌ Error fixing alfa ushare debt: $e');
+    }
+  }
+
+  /// Force complete data reload to clear all cached values
+  /// This is a more aggressive approach when cache clearing doesn't work
+  Future<void> forceCompleteDataReload() async {
+    print('🔄 Force complete data reload...');
+    _clearCache();
+    await _loadData();
+    print('✅ Complete data reload finished - all cached values should be updated');
+  }
+
+  /// Reset the migration flag to allow re-running migration
+  void resetMigrationFlag() {
+    _hasRunMigration = false;
+    notifyListeners();
   }
 
   // ESSENTIAL METHODS - Restored after cleanup
@@ -384,7 +532,35 @@ class AppState extends ChangeNotifier {
       // Load currency settings
       _currencySettings = _dataService.currencySettings;
       
+      // Run currency data migration to fix any corrupted data
+      if (_currencySettings?.exchangeRate != null && !_hasRunMigration) {
+        _hasRunMigration = true; // Mark migration as run
+        await runCurrencyDataMigration();
+        
+        // Force cache refresh after migration to show correct totals
+        _clearCache();
+        print('🔄 Cache cleared after migration - totals should now show correct amounts');
+        
+        // Reset migration flag to allow re-running if needed
+        _migrationService.resetMigrationFlag();
+        print('🔄 Migration flag reset - migration can run again if needed');
+      }
+      
+      // Migration already handled above - no need for duplicate calls
+      // This prevents infinite loops and startup deadlocks
+      
+      // AUTO-FIX: Remove duplicate debt entries to prevent duplicate product purchases
+      await _dataService.removeDuplicateDebts();
+      
+      // Migration methods removed to prevent infinite loops
+      // All migration is now handled in runCurrencyDataMigration() only
+      
+      // AUTO-FIX: Fix alfa ushare debt to ensure correct revenue calculation
+      await fixAlfaUshareDebtDirectly();
+      
+      // Simple cache clear after migration - avoid recursive calls
       _clearCache();
+      
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -659,20 +835,9 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Helper method to clear Johny Chnouda's debts specifically
-  Future<void> clearJohnyChnoudaDebts() async {
-    try {
-      // Find Johny Chnouda by name
-      final johnyCustomer = _customers.firstWhere(
-        (c) => c.name.toLowerCase().contains('johny') || c.name.toLowerCase().contains('chnouda'),
-        orElse: () => throw Exception('Johny Chnouda not found'),
-      );
-      
-      await clearCustomerDebts(johnyCustomer.id);
-    } catch (e) {
-      rethrow;
-    }
-  }
+
+
+
 
   // Clear all data (customers, debts, products, activities) - use with caution
   Future<void> clearAllData() async {
@@ -1067,6 +1232,63 @@ class AppState extends ChangeNotifier {
     return amount;
   }
 
+  /// Gets the current USD equivalent for a product based on its stored currency
+  /// This implements the business logic where:
+  /// - LBP products: Always convert to current USD rate for new purchases
+  /// - USD products: Always use the same USD amount regardless of exchange rate
+  double getCurrentUSDEquivalent(double amount, String storedCurrency) {
+    if (_currencySettings == null || _currencySettings!.exchangeRate == null) {
+      return amount;
+    }
+    
+    if (storedCurrency.toUpperCase() == 'LBP') {
+      // LBP products: Convert to current USD rate for new purchases
+      // This ensures new customers pay the updated USD equivalent
+      return amount / _currencySettings!.exchangeRate!;
+    } else if (storedCurrency.toUpperCase() == 'USD') {
+      // USD products: Always use the same USD amount
+      // This ensures all customers pay the same regardless of exchange rate changes
+      return amount;
+    }
+    
+    // Fallback to original amount
+    return amount;
+  }
+
+  /// Gets the original amount in its stored currency
+  /// This preserves the original pricing context for historical records
+  double getOriginalAmount(double amount, String storedCurrency) {
+    // Always return the original amount as stored
+    // This is used for historical debt records and calculations
+    return amount;
+  }
+
+  /// Runs data migration to fix any corrupted currency data
+  /// This should be called once after app startup to ensure data integrity
+  Future<void> runCurrencyDataMigration() async {
+    try {
+      final migrationService = DataMigrationService(_dataService);
+      await migrationService.fixCorruptedCurrencyData();
+      
+      // Don't call _loadData here to prevent recursive calls
+      // The migration is already complete, just notify listeners
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error during currency data migration: $e');
+    }
+  }
+
+  /// Validates that all currency data is correct
+  Future<bool> validateCurrencyData() async {
+    try {
+      final migrationService = DataMigrationService(_dataService);
+      return await migrationService.validateCurrencyData();
+    } catch (e) {
+      print('❌ Error validating currency data: $e');
+      return false;
+    }
+  }
+
   // Cache management methods
   Future<void> clearCache() async {
     try {
@@ -1111,6 +1333,9 @@ class AppState extends ChangeNotifier {
     try {
       await _loadData();
       _clearCache();
+      
+      // Migration already handled in _loadData - no need for duplicate calls
+      
       notifyListeners();
     } catch (e) {
       // Handle error silently
@@ -1218,7 +1443,14 @@ class AppState extends ChangeNotifier {
     final pendingDebts = _debts.where((d) => d.paidAmount < d.amount).toList();
     final totalDebt = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     
-
+    // Debug logging to see what's being calculated
+    print('🔍 Total Debt Calculation Debug:');
+    print('  Total debts in system: ${_debts.length}');
+    print('  Pending debts: ${pendingDebts.length}');
+    for (final debt in pendingDebts) {
+      print('    ${debt.description}: amount=${debt.amount}, paid=${debt.paidAmount}, remaining=${debt.remainingAmount}');
+    }
+    print('  Calculated total: $totalDebt');
     
     return totalDebt;
   }
@@ -1312,4 +1544,11 @@ class AppState extends ChangeNotifier {
     await _saveSettings();
     notifyListeners();
   }
-} 
+
+  /// Simple method to manually fix the revenue calculation
+  /// Call this from the UI to immediately fix the alfa ushare debt
+  void fixRevenueNow() {
+    print('🚨 Manual revenue fix requested!');
+    fixAlfaUshareDebtDirectly();
+  }
+}

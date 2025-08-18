@@ -51,6 +51,8 @@ class Debt extends HiveObject {
   final String? categoryName; // Category name at time of debt creation
   @HiveField(15)
   final double? originalCostPrice; // Original cost price at time of debt creation - CRITICAL for revenue calculation
+  @HiveField(16)
+  final String? storedCurrency; // Original currency when debt was created (LBP or USD)
 
   Debt({
     required this.id,
@@ -69,6 +71,7 @@ class Debt extends HiveObject {
     this.originalSellingPrice,
     this.categoryName,
     this.originalCostPrice,
+    this.storedCurrency,
   });
 
   factory Debt.fromJson(Map<String, dynamic> json) {
@@ -99,6 +102,7 @@ class Debt extends HiveObject {
       originalCostPrice: json['originalCostPrice'] != null 
           ? (json['originalCostPrice'] as num).toDouble() 
           : null,
+      storedCurrency: json['storedCurrency'] as String?,
     );
   }
 
@@ -120,6 +124,7 @@ class Debt extends HiveObject {
       'originalSellingPrice': originalSellingPrice,
       'categoryName': categoryName,
       'originalCostPrice': originalCostPrice,
+      'storedCurrency': storedCurrency,
     };
   }
 
@@ -140,6 +145,7 @@ class Debt extends HiveObject {
     double? originalSellingPrice,
     String? categoryName,
     double? originalCostPrice,
+    String? storedCurrency,
   }) {
     return Debt(
       id: id ?? this.id,
@@ -158,6 +164,7 @@ class Debt extends HiveObject {
       originalSellingPrice: originalSellingPrice ?? this.originalSellingPrice,
       categoryName: categoryName ?? this.categoryName,
       originalCostPrice: originalCostPrice ?? this.originalCostPrice,
+      storedCurrency: storedCurrency ?? this.storedCurrency,
     );
   }
 

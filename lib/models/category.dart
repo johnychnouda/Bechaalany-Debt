@@ -110,6 +110,36 @@ class Subcategory extends HiveObject {
   double get profit => sellingPrice - costPrice;
   double get profitPercentage => costPrice > 0 ? (profit / costPrice) * 100 : 0;
 
+  /// Validates that the product has reasonable prices for its currency
+  /// This helps prevent corrupted data from being stored
+  bool get hasValidPrices {
+    if (costPriceCurrency == 'LBP') {
+      // LBP prices should typically be in thousands or tens of thousands
+      // Very high amounts (> 1,000,000) might indicate corruption
+      return costPrice > 0 && costPrice < 1000000 && 
+             sellingPrice > 0 && sellingPrice < 1000000;
+    } else if (costPriceCurrency == 'USD') {
+      // USD prices should typically be reasonable amounts
+      // Very high amounts (> 10,000) might indicate corruption
+      return costPrice > 0 && costPrice < 10000 && 
+             sellingPrice > 0 && sellingPrice < 10000;
+    }
+    return costPrice > 0 && sellingPrice > 0;
+  }
+
+  /// Gets a human-readable description of any price validation issues
+  String? get priceValidationMessage {
+    if (!hasValidPrices) {
+      if (costPriceCurrency == 'LBP' && (costPrice > 1000000 || sellingPrice > 1000000)) {
+        return 'LBP prices seem unusually high. Please verify the amounts.';
+      } else if (costPriceCurrency == 'USD' && (costPrice > 10000 || sellingPrice > 10000)) {
+        return 'USD prices seem unusually high. Please verify the amounts.';
+      }
+      return 'Product prices seem invalid. Please check the amounts.';
+    }
+    return null;
+  }
+
   void updatePrices({
     double? newCostPrice,
     double? newSellingPrice,

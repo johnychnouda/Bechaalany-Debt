@@ -57,6 +57,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           originalSellingPrice: _selectedSubcategory!.sellingPrice,
           originalCostPrice: _selectedSubcategory!.costPrice, // CRITICAL: Store original cost for revenue calculation
           categoryName: _selectedCategory!.name,
+          storedCurrency: _selectedSubcategory!.sellingPriceCurrency, // Store the original currency
         );
 
         await appState.addDebt(debt);

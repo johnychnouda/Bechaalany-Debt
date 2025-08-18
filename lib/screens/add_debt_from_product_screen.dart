@@ -403,7 +403,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              CurrencyFormatter.formatAmount(context, _selectedSubcategory!.sellingPrice, storedCurrency: _selectedSubcategory!.sellingPriceCurrency),
+                              CurrencyFormatter.formatProductPrice(context, _selectedSubcategory!.sellingPrice, storedCurrency: _selectedSubcategory!.sellingPriceCurrency),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -532,7 +532,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
             ),
           ),
           Text(
-            CurrencyFormatter.formatAmount(context, totalAmount),
+            CurrencyFormatter.formatProductPrice(context, totalAmount, storedCurrency: _selectedSubcategory?.sellingPriceCurrency),
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -664,6 +664,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         originalSellingPrice: _selectedSubcategory!.sellingPrice,
         originalCostPrice: _selectedSubcategory!.costPrice, // CRITICAL: Store original cost for revenue calculation
         categoryName: _selectedCategory!.name,
+        storedCurrency: _selectedSubcategory!.sellingPriceCurrency, // Store the original currency
       );
 
       await appState.addDebt(debt);

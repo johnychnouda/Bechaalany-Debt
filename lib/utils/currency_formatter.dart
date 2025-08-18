@@ -8,24 +8,26 @@ class CurrencyFormatter {
     if (settings.exchangeRate == null) return null;
     return settings.exchangeRate!.toStringAsFixed(2);
   }
+  
   static String? reverseFormattedExchangeRate(CurrencySettings settings) {
     if (settings.exchangeRate == null) return null;
     return (1 / settings.exchangeRate!).toStringAsFixed(2);
   }
 
-  static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
+  /// Formats product price for display in the Products screen
+  /// LBP products: Convert to USD for display
+  /// USD products: Show as-is
+  static String formatProductPrice(BuildContext context, double amount, {String? storedCurrency}) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
     
     if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
-      // If stored currency is LBP and we want to display in USD
       if (storedCurrency.toUpperCase() == 'LBP') {
-        // Convert LBP to USD by dividing by exchange rate
-        // Example: 895,000 LBP ÷ 89,500 = 10.00 USD
+        // Convert LBP to USD for display
         final convertedAmount = amount / settings.exchangeRate!;
         return '${convertedAmount.toStringAsFixed(2)}\$';
       } else if (storedCurrency.toUpperCase() == 'USD') {
-        // Already in USD, format as is
+        // Already in USD, show as-is
         return '${amount.toStringAsFixed(2)}\$';
       }
     }
@@ -34,6 +36,57 @@ class CurrencyFormatter {
     return '${amount.toStringAsFixed(2)}\$';
   }
 
+  /// Formats amount for display based on stored currency
+  /// LBP products: Always convert to current USD rate for display
+  /// USD products: Always show same USD amount regardless of exchange rate
+  static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
+      // If stored currency is LBP, the amount should already be in USD (converted during debt creation)
+      // So we just display the amount as-is, since it's already the correct USD value
+      if (storedCurrency.toUpperCase() == 'LBP') {
+        // Amount is already in USD (converted during debt creation), just display it
+        return '${amount.toStringAsFixed(2)}\$';
+      } else if (storedCurrency.toUpperCase() == 'USD') {
+        // Already in USD, always show the same amount regardless of exchange rate changes
+        return '${amount.toStringAsFixed(2)}\$';
+      }
+    }
+    
+    // Fallback to USD with dollar sign on the right side
+    return '${amount.toStringAsFixed(2)}\$';
+  }
+
+  /// Gets the current USD equivalent for LBP products, or original amount for USD products
+  /// This is used for calculations and business logic
+  static double getCurrentUSDEquivalent(BuildContext context, double amount, {String? storedCurrency}) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final settings = appState.currencySettings;
+    
+    if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
+      // If stored currency is LBP, convert to current USD rate
+      if (storedCurrency.toUpperCase() == 'LBP') {
+        return amount / settings.exchangeRate!;
+      } else if (storedCurrency.toUpperCase() == 'USD') {
+        // Already in USD, return as-is
+        return amount;
+      }
+    }
+    
+    // Fallback to original amount
+    return amount;
+  }
+
+  /// Gets the original amount in its stored currency
+  /// This preserves the original pricing context
+  static double getOriginalAmount(double amount, {String? storedCurrency}) {
+    // Always return the original amount as stored
+    return amount;
+  }
+
+  /// Formats amount with currency symbol for display
   static String formatAmountWithCurrency(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
@@ -49,6 +102,7 @@ class CurrencyFormatter {
     return '${amount.toStringAsFixed(2)}\$ (USD)';
   }
 
+  /// Formats amount only (without currency symbol)
   static String formatAmountOnly(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
@@ -64,6 +118,7 @@ class CurrencyFormatter {
     return amount.toStringAsFixed(2);
   }
 
+  /// Gets currency symbol for display
   static String getCurrencySymbol(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
@@ -76,6 +131,7 @@ class CurrencyFormatter {
     return '\$';
   }
 
+  /// Gets base currency symbol (USD)
   static String getBaseCurrencySymbol(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
@@ -88,6 +144,7 @@ class CurrencyFormatter {
     return '\$';
   }
 
+  /// Gets the appropriate currency symbol for a given currency
   static String _getCurrencySymbol(String currency) {
     switch (currency.toUpperCase()) {
       case 'USD':
@@ -107,6 +164,7 @@ class CurrencyFormatter {
     }
   }
 
+  /// Formats number with appropriate decimal places and thousands separators
   static String _formatNumberWithCommas(double amount, String currency) {
     final decimalPlaces = _getDecimalPlaces(currency);
     final formattedNumber = amount.toStringAsFixed(decimalPlaces);
@@ -131,6 +189,7 @@ class CurrencyFormatter {
     }
   }
 
+  /// Adds thousands separators to a number string
   static String _addThousandsSeparators(String number) {
     final buffer = StringBuffer();
     final length = number.length;
@@ -145,6 +204,7 @@ class CurrencyFormatter {
     return buffer.toString();
   }
 
+  /// Gets the appropriate decimal places for a currency
   static int _getDecimalPlaces(String currency) {
     switch (currency.toUpperCase()) {
       case 'USD':
@@ -162,39 +222,33 @@ class CurrencyFormatter {
     }
   }
 
-  // Convert amount using current exchange rate
+  /// Convert amount using current exchange rate (for general conversions)
   static double? convertAmount(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
     return appState.convertAmount(amount);
   }
 
-  // Convert amount back to base currency
+  /// Convert amount back to base currency (for reverse conversions)
   static double? convertBack(BuildContext context, double amount) {
     final appState = Provider.of<AppState>(context, listen: false);
-    return appState.convertBack(amount);
-  }
-
-  // Get formatted exchange rate for display
-  static String? getFormattedExchangeRate(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
-    if (settings != null) {
-      return settings.formattedRate;
+    
+    if (settings != null && settings.exchangeRate != null) {
+      return settings.convertBack(amount);
     }
+    
     return null;
   }
 
-  // Get reverse formatted exchange rate for display
-  static String? getReverseFormattedExchangeRate(BuildContext context) {
+  /// Gets the current exchange rate for display purposes
+  static String? getCurrentExchangeRate(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     final settings = appState.currencySettings;
-    if (settings != null) {
-      return settings.reverseFormattedRate;
+    
+    if (settings != null && settings.exchangeRate != null) {
+      return '1 ${settings.baseCurrency} = ${_addThousandsSeparators(settings.exchangeRate!.toInt().toString())} ${settings.targetCurrency}';
     }
+    
     return null;
   }
-
-
-
-
 } 

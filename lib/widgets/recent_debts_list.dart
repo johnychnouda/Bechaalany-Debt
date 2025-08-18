@@ -157,7 +157,7 @@ class _DebtCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                CurrencyFormatter.formatAmount(context, debt.amount),
+                CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

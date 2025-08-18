@@ -983,6 +983,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       subcategory.sellingPrice = sellingPrice;
                                       subcategory.costPriceCurrency = selectedCurrency;
                                       subcategory.sellingPriceCurrency = selectedCurrency;
+                                      
+                                      // Validate prices before saving to prevent corruption
+                                      if (!subcategory.hasValidPrices) {
+                                        final validationMessage = subcategory.priceValidationMessage;
+                                        await notificationService.showErrorNotification(
+                                          title: 'Invalid Prices',
+                                          body: validationMessage ?? 'Please check the product prices.',
+                                        );
+                                        return;
+                                      }
+                                      
                                       await appState.updateCategory(category);
                                       if (mounted) {
                                         Navigator.of(context).pop();
@@ -1026,44 +1037,161 @@ class _ProductsScreenState extends State<ProductsScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Subcategory'),
-          content: Text('Are you sure you want to delete "${subcategory.name}"? This action cannot be undone.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 4,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.dynamicBackground(context),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final appState = Provider.of<AppState>(context, listen: false);
-                final notificationService = NotificationService();
-                final category = appState.categories.firstWhere(
-                  (cat) => cat.name == categoryName,
-                  orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                );
-                try {
-                  category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
-                  await appState.updateCategory(category);
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-                  await notificationService.showProductDeletedNotification(subcategory.name);
-                  _filterProducts();
-                } catch (e) {
-                  await notificationService.showErrorNotification(
-                    title: 'Error',
-                    body: 'Failed to delete product: $e',
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withAlpha(26),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.delete_forever,
+                        size: 20,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Delete Product',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Product Name
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicPrimary(context).withAlpha(77)),
+                  ),
+                  child: Text(
+                    '"${subcategory.name}"',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.dynamicPrimary(context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Warning Message
+                Text(
+                  'Are you sure you want to delete this product?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'This action cannot be undone.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final notificationService = NotificationService();
+                          final category = appState.categories.firstWhere(
+                            (cat) => cat.name == categoryName,
+                            orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                          );
+                          try {
+                            category.subcategories.removeWhere((sub) => sub.id == subcategory.id);
+                            await appState.updateCategory(category);
+                            if (mounted) {
+                              Navigator.of(context).pop();
+                            }
+                            await notificationService.showProductDeletedNotification(subcategory.name);
+                            _filterProducts();
+                          } catch (e) {
+                            await notificationService.showErrorNotification(
+                              title: 'Error',
+                              body: 'Failed to delete product: $e',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -1331,6 +1459,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         costPriceCurrency: selectedCurrency,
                                         sellingPriceCurrency: selectedCurrency,
                                       );
+                                      
+                                      // Validate prices before saving to prevent corruption
+                                      if (!subcategory.hasValidPrices) {
+                                        final validationMessage = subcategory.priceValidationMessage;
+                                        await notificationService.showErrorNotification(
+                                          title: 'Invalid Prices',
+                                          body: validationMessage ?? 'Please check the product prices.',
+                                        );
+                                        return;
+                                      }
+                                      
                                       category.subcategories.add(subcategory);
                                       await appState.updateCategory(category);
                                       if (mounted) {
@@ -1480,65 +1619,200 @@ class _ProductsScreenState extends State<ProductsScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Category'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Are you sure you want to delete "${category.name}"?'),
-              if (subcategoryCount > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'This category contains $subcategoryCount subcategory${subcategoryCount == 1 ? '' : 's'} that will also be deleted.',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w500,
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 4,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.dynamicBackground(context),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withAlpha(26),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.folder_delete,
+                        size: 20,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Delete Category',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Category Name
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicPrimary(context).withAlpha(77)),
+                  ),
+                  child: Text(
+                    '"${category.name}"',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.dynamicPrimary(context),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final appState = Provider.of<AppState>(context, listen: false);
-                final notificationService = NotificationService();
+                const SizedBox(height: 16),
                 
-                try {
-                  await appState.deleteCategory(category.id);
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-                  
-                  // Reset to 'All' if the deleted category was selected
-                  if (_selectedCategory == category.name) {
-                    setState(() {
-                      _selectedCategory = 'All';
-                    });
-                  }
-                  
-                  // Refresh the products list
-                  _filterProducts();
-                } catch (e) {
-                  // Show error notification
-                  await notificationService.showErrorNotification(
-                    title: 'Error',
-                    body: 'Failed to delete category: $e',
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
+                // Warning Message
+                Text(
+                  'Are you sure you want to delete this category?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'This action cannot be undone.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                // Products Warning
+                if (subcategoryCount > 0) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicWarning(context).withAlpha(26),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.dynamicWarning(context).withAlpha(77)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_outlined,
+                          color: AppColors.dynamicWarning(context),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This category contains $subcategoryCount product${subcategoryCount == 1 ? '' : 's'} that will also be deleted.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.dynamicWarning(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final notificationService = NotificationService();
+                          
+                          try {
+                            await appState.deleteCategory(category.id);
+                            if (mounted) {
+                              Navigator.of(context).pop();
+                            }
+                            
+                            // Reset to 'All' if the deleted category was selected
+                            if (_selectedCategory == category.name) {
+                              setState(() {
+                                _selectedCategory = 'All';
+                              });
+                            }
+                            
+                            // Refresh the products list
+                            _filterProducts();
+                          } catch (e) {
+                            // Show error notification
+                            await notificationService.showErrorNotification(
+                              title: 'Error',
+                              body: 'Failed to delete category: $e',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -1548,59 +1822,194 @@ class _ProductsScreenState extends State<ProductsScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Subcategory'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Are you sure you want to delete "${subcategory.name}"?'),
-              const SizedBox(height: 8),
-              Text(
-                'This will permanently remove the subcategory from "${category.name}".',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+          elevation: 4,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: AppColors.dynamicBackground(context),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final appState = Provider.of<AppState>(context, listen: false);
-                final notificationService = NotificationService();
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title with Icon
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withAlpha(26),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.delete_forever,
+                        size: 20,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Delete Product',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 
-                try {
-                  await appState.deleteSubcategory(category.id, subcategory.id);
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                  }
-                  
-                  // Show success notification
-                  await notificationService.showProductDeletedNotification(subcategory.name);
-                  
-                  // Refresh the products list
-                  _filterProducts();
-                } catch (e) {
-                  // Show error notification
-                  await notificationService.showErrorNotification(
-                    title: 'Error',
-                    body: 'Failed to delete product: $e',
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
+                // Product Name
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicPrimary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicPrimary(context).withAlpha(77)),
+                  ),
+                  child: Text(
+                    '"${subcategory.name}"',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.dynamicPrimary(context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Category Info
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicTextSecondary(context).withAlpha(26),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.dynamicTextSecondary(context).withAlpha(77)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.folder_outlined,
+                        color: AppColors.dynamicTextSecondary(context),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'From category: "${category.name}"',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.dynamicTextSecondary(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Warning Message
+                Text(
+                  'Are you sure you want to delete this product?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'This action cannot be undone.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: AppColors.dynamicBorder(context)),
+                          ),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextSecondary(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final notificationService = NotificationService();
+                          
+                          try {
+                            await appState.deleteSubcategory(category.id, subcategory.id);
+                            if (mounted) {
+                              Navigator.of(context).pop();
+                            }
+                            
+                            // Show success notification
+                            await notificationService.showProductDeletedNotification(subcategory.name);
+                            
+                            // Refresh the products list
+                            _filterProducts();
+                          } catch (e) {
+                            // Show error notification
+                            await notificationService.showErrorNotification(
+                              title: 'Error',
+                              body: 'Failed to delete product: $e',
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         );
       },
     );
@@ -1650,10 +2059,11 @@ class _ProductCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Exchange Rate Display
+                          // Exchange Rate Display - Only show for LBP products
                           Consumer<AppState>(
                             builder: (context, appState, child) {
-                              if (appState.currencySettings != null) {
+                              if (appState.currencySettings != null && 
+                                  (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
                                 return _buildExchangeRateChip(context, appState.currencySettings!);
                               }
                               return const SizedBox.shrink();
@@ -1725,7 +2135,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         'Cost',
-                        CurrencyFormatter.formatAmount(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
+                        CurrencyFormatter.formatProductPrice(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
                         Icons.shopping_cart,
                         AppColors.dynamicWarning(context),
                       ),
@@ -1735,7 +2145,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         'Price',
-                        CurrencyFormatter.formatAmount(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
+                        CurrencyFormatter.formatProductPrice(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.attach_money,
                         AppColors.dynamicPrimary(context),
                       ),
@@ -1745,7 +2155,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         subcategory.profit >= 0 ? 'Revenue' : 'Loss',
-                        CurrencyFormatter.formatAmount(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
+                        CurrencyFormatter.formatProductPrice(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.trending_up,
                         subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
                       ),
@@ -1754,6 +2164,7 @@ class _ProductCard extends StatelessWidget {
                 );
               },
             ),
+
           ],
         ),
       ),

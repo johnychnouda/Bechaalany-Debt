@@ -518,6 +518,9 @@ class DataService {
             subcategoryId: existingDebt.subcategoryId ?? debt.subcategoryId,
             subcategoryName: existingDebt.subcategoryName ?? debt.subcategoryName,
             categoryName: existingDebt.categoryName ?? debt.categoryName,
+            // CRITICAL: Always update the amount field
+            amount: debt.amount,
+            storedCurrency: debt.storedCurrency,
           );
           
           _debtBoxSafe.put(debt.id, safeguardedDebt);
@@ -876,16 +879,90 @@ class DataService {
       // Clear all debts
       await _debtBoxSafe.clear();
       
-      // Clear ALL activities (entire activity history)
+      // Clear all activities
       await _activityBoxSafe.clear();
       
-      // Clear ALL partial payments
+      // Clear all partial payments
       await _partialPaymentBoxSafe.clear();
       
     } catch (e) {
       throw Exception('Failed to clear debts: $e');
     }
   }
+
+  /// Remove duplicate debt entries that have the same customerId, description, amount, and createdAt
+  /// This fixes the issue where customers see duplicate product purchases
+  Future<void> removeDuplicateDebts() async {
+    try {
+      final allDebts = _debtBoxSafe.values.toList();
+      final Map<String, List<Debt>> debtGroups = {};
+      
+      // Group debts by customer and description to identify potential duplicates
+      for (final debt in allDebts) {
+        final key = '${debt.customerId}_${debt.description}_${debt.amount.toStringAsFixed(2)}';
+        debtGroups.putIfAbsent(key, () => []).add(debt);
+      }
+      
+      int removedCount = 0;
+      
+      // Remove duplicates, keeping only the most recent one
+      for (final group in debtGroups.values) {
+        if (group.length > 1) {
+          // Sort by creation date (newest first)
+          group.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          
+          // Keep the first (most recent) debt, remove the rest
+          for (int i = 1; i < group.length; i++) {
+            final duplicateDebt = group[i];
+            
+            // Check if this duplicate has any partial payments or activities
+            final hasPartialPayments = _partialPaymentBoxSafe.values.any((p) => p.debtId == duplicateDebt.id);
+            final hasActivities = _activityBoxSafe.values.any((a) => a.debtId == duplicateDebt.id);
+            
+            if (!hasPartialPayments && !hasActivities) {
+              // Safe to remove - no related data
+              await _debtBoxSafe.delete(duplicateDebt.id);
+              removedCount++;
+            } else {
+              // Merge partial payments and activities to the main debt
+              final mainDebt = group[0];
+              
+              if (hasPartialPayments) {
+                final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == duplicateDebt.id).toList();
+                for (final payment in partialPayments) {
+                  // Update payment to reference main debt
+                  final updatedPayment = payment.copyWith(debtId: mainDebt.id);
+                  await _partialPaymentBoxSafe.put(payment.id, updatedPayment);
+                }
+              }
+              
+              if (hasActivities) {
+                final activities = _activityBoxSafe.values.where((a) => a.debtId == duplicateDebt.id).toList();
+                for (final activity in activities) {
+                  // Update activity to reference main debt
+                  final updatedActivity = activity.copyWith(debtId: mainDebt.id);
+                  await _activityBoxSafe.put(activity.id, updatedActivity);
+                }
+              }
+              
+              // Now safe to remove the duplicate
+              await _debtBoxSafe.delete(duplicateDebt.id);
+              removedCount++;
+            }
+          }
+        }
+      }
+      
+      if (removedCount > 0) {
+        print('🧹 Removed $removedCount duplicate debt entries');
+      }
+    } catch (e) {
+      print('❌ Error removing duplicate debts: $e');
+      rethrow;
+    }
+  }
+
+
 
   // Delete debts for a specific customer
   Future<void> deleteCustomerDebts(String customerId) async {
@@ -951,5 +1028,22 @@ class DataService {
       'activities': _activityBoxSafe.length,
       'partial_payments': _partialPaymentBoxSafe.length,
     };
+  }
+
+  // Get all categories
+  List<ProductCategory> getCategories() {
+    return _categoryBoxSafe.values.toList();
+  }
+
+  // Get all debts
+  List<Debt> getDebts() {
+    return _debtBoxSafe.values.toList();
+  }
+
+  // Get currency settings
+  CurrencySettings? getCurrencySettings() {
+    return _currencySettingsBoxSafe.values.isNotEmpty 
+        ? _currencySettingsBoxSafe.values.first 
+        : null;
   }
 } 

@@ -480,7 +480,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Mark as Paid'),
-          content: Text('Are you sure you want to mark this debt as paid?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
+          content: Text('Are you sure you want to mark this debt as paid?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)}'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -521,7 +521,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           content: Text(
             'Are you sure you want to clear this paid debt?\n\n'
             'Debt: ${DebtDescriptionUtils.cleanDescription(debt.description)}\n'
-            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount)}\n\n'
+            'Amount: ${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)}\n\n'
             'This action cannot be undone.',
           ),
           actions: [
@@ -550,7 +550,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
+          content: Text('Are you sure you want to delete this debt?\n\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)}'),
           actions: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -577,7 +577,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       }
                     }
                   },
-                  child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                  child: Text('Delete', style: TextStyle(color: Colors.red)),
                 ),
               ],
             ),
@@ -1008,7 +1008,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     Row(
                                       children: [
                                         Text(
-                                          CurrencyFormatter.formatAmount(context, debt.amount),
+                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -1439,12 +1439,22 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   }
   
   // Show delete all debts dialog
-  void _showDeleteAllDebtsDialog(BuildContext context, List<Debt> allDebts) {
+  void _showDeleteAllDebtsDialog(BuildContext context, List<Debt> allDebts) async {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Delete All Debts'),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text('Delete All Debts'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1453,46 +1463,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               const SizedBox(height: 16),
               Text('Total Debts: ${allDebts.length}'),
               const SizedBox(height: 8),
-              const Text(
-                'This action cannot be undone. All debt history will be permanently deleted.',
+              Text(
+                '• Total amount: ${_calculateTotalAmountText(context, allDebts)}',
                 style: TextStyle(
-                  color: Colors.red,
-                  fontSize: 12,
+                  fontSize: 14,
+                  color: Colors.red[700],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '⚠️ This action will permanently delete all debts for this customer and cannot be undone.',
+                style: TextStyle(
+                  color: Colors.red[700],
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(dialogContext).pop();
-                await _deleteAllDebts(allDebts);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete All'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-  
-  // Show dialog to confirm deletion of a single debt
-  void _showDeleteDebtDialog(BuildContext context, Debt debt) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete Debt'),
-          content: Text(
-            'Are you sure you want to delete the debt "${debt.description}" for \$${debt.amount}?',
           ),
           actions: [
             Row(
@@ -1500,7 +1487,201 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: AppColors.dynamicPrimary(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    Navigator.of(dialogContext).pop();
+                    await _deleteAllDebts(allDebts);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Delete All',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Helper method to calculate total amount text for multiple debts
+  /// Handles debts with different currencies by converting to USD for display
+  String _calculateTotalAmountText(BuildContext context, List<Debt> allDebts) {
+    if (allDebts.isEmpty) return '0.00\$';
+    
+    // Group debts by currency
+    final Map<String, List<Debt>> debtsByCurrency = {};
+    for (final debt in allDebts) {
+      final currency = debt.storedCurrency ?? 'USD';
+      debtsByCurrency.putIfAbsent(currency, () => []).add(debt);
+    }
+    
+    // Calculate total in USD
+    double totalUSD = 0.0;
+    for (final entry in debtsByCurrency.entries) {
+      final currency = entry.key;
+      final debts = entry.value;
+      
+      if (currency == 'USD') {
+        totalUSD += debts.fold(0.0, (sum, debt) => sum + debt.amount);
+      } else if (currency == 'LBP') {
+        // Convert LBP to USD using current exchange rate
+        final appState = Provider.of<AppState>(context, listen: false);
+        final settings = appState.currencySettings;
+        if (settings?.exchangeRate != null) {
+          final lbpTotal = debts.fold(0.0, (sum, debt) => sum + debt.amount);
+          totalUSD += lbpTotal / settings!.exchangeRate!;
+        } else {
+          // If no exchange rate, just add the LBP amount as-is
+          totalUSD += debts.fold(0.0, (sum, debt) => sum + debt.amount);
+        }
+      }
+    }
+    
+    return '${totalUSD.toStringAsFixed(2)}\$';
+  }
+  
+  // Show dialog to confirm deletion of a single debt
+  void _showDeleteDebtDialog(BuildContext context, Debt debt) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // Format the amount properly using stored currency
+        final formattedAmount = CurrencyFormatter.formatAmount(
+          context, 
+          debt.amount, 
+          storedCurrency: debt.storedCurrency
+        );
+        
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.orange,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text('Delete Debt'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to delete this debt?',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.dynamicTextPrimary(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicSurface(context),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.dynamicBorder(context)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Debt Details:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.dynamicTextSecondary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.description,
+                          size: 16,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            debt.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.attach_money,
+                          size: 16,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Amount: $formattedAmount',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '⚠️ This action cannot be undone.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.orange[700],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: AppColors.dynamicPrimary(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -1510,8 +1691,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  child: const Text('Delete'),
+                  child: const Text(
+                    'Delete',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
