@@ -116,7 +116,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         return Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
                   Text(
@@ -129,98 +129,111 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     maxLines: 2,
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 12),
-                                     // Revenue Summary Card - Modern iOS Style
-                   Container(
-                     padding: const EdgeInsets.all(20),
-                     decoration: BoxDecoration(
-                       gradient: LinearGradient(
-                         begin: Alignment.topLeft,
-                         end: Alignment.bottomRight,
-                         colors: [
-                           AppColors.dynamicSurface(context),
-                           AppColors.dynamicSurface(context).withOpacity(0.8),
-                         ],
-                       ),
-                       borderRadius: BorderRadius.circular(16),
-                       border: Border.all(
-                         color: AppColors.dynamicBorder(context).withOpacity(0.3),
-                         width: 1,
-                       ),
-                       boxShadow: [
-                         BoxShadow(
-                           color: Colors.black.withOpacity(0.1),
-                           blurRadius: 8,
-                           offset: const Offset(0, 2),
-                         ),
-                       ],
-                     ),
-                     child: Row(
-                       children: [
-                         // Revenue Icon
-                         Container(
-                           padding: const EdgeInsets.all(12),
-                           decoration: BoxDecoration(
-                             color: AppColors.dynamicSuccess(context).withOpacity(0.15),
-                             borderRadius: BorderRadius.circular(12),
-                           ),
-                           child: Icon(
-                             Icons.trending_up_rounded,
-                             color: AppColors.dynamicSuccess(context),
-                             size: 24,
-                           ),
-                         ),
-                         const SizedBox(width: 16),
-                         // Revenue Text
+                                    const SizedBox(height: 8),
+                                    // Revenue Summary Cards - Compact Design
+                  Row(
+                    children: [
+                         // Total Revenue Card
                          Expanded(
-                           child: Column(
-                             crossAxisAlignment: CrossAxisAlignment.start,
-                             children: [
-                               Text(
-                                 'Total Revenue',
-                                 style: TextStyle(
-                                   fontSize: 13,
-                                   fontWeight: FontWeight.w500,
-                                   color: AppColors.dynamicTextSecondary(context),
-                                   letterSpacing: 0.5,
-                                 ),
+                           child: Container(
+                             padding: const EdgeInsets.all(10),
+                             decoration: BoxDecoration(
+                               color: AppColors.dynamicSuccess(context).withOpacity(0.1),
+                               borderRadius: BorderRadius.circular(6),
+                               border: Border.all(
+                                 color: AppColors.dynamicSuccess(context).withOpacity(0.3),
+                                 width: 1,
                                ),
-                               const SizedBox(height: 4),
-                               Text(
-                                 CurrencyFormatter.formatAmount(context, _calculateTotalRevenueForPeriod(appState, view)),
-                                 style: TextStyle(
-                                   fontSize: 28,
-                                   fontWeight: FontWeight.w700,
-                                   color: AppColors.dynamicTextPrimary(context),
-                                   letterSpacing: -0.5,
+                             ),
+                             child: Column(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Row(
+                                   children: [
+                                     Container(
+                                       padding: const EdgeInsets.all(6),
+                                       decoration: BoxDecoration(
+                                         color: AppColors.dynamicSuccess(context).withOpacity(0.15),
+                                         borderRadius: BorderRadius.circular(6),
+                                       ),
+                                       child: Icon(
+                                         Icons.trending_up_rounded,
+                                         color: AppColors.dynamicSuccess(context),
+                                         size: 16,
+                                       ),
+                                     ),
+                                     const SizedBox(width: 8),
+                                     Expanded(
+                                       child: Text(
+                                         'Total Revenue: ${CurrencyFormatter.formatAmount(context, _calculateTotalRevenueForPeriod(appState, view))}',
+                                         style: TextStyle(
+                                           fontSize: 12,
+                                           fontWeight: FontWeight.w600,
+                                           color: AppColors.dynamicTextSecondary(context),
+                                         ),
+                                         overflow: TextOverflow.ellipsis,
+                                       ),
+                                     ),
+                                   ],
                                  ),
-                               ),
-                             ],
+                               ],
+                             ),
                            ),
                          ),
-                         // Period Indicator
-                         Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                           decoration: BoxDecoration(
-                             color: AppColors.dynamicPrimary(context).withOpacity(0.15),
-                             borderRadius: BorderRadius.circular(20),
-                           ),
-                           child: Text(
-                             _getPeriodLabel(view),
-                             style: TextStyle(
-                               fontSize: 11,
-                               fontWeight: FontWeight.w600,
-                               color: AppColors.dynamicPrimary(context),
-                               letterSpacing: 0.5,
+                         const SizedBox(width: 12),
+                         // Total Paid Card
+                         Expanded(
+                           child: Container(
+                             padding: const EdgeInsets.all(10),
+                             decoration: BoxDecoration(
+                               color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+                               borderRadius: BorderRadius.circular(6),
+                               border: Border.all(
+                                 color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+                                 width: 1,
+                               ),
+                             ),
+                             child: Column(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Row(
+                                   children: [
+                                     Container(
+                                       padding: const EdgeInsets.all(6),
+                                       decoration: BoxDecoration(
+                                         color: AppColors.dynamicPrimary(context).withOpacity(0.15),
+                                         borderRadius: BorderRadius.circular(6),
+                                       ),
+                                       child: Icon(
+                                         Icons.payment_rounded,
+                                         color: AppColors.dynamicPrimary(context),
+                                         size: 16,
+                                       ),
+                                     ),
+                                     const SizedBox(width: 8),
+                                     Expanded(
+                                       child: Text(
+                                         'Total Paid: ${CurrencyFormatter.formatAmount(context, _calculateTotalPaidForPeriod(appState, view))}',
+                                         style: TextStyle(
+                                           fontSize: 12,
+                                           fontWeight: FontWeight.w600,
+                                           color: AppColors.dynamicTextSecondary(context),
+                                         ),
+                                         overflow: TextOverflow.ellipsis,
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                               ],
                              ),
                            ),
                          ),
                        ],
                      ),
-                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 4),
             // Search Bar
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -253,6 +266,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                 ),
               ),
             ),
+            const SizedBox(height: 12),
             Expanded(
               child: filteredActivities.isEmpty
                   ? _buildEmptyState(emptyMessage)
@@ -724,6 +738,62 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     // Revenue calculation is already in USD (same as debt amounts)
     // No currency conversion needed - return the calculated revenue directly
     return totalRevenue;
+  }
+
+  /// Calculate total payments made by customers for a specific time period view
+  double _calculateTotalPaidForPeriod(AppState appState, ActivityView view) {
+    // Get the date range for the selected view
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    DateTime startDate;
+    DateTime endDate;
+    
+    switch (view) {
+      case ActivityView.daily:
+        // Today only (not last 24 hours)
+        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0); // Start of today
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59); // End of today
+        break;
+      case ActivityView.weekly:
+        // This week (Monday to Sunday) - inclusive
+        // weekday returns 1=Monday, 2=Tuesday, ..., 7=Sunday
+        // If today is Sunday (weekday=7), we want to go back 6 days to Monday
+        // If today is Monday (weekday=1), we want to go back 0 days
+        final daysFromMonday = today.weekday - 1;
+        startDate = DateTime(today.year, today.month, today.day - daysFromMonday);
+        endDate = DateTime(today.year, today.month, today.day, 23, 59, 59); // End of today
+        break;
+      case ActivityView.monthly:
+        // This month - inclusive
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        break;
+      case ActivityView.yearly:
+        // This year - inclusive
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+        break;
+    }
+    
+    // Calculate total payments made within the selected period
+    double totalPaid = 0.0;
+    
+    // Sum all payment activities within the date range
+    for (final activity in appState.activities) {
+      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
+        // Check if payment activity was within the date range (inclusive)
+        if ((activity.date.isAtSameMomentAs(startDate) || 
+             activity.date.isAtSameMomentAs(endDate) ||
+             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)))) {
+          totalPaid += activity.paymentAmount!;
+        }
+      }
+    }
+    
+    // Payment amounts are already in USD (same as debt amounts)
+    // No currency conversion needed - return the calculated total directly
+    return totalPaid;
   }
 
   /// Get a user-friendly label for the current time period
