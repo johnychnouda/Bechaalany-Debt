@@ -628,11 +628,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
+        // Remove duplicate products by name, keeping only the most recent one
+        final Map<String, Debt> uniqueProducts = {};
+        for (final debt in customerAllDebts) {
+          final productName = debt.description.toLowerCase();
+          if (!uniqueProducts.containsKey(productName) || 
+              debt.createdAt.isAfter(uniqueProducts[productName]!.createdAt)) {
+            uniqueProducts[productName] = debt;
+          }
+        }
+        final customerUniqueDebts = uniqueProducts.values.toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        
         // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show ALL products (including fully paid ones) so users can see payment history
+        // 1. If customer has pending debts: show ALL unique products (including fully paid ones) so users can see payment history
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
         final customerActiveDebts = totalPendingDebt > 0 
-            ? customerAllDebts  // Show all products when there are pending amounts (for partial payment tracking)
+            ? customerUniqueDebts  // Show all unique products when there are pending amounts (for partial payment tracking)
             : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
@@ -992,69 +1004,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                                   color: AppColors.dynamicTextPrimary(context),
                                                 ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              // Show payment status indicator
-                                              if (debt.isFullyPaid) ...[
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.dynamicSuccess(context).withAlpha(20),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(
-                                                      color: AppColors.dynamicSuccess(context).withAlpha(40),
-                                                      width: 1,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    'PAID',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: AppColors.dynamicSuccess(context),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ] else if (debt.paidAmount > 0) ...[
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.dynamicWarning(context).withAlpha(20),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(
-                                                      color: AppColors.dynamicWarning(context).withAlpha(40),
-                                                      width: 1,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    'PARTIAL',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: AppColors.dynamicWarning(context),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ] else ...[
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.dynamicError(context).withAlpha(20),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(
-                                                      color: AppColors.dynamicError(context).withAlpha(40),
-                                                      width: 1,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    'PENDING',
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: AppColors.dynamicError(context),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
                                             ],
                                           ),
                                           Text(
@@ -1069,72 +1018,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     ),
                                     Row(
                                       children: [
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            // Show original amount
-                                            Text(
-                                              CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.dynamicTextPrimary(context),
-                                              ),
-                                            ),
-                                            // Show remaining amount if not fully paid
-                                            if (!debt.isFullyPaid) ...[
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency)}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: AppColors.dynamicError(context),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                                        Text(
+                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicTextPrimary(context),
+                                          ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        // Individual delete button for each debt - Only show when this specific product has NO partial payments
-                                        if (debt.paidAmount == 0) ...[
-                                          GestureDetector(
-                                            onTap: () => _showDeleteDebtDialog(context, debt),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.dynamicError(context).withAlpha(20),
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Icon(
-                                                Icons.close,
-                                                size: 16,
-                                                color: AppColors.dynamicError(context),
-                                              ),
-                                            ),
-                                          ),
-                                        ] else ...[
-                                          // Show info icon when delete is not available (this product has partial payments)
-                                          Tooltip(
-                                            message: 'Cannot delete: This product has partial payments',
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.dynamicTextSecondary(context).withAlpha(20),
-                                                borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(
-                                                  color: AppColors.dynamicTextSecondary(context).withAlpha(40),
-                                                  width: 1,
-                                                ),
-                                              ),
-                                              child: Icon(
-                                                Icons.info_outline,
-                                                size: 16,
-                                                color: AppColors.dynamicTextSecondary(context),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
                                       ],
                                     ),
                                   ],
