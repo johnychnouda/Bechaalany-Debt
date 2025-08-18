@@ -40,7 +40,7 @@ class NotificationService {
     await _requestPermissions();
     
     _isInitialized = true;
-    print('Notification service initialized successfully');
+
   }
 
   Future<void> _requestPermissions() async {
@@ -58,17 +58,17 @@ class NotificationService {
       try {
         // iOS notification permissions are handled automatically by the initialization
         // The DarwinInitializationSettings already requests permissions
-        print('iOS notification permissions requested during initialization');
+  
       } catch (e) {
         // Handle iOS notification permission request error
-        print('iOS notification permission request failed: $e');
+        
       }
     }
   }
 
   void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap
-    print('Notification tapped: ${response.payload}');
+
   }
 
   // ===== NOTIFICATION SETTINGS =====
@@ -229,7 +229,7 @@ class NotificationService {
       payload: payload,
     );
 
-    print('Notification sent: $title - $body');
+    
   }
 
   // Customer-related notifications
@@ -383,13 +383,13 @@ class NotificationService {
   // Cancel all notifications
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
-    print('All notifications cancelled');
+
   }
 
   // Cancel specific notification
   Future<void> cancelNotification(int id) async {
     await _notifications.cancel(id);
-    print('Notification cancelled: $id');
+    
   }
 
   // Get pending notifications

@@ -602,10 +602,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         final allCustomerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
         
         // Check if customer has ANY partial payments (this will hide all red X icons)
-        // Only consider debts that are still active (have remaining amounts) and have partial payments
-        final customerHasPartialPayments = allCustomerDebts
-            .where((d) => d.remainingAmount > 0) // Only active debts
-            .any((d) => d.paidAmount > 0); // That have partial payments
+        // ANY partial payment (even $0.01) should disable delete functionality for ALL products
+        final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
         
         // Calculate total pending debt (current remaining amount)
         final totalPendingDebt = allCustomerDebts.where((d) => d.remainingAmount > 0).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
@@ -630,9 +628,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show only debts that have remaining amounts to be paid
-        // This ensures paid debts don't appear in Active Debts section
-        final customerActiveDebts = customerAllDebts.where((d) => d.remainingAmount > 0).toList();
+        // Show products based on customer's payment status:
+        // 1. If customer has pending debts: show ALL products (including fully paid ones)
+        // 2. If customer has NO pending debts: clear all products (customer has no more debts)
+        final customerActiveDebts = totalPendingDebt > 0 
+            ? customerAllDebts  // Show all products when there are pending amounts
+            : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -865,7 +866,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               ),
                             ),
                             // Receipt sharing button - Only show when customer has pending debts
-                            if (!appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                            if (totalPendingDebt > 0) ...[
                               IconButton(
                                 onPressed: () => _showReceiptSharingOptions(context, appState),
                                 icon: Icon(
@@ -885,15 +886,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ),
                       ),
                       
-                      // Debts List - Only show when there are pending debts
-                      if (widget.showDebtsSection && !appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                      // Product List - Show when there are products to display
+                      if (widget.showDebtsSection && customerActiveDebts.isNotEmpty) ...[
                         // Section Title
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                           child: Row(
                             children: [
                               Text(
-                                'Active Debts',
+                                'Product Purchases',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
@@ -908,11 +909,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                                               child: Text(
-                                '${customerActiveDebts.length} pending',
+                                '${customerActiveDebts.length} products',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.dynamicError(context),
+                                  color: AppColors.dynamicPrimary(context),
                                 ),
                               ),
                               ),
@@ -925,27 +926,27 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerActiveDebts.length - 1;
-                                      // Individual debt status - ALL debts stay pending until customer settles TOTAL debt
-            // This ensures consistent UI behavior and proper business logic
-            final isPaid = appState.isCustomerFullyPaid(widget.customer.id); // Customer-level status
+                                      // All products remain "active" in the purchase history - payment status doesn't affect visibility
+                                      // This makes "Active Debts" act as a complete product purchase list
+                                      final isPaid = false; // Always show as active for consistent UI
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Dismissible(
                               key: Key(debt.id),
-                              direction: appState.isCustomerFullyPaid(widget.customer.id) ? DismissDirection.endToStart : DismissDirection.none,
+                              direction: totalPendingDebt <= 0 ? DismissDirection.endToStart : DismissDirection.none,
                               confirmDismiss: (direction) async {
-                                if (appState.isCustomerFullyPaid(widget.customer.id)) {
+                                if (totalPendingDebt <= 0) {
                                   return await _confirmClearPaidDebt(context, debt);
                                 }
                                 return false;
                               },
                               onDismissed: (direction) {
-                                if (appState.isCustomerFullyPaid(widget.customer.id)) {
+                                if (totalPendingDebt <= 0) {
                                   _deleteDebt(debt);
                                 }
                               },
-                              background: appState.isCustomerFullyPaid(widget.customer.id) ? Container(
+                              background: totalPendingDebt <= 0 ? Container(
                                 alignment: Alignment.centerRight,
                                 padding: const EdgeInsets.only(right: 20),
                                 decoration: BoxDecoration(
@@ -962,24 +963,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: isPaid 
-                                      ? AppColors.dynamicSuccess(context).withAlpha(10)
-                                      : AppColors.dynamicPrimary(context).withAlpha(15),
+                                  color: AppColors.dynamicPrimary(context).withAlpha(15),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: isPaid 
-                                        ? AppColors.dynamicSuccess(context).withAlpha(30)
-                                        : AppColors.dynamicPrimary(context).withAlpha(40),
+                                    color: AppColors.dynamicPrimary(context).withAlpha(40),
                                     width: 1,
                                   ),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
-                                      isPaid ? Icons.check_circle : Icons.shopping_bag,
-                                      color: isPaid 
-                                          ? AppColors.dynamicSuccess(context)
-                                          : AppColors.dynamicPrimary(context),
+                                      Icons.shopping_bag,
+                                      color: AppColors.dynamicPrimary(context),
                                       size: 20,
                                     ),
                                     const SizedBox(width: 12),
@@ -997,24 +992,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                                   color: AppColors.dynamicTextPrimary(context),
                                                 ),
                                               ),
-                                              if (isPaid) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.dynamicSuccess(context),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: const Text(
-                                                    'Paid',
-                                                    style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
+                                              // All products remain active - no payment status tags needed
                                             ],
                                           ),
                                           Text(
@@ -1034,9 +1012,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
-                                            color: isPaid 
-                                                ? AppColors.dynamicSuccess(context)
-                                                : AppColors.dynamicTextPrimary(context),
+                                            color: AppColors.dynamicTextPrimary(context),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -1059,16 +1035,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ] else ...[
                                           // Show info icon when delete is not available (customer has partial payments)
-                                          Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.dynamicTextSecondary(context).withAlpha(20),
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
-                                            child: Icon(
-                                              Icons.info_outline,
-                                              size: 16,
-                                              color: AppColors.dynamicTextSecondary(context),
+                                          Tooltip(
+                                            message: 'Cannot delete: Customer has partial payments',
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.dynamicTextSecondary(context).withAlpha(20),
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(
+                                                  color: AppColors.dynamicTextSecondary(context).withAlpha(40),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Icon(
+                                                Icons.info_outline,
+                                                size: 16,
+                                                color: AppColors.dynamicTextSecondary(context),
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -1081,8 +1064,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           );
                         }),
                         
-                        // Show message when customer has no pending debts
-                        if (widget.showDebtsSection && appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                        // Show message when customer has no products (either no products or all debts settled)
+                        if (widget.showDebtsSection && customerActiveDebts.isEmpty) ...[
                           Padding(
                             padding: const EdgeInsets.all(16),
                             child: Container(
@@ -1107,7 +1090,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          'All Debts Settled!',
+                                          totalPendingDebt <= 0 ? 'All Debts Settled!' : 'No Products Yet',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -1116,7 +1099,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'This customer has no outstanding debts.',
+                                          totalPendingDebt <= 0 
+                                              ? 'This customer has no outstanding debts.'
+                                              : 'This customer has not purchased any products yet.',
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: AppColors.dynamicTextSecondary(context),
@@ -1124,7 +1109,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
-                                          'Receipt sharing is only available for customers with pending debts.',
+                                          totalPendingDebt <= 0
+                                              ? 'Products will reappear when new debts are created.'
+                                              : 'Add products using the + button below.',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: AppColors.dynamicTextSecondary(context),
@@ -1141,7 +1128,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ],
                         
                         // Simple Action Buttons - Only show when there are pending debts
-                        if (!appState.isCustomerFullyPaid(widget.customer.id)) ...[
+                        if (totalPendingDebt > 0) ...[
                           const SizedBox(height: 16),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),

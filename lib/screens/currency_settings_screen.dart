@@ -87,9 +87,9 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
 
       await _dataService.saveCurrencySettings(settings);
       
-      // Refresh AppState to apply new currency settings throughout the app
+      // Update AppState to apply new currency settings throughout the app
       final appState = Provider.of<AppState>(context, listen: false);
-      await appState.refresh();
+      await appState.updateCurrencySettings(settings);
       
       if (mounted) {
         final notificationService = NotificationService();

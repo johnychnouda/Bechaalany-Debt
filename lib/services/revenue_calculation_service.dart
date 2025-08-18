@@ -11,9 +11,8 @@ class RevenueCalculationService {
   factory RevenueCalculationService() => _instance;
   RevenueCalculationService._internal();
 
-  /// Calculate total revenue from all customer payments
-  /// This is the main method used in the dashboard
-  /// Now considers customer-level debt status for accurate revenue recognition
+  /// Calculate total revenue from all debts
+  /// This is the main revenue calculation method
   double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     
@@ -120,8 +119,33 @@ class RevenueCalculationService {
     
     if (totalDebtAmount <= 0) return 0.0;
     
-    // Calculate proportional revenue
-    double revenueRatio = totalAvailableRevenue / totalDebtAmount;
+    // Calculate proportional revenue based on payment amount
+    final revenueRatio = totalAvailableRevenue / totalDebtAmount;
+    return paymentAmount * revenueRatio;
+  }
+
+  /// Calculate revenue from a specific payment amount for a customer
+  /// This is the core method for proportional revenue calculation
+  double calculateRevenueFromPaymentForCustomer(double paymentAmount, String customerId, List<Debt> allDebts, AppState appState) {
+    final customerDebts = allDebts.where((debt) => debt.customerId == customerId).toList();
+    
+    if (customerDebts.isEmpty || paymentAmount <= 0) return 0.0;
+    
+    // Calculate total available revenue and total debt amount
+    double totalAvailableRevenue = 0.0;
+    double totalDebtAmount = 0.0;
+    
+    for (final debt in customerDebts) {
+      if (!debt.isFullyPaid) {
+        totalAvailableRevenue += debt.remainingRevenue;
+        totalDebtAmount += debt.remainingAmount;
+      }
+    }
+    
+    if (totalDebtAmount <= 0) return 0.0;
+    
+    // Calculate proportional revenue based on payment amount
+    final revenueRatio = totalAvailableRevenue / totalDebtAmount;
     return paymentAmount * revenueRatio;
   }
 
@@ -234,10 +258,64 @@ class RevenueCalculationService {
         }
       }
       
-      totalPotentialRevenue += debt.remainingRevenue;
+      // Calculate potential revenue from unpaid amounts
+      // Use remaining amount as the primary indicator of unpaid debt
+      if (debt.remainingAmount > 0) {
+        // For pending debts, potential revenue is the full original revenue
+        // For partially paid debts, potential revenue is the remaining revenue
+        if (debt.paidAmount == 0) {
+          // If cost prices are available, use original revenue; otherwise use debt amount
+          if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+            // SAFETY CHECK: Prevent extremely high revenue calculations
+            final revenue = debt.originalRevenue;
+            if (revenue > debt.amount * 10) { // Revenue shouldn't be more than 10x the debt amount
+              print('WARNING: Suspicious revenue calculation for ${debt.description}');
+              print('  Debt Amount: ${debt.amount}, Calculated Revenue: $revenue');
+              print('  Cost Price: ${debt.originalCostPrice}, Selling Price: ${debt.originalSellingPrice}');
+              // Use a reasonable fallback
+              totalPotentialRevenue += debt.amount * 0.3; // Assume 30% profit margin
+            } else {
+              totalPotentialRevenue += revenue;
+            }
+          } else {
+            // Fallback: use the debt amount as potential revenue when cost prices aren't set
+            totalPotentialRevenue += debt.amount;
+          }
+        } else {
+          if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+            // SAFETY CHECK: Prevent extremely high revenue calculations
+            final revenue = debt.remainingRevenue;
+            if (revenue > debt.remainingAmount * 10) { // Revenue shouldn't be more than 10x the remaining amount
+              print('WARNING: Suspicious remaining revenue calculation for ${debt.description}');
+              print('  Remaining Amount: ${debt.remainingAmount}, Calculated Revenue: $revenue');
+              // Use a reasonable fallback
+              totalPotentialRevenue += debt.remainingAmount * 0.3; // Assume 30% profit margin
+            } else {
+              totalPotentialRevenue += revenue;
+            }
+          } else {
+            // Fallback: use remaining debt amount as potential revenue
+            totalPotentialRevenue += debt.remainingAmount;
+          }
+        }
+      }
+      
       totalPaidAmount += debt.paidAmount;
-      totalDebtAmount += debt.amount;
+      totalDebtAmount += debt.remainingAmount; // Use remaining amount for total debts
     }
+    
+
+
+    
+    // FINAL SAFETY CHECK: Cap potential revenue at reasonable levels
+    if (totalPotentialRevenue > totalDebtAmount * 5) { // Revenue shouldn't be more than 5x total debt
+      print('WARNING: Total potential revenue ($totalPotentialRevenue) is suspiciously high');
+      print('  Total debt amount: $totalDebtAmount');
+      print('  Capping potential revenue to reasonable level');
+      totalPotentialRevenue = totalDebtAmount * 0.5; // Cap at 50% of total debt amount
+    }
+    
+
     
     // CRITICAL: Also include revenue from cleared/deleted debts via activities
     if (activities != null) {

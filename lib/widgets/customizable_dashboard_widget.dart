@@ -48,7 +48,11 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
         title: 'Activity Widget',
         icon: Icons.trending_up,
         color: AppColors.success,
-        widget: const ActivityWidget(),
+        widget: Consumer<AppState>(
+          builder: (context, appState, child) => ActivityWidget(
+            activities: appState.activities,
+          ),
+        ),
         isEnabled: true,
       ),
       DashboardWidget(

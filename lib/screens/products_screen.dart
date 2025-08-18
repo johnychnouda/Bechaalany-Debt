@@ -81,8 +81,21 @@ class _ProductsScreenState extends State<ProductsScreen> {
       return;
     }
     
-    for (final category in appState.categories) {
-      allSubcategories.addAll(category.subcategories);
+    // Get subcategories based on selected category
+    if (_selectedCategory == 'All') {
+      // Get all subcategories from all categories
+      for (final category in appState.categories) {
+        allSubcategories.addAll(category.subcategories);
+      }
+    } else {
+      // Get subcategories only from the selected category
+      final selectedCategory = appState.categories.firstWhere(
+        (cat) => cat.name == _selectedCategory,
+        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+      );
+      if (selectedCategory.id.isNotEmpty) {
+        allSubcategories.addAll(selectedCategory.subcategories);
+      }
     }
     
     // Filter by search query
@@ -93,24 +106,151 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }).toList();
     }
 
-    // Filter by category
-    if (_selectedCategory != 'All') {
-      allSubcategories = allSubcategories.where((subcategory) {
-        for (final cat in appState.categories) {
-          if (cat.subcategories.contains(subcategory)) {
-            return cat.name == _selectedCategory;
-          }
-        }
-        return false;
-      }).toList();
-    }
-
     // Sort subcategories
     _sortProducts(allSubcategories);
 
     setState(() {
       _filteredProducts = allSubcategories;
     });
+  }
+
+  Widget _buildGroupedProductsList(AppState appState) {
+    if (_selectedCategory == 'All') {
+      // Show all categories with their subcategories grouped
+      List<ProductCategory> categoriesToShow = [];
+      
+      // Filter categories based on search query and ensure they have subcategories
+      for (final category in appState.categories) {
+        List<Subcategory> filteredSubcategories = category.subcategories;
+        
+        // Apply search filter if there's a search query
+        if (_searchQuery.isNotEmpty) {
+          filteredSubcategories = category.subcategories.where((subcategory) {
+            return subcategory.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                   (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+          }).toList();
+        }
+        
+        // Only show categories that have subcategories after filtering
+        if (filteredSubcategories.isNotEmpty) {
+          categoriesToShow.add(category);
+        }
+      }
+      
+      if (categoriesToShow.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off,
+                size: 64,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No products found',
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Try adjusting your search terms',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: categoriesToShow.length,
+        itemBuilder: (context, index) {
+          final category = categoriesToShow[index];
+          
+          // Get filtered subcategories for this category
+          List<Subcategory> filteredSubcategories = category.subcategories;
+          if (_searchQuery.isNotEmpty) {
+            filteredSubcategories = category.subcategories.where((subcategory) {
+              return subcategory.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                     (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+            }).toList();
+          }
+          
+          return _CategorySection(
+            category: category,
+            subcategories: filteredSubcategories,
+            onEditProduct: _editProduct,
+            onDeleteProduct: _deleteProduct,
+          );
+        },
+      );
+    } else {
+      // Show only the selected category's subcategories
+      final selectedCategory = appState.categories.firstWhere(
+        (cat) => cat.name == _selectedCategory,
+        orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+      );
+      
+      if (selectedCategory.id.isEmpty) {
+        return const Center(
+          child: Text('Category not found'),
+        );
+      }
+      
+      if (_filteredProducts.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.inventory_2_outlined,
+                size: 64,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No products found',
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _searchQuery.isNotEmpty 
+                    ? 'Try adjusting your search terms'
+                    : 'Add products to this category to get started',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _filteredProducts.length,
+        itemBuilder: (context, index) {
+          final subcategory = _filteredProducts[index];
+          return _ProductCard(
+            subcategory: subcategory,
+            onEdit: () => _editProduct(subcategory),
+            onDelete: () => _deleteProduct(subcategory),
+            categoryName: null, // Don't show category name since we're already in that category
+          );
+        },
+      );
+    }
   }
 
   void _sortProducts(List<Subcategory> subcategories) {
@@ -312,31 +452,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _filteredProducts.length,
-                          itemBuilder: (context, index) {
-                            final subcategory = _filteredProducts[index];
-                            
-                            // Find the category name when in "All" view
-                            String? categoryName;
-                            if (_selectedCategory == 'All') {
-                              for (final category in appState.categories) {
-                                if (category.subcategories.contains(subcategory)) {
-                                  categoryName = category.name;
-                                  break;
-                                }
-                              }
-                            }
-                            
-                            return _ProductCard(
-                              subcategory: subcategory,
-                              onEdit: () => _editProduct(subcategory),
-                              onDelete: () => _deleteProduct(subcategory),
-                              categoryName: categoryName,
-                            );
-                          },
-                        ),
+                      : _buildGroupedProductsList(appState),
                 ),
               ],
             );
@@ -359,16 +475,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   String _getEmptyStateMessage() {
     if (_selectedCategory == 'All') {
-      return 'No categories or subcategories found';
+      return 'No categories found';
     }
-    return 'No subcategories in $_selectedCategory';
+    return 'No products in $_selectedCategory';
   }
 
   String _getEmptyStateSubMessage() {
     if (_selectedCategory == 'All') {
-      return 'Add categories and subcategories to get started';
+      return 'Add categories to get started';
     }
-    return 'Add subcategories to $_selectedCategory to get started';
+    return 'Add products to $_selectedCategory to get started';
   }
 
   void _editProduct(Subcategory subcategory) {
@@ -613,8 +729,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
     final nameController = TextEditingController(text: subcategory.name);
     String selectedCurrency = subcategory.costPriceCurrency;
-    final double originalCostPriceUSD = subcategory.costPrice;
-    final double originalSellingPriceUSD = subcategory.sellingPrice;
+    
+    // Get the stored amounts in their original currency
+    final double storedCostPrice = subcategory.costPrice;
+    final double storedSellingPrice = subcategory.sellingPrice;
+    final String storedCurrency = subcategory.costPriceCurrency;
     
     // Initialize controllers based on currency
     final costPriceController = TextEditingController();
@@ -655,15 +774,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     // Set initial values based on currency
     if (selectedCurrency == 'LBP') {
-      // Convert USD to LBP for display when currency is LBP
-      final costPriceLBP = originalCostPriceUSD * currentExchangeRate;
-      final sellingPriceLBP = originalSellingPriceUSD * currentExchangeRate;
-      costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
-      sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+      // If we want to display in LBP, show the stored LBP amounts
+      if (storedCurrency == 'LBP') {
+        // Already stored in LBP, show as is
+        costPriceController.text = NumberFormat('#,###').format(storedCostPrice.toInt());
+        sellingPriceController.text = NumberFormat('#,###').format(storedSellingPrice.toInt());
+      } else {
+        // Stored in USD, convert to LBP for display
+        final costPriceLBP = storedCostPrice * currentExchangeRate;
+        final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
+        costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
+        sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+      }
     } else {
-      // Show USD amounts directly when currency is USD
-      costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
-      sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
+      // If we want to display in USD, show the stored USD amounts
+      if (storedCurrency == 'USD') {
+        // Already stored in USD, show as is
+        costPriceController.text = storedCostPrice.toStringAsFixed(2);
+        sellingPriceController.text = storedSellingPrice.toStringAsFixed(2);
+      } else {
+        // Stored in LBP, convert to USD for display
+        final costPriceUSD = storedCostPrice / currentExchangeRate;
+        final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
+        costPriceController.text = costPriceUSD.toStringAsFixed(2);
+        sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
+      }
     }
     showDialog(
       context: context,
@@ -704,32 +839,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         setState(() {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
-                            if (originalCostPriceUSD > 0) {
-                              // Convert USD to LBP for display
-                              final costPriceLBP = originalCostPriceUSD * currentExchangeRate;
+                            // Convert to LBP for display
+                            if (storedCurrency == 'USD') {
+                              // Stored in USD, convert to LBP
+                              final costPriceLBP = storedCostPrice * currentExchangeRate;
+                              final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
                               costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
-                            } else {
-                              costPriceController.clear();
-                            }
-                            if (originalSellingPriceUSD > 0) {
-                              // Convert USD to LBP for display
-                              final sellingPriceLBP = originalSellingPriceUSD * currentExchangeRate;
                               sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
                             } else {
-                              sellingPriceController.clear();
+                              // Already stored in LBP, show as is
+                              costPriceController.text = NumberFormat('#,###').format(storedCostPrice.toInt());
+                              sellingPriceController.text = NumberFormat('#,###').format(storedSellingPrice.toInt());
                             }
                           } else {
-                            if (originalCostPriceUSD > 0) {
-                              // Show USD amounts directly
-                              costPriceController.text = originalCostPriceUSD.toStringAsFixed(2);
+                            // Convert to USD for display
+                            if (storedCurrency == 'LBP') {
+                              // Stored in LBP, convert to USD
+                              final costPriceUSD = storedCostPrice / currentExchangeRate;
+                              final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
+                              costPriceController.text = costPriceUSD.toStringAsFixed(2);
+                              sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
                             } else {
-                              costPriceController.clear();
-                            }
-                            if (originalSellingPriceUSD > 0) {
-                              // Show USD amounts directly
-                              sellingPriceController.text = originalSellingPriceUSD.toStringAsFixed(2);
-                            } else {
-                              sellingPriceController.clear();
+                              // Already stored in USD, show as is
+                              costPriceController.text = storedCostPrice.toStringAsFixed(2);
+                              sellingPriceController.text = storedSellingPrice.toStringAsFixed(2);
                             }
                           }
                         });
@@ -1614,7 +1747,7 @@ class _ProductCard extends StatelessWidget {
                         subcategory.profit >= 0 ? 'Revenue' : 'Loss',
                         CurrencyFormatter.formatAmount(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.trending_up,
-                        subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : Colors.red,
+                        subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
                       ),
                     ),
                   ],
@@ -1714,6 +1847,83 @@ class _ProductCard extends StatelessWidget {
     
     return buffer.toString();
   }
-  
+}
 
+class _CategorySection extends StatelessWidget {
+  final ProductCategory category;
+  final List<Subcategory> subcategories;
+  final Function(Subcategory) onEditProduct;
+  final Function(Subcategory) onDeleteProduct;
+
+  const _CategorySection({
+    required this.category,
+    required this.subcategories,
+    required this.onEditProduct,
+    required this.onDeleteProduct,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category Header
+        Container(
+          margin: const EdgeInsets.only(top: 16, bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.category,
+                color: AppColors.dynamicPrimary(context),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  category.name,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.dynamicPrimary(context),
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicPrimary(context),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${subcategories.length} product${subcategories.length == 1 ? '' : 's'}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Subcategories List
+        ...subcategories.map((subcategory) => _ProductCard(
+          subcategory: subcategory,
+          onEdit: () => onEditProduct(subcategory),
+          onDelete: () => onDeleteProduct(subcategory),
+          categoryName: null, // Don't show category name since it's already shown in header
+        )),
+      ],
+    );
+  }
 } 

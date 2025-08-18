@@ -305,11 +305,10 @@ class BackupService {
         final latestBackup = todaysBackups.first;
         for (int i = 1; i < todaysBackups.length; i++) {
           await dataService.deleteBackup(todaysBackups[i]);
-  
         }
-        
-
+      }
     } catch (e) {
+      // Handle error silently
     }
   }
 
@@ -332,7 +331,7 @@ class BackupService {
         }
       }
     } catch (e) {
-
+      // Handle error silently
     }
   }
 
@@ -364,9 +363,8 @@ class BackupService {
           continue;
         }
       }
-      
-
     } catch (e) {
+      // Handle error silently
     }
   }
 

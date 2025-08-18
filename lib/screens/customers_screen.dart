@@ -139,7 +139,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
             
             final groupedCustomers = _groupCustomersByFirstLetter();
             final totalCustomers = appState.customers.length;
-            // final filteredCount = _filteredCustomers.length; // Removed unused variable
+
             
             return Column(
               children: [

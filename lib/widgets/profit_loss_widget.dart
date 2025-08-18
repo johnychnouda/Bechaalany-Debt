@@ -59,13 +59,12 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
         // Get comprehensive revenue summary for dashboard
         final revenueSummary = appState.getDashboardRevenueSummary();
         
-        // Calculate total debts: sum of all debt amounts minus total partial payments
-        final totalDebtAmount = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.amount);
-        final totalPartialPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
-        final totalDebts = totalDebtAmount - totalPartialPayments;
-        
-        // Calculate total payments: sum of all partial payments made by customers
-        final totalPayments = appState.debts.fold<double>(0.0, (sum, debt) => sum + debt.paidAmount);
+        // Use the proper getters from AppState for accurate calculations
+        // Note: totalDebt and totalPaid are already in USD, no conversion needed
+        final totalDebts = appState.totalDebt;
+        final totalPayments = appState.totalPaid;
+
+
 
         return SlideTransition(
           position: _slideAnimation,
@@ -238,7 +237,7 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
     );
   }
 
-  // Removed _calculateTotalExpenses method as we now use totalDebt from AppState
+
 
 
 } 

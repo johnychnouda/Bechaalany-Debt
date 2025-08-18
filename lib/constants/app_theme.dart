@@ -105,7 +105,7 @@ class AppTheme {
     decorationColor: Colors.transparent,
   );
 
-  // Dynamic theme methods that use ThemeService
+
   static TextStyle getDynamicLargeTitle(BuildContext context) {
     return ThemeService.getTextStyle(
       context,

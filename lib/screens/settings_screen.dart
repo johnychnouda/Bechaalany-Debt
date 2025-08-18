@@ -536,9 +536,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
               
-              // Clear all data
+              // Clear only debts, activities, and payment records (preserve customers and products)
               final appState = Provider.of<AppState>(context, listen: false);
-              await appState.clearAllData();
+              await appState.clearDebtsAndActivities();
               
               // Hide loading and show success
               Navigator.pop(context);
@@ -546,14 +546,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Show success message
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Debts and activities cleared successfully!'),
+                  content: Text('Debts, activities, and payment records cleared successfully!'),
                   backgroundColor: Colors.green,
                   duration: const Duration(seconds: 2),
                 ),
               );
             },
             child: Text(
-              'Clear Debts',
+              'Clear',
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 16,

@@ -18,12 +18,13 @@ class CurrencyFormatter {
     final settings = appState.currencySettings;
     
     if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
-      // If stored currency is LBP, convert to USD using exchange rate
+      // If stored currency is LBP and we want to display in USD
       if (storedCurrency.toUpperCase() == 'LBP') {
         // Convert LBP to USD by dividing by exchange rate
+        // Example: 895,000 LBP ÷ 89,500 = 10.00 USD
         final convertedAmount = amount / settings.exchangeRate!;
         return '${convertedAmount.toStringAsFixed(2)}\$';
-      } else {
+      } else if (storedCurrency.toUpperCase() == 'USD') {
         // Already in USD, format as is
         return '${amount.toStringAsFixed(2)}\$';
       }

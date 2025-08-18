@@ -554,26 +554,26 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       case ActivityView.weekly:
         // Show activities created this week (Monday to Sunday)
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
         return _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
         
       case ActivityView.monthly:
         // Show activities created this month
         final startOfMonth = DateTime(now.year, now.month, 1);
-        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
         return _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
         
       case ActivityView.yearly:
         // Show activities created this year
         final startOfYear = DateTime(now.year, 1, 1);
-        final endOfYear = DateTime(now.year, 12, 31);
+        final endOfYear = DateTime(now.year, 12, 31, 23, 59, 59);
         return _getActivitiesForPeriod(appState, startOfYear, endOfYear);
     }
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
     final activities = <Activity>[];
-
+    
     // Get activities from the new Activity model
     for (final activity in appState.activities) {
       // Filter out debtCleared activities - only show new debts and payments
@@ -590,26 +590,14 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       } else {
         // For other views (weekly, monthly, yearly), use date-only comparison
         final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-        isWithinPeriod = (activityDate.isAtSameMomentAs(startDate) || activityDate.isAfter(startDate)) && 
-                        (activityDate.isAtSameMomentAs(endDate) || activityDate.isBefore(endDate));
+        final startDateOnly = DateTime(startDate.year, startDate.month, startDate.day);
+        final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
+        isWithinPeriod = (activityDate.isAtSameMomentAs(startDateOnly) || activityDate.isAfter(startDateOnly)) && 
+                        (activityDate.isAtSameMomentAs(endDateOnly) || activityDate.isBefore(endDateOnly));
       }
       
       if (isWithinPeriod) {
-        // Additional filter: For payment activities, check if they're still relevant
-        if (activity.type == ActivityType.payment && activity.debtId == null) {
-          // Check if this activity is for a customer who still has pending debts
-          final customerDebts = appState.debts.where((d) => d.customerId == activity.customerId).toList();
-          final hasPendingDebts = customerDebts.any((d) => !d.isFullyPaid);
-          
-          // Only show payment activities if the customer still has pending debts
-          // or if this is a recent activity (within last 24 hours)
-          final isRecent = DateTime.now().difference(activity.date).inHours < 24;
-          
-          if (!hasPendingDebts && !isRecent) {
-            continue; // Skip this activity
-          }
-        }
-        
+        // Show all activities within the period - no additional filtering
         activities.add(activity);
       }
     }
@@ -716,7 +704,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       final debt = associatedDebts.first;
       
       if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-        final debtRevenue = debt.originalSellingPrice - debt.originalCostPrice;
+        final debtRevenue = debt.originalSellingPrice! - debt.originalCostPrice!;
         
         // Check if customer is fully paid (same logic as main dashboard)
         final isCustomerFullyPaid = appState.isCustomerFullyPaid(debt.customerId);
@@ -733,6 +721,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       }
     }
     
+    // Revenue calculation is already in USD (same as debt amounts)
+    // No currency conversion needed - return the calculated revenue directly
     return totalRevenue;
   }
 

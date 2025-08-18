@@ -64,7 +64,7 @@ class DataMigrationService {
             updatedCount++;
           }
         } else {
-          print('Migration: Debt ${debt.id} has no subcategoryId - trying to find by name match');
+  
           
           // Try to find by subcategory name match as fallback
           final matchingSubcategory = categories
@@ -83,8 +83,7 @@ class DataMigrationService {
               );
           
           if (matchingSubcategory.id.isNotEmpty) {
-                      print('Migration: Found subcategory by name match: ${matchingSubcategory.name}');
-          print('Migration: Subcategory details - Cost: \$${matchingSubcategory.costPrice}, Selling: \$${matchingSubcategory.sellingPrice}');
+                      
           // Update debt with cost price and subcategory info
           final updatedDebt = debt.copyWith(
             originalCostPrice: matchingSubcategory.costPrice,
@@ -96,9 +95,9 @@ class DataMigrationService {
           
           await _dataService.updateDebt(updatedDebt);
           updatedCount++;
-          print('Migration: Updated debt ${debt.id} with cost price \$${matchingSubcategory.costPrice} by name match');
+          
           } else {
-            print('Migration: No subcategory found by name match for debt ${debt.id} with description: ${debt.description}');
+
           }
         }
       }

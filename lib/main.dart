@@ -157,7 +157,7 @@ void main() async {
       // Clean up any existing duplicate backups from today
       await backupService.cleanupDuplicateBackupsFromToday();
       
-      // Force cleanup to ensure all duplicates are removed
+
       await backupService.forceCleanupTodayBackups();
       
       // Specifically remove the problematic 1:33 AM backup if it exists

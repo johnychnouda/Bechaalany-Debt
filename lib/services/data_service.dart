@@ -510,8 +510,7 @@ class DataService {
       if (existingDebt != null) {
         // If the existing debt has cost price info but the new one doesn't, preserve it
         if (existingDebt.originalCostPrice != null && debt.originalCostPrice == null) {
-          print('WARNING: Attempting to update debt ${debt.id} but cost price would be lost!');
-          print('Preserving existing cost price: \$${existingDebt.originalCostPrice}');
+          
           
           final safeguardedDebt = debt.copyWith(
             originalCostPrice: existingDebt.originalCostPrice,
@@ -541,8 +540,6 @@ class DataService {
         // We'll store them in a special "historical payments" box to maintain revenue
         final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == debtId).toList();
         
-        print('Preserving ${partialPayments.length} partial payments for debt $debtId before deletion');
-        
         // Store historical payment records for revenue calculation
         for (final payment in partialPayments) {
           // Create a historical payment record with all necessary information
@@ -556,7 +553,6 @@ class DataService {
           
           // Store in the same box but with historical prefix to avoid conflicts
           _partialPaymentBoxSafe.put(historicalPayment.id, historicalPayment);
-          print('Preserved historical payment: ${historicalPayment.id} for ${historicalPayment.amount}');
         }
         
         // Now safely delete the original payments
@@ -565,11 +561,20 @@ class DataService {
         }
       }
       
+      // Clean up all activities related to this debt
+      final activitiesToDelete = _activityBoxSafe.values
+          .where((activity) => activity.debtId == debtId)
+          .map((activity) => activity.id)
+          .toList();
+      
+      for (final activityId in activitiesToDelete) {
+        _activityBoxSafe.delete(activityId);
+      }
+      
       // Now delete the debt
       _debtBoxSafe.delete(debtId);
-      print('Debt $debtId deleted, payment history preserved for revenue calculation');
+
     } catch (e) {
-      print('Error in deleteDebt: $e');
       rethrow;
     }
   }
@@ -627,9 +632,7 @@ class DataService {
       if (debt != null) {
         // CRITICAL SAFEGUARD: Ensure we never lose cost price information
         if (debt.originalCostPrice == null || debt.originalSellingPrice == null) {
-          print('WARNING: Attempting to mark debt as paid but cost price information is missing!');
-          print('Debt ID: $debtId, Description: ${debt.description}');
-          print('This should not happen with the current safeguards in place.');
+          
         }
         
         final updatedDebt = debt.copyWith(
@@ -873,23 +876,51 @@ class DataService {
       // Clear all debts
       await _debtBoxSafe.clear();
       
-      // Clear activities related to debts
-      final activitiesToDelete = _activityBoxSafe.values
-          .where((activity) => activity.type == ActivityType.newDebt ||
-                               activity.type == ActivityType.payment ||
-                               activity.type == ActivityType.debtCleared)
-          .map((activity) => activity.id)
-          .toList();
+      // Clear ALL activities (entire activity history)
+      await _activityBoxSafe.clear();
       
-      for (final activityId in activitiesToDelete) {
-        await _activityBoxSafe.delete(activityId);
-      }
-      
-      // Clear partial payments
+      // Clear ALL partial payments
       await _partialPaymentBoxSafe.clear();
       
     } catch (e) {
       throw Exception('Failed to clear debts: $e');
+    }
+  }
+
+  // Delete debts for a specific customer
+  Future<void> deleteCustomerDebts(String customerId) async {
+    try {
+      // Get all debts for this customer
+      final customerDebts = _debtBoxSafe.values
+          .where((debt) => debt.customerId == customerId)
+          .toList();
+      
+      // Delete each debt
+      for (final debt in customerDebts) {
+        await _debtBoxSafe.delete(debt.id);
+      }
+      
+      // Also delete related activities for this customer
+      final customerActivities = _activityBoxSafe.values
+          .where((activity) => activity.customerId == customerId)
+          .toList();
+      
+      for (final activity in customerActivities) {
+        await _activityBoxSafe.delete(activity.id);
+      }
+      
+      // Also delete related partial payments for this customer's debts
+      final customerDebtIds = customerDebts.map((debt) => debt.id).toList();
+      final customerPayments = _partialPaymentBoxSafe.values
+          .where((payment) => customerDebtIds.contains(payment.debtId))
+          .toList();
+      
+      for (final payment in customerPayments) {
+        await _partialPaymentBoxSafe.delete(payment.id);
+      }
+      
+    } catch (e) {
+      throw Exception('Failed to delete customer debts: $e');
     }
   }
   
@@ -902,16 +933,8 @@ class DataService {
       // Clear product purchases
       await _productPurchaseBoxSafe.clear();
       
-      // Clear activities related to products
-      // Note: Current ActivityType enum doesn't have product-specific types
-      // So we'll clear all activities for now, or you can add product activity types later
-      final activitiesToDelete = _activityBoxSafe.values
-          .map((activity) => activity.id)
-          .toList();
-      
-      for (final activityId in activitiesToDelete) {
-        await _activityBoxSafe.delete(activityId);
-      }
+      // Note: No product-specific activity types exist yet, so preserve all activities
+      // When you add product activity types later, you can clear them here
       
     } catch (e) {
       throw Exception('Failed to clear products: $e');

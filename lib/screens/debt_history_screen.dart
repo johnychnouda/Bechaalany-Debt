@@ -19,7 +19,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   List<Map<String, dynamic>> _groupedDebts = [];
   final TextEditingController _searchController = TextEditingController();
   String _selectedStatus = 'All';
-  // Set<String> _lastKnownDebtIds = {}; // Removed unused field
+
   bool _sortAscending = false;
 
   @override
@@ -239,17 +239,20 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   Future<void> _deleteDebt(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
     
-    // Don't allow deletion of fully paid debts
-    if (debt.isFullyPaid) {
-      return;
-    }
+    // Allow deletion of any debt (including those with partial payments)
+    // This gives users full control over their debt management
     
     return showDialog(
       context: context,
       builder: (BuildContext context) {
+        String warningMessage = '';
+        if (debt.paidAmount > 0) {
+          warningMessage = '\n\n⚠️ WARNING: This debt has partial payments (${CurrencyFormatter.formatAmount(context, debt.paidAmount)}). Deleting it will remove all payment history for this debt.';
+        }
+        
         return AlertDialog(
           title: const Text('Delete Debt'),
-          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}'),
+          content: Text('Are you sure you want to delete this debt?\n\nCustomer: ${debt.customerName}\nAmount: ${CurrencyFormatter.formatAmount(context, debt.amount)}$warningMessage'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),

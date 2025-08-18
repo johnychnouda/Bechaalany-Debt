@@ -48,10 +48,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
     // If a specific debt ID is provided, show all debts until partial payment
     if (widget.specificDebtId != null) {
-      // final specificDebt = allCustomerDebts.firstWhere( // Removed unused variable
-      //   (debt) => debt.id == widget.specificDebtId,
-      //   orElse: () => allCustomerDebts.first,
-      // );
+
       
       // Check if any partial payments have been made
       final hasPartialPayments = allCustomerDebts.any((debt) => debt.paidAmount > 0);
@@ -1240,8 +1237,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final partialPayments = _getPartialPaymentsForDebt(debt.id);
       if (partialPayments.isNotEmpty && debt.isFullyPaid) {
         // For fully paid debts, exclude the most recent payment (the final payment)
-        // final sortedPayments = List<PartialPayment>.from(partialPayments) // Removed unused variable
-        //   ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+
         
         for (int i = 0; i < partialPayments.length; i++) {
           final payment = partialPayments[i];
