@@ -185,24 +185,35 @@ class AppState extends ChangeNotifier {
     // Revenue calculation service returns values in USD (same as debt amounts)
     final revenue = RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
     
+    // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
+    final roundedRevenue = (revenue * 100).round() / 100;
+    
     // No currency conversion needed - revenue is already in USD
-    return revenue;
+    return roundedRevenue;
   }
 
   // Get customer-specific revenue for financial summaries
   double getCustomerRevenue(String customerId) {
     // Revenue calculation service returns values in USD (same as debt amounts)
     final revenue = RevenueCalculationService().calculateCustomerRevenue(customerId, _debts);
+    
+    // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
+    final roundedRevenue = (revenue * 100).round() / 100;
+    
     // No currency conversion needed - revenue is already in USD
-    return revenue;
+    return roundedRevenue;
   }
 
   // Get customer potential revenue (from unpaid amounts)
   double getCustomerPotentialRevenue(String customerId) {
     // Revenue calculation service returns values in USD (same as debt amounts)
     final potentialRevenue = RevenueCalculationService().calculateCustomerPotentialRevenue(customerId, _debts);
+    
+    // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
+    final roundedPotentialRevenue = (potentialRevenue * 100).round() / 100;
+    
     // No currency conversion needed - revenue is already in USD
-    return potentialRevenue;
+    return roundedPotentialRevenue;
   }
 
   // Get detailed revenue breakdown for a customer
@@ -241,18 +252,21 @@ class AppState extends ChangeNotifier {
       _dataService.saveCurrencySettings(_currencySettings!);
     }
     
-    // Revenue calculation service returns values in USD (same as debt amounts)
+    // CRITICAL: Round all revenue values to exactly 2 decimal places to avoid floating-point precision errors
+    final totalRevenue = ((lbpSummary['totalRevenue'] ?? 0.0) * 100).round() / 100;
+    final totalPotentialRevenue = ((lbpSummary['totalPotentialRevenue'] ?? 0.0) * 100).round() / 100;
+    final averageRevenuePerCustomer = ((lbpSummary['averageRevenuePerCustomer'] ?? 0.0) * 100).round() / 100;
     
     // Revenue calculation service returns values in USD (same as debt amounts)
     // No currency conversion needed for revenue values
     // Note: debt and payment amounts are already in USD
     return {
-      'totalRevenue': lbpSummary['totalRevenue'] ?? 0.0,  // Already in USD
-      'totalPotentialRevenue': lbpSummary['totalPotentialRevenue'] ?? 0.0,  // Already in USD
+      'totalRevenue': totalRevenue,  // Already in USD, properly rounded
+      'totalPotentialRevenue': totalPotentialRevenue,  // Already in USD, properly rounded
       'totalPaidAmount': lbpSummary['totalPaidAmount'] ?? 0.0,  // Already in USD
       'totalDebtAmount': lbpSummary['totalDebtAmount'] ?? 0.0,  // Already in USD
       'totalCustomers': lbpSummary['totalCustomers'] ?? 0,
-      'averageRevenuePerCustomer': lbpSummary['averageRevenuePerCustomer'] ?? 0.0,  // Already in USD
+      'averageRevenuePerCustomer': averageRevenuePerCustomer,  // Already in USD, properly rounded
       'revenueToDebtRatio': lbpSummary['revenueToDebtRatio'] ?? 0.0,
       'calculatedAt': lbpSummary['calculatedAt'] ?? DateTime.now(),
     };
