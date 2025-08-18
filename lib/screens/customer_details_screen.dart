@@ -629,10 +629,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
         // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show ONLY unpaid products (not fully paid ones)
+        // 1. If customer has pending debts: show ALL products (including fully paid ones) so users can see payment history
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
         final customerActiveDebts = totalPendingDebt > 0 
-            ? customerAllDebts.where((d) => d.remainingAmount > 0).toList()  // Show only unpaid products
+            ? customerAllDebts  // Show all products when there are pending amounts (for partial payment tracking)
             : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
@@ -992,7 +992,69 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                                   color: AppColors.dynamicTextPrimary(context),
                                                 ),
                                               ),
-                                              // All products remain active - no payment status tags needed
+                                              const SizedBox(width: 8),
+                                              // Show payment status indicator
+                                              if (debt.isFullyPaid) ...[
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.dynamicSuccess(context).withAlpha(20),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(
+                                                      color: AppColors.dynamicSuccess(context).withAlpha(40),
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'PAID',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.dynamicSuccess(context),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else if (debt.paidAmount > 0) ...[
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.dynamicWarning(context).withAlpha(20),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(
+                                                      color: AppColors.dynamicWarning(context).withAlpha(40),
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'PARTIAL',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.dynamicWarning(context),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else ...[
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.dynamicError(context).withAlpha(20),
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(
+                                                      color: AppColors.dynamicError(context).withAlpha(40),
+                                                      width: 1,
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    'PENDING',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: AppColors.dynamicError(context),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
                                             ],
                                           ),
                                           Text(
@@ -1007,13 +1069,31 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     ),
                                     Row(
                                       children: [
-                                        Text(
-                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.dynamicTextPrimary(context),
-                                          ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            // Show original amount
+                                            Text(
+                                              CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.dynamicTextPrimary(context),
+                                              ),
+                                            ),
+                                            // Show remaining amount if not fully paid
+                                            if (!debt.isFullyPaid) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency)}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppColors.dynamicError(context),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                         const SizedBox(width: 8),
                                         // Individual delete button for each debt - Only show when this specific product has NO partial payments
