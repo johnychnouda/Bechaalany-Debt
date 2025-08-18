@@ -1383,6 +1383,10 @@ class AppState extends ChangeNotifier {
           .toList()
         ..sort((a, b) => a.remainingAmount.compareTo(b.remainingAmount));
       
+      // Track the first debt for activity creation (we'll create one consolidated activity)
+      final firstDebt = sortedDebts.isNotEmpty ? sortedDebts.first : null;
+      final oldStatus = firstDebt?.status ?? DebtStatus.pending;
+      
       for (final debt in sortedDebts) {
         if (remainingPayment <= 0) break;
         
@@ -1390,7 +1394,6 @@ class AppState extends ChangeNotifier {
             ? debt.remainingAmount 
             : remainingPayment;
         
-        final oldStatus = debt.status;
         final updatedDebt = debt.copyWith(
           paidAmount: debt.paidAmount + paymentForThisDebt,
           status: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
@@ -1400,10 +1403,33 @@ class AppState extends ChangeNotifier {
         
         await updateDebt(updatedDebt);
         
-        // Create payment activity for this debt
-        await addPaymentActivity(debt, paymentForThisDebt, oldStatus, updatedDebt.status);
-        
         remainingPayment -= paymentForThisDebt;
+      }
+      
+      // Create ONE consolidated payment activity showing the total payment amount
+      if (firstDebt != null) {
+        final customerFullyPaid = isCustomerFullyPaid(firstDebt.customerId);
+        final description = customerFullyPaid 
+            ? 'Fully paid: ${paymentAmount.toStringAsFixed(2)}\$'
+            : 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
+        
+        final effectiveNewStatus = customerFullyPaid ? DebtStatus.paid : DebtStatus.pending;
+        
+        final activity = Activity(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          customerId: firstDebt.customerId,
+          customerName: firstDebt.customerName,
+          type: ActivityType.payment,
+          description: description,
+          paymentAmount: paymentAmount, // Total payment amount, not individual debt amounts
+          amount: firstDebt.amount,
+          oldStatus: oldStatus,
+          newStatus: effectiveNewStatus,
+          date: DateTime.now(),
+          debtId: null, // No specific debt ID since this is a consolidated payment
+        );
+        
+        await _addActivity(activity);
       }
     } catch (e) {
       rethrow;
