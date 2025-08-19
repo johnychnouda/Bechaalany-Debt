@@ -24,6 +24,9 @@ class DataMigrationService {
       // Fix corrupted currency data
       await fixCorruptedCurrencyData();
       
+      // Fix existing activities by linking them to their corresponding debts
+      await fixActivitiesDebtId();
+      
       print('✅ All migrations completed successfully');
     } catch (e) {
       print('❌ Error running migrations: $e');
@@ -571,6 +574,51 @@ class DataMigrationService {
       }
     } catch (e) {
       print('❌ Error fixing debts with small amounts: $e');
+    }
+  }
+
+  /// Fix existing activities by linking them to their corresponding debts
+  /// This ensures that when debts are deleted, only their specific activities are removed
+  Future<void> fixActivitiesDebtId() async {
+    try {
+      print('🔧 Starting activities debtId fix...');
+      
+      // Get all activities and debts
+      final activities = _dataService.activities;
+      final debts = _dataService.debts;
+      
+      int fixedCount = 0;
+      
+      for (final activity in activities) {
+        // Skip activities that already have debtId
+        if (activity.debtId != null) continue;
+        
+        // Try to find matching debt by description and customer
+        final matchingDebt = debts.firstWhere(
+          (debt) => 
+            debt.description.toLowerCase() == activity.description.split(':')[0].toLowerCase() &&
+            debt.customerId == activity.customerId &&
+            debt.amount == activity.amount,
+          orElse: () => null,
+        );
+        
+        if (matchingDebt != null) {
+          // Create updated activity with debtId
+          final updatedActivity = activity.copyWith(
+            debtId: matchingDebt.id,
+          );
+          
+          // Update the activity in storage
+          await _dataService.updateActivity(updatedActivity);
+          fixedCount++;
+          
+          print('🔗 Linked activity "${activity.description}" to debt ${matchingDebt.id}');
+        }
+      }
+      
+      print('✅ Fixed $fixedCount activities with debtId links');
+    } catch (e) {
+      print('❌ Error fixing activities debtId: $e');
     }
   }
 }
