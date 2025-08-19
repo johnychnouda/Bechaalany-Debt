@@ -460,9 +460,11 @@ class AppState extends ChangeNotifier {
   Future<void> fixAlfaUshareDebtDirectly() async {
     try {
       print('🔧 Starting alfa ushare debt fix...');
+      int fixedCount = 0;
+      
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa ushare')) {
-          print('📊 Found alfa ushare debt:');
+          print('📊 Found alfa ushare debt #${fixedCount + 1}:');
           print('  Current amount: ${debt.amount}');
           print('  Current cost price: ${debt.originalCostPrice}');
           print('  Current selling price: ${debt.originalSellingPrice}');
@@ -491,13 +493,17 @@ class AppState extends ChangeNotifier {
             _debts[index] = updatedDebt;
           }
           
-          _clearCache();
-          notifyListeners();
-          print('✅ Alfa ushare debt updated successfully');
-          return;
+          fixedCount++;
         }
       }
-      print('⚠️ alfa ushare product not found');
+      
+      if (fixedCount > 0) {
+        print('✅ Fixed $fixedCount alfa ushare debt(s) successfully');
+        _clearCache();
+        notifyListeners();
+      } else {
+        print('⚠️ No alfa ushare debts found to fix');
+      }
     } catch (e) {
       print('❌ Error fixing alfa ushare: $e');
     }
