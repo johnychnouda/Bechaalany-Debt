@@ -1014,6 +1014,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                             color: AppColors.dynamicTextPrimary(context),
                                           ),
                                         ),
+                                        // Show red X delete icon only when customer has NO partial payments
+                                        if (!customerHasPartialPayments) ...[
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () => _showDeleteDebtDialog(context, debt),
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: BoxDecoration(
+                                                color: AppColors.error.withAlpha(26),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Icon(
+                                                Icons.close,
+                                                size: 14,
+                                                color: AppColors.error,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ],
