@@ -629,10 +629,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
         // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show ALL products (including multiple purchases of same product)
+        // 1. If customer has pending debts: show only unpaid/partially paid products
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
         final customerActiveDebts = totalPendingDebt > 0 
-            ? customerAllDebts  // Show all products when there are pending amounts (for partial payment tracking)
+            ? customerAllDebts.where((debt) => debt.remainingAmount > 0).toList()  // Show only unpaid/partially paid products
             : <Debt>[];  // Clear all products when fully settled
 
         return Scaffold(
