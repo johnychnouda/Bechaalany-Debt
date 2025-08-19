@@ -459,8 +459,15 @@ class AppState extends ChangeNotifier {
   /// This bypasses migration and directly updates the debt
   Future<void> fixAlfaUshareDebtDirectly() async {
     try {
+      print('🔧 Starting alfa ushare debt fix...');
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa ushare')) {
+          print('📊 Found alfa ushare debt:');
+          print('  Current amount: ${debt.amount}');
+          print('  Current cost price: ${debt.originalCostPrice}');
+          print('  Current selling price: ${debt.originalSellingPrice}');
+          print('  Current stored currency: ${debt.storedCurrency}');
+          
           // Update the debt with correct values to match the product
           final updatedDebt = debt.copyWith(
             amount: 0.75, // Match the product selling price
@@ -468,6 +475,13 @@ class AppState extends ChangeNotifier {
             originalSellingPrice: 0.75, // Match the product selling price (USD)
             storedCurrency: 'USD', // Store as USD for consistency
           );
+          
+          print('📊 Updated debt values:');
+          print('  New amount: ${updatedDebt.amount}');
+          print('  New cost price: ${updatedDebt.originalCostPrice}');
+          print('  New selling price: ${updatedDebt.originalSellingPrice}');
+          print('  New stored currency: ${updatedDebt.storedCurrency}');
+          print('  Calculated originalRevenue: ${updatedDebt.originalRevenue}');
           
           await _dataService.updateDebt(updatedDebt);
           
@@ -479,12 +493,44 @@ class AppState extends ChangeNotifier {
           
           _clearCache();
           notifyListeners();
+          print('✅ Alfa ushare debt updated successfully');
           return;
         }
       }
+      print('⚠️ alfa ushare product not found');
     } catch (e) {
-      print('❌ Error fixing alfa ushare debt: $e');
+      print('❌ Error fixing alfa ushare: $e');
     }
+  }
+
+  /// Debug method to check current alfa ushare debt values
+  void debugAlfaUshareValues() {
+    print('🔍 Debugging alfa ushare debt values:');
+    for (final debt in _debts) {
+      if (debt.description.toLowerCase().contains('alfa ushare')) {
+        print('  Debt ID: ${debt.id}');
+        print('  Amount: ${debt.amount}');
+        print('  Cost Price: ${debt.originalCostPrice}');
+        print('  Selling Price: ${debt.originalSellingPrice}');
+        print('  Stored Currency: ${debt.storedCurrency}');
+        print('  Original Revenue: ${debt.originalRevenue}');
+        print('  Revenue Per Dollar: ${debt.revenuePerDollar}');
+        print('  Remaining Revenue: ${debt.remainingRevenue}');
+        print('  Remaining Amount: ${debt.remainingAmount}');
+        print('  Paid Amount: ${debt.paidAmount}');
+      }
+    }
+  }
+
+  /// Public method to manually fix alfa ushare debt and debug values
+  Future<void> fixAlfaUshareNow() async {
+    print('🚀 Manual alfa ushare fix triggered...');
+    debugAlfaUshareValues();
+    await fixAlfaUshareDebtDirectly();
+    print('🔄 After fix:');
+    debugAlfaUshareValues();
+    _clearCache();
+    notifyListeners();
   }
 
   /// Force complete data reload to clear all cached values
