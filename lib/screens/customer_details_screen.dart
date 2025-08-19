@@ -926,117 +926,86 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerActiveDebts.length - 1;
-                                      // All products remain "active" in the purchase history - payment status doesn't affect visibility
-                                      // This makes "Active Debts" act as a complete product purchase list
-                                      final isPaid = false; // Always show as active for consistent UI
                           
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Dismissible(
-                              key: Key(debt.id),
-                              direction: totalPendingDebt <= 0 ? DismissDirection.endToStart : DismissDirection.none,
-                              confirmDismiss: (direction) async {
-                                if (totalPendingDebt <= 0) {
-                                  return await _confirmClearPaidDebt(context, debt);
-                                }
-                                return false;
-                              },
-                              onDismissed: (direction) {
-                                if (totalPendingDebt <= 0) {
-                                  _deleteDebt(debt);
-                                }
-                              },
-                              background: totalPendingDebt <= 0 ? Container(
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 20),
-                                decoration: BoxDecoration(
-                                  color: AppColors.dynamicPrimary(context),
-                                  borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: AppColors.dynamicPrimary(context).withAlpha(15),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: AppColors.dynamicPrimary(context).withAlpha(40),
+                                  width: 1,
                                 ),
-                                child: const Icon(
-                                  Icons.delete_sweep,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ) : null,
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.dynamicPrimary(context).withAlpha(15),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: AppColors.dynamicPrimary(context).withAlpha(40),
-                                    width: 1,
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.shopping_bag,
+                                    color: AppColors.dynamicPrimary(context),
+                                    size: 20,
                                   ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.shopping_bag,
-                                      color: AppColors.dynamicPrimary(context),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                debt.description,
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w500,
-                                                  color: AppColors.dynamicTextPrimary(context),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          Text(
-                                            'Created ${_formatDate(debt.createdAt)}',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: AppColors.dynamicTextSecondary(context),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Row(
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              debt.description,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                                color: AppColors.dynamicTextPrimary(context),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                         Text(
-                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                          'Created ${_formatDate(debt.createdAt)}',
                                           style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.dynamicTextPrimary(context),
+                                            fontSize: 13,
+                                            color: AppColors.dynamicTextSecondary(context),
                                           ),
                                         ),
-                                        // Show red X delete icon only when customer has NO partial payments
-                                        if (!customerHasPartialPayments) ...[
-                                          const SizedBox(width: 8),
-                                          GestureDetector(
-                                            onTap: () => _showDeleteDebtDialog(context, debt),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: BoxDecoration(
-                                                color: AppColors.error.withAlpha(26),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Icon(
-                                                Icons.close,
-                                                size: 14,
-                                                color: AppColors.error,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
                                       ],
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.dynamicTextPrimary(context),
+                                        ),
+                                      ),
+                                      // Show red X delete icon only when THIS SPECIFIC debt has no payments
+                                      if (debt.paidAmount == 0) ...[
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => _showDeleteDebtDialog(context, debt),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.error.withAlpha(26),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Icon(
+                                              Icons.close,
+                                              size: 14,
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           );
