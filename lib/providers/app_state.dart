@@ -913,6 +913,11 @@ class AppState extends ChangeNotifier {
       // Get the debt before deleting to clean up related data
       final debt = _debts.firstWhere((d) => d.id == debtId);
       
+      print('🗑️ Deleting debt: ${debt.description} (ID: $debtId)');
+      print('📊 Activities before deletion: ${_activities.length}');
+      print('📊 Activities for this debt: ${_activities.where((a) => a.debtId == debtId).length}');
+      print('📊 All alfa ushare activities: ${_activities.where((a) => a.description.toLowerCase().contains('alfa ushare')).length}');
+      
       await _dataService.deleteDebt(debtId);
       
       // Remove from local lists
@@ -921,6 +926,9 @@ class AppState extends ChangeNotifier {
       
       // Reload activities from data service to ensure UI stays in sync
       _activities = _dataService.activities;
+      
+      print('📊 Activities after deletion: ${_activities.length}');
+      print('📊 All alfa ushare activities after deletion: ${_activities.where((a) => a.description.toLowerCase().contains('alfa ushare')).length}');
       
       _clearCache();
       notifyListeners();
