@@ -638,9 +638,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Only show products that have pending amounts (not fully paid)
-        // Hide fully paid products to keep the list focused on active debts
-        final customerActiveDebts = customerAllDebts.where((debt) => debt.remainingAmount > 0).toList();
+        // Show ALL products except those that are explicitly fully paid
+        // This ensures partial payments don't hide products from the list
+        final customerActiveDebts = customerAllDebts.where((debt) => !debt.isFullyPaid).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1000,9 +1000,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                           // BUSINESS RULE: Show red X delete icon only when:
-                                          // THIS SPECIFIC debt has no payments
-                                          // This allows deletion of individual debts that haven't been paid
-                                          if (debt.paidAmount == 0) ...[
+                                          // Customer has made NO payments at all (totalPaid == 0)
+                                          // This prevents deletion of any products once customer starts paying
+                                          if (totalPaid == 0) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
                                               onTap: () => _showDeleteDebtDialog(context, debt),
