@@ -638,9 +638,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show ALL products except those that are explicitly fully paid
-        // This ensures partial payments don't hide products from the list
-        final customerActiveDebts = customerAllDebts.where((debt) => !debt.isFullyPaid).toList();
+        // Show ALL products for transparency - only hide those that are explicitly fully paid
+        // This ensures no products are hidden due to calculation precision issues
+        final customerActiveDebts = customerAllDebts.where((debt) {
+          // Show the product if:
+          // 1. It has any remaining amount (remainingAmount > 0), OR
+          // 2. It has no payments at all (paidAmount == 0), OR  
+          // 3. It has partial payments but might be marked as fully paid due to precision issues
+          return debt.remainingAmount > 0 || debt.paidAmount == 0 || debt.paidAmount < debt.amount;
+        }).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1000,9 +1006,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                           // BUSINESS RULE: Show red X delete icon only when:
-                                          // THIS SPECIFIC debt has no payments (debt.paidAmount == 0)
-                                          // This allows deletion of individual debts that haven't been paid
-                                          if (debt.paidAmount == 0) ...[
+                                          // CUSTOMER has NO payments at all (customerHasPartialPayments == false)
+                                          // This removes delete functionality from ALL products once customer starts paying
+                                          if (!customerHasPartialPayments) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
                                               onTap: () => _showDeleteDebtDialog(context, debt),
