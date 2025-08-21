@@ -1055,7 +1055,10 @@ class AppState extends ChangeNotifier {
     final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
     if (customerDebts.isEmpty) return true;
     
-    return customerDebts.every((debt) => debt.remainingAmount <= 0);
+    // A customer is only fully paid when ALL their debts have remainingAmount <= 0
+    // AND they have no pending debts
+    final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
+    return !hasPendingDebts;
   }
 
   bool isCustomerPartiallyPaid(String customerId) {
@@ -1073,10 +1076,23 @@ class AppState extends ChangeNotifier {
     // Simplified to avoid compilation errors
   }
 
+  /// CRITICAL: This method should ONLY be called when explicitly clearing customer data
+  /// NEVER call this during partial payments or normal debt operations
+  /// It will permanently delete all customer debts and product records
   Future<void> _clearAllCustomerDebts(String customerId) async {
     try {
+      print('⚠️ WARNING: Clearing all customer debts for customer ID: $customerId');
+      print('⚠️ This will permanently delete all product records and payment history');
+      
       // Get all debts for this customer
       final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+      
+      if (customerDebts.isNotEmpty) {
+        print('⚠️ About to delete ${customerDebts.length} debts:');
+        for (final debt in customerDebts) {
+          print('  - ${debt.description}: ${debt.amount}\$ (Paid: ${debt.paidAmount}\$)');
+        }
+      }
       
       // Clear all debts for this customer (this will also clean up activities and partial payments)
       for (final debt in customerDebts) {
@@ -1092,7 +1108,10 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
+      
+      print('✅ All customer debts cleared for customer ID: $customerId');
     } catch (e) {
+      print('❌ Error clearing customer debts: $e');
       rethrow;
     }
   }
@@ -1431,10 +1450,10 @@ class AppState extends ChangeNotifier {
         if (isThisDebtFullyPaid) {
           await _checkAndConsolidateMultipleDebtCompletions(originalDebt.customerId, originalDebt.customerName);
           
-          // Check if customer is now fully paid and clear all debts
-          if (isCustomerFullyPaid(originalDebt.customerId)) {
-            await _clearAllCustomerDebts(originalDebt.customerId);
-          }
+          // CRITICAL FIX: Never clear all customer debts during partial payments
+          // This was causing products to disappear when they shouldn't
+          // Only mark individual debts as paid, preserve all product records
+          print('✅ Individual debt marked as paid - preserving all customer product records');
         }
       }
       
@@ -2167,12 +2186,9 @@ class AppState extends ChangeNotifier {
       
       // Create ONE consolidated payment activity showing the total payment amount
       if (firstDebt != null) {
-        final customerFullyPaid = isCustomerFullyPaid(firstDebt.customerId);
-        final description = customerFullyPaid 
-            ? 'Fully paid: ${paymentAmount.toStringAsFixed(2)}\$'
-            : 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
-        
-        final effectiveNewStatus = customerFullyPaid ? DebtStatus.paid : DebtStatus.pending;
+        // CRITICAL FIX: Never mark customer as fully paid during partial payments
+        // This prevents the dangerous debt deletion logic from running
+        final description = 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
         
         final activity = Activity(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -2183,7 +2199,7 @@ class AppState extends ChangeNotifier {
           paymentAmount: paymentAmount, // Total payment amount, not individual debt amounts
           amount: firstDebt.amount,
           oldStatus: oldStatus,
-          newStatus: effectiveNewStatus,
+          newStatus: DebtStatus.pending, // Always pending for partial payments
           date: DateTime.now(),
           debtId: null, // No specific debt ID since this is a consolidated payment
         );
