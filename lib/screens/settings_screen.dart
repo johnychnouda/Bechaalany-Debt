@@ -3,11 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
-import '../services/data_service.dart';
-import '../services/notification_service.dart';
+
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
-
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -106,12 +104,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'Data Management',
                 [
-
                   _buildNavigationRow(
                     'Clear Debts & Activities',
-                    'Remove all debts, activities, and all payment records',
+                    'Remove all debts, activities, and payment records (preserves products and customers)',
                     CupertinoIcons.trash,
-                    () => _showClearDataDialog(),
+                    () => _showClearDebtsDialog(),
                   ),
                   _buildNavigationRow(
                     'Data Recovery',
@@ -123,6 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
+
                 ],
               ),
               
@@ -191,53 +189,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppColors.dynamicPrimary(context),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.dynamicTextPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.dynamicTextSecondary(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            CupertinoSwitch(
-              value: value,
-              onChanged: onChanged,
-              activeColor: AppColors.dynamicPrimary(context),
-            ),
-          ],
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
+        ),
+        trailing: CupertinoSwitch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.dynamicPrimary(context),
         ),
       ),
     );
@@ -253,58 +232,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicPrimary(context).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: AppColors.dynamicPrimary(context),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.dynamicTextPrimary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.dynamicTextSecondary(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                CupertinoIcons.chevron_right,
-                size: 16,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ],
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.dynamicTextPrimary(context),
           ),
         ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
+        ),
+        trailing: Icon(
+          CupertinoIcons.chevron_right,
+          color: AppColors.dynamicTextSecondary(context),
+          size: 16,
+        ),
+        onTap: onTap,
       ),
     );
   }
@@ -319,48 +276,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 18,
-                color: AppColors.dynamicPrimary(context),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.dynamicTextPrimary(context),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.dynamicTextSecondary(context),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        trailing: Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
         ),
       ),
     );
@@ -376,58 +314,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicPrimary(context).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: AppColors.dynamicPrimary(context),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.dynamicTextPrimary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.dynamicTextSecondary(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                CupertinoIcons.chevron_right,
-                size: 16,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ],
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.dynamicTextPrimary(context),
           ),
         ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.systemGray6,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                currentMessage.isNotEmpty ? currentMessage : 'No custom message set',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontStyle: currentMessage.isEmpty ? FontStyle.italic : FontStyle.normal,
+                ),
+              ),
+            ),
+          ],
+        ),
+        trailing: Icon(
+          CupertinoIcons.chevron_right,
+          color: AppColors.dynamicTextSecondary(context),
+          size: 16,
+        ),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  void _showCurrencySettings() {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => const CurrencySettingsScreen(),
       ),
     );
   }
@@ -437,19 +382,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: Text(
-          'About Bechaalany Debt App',
+          'App Information',
           style: TextStyle(
             color: AppColors.dynamicTextPrimary(context),
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
-        content: Text(
-          'A professional debt tracking application designed for businesses and individuals to manage customer debts, track payments, and maintain financial records.\n\nBuilt with Flutter for iOS and Android.',
-          style: TextStyle(
-            color: AppColors.dynamicTextSecondary(context),
-            fontSize: 13,
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bechaalany Debt App',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'A comprehensive debt management application for tracking customer debts, payments, and business revenue.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Features:',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '• Customer debt tracking\n• Payment management\n• Revenue calculations\n• Product catalog\n• WhatsApp automation\n• Data backup & recovery',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
         actions: [
           CupertinoDialogAction(
@@ -468,15 +445,86 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCurrencySettings() {
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (context) => const CurrencySettingsScreen(),
+  void _showCustomMessageDialog(BuildContext context) {
+    final messageController = TextEditingController(
+      text: Provider.of<AppState>(context, listen: false).whatsappCustomMessage,
+    );
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          'Custom WhatsApp Message',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Personalize the message sent when a debt is fully settled:',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            CupertinoTextField(
+              controller: messageController,
+              placeholder: 'Enter your custom message...',
+              maxLines: 3,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.dynamicBorder(context)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Use {customerName} to include the customer\'s name in your message.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              final appState = Provider.of<AppState>(context, listen: false);
+              appState.setWhatsappCustomMessage(messageController.text.trim());
+              Navigator.pop(context);
+            },
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: AppColors.dynamicPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showClearDataDialog() {
+  void _showClearDebtsDialog() {
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
@@ -484,15 +532,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Clear Debts & Activities',
           style: TextStyle(
             color: AppColors.dynamicTextPrimary(context),
-            fontSize: 16,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
         content: Text(
-          'This will permanently delete all debts, activities, and payment records. Your customers and products will be preserved.',
+          'This will permanently delete all debts, activities, and payment records. Products and customers will be preserved. This action cannot be undone.\n\nAre you sure you want to proceed?',
           style: TextStyle(
             color: AppColors.dynamicTextSecondary(context),
-            fontSize: 13,
+            fontSize: 14,
           ),
         ),
         actions: [
@@ -501,7 +549,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                color: AppColors.dynamicTextPrimary(context),
+                color: AppColors.dynamicTextSecondary(context),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -521,7 +569,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CupertinoActivityIndicator(),
+                        CupertinoActivityIndicator(),
                         const SizedBox(height: 16),
                         Text(
                           'Clearing debts and activities...',
@@ -536,24 +584,89 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
               
-              // Clear only debts, activities, and payment records (preserve customers and products)
-              final appState = Provider.of<AppState>(context, listen: false);
-              await appState.clearDebtsAndActivities();
-              
-              // Hide loading and show success
-              Navigator.pop(context);
-              
-              // Show success message
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Debts, activities, and payment records cleared successfully!'),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              try {
+                final appState = Provider.of<AppState>(context, listen: false);
+                await appState.clearDebtsAndActivities();
+                
+                // Hide loading indicator
+                Navigator.pop(context);
+                
+                // Show success message
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: Text(
+                      'Success',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    content: Text(
+                      'All debts, activities, and payment records have been cleared successfully. Products and customers have been preserved.',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextSecondary(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    actions: [
+                      CupertinoDialogAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            color: AppColors.dynamicPrimary(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                // Hide loading indicator
+                Navigator.pop(context);
+                
+                // Show error message
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: Text(
+                      'Error',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    content: Text(
+                      'Failed to clear debts and activities: $e',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextSecondary(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    actions: [
+                      CupertinoDialogAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
             },
             child: Text(
-              'Clear',
+              'Clear Debts',
               style: TextStyle(
                 color: Colors.red,
                 fontSize: 16,
@@ -566,91 +679,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// Show custom message dialog
-  void _showCustomMessageDialog(BuildContext context) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final currentMessage = appState.whatsappCustomMessage;
-    final textController = TextEditingController(text: currentMessage);
-    
+  /// Show fix alfa currency dialog
+  void _showFixAlfaCurrencyDialog(BuildContext context) {
     showCupertinoDialog(
       context: context,
-      builder: (context) => Container(
-        width: MediaQuery.of(context).size.width * 0.98, // 98% of screen width
-        constraints: const BoxConstraints(
-          maxWidth: 800, // Much larger maximum width
-          minWidth: 500, // Larger minimum width
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          'Fix Alfa Product Currency',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        child: CupertinoAlertDialog(
-          title: Text(
-            'Custom WhatsApp Message',
-            style: TextStyle(
-              color: AppColors.dynamicTextPrimary(context),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+        content: Text(
+          'This will fix the alfa debt to match the correct product pricing. The debt amount will be set to 4.50\$ with a cost of 2.00\$ to give 2.50\$ revenue, matching the product settings.\n\nDo you want to proceed?',
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
-          content: Column(
-            children: [
-              Text(
-                'Debt Settlement Message:',
-                style: TextStyle(
-                  color: AppColors.dynamicTextSecondary(context),
-                  fontSize: 13,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              CupertinoTextField(
-                controller: textController,
-                placeholder: 'Enter your message here...',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.dynamicTextPrimary(context),
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicBackground(context),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.dynamicBorder(context),
-                    width: 1,
+          CupertinoDialogAction(
+            onPressed: () async {
+              // Hide dialog
+              Navigator.pop(context);
+              
+              // Show loading indicator
+              showCupertinoDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => CupertinoAlertDialog(
+                  content: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CupertinoActivityIndicator(),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Fixing alfa product currency...',
+                          style: TextStyle(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                maxLines: 5,
-                minLines: 4,
-                textAlignVertical: TextAlignVertical.top,
-              ),
-            ],
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: AppColors.dynamicTextPrimary(context),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            CupertinoDialogAction(
-              onPressed: () {
-                final newMessage = textController.text.trim();
-                appState.setWhatsappCustomMessage(newMessage);
+              );
+              
+              try {
+                final appState = Provider.of<AppState>(context, listen: false);
+                await appState.fixAlfaProductCurrency();
+                
+                // Hide loading indicator
                 Navigator.pop(context);
-              },
-              child: Text(
-                'Save',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                
+                // Show success message
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: Text(
+                      'Success',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                            content: Text(
+          'Alfa debt has been fixed successfully! The debt amount now matches the product pricing: 4.50\$ debt with 2.50\$ revenue.',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextSecondary(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    actions: [
+                      CupertinoDialogAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              } catch (e) {
+                // Hide loading indicator
+                Navigator.pop(context);
+                
+                // Show error message
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: Text(
+                      'Error',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    content: Text(
+                      'Failed to fix alfa product currency: $e',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextSecondary(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    actions: [
+                      CupertinoDialogAction(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'OK',
+                          style: TextStyle(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+            child: Text(
+              'Fix Currency',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

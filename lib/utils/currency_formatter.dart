@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/currency_settings.dart';
+import 'package:intl/intl.dart';
 
 class CurrencyFormatter {
   static String? formattedExchangeRate(CurrencySettings settings) {
@@ -15,42 +16,51 @@ class CurrencyFormatter {
   }
 
   /// Formats product price for display in the Products screen
-  /// LBP products: Convert to USD for display
-  /// USD products: Show as-is
+  /// Always shows USD values for LBP products (following user preferences)
+  /// USD products: Show USD values with $ symbol
   static String formatProductPrice(BuildContext context, double amount, {String? storedCurrency}) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
+    if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
+      // USD products: just show the USD amount
+      return '${amount.toStringAsFixed(2)}\$';
+    }
     
-    if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
-      if (storedCurrency.toUpperCase() == 'LBP') {
-        // Convert LBP to USD for display
-        final convertedAmount = amount / settings.exchangeRate!;
-        return '${convertedAmount.toStringAsFixed(2)}\$';
-      } else if (storedCurrency.toUpperCase() == 'USD') {
-        // Already in USD, show as-is
-        return '${amount.toStringAsFixed(2)}\$';
+    if (storedCurrency.toUpperCase() == 'LBP') {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final settings = appState.currencySettings;
+      
+      if (settings != null && settings.exchangeRate != null) {
+        // Calculate current USD equivalent and show only USD
+        final usdEquivalent = amount / settings.exchangeRate!;
+        return '${usdEquivalent.toStringAsFixed(2)}\$';
+      } else {
+        // No exchange rate set, show 0.00 USD
+        return '0.00\$';
       }
     }
     
-    // Fallback to USD with dollar sign on the right side
+    // Fallback
     return '${amount.toStringAsFixed(2)}\$';
   }
 
   /// Formats amount for display based on stored currency
-  /// LBP products: Always convert to current USD rate for display
+  /// Always shows USD values for LBP products (following user preferences)
   /// USD products: Always show same USD amount regardless of exchange rate
   static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final settings = appState.currencySettings;
+    if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
+      // USD products: just show the USD amount
+      return '${amount.toStringAsFixed(2)}\$';
+    }
     
-    if (settings != null && storedCurrency != null && settings.exchangeRate != null) {
-      // If stored currency is LBP, the amount should already be in USD (converted during debt creation)
-      // So we just display the amount as-is, since it's already the correct USD value
-      if (storedCurrency.toUpperCase() == 'LBP') {
-        // Amount is already in USD (converted during debt creation), just display it
-        return '${amount.toStringAsFixed(2)}\$';
-      } else if (storedCurrency.toUpperCase() == 'USD') {
-        // Already in USD, always show the same amount regardless of exchange rate changes
+    if (storedCurrency.toUpperCase() == 'LBP') {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final settings = appState.currencySettings;
+      
+      if (settings != null && settings.exchangeRate != null) {
+        // Calculate current USD equivalent and show only USD
+        final usdEquivalent = amount / settings.exchangeRate!;
+        return '${usdEquivalent.toStringAsFixed(2)}\$';
+      } else {
+        // No exchange rate set, show 0.00 USD
         return '${amount.toStringAsFixed(2)}\$';
       }
     }
@@ -77,6 +87,58 @@ class CurrencyFormatter {
     
     // Fallback to original amount
     return amount;
+  }
+
+  /// Gets the formatted current USD equivalent for display
+  /// Shows both LBP amount and current USD equivalent for LBP products
+  static String getFormattedCurrentUSDEquivalent(BuildContext context, double amount, {String? storedCurrency}) {
+    if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
+      // USD products: just show the USD amount
+      return '${amount.toStringAsFixed(2)}\$';
+    }
+    
+    if (storedCurrency.toUpperCase() == 'LBP') {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final settings = appState.currencySettings;
+      
+      if (settings != null && settings.exchangeRate != null) {
+        // Calculate current USD equivalent
+        final usdEquivalent = amount / settings.exchangeRate!;
+        return '${NumberFormat('#,###').format(amount.toInt())} LBP (≈ ${usdEquivalent.toStringAsFixed(2)}\$)';
+      } else {
+        // No exchange rate set, just show LBP
+        return '${NumberFormat('#,###').format(amount.toInt())} LBP';
+      }
+    }
+    
+    // Fallback
+    return '${amount.toStringAsFixed(2)}\$';
+  }
+
+  /// Gets the formatted USD equivalent for product display
+  /// Always shows USD values for LBP products (following user preferences)
+  static String getFormattedUSDForProductDisplay(BuildContext context, double amount, {String? storedCurrency}) {
+    if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
+      // USD products: just show the USD amount
+      return '${amount.toStringAsFixed(2)}\$';
+    }
+    
+    if (storedCurrency.toUpperCase() == 'LBP') {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final settings = appState.currencySettings;
+      
+      if (settings != null && settings.exchangeRate != null) {
+        // Calculate current USD equivalent and show only USD
+        final usdEquivalent = amount / settings.exchangeRate!;
+        return '${usdEquivalent.toStringAsFixed(2)}\$';
+      } else {
+        // No exchange rate set, show 0.00 USD
+        return '0.00\$';
+      }
+    }
+    
+    // Fallback
+    return '${amount.toStringAsFixed(2)}\$';
   }
 
   /// Gets the original amount in its stored currency

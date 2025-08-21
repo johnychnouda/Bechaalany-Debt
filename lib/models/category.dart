@@ -114,10 +114,10 @@ class Subcategory extends HiveObject {
   /// This helps prevent corrupted data from being stored
   bool get hasValidPrices {
     if (costPriceCurrency == 'LBP') {
-      // LBP prices should typically be in thousands or tens of thousands
-      // Very high amounts (> 1,000,000) might indicate corruption
-      return costPrice > 0 && costPrice < 1000000 && 
-             sellingPrice > 0 && sellingPrice < 1000000;
+      // LBP prices can be in millions (e.g., 3,000,000 LBP = 30 USD at 100,000 rate)
+      // Allow up to 100,000,000 LBP (1,000 USD at 100,000 rate) which is reasonable
+      return costPrice > 0 && costPrice < 100000000 && 
+             sellingPrice > 0 && sellingPrice < 100000000;
     } else if (costPriceCurrency == 'USD') {
       // USD prices should typically be reasonable amounts
       // Very high amounts (> 10,000) might indicate corruption
@@ -130,10 +130,10 @@ class Subcategory extends HiveObject {
   /// Gets a human-readable description of any price validation issues
   String? get priceValidationMessage {
     if (!hasValidPrices) {
-      if (costPriceCurrency == 'LBP' && (costPrice > 1000000 || sellingPrice > 1000000)) {
-        return 'LBP prices seem unusually high. Please verify the amounts.';
+      if (costPriceCurrency == 'LBP' && (costPrice > 100000000 || sellingPrice > 100000000)) {
+        return 'LBP prices seem unusually high (over 100,000,000 LBP). Please verify the amounts.';
       } else if (costPriceCurrency == 'USD' && (costPrice > 10000 || sellingPrice > 10000)) {
-        return 'USD prices seem unusually high. Please verify the amounts.';
+        return 'USD prices seem unusually high (over 10,000 USD). Please verify the amounts.';
       }
       return 'Product prices seem invalid. Please check the amounts.';
     }

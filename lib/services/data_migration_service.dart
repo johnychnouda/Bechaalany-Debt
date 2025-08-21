@@ -1,6 +1,7 @@
 import '../models/category.dart';
 import '../models/currency_settings.dart';
 import '../models/debt.dart';
+import '../models/activity.dart';
 import 'data_service.dart';
 
 class DataMigrationService {
@@ -26,6 +27,9 @@ class DataMigrationService {
       
       // Fix existing activities by linking them to their corresponding debts
       await fixActivitiesDebtId();
+      
+      // Clean up any duplicate orphaned activities
+      await cleanupOrphanedActivities();
       
       print('✅ All migrations completed successfully');
     } catch (e) {
@@ -587,22 +591,79 @@ class DataMigrationService {
       final activities = _dataService.activities;
       final debts = _dataService.debts;
       
+      print('📊 Found ${activities.length} activities and ${debts.length} debts');
+      print('📊 Debts available for matching:');
+      for (final debt in debts) {
+        print('  - ${debt.description} (ID: ${debt.id}, Customer: ${debt.customerId}, Amount: ${debt.amount})');
+      }
+      
       int fixedCount = 0;
       
       for (final activity in activities) {
         // Skip activities that already have debtId
         if (activity.debtId != null) continue;
         
+        print('🔍 Looking for debt match for activity: "${activity.description}" (Customer: ${activity.customerName}, Amount: ${activity.amount})');
+        
         // Try to find matching debt by description and customer
-        final matchingDebt = debts.firstWhere(
-          (debt) => 
-            debt.description.toLowerCase() == activity.description.split(':')[0].toLowerCase() &&
-            debt.customerId == activity.customerId &&
-            debt.amount == activity.amount,
-          orElse: () => null,
-        );
+        Debt? matchingDebt;
+        
+        // Handle different activity types
+        print('  Activity type: ${activity.type}');
+        
+        if (activity.type == ActivityType.newDebt) {
+          // For new debt activities, the description format is "Product: Amount$"
+          print('  Processing new debt activity...');
+          try {
+            final productName = activity.description.split(':')[0].toLowerCase();
+            print('  Looking for product: "$productName"');
+            matchingDebt = debts.firstWhere(
+              (debt) => 
+                debt.description.toLowerCase() == productName &&
+                debt.customerId == activity.customerId &&
+                debt.amount == activity.amount,
+            );
+          } catch (e) {
+            // Try more flexible matching for new debt activities
+            try {
+              final productName = activity.description.split(':')[0].toLowerCase();
+              print('  Exact match failed, trying flexible match for product: "$productName"');
+              matchingDebt = debts.firstWhere(
+                (debt) => 
+                  debt.customerId == activity.customerId &&
+                  debt.description.toLowerCase().contains(productName),
+              );
+            } catch (e) {
+              print('  No matching debt found for new debt activity');
+            }
+          }
+        } else if (activity.type == ActivityType.payment) {
+          // For payment activities, we need to find the debt by customer and amount
+          // since the description is just "Fully paid: Amount$" or "Partial payment: Amount$"
+          print('  Processing payment activity...');
+          try {
+            print('  Looking for debt with customer: ${activity.customerId}, amount: ${activity.amount}');
+            matchingDebt = debts.firstWhere(
+              (debt) => 
+                debt.customerId == activity.customerId &&
+                debt.amount == activity.amount,
+            );
+          } catch (e) {
+            // Try to find any debt for this customer if exact amount match fails
+            try {
+              print('  Exact amount match failed, trying to find any debt for customer: ${activity.customerId}');
+              matchingDebt = debts.firstWhere(
+                (debt) => debt.customerId == activity.customerId,
+              );
+            } catch (e) {
+              print('  No matching debt found for payment activity');
+            }
+          }
+        }
         
         if (matchingDebt != null) {
+          print('✅ Found matching debt: "${matchingDebt.description}" (ID: ${matchingDebt.id})');
+          
           // Create updated activity with debtId
           final updatedActivity = activity.copyWith(
             debtId: matchingDebt.id,
@@ -613,12 +674,65 @@ class DataMigrationService {
           fixedCount++;
           
           print('🔗 Linked activity "${activity.description}" to debt ${matchingDebt.id}');
+        } else {
+          print('❌ No matching debt found for activity: "${activity.description}"');
         }
       }
       
       print('✅ Fixed $fixedCount activities with debtId links');
     } catch (e) {
       print('❌ Error fixing activities debtId: $e');
+    }
+  }
+
+  /// Clean up duplicate activities that were created without proper debtId linking
+  /// This removes orphaned activities that can cause confusion in the UI
+  Future<void> cleanupOrphanedActivities() async {
+    try {
+      print('🧹 Starting orphaned activities cleanup...');
+      
+      // Get all activities and debts
+      final activities = _dataService.activities;
+      final debts = _dataService.debts;
+      
+      int removedCount = 0;
+      
+      // Find activities without debtId that might be duplicates
+      final orphanedActivities = activities.where((a) => a.debtId == null).toList();
+      
+      print('📊 Found ${orphanedActivities.length} orphaned activities');
+      
+      // Group orphaned activities by customer, description, and amount to identify duplicates
+      final Map<String, List<Activity>> activityGroups = {};
+      
+      for (final activity in orphanedActivities) {
+        final key = '${activity.customerId}_${activity.description}_${activity.amount.toStringAsFixed(2)}';
+        activityGroups.putIfAbsent(key, () => []).add(activity);
+      }
+      
+      // Remove duplicate orphaned activities, keeping only the most recent one
+      for (final group in activityGroups.values) {
+        if (group.length > 1) {
+          // Sort by date (newest first)
+          group.sort((a, b) => b.date.compareTo(a.date));
+          
+          // Keep the first (most recent) activity, remove the rest
+          for (int i = 1; i < group.length; i++) {
+            final duplicateActivity = group[i];
+            await _dataService.deleteActivity(duplicateActivity.id);
+            removedCount++;
+            print('🗑️ Removed duplicate orphaned activity: "${duplicateActivity.description}"');
+          }
+        }
+      }
+      
+      if (removedCount > 0) {
+        print('✅ Cleaned up $removedCount duplicate orphaned activities');
+      } else {
+        print('✅ No duplicate orphaned activities found');
+      }
+    } catch (e) {
+      print('❌ Error cleaning up orphaned activities: $e');
     }
   }
 }

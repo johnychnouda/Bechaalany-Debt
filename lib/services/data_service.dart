@@ -496,9 +496,18 @@ class DataService {
   
   Future<void> addDebt(Debt debt) async {
     try {
+      print('🔧 DataService: Adding debt to database: ${debt.description}');
+      print('  ID: ${debt.id}');
+      print('  Amount: ${debt.amount}');
+      print('  Currency: ${debt.storedCurrency}');
+      
       await _autoBackup(); // Create backup before adding
       _debtBoxSafe.put(debt.id, debt);
+      
+      print('🔧 DataService: Debt successfully saved to database');
+      print('  Total debts in database: ${_debtBoxSafe.length}');
     } catch (e) {
+      print('❌ DataService: Error saving debt: $e');
       rethrow;
     }
   }
@@ -890,71 +899,48 @@ class DataService {
     }
   }
 
-  /// Remove duplicate debt entries that have the same customerId, description, amount, and createdAt
-  /// This fixes the issue where customers see duplicate product purchases
+  /// Remove ONLY actual duplicate debt entries (same ID, same exact timestamp)
+  /// Customers should be able to buy the same product multiple times
+  /// This method is now much more conservative to prevent accidental deletion
+  /// 
+  /// IMPORTANT: This method should only be called manually when needed,
+  /// NOT automatically during app startup, as it could interfere with
+  /// newly created legitimate debts.
   Future<void> removeDuplicateDebts() async {
     try {
       final allDebts = _debtBoxSafe.values.toList();
       final Map<String, List<Debt>> debtGroups = {};
       
-      // Group debts by customer and description to identify potential duplicates
+      // CRITICAL FIX: Only group by ID to find truly identical debts
+      // This prevents legitimate multiple purchases from being treated as duplicates
       for (final debt in allDebts) {
-        final key = '${debt.customerId}_${debt.description}_${debt.amount.toStringAsFixed(2)}';
+        // Use only the debt ID as the key - this is the only way to have true duplicates
+        final key = debt.id;
         debtGroups.putIfAbsent(key, () => []).add(debt);
       }
       
       int removedCount = 0;
       
-      // Remove duplicates, keeping only the most recent one
+      // Only remove debts that have the exact same ID (which shouldn't happen)
       for (final group in debtGroups.values) {
         if (group.length > 1) {
-          // Sort by creation date (newest first)
-          group.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          print('🔍 Found ${group.length} debts with identical ID: ${group.first.id}');
+          print('  This indicates a database corruption issue - keeping only the first one');
           
-          // Keep the first (most recent) debt, remove the rest
+          // Keep the first debt, remove the rest (they're identical anyway)
           for (int i = 1; i < group.length; i++) {
             final duplicateDebt = group[i];
-            
-            // Check if this duplicate has any partial payments or activities
-            final hasPartialPayments = _partialPaymentBoxSafe.values.any((p) => p.debtId == duplicateDebt.id);
-            final hasActivities = _activityBoxSafe.values.any((a) => a.debtId == duplicateDebt.id);
-            
-            if (!hasPartialPayments && !hasActivities) {
-              // Safe to remove - no related data
-              await _debtBoxSafe.delete(duplicateDebt.id);
-              removedCount++;
-            } else {
-              // Merge partial payments and activities to the main debt
-              final mainDebt = group[0];
-              
-              if (hasPartialPayments) {
-                final partialPayments = _partialPaymentBoxSafe.values.where((p) => p.debtId == duplicateDebt.id).toList();
-                for (final payment in partialPayments) {
-                  // Update payment to reference main debt
-                  final updatedPayment = payment.copyWith(debtId: mainDebt.id);
-                  await _partialPaymentBoxSafe.put(payment.id, updatedPayment);
-                }
-              }
-              
-              if (hasActivities) {
-                final activities = _activityBoxSafe.values.where((a) => a.debtId == duplicateDebt.id).toList();
-                for (final activity in activities) {
-                  // Update activity to reference main debt
-                  final updatedActivity = activity.copyWith(debtId: mainDebt.id);
-                  await _activityBoxSafe.put(activity.id, updatedActivity);
-                }
-              }
-              
-              // Now safe to remove the duplicate
-              await _debtBoxSafe.delete(duplicateDebt.id);
-              removedCount++;
-            }
+            await _debtBoxSafe.delete(duplicateDebt.id);
+            removedCount++;
+            print('  🗑️ Removed corrupted duplicate debt: ${duplicateDebt.description} (ID: ${duplicateDebt.id})');
           }
         }
       }
       
       if (removedCount > 0) {
-        print('🧹 Removed $removedCount duplicate debt entries');
+        print('🧹 Removed $removedCount corrupted duplicate debt entries');
+      } else {
+        print('✅ No corrupted duplicate debts found - all debts are unique');
       }
     } catch (e) {
       print('❌ Error removing duplicate debts: $e');

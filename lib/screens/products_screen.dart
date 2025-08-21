@@ -2135,7 +2135,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         'Cost',
-                        CurrencyFormatter.formatProductPrice(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
+                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
                         Icons.shopping_cart,
                         AppColors.dynamicWarning(context),
                       ),
@@ -2145,7 +2145,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         'Price',
-                        CurrencyFormatter.formatProductPrice(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
+                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.attach_money,
                         AppColors.dynamicPrimary(context),
                       ),
@@ -2155,7 +2155,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         subcategory.profit >= 0 ? 'Revenue' : 'Loss',
-                        CurrencyFormatter.formatProductPrice(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
+                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
                         Icons.trending_up,
                         subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
                       ),

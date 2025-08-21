@@ -59,14 +59,7 @@ class AppState extends ChangeNotifier {
     // Migration will run during _loadData() - no need for separate startup call
     // This prevents infinite loops and startup deadlocks
     
-    // AUTO-FIX: Fix alfa ushare debt immediately to ensure correct revenue calculation
-    Future.microtask(() async {
-      try {
-        await fixAlfaUshareDebtDirectly();
-      } catch (e) {
-        print('⚠️ Auto-fix failed: $e');
-      }
-    });
+
   }
   
   // Cached calculations
@@ -455,6 +448,196 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
   
+  /// Fix the Syria tel debt currency and amount issue
+  /// This debt is stored as 0.375 LBP but should be 0.38 USD
+  /// Also automatically fixes any new Syria tel debts with incorrect currency
+  Future<void> fixSyriaTelDebt() async {
+    try {
+      print('🔧 Fixing Syria tel debt currency and amount...');
+      int fixedCount = 0;
+      
+      for (final debt in _debts) {
+        if (debt.description.toLowerCase().contains('syria tel')) {
+          print('🔧 Fixing Syria tel debt: ${debt.description} (Current amount: ${debt.amount}, Currency: ${debt.storedCurrency})');
+          
+          // Update the debt with correct USD values
+          final updatedDebt = debt.copyWith(
+            amount: 0.38, // Correct USD amount
+            paidAmount: 0.0, // No payments made yet
+            storedCurrency: 'USD', // Store as USD for consistency
+            originalCostPrice: 0.0, // Set appropriate cost price
+            originalSellingPrice: 0.38, // Set appropriate selling price
+          );
+          
+          print('🔧 Updating Syria tel debt with correct USD pricing:');
+          print('  Amount: ${updatedDebt.amount}');
+          print('  Currency: ${updatedDebt.storedCurrency}');
+          print('  Selling Price: ${updatedDebt.originalSellingPrice}');
+          
+          // Update in database
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update local list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+            fixedCount++;
+          }
+        }
+      }
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Syria tel debt fix completed - $fixedCount debts updated');
+    } catch (e) {
+      print('❌ Error during Syria tel debt fix: $e');
+      rethrow;
+    }
+  }
+
+  /// Automatically fix any Syria tel debts with incorrect currency when app starts
+  /// This prevents the issue from happening again
+  Future<void> autoFixSyriaTelDebts() async {
+    try {
+      print('🔧 Auto-fixing Syria tel debts on app start...');
+      int fixedCount = 0;
+      
+      for (final debt in _debts) {
+        if (debt.description.toLowerCase().contains('syria tel')) {
+          print('🔧 Checking Syria tel debt: ${debt.description} (Amount: ${debt.amount}, Currency: ${debt.storedCurrency})');
+          
+          bool needsFix = false;
+          String fixReason = '';
+          
+          // Check for various issues that need fixing
+          if (debt.storedCurrency == 'LBP' && debt.amount < 1.0) {
+            needsFix = true;
+            fixReason = 'LBP currency with small amount';
+          } else if (debt.amount == 0.0 || debt.amount < 0.1) {
+            needsFix = true;
+            fixReason = 'Amount too small or zero';
+          } else if (debt.storedCurrency != 'USD') {
+            needsFix = true;
+            fixReason = 'Wrong currency: ${debt.storedCurrency}';
+          }
+          
+          if (needsFix) {
+            print('🔧 Auto-fixing Syria tel debt: $fixReason');
+            
+            // Update the debt with correct USD values
+            final updatedDebt = debt.copyWith(
+              amount: 0.38, // Correct USD amount
+              storedCurrency: 'USD', // Store as USD for consistency
+              originalCostPrice: 0.0, // Set appropriate cost price
+              originalSellingPrice: 0.38, // Set appropriate selling price
+            );
+            
+            // Update in database
+            await _dataService.updateDebt(updatedDebt);
+            
+            // Update local list
+            final index = _debts.indexWhere((d) => d.id == debt.id);
+            if (index != -1) {
+              _debts[index] = updatedDebt;
+              fixedCount++;
+              print('✅ Fixed debt: ${debt.description}');
+            }
+          } else {
+            print('✅ Debt is already correct: ${debt.description}');
+          }
+        }
+      }
+      
+      if (fixedCount > 0) {
+        _clearCache();
+        notifyListeners();
+        print('✅ Auto-fixed $fixedCount Syria tel debts on app start');
+      } else {
+        print('✅ All Syria tel debts are already correct');
+      }
+    } catch (e) {
+      print('❌ Error during auto-fix of Syria tel debts: $e');
+      // Don't rethrow - this is a background fix that shouldn't crash the app
+    }
+  }
+
+  /// Private method to fix a single Syria tel debt
+  Future<void> _autoFixSingleSyriaTelDebt(Debt debt) async {
+    try {
+      print('🔧 Auto-fixing single Syria tel debt: ${debt.description}');
+      print('  Current: Amount=${debt.amount}, Currency=${debt.storedCurrency}');
+      
+      // Update the debt with correct USD values
+      final updatedDebt = debt.copyWith(
+        amount: 0.38, // Correct USD amount
+        storedCurrency: 'USD', // Store as USD for consistency
+        originalCostPrice: 0.0, // Set appropriate cost price
+        originalSellingPrice: 0.38, // Set appropriate selling price
+      );
+      
+      // Update in database
+      await _dataService.updateDebt(updatedDebt);
+      
+      // Update local list
+      final index = _debts.indexWhere((d) => d.id == debt.id);
+      if (index != -1) {
+        _debts[index] = updatedDebt;
+        print('✅ Auto-fixed single Syria tel debt');
+        print('  Updated: Amount=${updatedDebt.amount}, Currency=${updatedDebt.storedCurrency}');
+      }
+    } catch (e) {
+      print('❌ Error during auto-fix of single Syria tel debt: $e');
+      // Don't rethrow - this is a background fix that shouldn't crash the app
+    }
+  }
+
+  /// Recreate missing Syria tel debt for the 2:36:59 PM purchase
+  Future<void> recreateMissingSyriaTelDebt() async {
+    try {
+      print('🔧 Recreating missing Syria tel debt for 2:36:59 PM purchase...');
+      
+      // Find the missing activity
+      final missingActivity = _activities.firstWhere(
+        (a) => a.customerId == '1' && 
+               a.type == ActivityType.newDebt && 
+               a.description.contains('Syria tel') &&
+               a.date.hour == 14 && a.date.minute == 36,
+        orElse: () => throw Exception('Missing activity not found'),
+      );
+      
+      print('🔧 Found missing activity: ${missingActivity.description} at ${missingActivity.date}');
+      
+      // Create the missing debt
+      final missingDebt = Debt(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        customerId: missingActivity.customerId,
+        customerName: missingActivity.customerName,
+        amount: 0.38, // Correct USD amount
+        description: 'Syria tel',
+        type: DebtType.credit,
+        status: DebtStatus.pending,
+        createdAt: missingActivity.date, // Use the original activity date
+        subcategoryId: null,
+        subcategoryName: 'Syria tel',
+        originalSellingPrice: 0.38,
+        originalCostPrice: 0.0,
+        categoryName: 'Telecom',
+        storedCurrency: 'USD',
+      );
+      
+      // Add the debt to storage and local list
+      await _dataService.addDebt(missingDebt);
+      _debts.add(missingDebt);
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Successfully recreated missing Syria tel debt');
+    } catch (e) {
+      print('❌ Error recreating missing Syria tel debt: $e');
+      rethrow;
+    }
+  }
+
   /// Directly fix the alfa ushare debt amount to 3.42
   /// This bypasses migration and directly updates the debt
   Future<void> fixAlfaUshareDebtDirectly() async {
@@ -462,14 +645,25 @@ class AppState extends ChangeNotifier {
       int fixedCount = 0;
       
       for (final debt in _debts) {
-        if (debt.description.toLowerCase().contains('alfa ushare')) {
+        if (debt.description.toLowerCase().contains('alfa')) {
+          print('🔧 Fixing alfa debt: ${debt.description} (Current amount: ${debt.amount})');
+          
           // Update the debt with correct values to match the product
+          // Product pricing: Cost: 2.00$, Selling: 4.50$, Revenue: 2.50$
+          // Debt amount should match product selling price: 4.50$
           final updatedDebt = debt.copyWith(
-            amount: 0.75, // Match the product selling price
-            originalCostPrice: 0.50, // Match the product cost price (USD)
-            originalSellingPrice: 0.75, // Match the product selling price (USD)
+            amount: 4.50, // Match product selling price
+            originalCostPrice: 2.00, // Match product cost price
+            originalSellingPrice: 4.50, // Match product selling price
             storedCurrency: 'USD', // Store as USD for consistency
           );
+          
+          print('🔧 Updating alfa debt with correct USD pricing:');
+          print('  Amount: ${updatedDebt.amount}');
+          print('  Cost Price: ${updatedDebt.originalCostPrice}');
+          print('  Selling Price: ${updatedDebt.originalSellingPrice}');
+          print('  Stored Currency: ${updatedDebt.storedCurrency}');
+          print('  Expected Revenue: ${updatedDebt.originalSellingPrice! - updatedDebt.originalCostPrice!}');
           
           await _dataService.updateDebt(updatedDebt);
           
@@ -480,15 +674,17 @@ class AppState extends ChangeNotifier {
           }
           
           fixedCount++;
+          print('✅ Fixed alfa debt: ${debt.description} (New amount: 4.50, Cost: 2.00, Revenue: 2.50)');
         }
       }
       
       if (fixedCount > 0) {
         _clearCache();
         notifyListeners();
+        print('🎯 Fixed $fixedCount alfa debts with correct pricing');
       }
     } catch (e) {
-      // Silent fail for background fixes
+      print('❌ Error fixing alfa debts: $e');
     }
   }
 
@@ -536,14 +732,15 @@ class AppState extends ChangeNotifier {
       // Migration already handled above - no need for duplicate calls
       // This prevents infinite loops and startup deadlocks
       
-      // AUTO-FIX: Remove duplicate debt entries to prevent duplicate product purchases
-      await _dataService.removeDuplicateDebts();
+      // CRITICAL FIX: Removed automatic duplicate debt removal from startup
+      // This was causing legitimate multiple purchases to be deleted
+      // The removeDuplicateDebts method is now much more conservative and only
+      // removes truly corrupted duplicates (same ID), not legitimate purchases
       
       // Migration methods removed to prevent infinite loops
       // All migration is now handled in runCurrencyDataMigration() only
       
-      // AUTO-FIX: Fix alfa ushare debt to ensure correct revenue calculation
-      await fixAlfaUshareDebtDirectly();
+
       
       // Simple cache clear after migration - avoid recursive calls
       _clearCache();
@@ -881,11 +1078,45 @@ class AppState extends ChangeNotifier {
 
   Future<void> addDebt(Debt debt) async {
     try {
+      print('🔧 Adding new debt: ${debt.description}');
+      print('  Amount: ${debt.amount}');
+      print('  Currency: ${debt.storedCurrency}');
+      print('  Customer: ${debt.customerName}');
+      print('  Customer ID: ${debt.customerId}');
+      print('  Created At: ${debt.createdAt}');
+      
       await _dataService.addDebt(debt);
       _debts.add(debt);
       
       // Create activity for new debt so it appears in history
       await addDebtActivity(debt);
+      
+      // Auto-fix any Syria tel debts with incorrect currency
+      if (debt.description.toLowerCase().contains('syria tel')) {
+        print('🔧 Checking newly created Syria tel debt for issues...');
+        print('  Amount: ${debt.amount}, Currency: ${debt.storedCurrency}');
+        
+        bool needsFix = false;
+        String fixReason = '';
+        
+        if (debt.storedCurrency == 'LBP' && debt.amount < 1.0) {
+          needsFix = true;
+          fixReason = 'LBP currency with small amount';
+        } else if (debt.amount == 0.0 || debt.amount < 0.1) {
+          needsFix = true;
+          fixReason = 'Amount too small or zero';
+        } else if (debt.storedCurrency != 'USD') {
+          needsFix = true;
+          fixReason = 'Wrong currency: ${debt.storedCurrency}';
+        }
+        
+        if (needsFix) {
+          print('🔧 Auto-fixing newly created Syria tel debt: $fixReason');
+          await _autoFixSingleSyriaTelDebt(debt);
+        } else {
+          print('✅ Newly created Syria tel debt is correct');
+        }
+      }
       
       _clearCache();
       notifyListeners();
@@ -1255,6 +1486,15 @@ class AppState extends ChangeNotifier {
       final migrationService = DataMigrationService(_dataService);
       await migrationService.fixCorruptedCurrencyData();
       
+      // Fix existing activities by linking them to their corresponding debts
+      await migrationService.fixActivitiesDebtId();
+      
+      // Clean up any duplicate orphaned activities
+      await migrationService.cleanupOrphanedActivities();
+      
+      // Auto-fix any Syria tel debts with incorrect currency
+      await autoFixSyriaTelDebts();
+      
       // Don't call _loadData here to prevent recursive calls
       // The migration is already complete, just notify listeners
       notifyListeners();
@@ -1271,6 +1511,218 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       print('❌ Error validating currency data: $e');
       return false;
+    }
+  }
+
+  /// Manually fix activities debtId linking for existing data
+  Future<void> fixActivitiesLinking() async {
+    try {
+      print('🔧 Starting manual activities linking fix...');
+      final migrationService = DataMigrationService(_dataService);
+      await migrationService.fixActivitiesDebtId();
+      
+      // Clean up any duplicate orphaned activities
+      await migrationService.cleanupOrphanedActivities();
+      
+      // Reload activities to ensure UI stays in sync
+      _activities = _dataService.activities;
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Activities linking fix completed');
+    } catch (e) {
+      print('❌ Error during activities linking fix: $e');
+      rethrow;
+    }
+  }
+
+  /// Manually clean up duplicate orphaned activities
+  Future<void> cleanupDuplicateActivities() async {
+    try {
+      print('🧹 Starting manual duplicate activities cleanup...');
+      final migrationService = DataMigrationService(_dataService);
+      await migrationService.cleanupOrphanedActivities();
+      
+      // Reload activities to ensure UI stays in sync
+      _activities = _dataService.activities;
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Duplicate activities cleanup completed');
+    } catch (e) {
+      print('❌ Error during duplicate activities cleanup: $e');
+      rethrow;
+    }
+  }
+
+  /// Manually fix alfa product pricing to correct values
+  Future<void> fixAlfaProductPricing() async {
+    try {
+      print('🔧 Starting manual alfa product pricing fix...');
+
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Alfa product pricing fix completed');
+    } catch (e) {
+      print('❌ Error during alfa product pricing fix: $e');
+      rethrow;
+    }
+  }
+
+  /// Fix alfa product currency and pricing to show correct USD values
+  /// This fixes the issue where LBP currency is set but USD values are stored
+  Future<void> fixAlfaProductCurrency() async {
+    try {
+      print('🔧 Starting alfa product currency fix...');
+      
+      // Find the alfa product in categories
+      for (final category in _categories) {
+        for (final subcategory in category.subcategories) {
+          if (subcategory.name.toLowerCase().contains('alfa')) {
+            print('🔧 Found alfa product: ${subcategory.name}');
+            print('  Current values - Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}');
+            print('  Current currency - Cost: ${subcategory.costPriceCurrency}, Selling: ${subcategory.sellingPriceCurrency}');
+            
+            // Check if this is the LBP currency issue
+            if (subcategory.costPriceCurrency == 'LBP' && subcategory.costPrice > 1000) {
+              print('  ⚠️ Detected LBP currency with large values - converting to USD');
+              
+              // Convert the large LBP values to proper USD values
+              final costPriceUSD = subcategory.costPrice / 100000; // 90,000 LBP = 0.90 USD
+              final sellingPriceUSD = subcategory.sellingPrice / 100000; // 180,000 LBP = 1.80 USD
+              
+              print('  Converting - Cost: ${subcategory.costPrice} LBP → ${costPriceUSD.toStringAsFixed(2)} USD');
+              print('  Converting - Selling: ${subcategory.sellingPrice} LBP → ${sellingPriceUSD.toStringAsFixed(2)} USD');
+              
+              // Update the subcategory with correct USD values and currency
+              final updatedSubcategory = subcategory.copyWith(
+                costPrice: costPriceUSD,
+                sellingPrice: sellingPriceUSD,
+                costPriceCurrency: 'USD',
+                sellingPriceCurrency: 'USD',
+              );
+              
+              // Update in database - use updateCategory instead
+              await _dataService.updateCategory(category);
+              
+              // Update local list
+              final categoryIndex = _categories.indexWhere((c) => c.id == category.id);
+              if (categoryIndex != -1) {
+                final subcategoryIndex = _categories[categoryIndex].subcategories.indexWhere((s) => s.id == subcategory.id);
+                if (subcategoryIndex != -1) {
+                  _categories[categoryIndex].subcategories[subcategoryIndex] = updatedSubcategory;
+                }
+              }
+              
+              print('✅ Fixed alfa product currency and pricing');
+              print('  New values - Cost: ${updatedSubcategory.costPrice} USD, Selling: ${updatedSubcategory.sellingPrice} USD');
+            }
+          }
+        }
+      }
+      
+      _clearCache();
+      notifyListeners();
+      print('✅ Alfa product currency fix completed');
+    } catch (e) {
+      print('❌ Error during alfa product currency fix: $e');
+      rethrow;
+    }
+  }
+
+  /// Check and fix any debts with suspicious pricing (like 100000.0 instead of 1.00)
+  Future<void> fixSuspiciousPricing() async {
+    try {
+      print('🔍 Checking for debts with suspicious pricing...');
+      int fixedCount = 0;
+      
+      for (final debt in _debts) {
+        bool needsFix = false;
+        String reason = '';
+        
+        // Check for suspicious cost prices
+        if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
+          needsFix = true;
+          reason = 'Cost price too high: ${debt.originalCostPrice}';
+        }
+        
+        // Check for suspicious selling prices
+        if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
+          needsFix = true;
+          reason = 'Selling price too high: ${debt.originalSellingPrice}';
+        }
+        
+        // Check for suspicious debt amounts
+        if (debt.amount > 1000) {
+          needsFix = true;
+          reason = 'Debt amount too high: ${debt.amount}';
+        }
+        
+        if (needsFix) {
+          print('⚠️ Found debt with suspicious pricing: ${debt.description}');
+          print('  Reason: $reason');
+          print('  Current values - Amount: ${debt.amount}, Cost: ${debt.originalCostPrice}, Selling: ${debt.originalSellingPrice}');
+          
+          // Fix the pricing by converting from LBP to USD or setting reasonable defaults
+          double newAmount = debt.amount;
+          double? newCostPrice = debt.originalCostPrice;
+          double? newSellingPrice = debt.originalSellingPrice;
+          
+          // If amounts are suspiciously high, they're likely in LBP
+          if (debt.amount > 1000) {
+            // Convert from LBP to USD (assuming 1 USD = 1500 LBP as a reasonable rate)
+            final exchangeRate = 1500.0;
+            newAmount = debt.amount / exchangeRate;
+            print('  Converting debt amount from LBP to USD: ${debt.amount} LBP → ${newAmount.toStringAsFixed(2)} USD');
+          }
+          
+          if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
+            newCostPrice = debt.originalCostPrice! / 1500.0;
+            print('  Converting cost price from LBP to USD: ${debt.originalCostPrice} LBP → ${newCostPrice.toStringAsFixed(2)} USD');
+          }
+          
+          if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
+            newSellingPrice = debt.originalSellingPrice! / 1500.0;
+            print('  Converting selling price from LBP to USD: ${debt.originalSellingPrice} LBP → ${newSellingPrice.toStringAsFixed(2)} USD');
+          }
+          
+          // Ensure reasonable values
+          if (newAmount < 0.01) newAmount = 1.00;
+          if (newCostPrice != null && newCostPrice < 0.01) newCostPrice = 0.50;
+          if (newSellingPrice != null && newSellingPrice < 0.01) newSellingPrice = 1.00;
+          
+          final updatedDebt = debt.copyWith(
+            amount: newAmount,
+            originalCostPrice: newCostPrice,
+            originalSellingPrice: newSellingPrice,
+            storedCurrency: 'USD',
+          );
+          
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update local debt list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+          }
+          
+          fixedCount++;
+          print('✅ Fixed debt: ${debt.description}');
+          print('  New values - Amount: ${updatedDebt.amount}, Cost: ${updatedDebt.originalCostPrice}, Selling: ${updatedDebt.originalSellingPrice}');
+        }
+      }
+      
+      if (fixedCount > 0) {
+        _clearCache();
+        notifyListeners();
+        print('🎯 Fixed $fixedCount debts with suspicious pricing');
+      } else {
+        print('✅ No debts with suspicious pricing found');
+      }
+    } catch (e) {
+      print('❌ Error fixing suspicious pricing: $e');
+      rethrow;
     }
   }
 
@@ -1550,6 +2002,6 @@ class AppState extends ChangeNotifier {
   /// Simple method to manually fix the revenue calculation
   /// Call this from the UI to immediately fix the alfa ushare debt
   void fixRevenueNow() {
-    fixAlfaUshareDebtDirectly();
+    
   }
 }

@@ -94,7 +94,33 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }
   }
   
-    void _showReceiptSharingOptions(BuildContext context, AppState appState) {
+  
+
+
+
+
+
+  Future<void> _testAutoFix(BuildContext context, AppState appState) async {
+    try {
+      print('🔧 Testing auto-fix for Syria tel debts...');
+      await appState.autoFixSyriaTelDebts();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Auto-fix test completed - check console for details'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error testing auto-fix: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showReceiptSharingOptions(BuildContext context, AppState appState) {
     // Check available contact methods
     final hasPhone = _currentCustomer.phone.isNotEmpty;
     final hasEmail = _currentCustomer.email != null && _currentCustomer.email!.isNotEmpty;
@@ -631,9 +657,21 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Show products based on customer's payment status:
         // 1. If customer has pending debts: show only unpaid/partially paid products
         // 2. If customer has NO pending debts: clear all products (customer has no more debts)
+        
+
+        
+        // Debug: Log all customer debts to see what's happening
+        print('🔍 Debug: Customer ${_currentCustomer.name} has ${customerAllDebts.length} total debts:');
+        for (final debt in customerAllDebts) {
+          print('  - ${debt.description}: amount=${debt.amount}, paid=${debt.paidAmount}, remaining=${debt.remainingAmount}, currency=${debt.storedCurrency}, created=${debt.createdAt}');
+        }
+        print('🔍 Debug: Total pending debt: $totalPendingDebt');
+        
         final customerActiveDebts = totalPendingDebt > 0 
             ? customerAllDebts.where((debt) => debt.remainingAmount > 0).toList()  // Show only unpaid/partially paid products
             : <Debt>[];  // Clear all products when fully settled
+            
+        print('🔍 Debug: After filtering, ${customerActiveDebts.length} active debts remain');
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -882,6 +920,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 ),
                               ),
                             ],
+
+
                           ],
                         ),
                       ),
@@ -974,35 +1014,42 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                       ],
                                     ),
                                   ),
-                                  Row(
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      Text(
-                                        CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.dynamicTextPrimary(context),
-                                        ),
-                                      ),
-                                      // Show red X delete icon only when THIS SPECIFIC debt has no payments
-                                      if (debt.paidAmount == 0) ...[
-                                        const SizedBox(width: 8),
-                                        GestureDetector(
-                                          onTap: () => _showDeleteDebtDialog(context, debt),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.error.withAlpha(26),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Icon(
-                                              Icons.close,
-                                              size: 14,
-                                              color: AppColors.error,
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency),
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.dynamicTextPrimary(context),
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                          // Show red X delete icon only when THIS SPECIFIC debt has no payments
+                                          if (debt.paidAmount == 0) ...[
+                                            const SizedBox(width: 8),
+                                            GestureDetector(
+                                              onTap: () => _showDeleteDebtDialog(context, debt),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(4),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.error.withAlpha(26),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 14,
+                                                  color: AppColors.error,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      
                                     ],
                                   ),
                                 ],
@@ -1098,9 +1145,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     ),
                                   ),
                                   const SizedBox(width: 12),
-                                ],
+                                                            ],
 
-                              ],
+
+                          ],
                             ),
                           ),
                           const SizedBox(height: 16),
