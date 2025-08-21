@@ -175,52 +175,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       _shareReceiptViaWhatsApp(appState);
                     },
                   ),
-                  const SizedBox(height: 12),
-                  
-                  // WhatsApp Payment Reminder Button
-                  _buildActionButton(
-                    context: context,
-                    icon: CupertinoIcons.bell,
-                    title: 'Send Payment Reminder',
-                    subtitle: 'Send WhatsApp payment reminder',
-                    color: CupertinoColors.systemOrange,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showPersonalizedPaymentReminderDialog(context, appState);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // WhatsApp Settlement Notification Button
-                  _buildActionButton(
-                    context: context,
-                    icon: CupertinoIcons.checkmark_circle,
-                    title: 'Send Settlement Notification',
-                    subtitle: 'Send WhatsApp settlement confirmation',
-                    color: CupertinoColors.systemGreen,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _sendWhatsAppSettlementNotification(context, appState);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                
-
-                
-                if (hasPhone) ...[
-                  _buildActionButton(
-                    context: context,
-                    icon: CupertinoIcons.arrow_down_circle,
-                    title: 'Save to iPhone',
-                    subtitle: 'Download to Files or Photos',
-                    color: CupertinoColors.systemBlue,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _saveReceiptToIPhone(appState);
-                    },
-                  ),
-                  const SizedBox(height: 12),
                 ],
                 
                 if (!hasPhone && !hasEmail) ...[
@@ -446,7 +400,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   Future<void> _sendWhatsAppPaymentReminder(BuildContext context, AppState appState) async {
     try {
       await appState.sendWhatsAppPaymentReminder(widget.customer.id);
-      
+
       if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showSuccessNotification(
@@ -465,99 +419,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }
   }
 
-  // Show personalized payment reminder dialog
-  void _showPersonalizedPaymentReminderDialog(BuildContext context, AppState appState) {
-    final TextEditingController messageController = TextEditingController();
-    
-    // Pre-fill with default message
-    final customerDebts = appState.debts.where((d) => d.customerId == widget.customer.id && !d.isFullyPaid).toList();
-    final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-    final defaultMessage = 'Hello ${widget.customer.name}, this is a friendly reminder that you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
-    
-    messageController.text = defaultMessage;
-    
-    showCupertinoDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return CupertinoAlertDialog(
-          title: Text('Personalized Payment Reminder'),
-          content: Column(
-            children: [
-              const SizedBox(height: 16),
-              Text(
-                'Customize your message for ${widget.customer.name}:',
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              CupertinoTextField(
-                controller: messageController,
-                placeholder: 'Enter your personalized message...',
-                maxLines: 4,
-                style: const TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Outstanding Balance: \$${totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: CupertinoColors.systemOrange,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            CupertinoDialogAction(
-              child: const Text('Send Reminder'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _sendPersonalizedWhatsAppPaymentReminder(context, appState, messageController.text);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Send personalized WhatsApp payment reminder
-  Future<void> _sendPersonalizedWhatsAppPaymentReminder(BuildContext context, AppState appState, String customMessage) async {
-    try {
-      await appState.sendWhatsAppPaymentReminder(widget.customer.id, customMessage: customMessage);
-      
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Personalized Payment Reminder Sent',
-          body: 'WhatsApp payment reminder has been sent to ${widget.customer.name}',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Payment Reminder Failed',
-          body: 'Failed to send payment reminder: $e',
-        );
-      }
-    }
-  }
-  
+  // Send WhatsApp settlement notification
   Future<void> _sendWhatsAppSettlementNotification(BuildContext context, AppState appState) async {
     try {
       await appState.sendWhatsAppSettlementNotification(widget.customer.id);
-      
+
       if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showSuccessNotification(
           title: 'Settlement Notification Sent',
-          body: 'WhatsApp settlement confirmation has been sent to ${widget.customer.name}',
+          body: 'WhatsApp settlement notification has been sent to ${widget.customer.name}',
         );
       }
     } catch (e) {
@@ -569,6 +440,85 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         );
       }
     }
+  }
+
+  // Show personalized payment reminder dialog
+  void _showPersonalizedPaymentReminderDialog(BuildContext context, AppState appState) {
+    final messageController = TextEditingController(
+      text: 'Hello ${widget.customer.name}, you have an outstanding balance. Please contact us to arrange payment.',
+    );
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          'Send Payment Reminder',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Customize your message for ${widget.customer.name}:',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 16),
+            CupertinoTextField(
+              controller: messageController,
+              placeholder: 'Enter your custom message...',
+              maxLines: 4,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.dynamicBorder(context)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This message will be sent via WhatsApp to ${widget.customer.phone}',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          CupertinoDialogAction(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _sendWhatsAppPaymentReminder(context, appState);
+            },
+            child: Text(
+              'Send',
+              style: TextStyle(
+                color: CupertinoColors.systemBlue,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
   
   Future<void> _shareReceiptViaEmail(AppState appState) async {

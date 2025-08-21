@@ -6,6 +6,7 @@ import '../providers/app_state.dart';
 
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
+import 'payment_reminders_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -88,11 +89,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   if (Provider.of<AppState>(context).whatsappAutomationEnabled) ...[
                     _buildMessageButtonRow(
-                      'Custom Message',
+                      'Custom Settlement Message',
                       'Personalize your debt settlement message',
                       CupertinoIcons.text_bubble,
                       Provider.of<AppState>(context).whatsappCustomMessage,
                       () => _showCustomMessageDialog(context),
+                    ),
+                    _buildNavigationRow(
+                      'Send Payment Reminders',
+                      'Manually send WhatsApp reminders to customers with remaining debts',
+                      CupertinoIcons.bell,
+                      () => _showPaymentRemindersScreen(context),
                     ),
                   ],
                 ],
@@ -877,5 +884,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
+  void _showPaymentRemindersScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => const PaymentRemindersScreen(),
+      ),
+    );
+  }
 
 }
