@@ -760,55 +760,7 @@ class AppState extends ChangeNotifier {
     // Debug method - no output
   }
   
-  /// Fix payment activities that should be marked as "Payment completed" instead of "Partial payment"
-  /// This addresses the issue where payments that complete debts are still showing as partial
-  Future<void> fixPaymentActivityStatuses() async {
-    try {
-      int fixedCount = 0;
-      
-      for (final activity in _activities) {
-        if (activity.type == ActivityType.payment && 
-            activity.debtId != null &&
-            activity.description.contains('Partial payment')) {
-          
-          // Find the corresponding debt
-          Debt? debt;
-          try {
-            debt = _debts.firstWhere((d) => d.id == activity.debtId);
-          } catch (e) {
-            debt = null;
-          }
-          
-          if (debt != null && debt.isFullyPaid) {
-            // This debt is fully paid, so the activity should show "Payment completed"
-            final updatedActivity = activity.copyWith(
-              description: 'Payment completed: ${(activity.paymentAmount ?? 0).toStringAsFixed(2)}\$',
-              newStatus: DebtStatus.paid,
-            );
-            
-            // Update in storage
-            await _dataService.updateActivity(updatedActivity);
-            
-            // Update local list
-            final index = _activities.indexWhere((a) => a.id == activity.id);
-            if (index != -1) {
-              _activities[index] = updatedActivity;
-            }
-            
-            fixedCount++;
-          }
-        }
-      }
-      
-      if (fixedCount > 0) {
-        _clearCache();
-        notifyListeners();
-        print('✅ Fixed $fixedCount payment activity statuses');
-      }
-    } catch (e) {
-      print('❌ Error fixing payment activity statuses: $e');
-    }
-  }
+
   
   /// Fix the current partial payment distribution for Johny Chnouda
   /// This method will properly distribute the $0.15 payment across the Syria tel debts
@@ -1173,9 +1125,6 @@ class AppState extends ChangeNotifier {
   Future<void> initialize() async {
     await _loadSettings();
     await _loadData();
-    
-    // Fix any payment activity statuses that should be "Payment completed"
-    await fixPaymentActivityStatuses();
   }
 
   Future<void> addCustomer(Customer customer) async {

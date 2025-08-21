@@ -121,12 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-                  _buildActionRow(
-                    'Fix Payment Statuses',
-                    'Fix payment activities that should show as completed',
-                    CupertinoIcons.checkmark_circle,
-                    () => _fixPaymentStatuses(),
-                  ),
+
 
                 ],
               ),
@@ -882,111 +877,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
-  Future<void> _fixPaymentStatuses() async {
-    try {
-      // Show loading indicator
-      showCupertinoDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => CupertinoAlertDialog(
-          content: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                CupertinoActivityIndicator(),
-                const SizedBox(width: 16),
-                Text(
-                  'Fixing payment statuses...',
-                  style: TextStyle(
-                    color: AppColors.dynamicTextPrimary(context),
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      
-      // Fix payment statuses
-      final appState = Provider.of<AppState>(context, listen: false);
-      await appState.fixPaymentActivityStatuses();
-      
-      // Hide loading indicator
-      Navigator.pop(context);
-      
-      // Show success message
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text(
-            'Success',
-            style: TextStyle(
-              color: AppColors.dynamicTextPrimary(context),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            'Payment statuses have been fixed successfully! Check the Activity History to see the updated statuses.',
-            style: TextStyle(
-              color: AppColors.dynamicTextSecondary(context),
-              fontSize: 14,
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'OK',
-                style: TextStyle(
-                  color: AppColors.dynamicTextPrimary(context),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      // Hide loading indicator
-      Navigator.pop(context);
-      
-      // Show error message
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: Text(
-            'Error',
-            style: TextStyle(
-              color: AppColors.dynamicTextPrimary(context),
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            'Failed to fix payment statuses: $e',
-            style: TextStyle(
-              color: AppColors.dynamicTextSecondary(context),
-              fontSize: 14,
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'OK',
-                style: TextStyle(
-                  color: AppColors.dynamicTextPrimary(context),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-  }
+
 }

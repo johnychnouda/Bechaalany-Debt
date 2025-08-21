@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
@@ -505,59 +506,38 @@ class _CustomerListTile extends StatelessWidget {
   }
   
   void _showActionSheet(BuildContext context) {
-    showModalBottomSheet<void>(
+    showCupertinoModalPopup<void>(
       context: context,
-      backgroundColor: AppColors.dynamicSurface(context),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              customer.name,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.dynamicTextPrimary(context),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Select an action',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: Icon(Icons.visibility, color: AppColors.dynamicPrimary(context)),
-              title: Text('View Details', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
-              onTap: () {
-                Navigator.pop(context);
-                onView();
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.delete, color: AppColors.error),
-              title: Text('Delete', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
-              onTap: () {
-                Navigator.pop(context);
-                onDelete();
-              },
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
-              ),
-            ),
-          ],
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(
+          customer.name,
+          style: const TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
+        actions: <CupertinoActionSheetAction>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              onView();
+            },
+            child: const Text('View Details'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              onDelete();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
         ),
       ),
     );

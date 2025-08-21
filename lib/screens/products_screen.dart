@@ -513,118 +513,52 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final hasCategories = appState.categories.isNotEmpty;
 
-    showModalBottomSheet(
+    showCupertinoModalPopup<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle bar
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Title
-              const Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              // Add Category - Always available
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withAlpha(26), // 0.1 * 255
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.category, color: Colors.blue, size: 24),
-                ),
-                title: const Text('Add Category'),
-                subtitle: const Text('Create a new product category'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showAddCategoryDialog(context);
-                },
-              ),
-              
-              // Add Subcategory - Only if categories exist
-              if (hasCategories)
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withAlpha(26), // 0.1 * 255
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.inventory, color: Colors.green, size: 24),
-                  ),
-                  title: const Text('Add Product'),
-                  subtitle: const Text('Add a product to an existing category'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _showCategorySelectionDialog(context);
-                  },
-                ),
-              
-              // Delete options - Only if categories exist
-              if (hasCategories) ...[
-                const Divider(),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(26), // 0.1 * 255
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.delete, color: Colors.red, size: 24),
-                  ),
-                  title: const Text('Delete Category'),
-                  subtitle: const Text('Remove a category and all its products'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _showDeleteCategorySelectionDialog(context);
-                  },
-                ),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withAlpha(26), // 0.1 * 255
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.delete_sweep, color: Colors.red, size: 24),
-                  ),
-                  title: const Text('Delete Product'),
-                  subtitle: const Text('Remove a specific product'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _showDeleteSubcategorySelectionDialog(context);
-                  },
-                ),
-              ],
-              
-              const SizedBox(height: 20),
-            ],
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: const Text('Quick Actions'),
+        actions: <CupertinoActionSheetAction>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showAddCategoryDialog(context);
+            },
+            child: const Text('Add Category'),
           ),
-        );
-      },
+          if (hasCategories)
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showCategorySelectionDialog(context);
+              },
+              child: const Text('Add Product'),
+            ),
+          if (hasCategories)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showDeleteCategorySelectionDialog(context);
+              },
+              child: const Text('Delete Category'),
+            ),
+          if (hasCategories)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showDeleteSubcategorySelectionDialog(context);
+              },
+              child: const Text('Delete Product'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+      ),
     );
   }
 
@@ -2086,39 +2020,8 @@ class _ProductCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'edit':
-                        onEdit();
-                        break;
-                      case 'delete':
-                        onDelete();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20, color: AppColors.dynamicTextSecondary(context)),
-                          const SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 20, color: Colors.red),
-                          const SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
+                GestureDetector(
+                  onTap: () => _showProductActionSheet(context),
                   child: Icon(
                     Icons.more_vert,
                     color: AppColors.dynamicTextSecondary(context),
@@ -2166,6 +2069,44 @@ class _ProductCard extends StatelessWidget {
             ),
 
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showProductActionSheet(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(
+          subcategory.name,
+          style: const TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
+        actions: <CupertinoActionSheetAction>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              onEdit();
+            },
+            child: const Text('Edit'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(context);
+              onDelete();
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
         ),
       ),
     );
