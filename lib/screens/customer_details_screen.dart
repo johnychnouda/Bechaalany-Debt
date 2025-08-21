@@ -638,9 +638,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show ALL products for transparency and audit purposes
-        // Products with remainingAmount > 0 are pending, products with remainingAmount = 0 are fully paid
-        final customerActiveDebts = customerAllDebts;
+        // Only show products that have pending amounts (not fully paid)
+        // Hide fully paid products to keep the list focused on active debts
+        final customerActiveDebts = customerAllDebts.where((debt) => debt.remainingAmount > 0).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1163,6 +1163,70 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     ],
                   ),
                 ),
+                
+                // Show summary of fully paid products (for audit purposes)
+                if (customerAllDebts.any((debt) => debt.isFullyPaid)) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicSurface(context),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(13),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Fully Paid Products',
+                                style: AppTheme.getDynamicHeadline(context).copyWith(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success.withAlpha(26),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${customerAllDebts.where((debt) => debt.isFullyPaid).length} products',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.success,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'These products have been fully paid and are hidden from the main list to keep it focused on active debts.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.dynamicTextSecondary(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ],
                 
                 const SizedBox(height: 20),
               ],
