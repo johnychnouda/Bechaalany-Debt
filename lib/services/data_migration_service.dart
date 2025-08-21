@@ -507,15 +507,14 @@ class DataMigrationService {
       for (final debt in debts) {
         // Check if debt has a very small amount that might be causing display issues
         if (debt.amount > 0 && debt.amount < 0.01) {
-          // Special fix for alfa ushare
+          // Special fix for alfa ushare - ONLY update metadata, preserve original amount
           if (debt.description.toLowerCase().contains('alfa ushare')) {
             final currencySettings = await _dataService.getCurrencySettings();
             if (currencySettings?.exchangeRate != null) {
-              // Set the correct amount: 342,000 LBP ÷ 900,000 = 0.38 USD
-              final correctAmount = 342000 / currencySettings!.exchangeRate!;
-              
+              // CRITICAL FIX: Never modify debt.amount automatically!
+              // Only update metadata, preserve the original amount
               final updatedDebt = debt.copyWith(
-                amount: correctAmount,
+                // amount: correctAmount,  // ❌ REMOVED: Never change original amount
                 originalSellingPrice: 342000, // 342,000 LBP
                 originalCostPrice: 225000,   // 225,000 LBP
                 storedCurrency: 'LBP',
@@ -523,6 +522,7 @@ class DataMigrationService {
               
               await _dataService.updateDebt(updatedDebt);
               fixedDebts++;
+              print('🔧 Updated alfa ushare metadata for debt: ${debt.description} (Amount preserved: ${debt.amount})');
               continue; // Skip the general fix below
             }
           }
@@ -557,9 +557,15 @@ class DataMigrationService {
                 newAmount = matchingProduct.sellingPrice; // Already in USD
               }
               
-              if (newAmount != debt.amount) {
+              // CRITICAL FIX: Never modify debt.amount automatically!
+              // Only update metadata, preserve the original amount
+              // This prevents mysterious product price changes
+              if (debt.originalSellingPrice != matchingProduct.sellingPrice ||
+                  debt.originalCostPrice != matchingProduct.costPrice ||
+                  debt.storedCurrency != matchingProduct.sellingPriceCurrency) {
+                
                 final updatedDebt = debt.copyWith(
-                  amount: newAmount,
+                  // amount: newAmount,  // ❌ REMOVED: Never change original amount
                   originalSellingPrice: matchingProduct.sellingPrice,
                   originalCostPrice: matchingProduct.costPrice,
                   storedCurrency: matchingProduct.sellingPriceCurrency,
@@ -567,6 +573,7 @@ class DataMigrationService {
                 
                 await _dataService.updateDebt(updatedDebt);
                 fixedDebts++;
+                print('🔧 Updated metadata for debt: ${debt.description} (Amount preserved: ${debt.amount})');
               }
             }
           }

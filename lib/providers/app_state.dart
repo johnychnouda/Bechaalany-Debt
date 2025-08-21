@@ -922,7 +922,10 @@ class AppState extends ChangeNotifier {
         if (totalRemaining > 0) {
           // Distribute payment proportionally based on remaining amount
           final proportion = currentRemaining / totalRemaining;
-          paymentForThisDebt = (0.15 * proportion).roundToDouble() / 100; // Round to 2 decimal places
+          paymentForThisDebt = (0.15 * proportion); // Calculate proportional amount
+          
+          // Round to 2 decimal places to avoid floating-point precision issues
+          paymentForThisDebt = ((paymentForThisDebt * 100).round() / 100);
           
           // Ensure we don't overpay or exceed remaining payment
           if (paymentForThisDebt > currentRemaining) {
