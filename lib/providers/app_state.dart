@@ -997,20 +997,28 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _triggerWhatsAppAutomation(String customerId) async {
+    print('🔧 AppState: WhatsApp automation triggered for customer ID: $customerId');
+    print('  WhatsApp automation enabled: $_whatsappAutomationEnabled');
+    
     if (_whatsappAutomationEnabled) {
       try {
         final customer = _customers.firstWhere((c) => c.id == customerId);
+        print('✅ AppState: Found customer: ${customer.name}');
+        
         final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
         
         if (customerDebts.isNotEmpty) {
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          print('💰 AppState: Customer has outstanding balance: \$${totalAmount.toStringAsFixed(2)}');
           
           if (totalAmount > 0) {
+            // Customer has remaining debts - send payment reminder
             final message = _whatsappCustomMessage.isNotEmpty 
                 ? _whatsappCustomMessage 
                 : 'Hello ${customer.name}, you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
             
-            // Use the available sendSettlementMessage method or create a simple message
+            print('📝 AppState: Sending payment reminder WhatsApp message: $message');
+            
             try {
               await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
@@ -1019,14 +1027,42 @@ class AppState extends ChangeNotifier {
                 customMessage: message,
                 settlementDate: DateTime.now(),
               );
+              print('✅ AppState: Payment reminder WhatsApp automation completed successfully');
             } catch (e) {
+              print('❌ AppState: Payment reminder WhatsApp automation failed: $e');
+              // Fallback: just log that automation was attempted
+            }
+          } else {
+            // Customer has no outstanding balance - send settlement confirmation
+            final message = 'Hello ${customer.name}, congratulations! You have successfully paid all your outstanding debts. Thank you for your business! 🎉';
+            
+            print('📝 AppState: Sending settlement confirmation WhatsApp message: $message');
+            
+            try {
+              await WhatsAppAutomationService.sendSettlementMessage(
+                customer: customer,
+                settledDebts: customerDebts, // All debts are settled
+                partialPayments: _partialPayments.where((p) => 
+                  customerDebts.any((d) => d.id == p.debtId)
+                ).toList(),
+                customMessage: message,
+                settlementDate: DateTime.now(),
+              );
+              print('✅ AppState: Settlement confirmation WhatsApp automation completed successfully');
+            } catch (e) {
+              print('❌ AppState: Settlement confirmation WhatsApp automation failed: $e');
               // Fallback: just log that automation was attempted
             }
           }
+        } else {
+          print('ℹ️ AppState: Customer has no debts, skipping WhatsApp automation');
         }
       } catch (e) {
+        print('❌ AppState: Error in WhatsApp automation: $e');
         // Silent fail for WhatsApp automation
       }
+    } else {
+      print('ℹ️ AppState: WhatsApp automation is disabled');
     }
   }
 
@@ -1234,6 +1270,9 @@ class AppState extends ChangeNotifier {
       
       // Show notification
       await _notificationService.showDebtAddedNotification(debt.customerName, debt.amount);
+      
+      // Trigger WhatsApp automation for new debt
+      await _triggerDebtCreationAutomation(debt.customerId, debt);
     } catch (e) {
       rethrow;
     }
@@ -2452,6 +2491,108 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       print('❌ AppState: Error refreshing data: $e');
       rethrow;
+    }
+  }
+
+  // New method for debt creation automation
+  Future<void> _triggerDebtCreationAutomation(String customerId, Debt debt) async {
+    print('🔧 AppState: Debt creation automation triggered for customer ID: $customerId');
+    print('  WhatsApp automation enabled: $_whatsappAutomationEnabled');
+    
+    if (_whatsappAutomationEnabled) {
+      try {
+        final customer = _customers.firstWhere((c) => c.id == customerId);
+        print('✅ AppState: Found customer: ${customer.name}');
+        
+        // Get all customer debts to calculate total outstanding balance
+        final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+        final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+        
+        final message = 'Hello ${customer.name}, a new debt of \$${debt.amount.toStringAsFixed(2)} has been recorded for: ${debt.description}. Total outstanding balance: \$${totalOutstanding.toStringAsFixed(2)}.';
+        
+        print('📝 AppState: Sending debt creation WhatsApp message: $message');
+        
+        try {
+          await WhatsAppAutomationService.sendSettlementMessage(
+            customer: customer,
+            settledDebts: [],
+            partialPayments: [],
+            customMessage: message,
+            settlementDate: DateTime.now(),
+          );
+          print('✅ AppState: Debt creation WhatsApp automation completed successfully');
+        } catch (e) {
+          print('❌ AppState: Debt creation WhatsApp automation failed: $e');
+          // Fallback: just log that automation was attempted
+        }
+      } catch (e) {
+        print('❌ AppState: Error in debt creation WhatsApp automation: $e');
+        // Silent fail for WhatsApp automation
+      }
+    } else {
+      print('ℹ️ AppState: WhatsApp automation is disabled, skipping debt creation automation');
+    }
+  }
+
+  // New method for payment reminder automation
+  Future<void> _triggerPaymentReminderAutomation(String customerId) async {
+    print('🔧 AppState: Payment reminder automation triggered for customer ID: $customerId');
+    print('  WhatsApp automation enabled: $_whatsappAutomationEnabled');
+    
+    if (_whatsappAutomationEnabled) {
+      try {
+        final customer = _customers.firstWhere((c) => c.id == customerId);
+        print('✅ AppState: Found customer: ${customer.name}');
+        
+        final customerDebts = _debts.where((d) => d.customerId == customerId && !d.isFullyPaid).toList();
+        
+        if (customerDebts.isNotEmpty) {
+          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          
+          final message = 'Hello ${customer.name}, this is a friendly reminder that you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
+          
+          print('📝 AppState: Sending payment reminder WhatsApp message: $message');
+          
+          try {
+            await WhatsAppAutomationService.sendSettlementMessage(
+              customer: customer,
+              settledDebts: [],
+              partialPayments: [],
+              customMessage: message,
+              settlementDate: DateTime.now(),
+            );
+            print('✅ AppState: Payment reminder WhatsApp automation completed successfully');
+          } catch (e) {
+            print('❌ AppState: Payment reminder WhatsApp automation failed: $e');
+            // Fallback: just log that automation was attempted
+          }
+        } else {
+          print('ℹ️ AppState: Customer has no outstanding debts, skipping payment reminder');
+        }
+      } catch (e) {
+        print('❌ AppState: Error in payment reminder WhatsApp automation: $e');
+        // Silent fail for WhatsApp automation
+      }
+    } else {
+      print('ℹ️ AppState: WhatsApp automation is disabled, skipping payment reminder');
+    }
+  }
+
+  // Public method to manually trigger WhatsApp payment reminder
+  Future<void> sendWhatsAppPaymentReminder(String customerId) async {
+    if (_whatsappAutomationEnabled) {
+      await _triggerPaymentReminderAutomation(customerId);
+    } else {
+      throw Exception('WhatsApp automation is not enabled. Please enable it in settings.');
+    }
+  }
+
+  // Public method to manually trigger WhatsApp settlement notification
+  Future<void> sendWhatsAppSettlementNotification(String customerId) async {
+    if (_whatsappAutomationEnabled) {
+      await _triggerWhatsAppAutomation(customerId);
+    } else {
+      throw Exception('WhatsApp automation is not enabled. Please enable it in settings.');
     }
   }
 }

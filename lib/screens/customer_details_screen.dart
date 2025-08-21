@@ -176,6 +176,34 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     },
                   ),
                   const SizedBox(height: 12),
+                  
+                  // WhatsApp Payment Reminder Button
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.bell,
+                    title: 'Send Payment Reminder',
+                    subtitle: 'Send WhatsApp payment reminder',
+                    color: CupertinoColors.systemOrange,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendWhatsAppPaymentReminder(context, appState);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // WhatsApp Settlement Notification Button
+                  _buildActionButton(
+                    context: context,
+                    icon: CupertinoIcons.checkmark_circle,
+                    title: 'Send Settlement Notification',
+                    subtitle: 'Send WhatsApp settlement confirmation',
+                    color: CupertinoColors.systemGreen,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _sendWhatsAppSettlementNotification(context, appState);
+                    },
+                  ),
+                  const SizedBox(height: 12),
                 ],
                 
 
@@ -376,35 +404,86 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   Future<void> _shareReceiptViaWhatsApp(AppState appState) async {
     try {
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
-        _currentCustomer,
-        appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        widget.customer,
+        appState.debts.where((d) => d.customerId == widget.customer.id).toList(),
         appState.partialPayments.where((p) => 
-          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
+          appState.debts.any((d) => d.id == p.debtId && d.customerId == widget.customer.id)
         ).toList(),
-        appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        appState.activities.where((a) => a.customerId == widget.customer.id).toList(),
         null, // No specific date filter
         null, // No specific debt filter
       );
-      
+
       if (success) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'WhatsApp Opened',
-          body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
-        );
+        if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'WhatsApp Opened',
+            body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
+          );
+        }
       } else {
+        if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'WhatsApp Error',
+            body: 'Could not open WhatsApp. Please check if it\'s installed.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
           title: 'WhatsApp Error',
-          body: 'Could not open WhatsApp. Please check if it\'s installed.',
+          body: 'Failed to open WhatsApp: $e',
+        );
+      }
+    }
+  }
+
+  // Send WhatsApp payment reminder
+  Future<void> _sendWhatsAppPaymentReminder(BuildContext context, AppState appState) async {
+    try {
+      await appState.sendWhatsAppPaymentReminder(widget.customer.id);
+      
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Payment Reminder Sent',
+          body: 'WhatsApp payment reminder has been sent to ${widget.customer.name}',
         );
       }
     } catch (e) {
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'WhatsApp Error',
-        body: 'Failed to open WhatsApp: $e',
-      );
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Payment Reminder Failed',
+          body: 'Failed to send payment reminder: $e',
+        );
+      }
+    }
+  }
+  
+  Future<void> _sendWhatsAppSettlementNotification(BuildContext context, AppState appState) async {
+    try {
+      await appState.sendWhatsAppSettlementNotification(widget.customer.id);
+      
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Settlement Notification Sent',
+          body: 'WhatsApp settlement confirmation has been sent to ${widget.customer.name}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Settlement Notification Failed',
+          body: 'Failed to send settlement notification: $e',
+        );
+      }
     }
   }
   
