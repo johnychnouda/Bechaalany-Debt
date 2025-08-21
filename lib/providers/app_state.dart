@@ -880,17 +880,33 @@ class AppState extends ChangeNotifier {
       print('💰 Current state: Total paid: $totalPaidAmount, Total debt: $totalDebtAmount');
       
       if (totalPaidAmount > 0) {
-        print('✅ Partial payment already distributed correctly');
-        return;
+        print('🔧 Found existing partial payment of $totalPaidAmount - redistributing it properly...');
+        
+        // Reset all paid amounts to 0 first
+        for (final debt in syriaTelDebts) {
+          final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+          if (debtIndex != -1) {
+            _debts[debtIndex] = debt.copyWith(
+              paidAmount: 0.0,
+              status: DebtStatus.pending,
+            );
+            await _dataService.updateDebt(_debts[debtIndex]);
+            print('🔄 Reset debt: ${debt.description} - Paid amount reset to 0');
+          }
+        }
       }
       
-      // If no payments have been applied yet, we need to apply the $0.15 payment
+      // Now apply the $0.15 payment properly
       print('🔧 Applying \$0.15 payment to Syria tel debts...');
       
       // Sort debts by creation date (oldest first)
       syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
       double remainingPayment = 0.15;
+      
+      // Calculate total remaining amount to distribute payment proportionally
+      final totalRemaining = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      print('📊 Total remaining amount: $totalRemaining');
       
       for (final debt in syriaTelDebts) {
         if (remainingPayment <= 0) break;
@@ -901,27 +917,44 @@ class AppState extends ChangeNotifier {
         final currentDebt = _debts[debtIndex];
         final currentRemaining = currentDebt.remainingAmount;
         
-        // Calculate how much of the remaining payment to apply to this debt
-        final paymentForThisDebt = remainingPayment > currentRemaining ? currentRemaining : remainingPayment;
+        // Calculate proportional payment for this debt
+        double paymentForThisDebt;
+        if (totalRemaining > 0) {
+          // Distribute payment proportionally based on remaining amount
+          final proportion = currentRemaining / totalRemaining;
+          paymentForThisDebt = (0.15 * proportion).roundToDouble() / 100; // Round to 2 decimal places
+          
+          // Ensure we don't overpay or exceed remaining payment
+          if (paymentForThisDebt > currentRemaining) {
+            paymentForThisDebt = currentRemaining;
+          }
+          if (paymentForThisDebt > remainingPayment) {
+            paymentForThisDebt = remainingPayment;
+          }
+        } else {
+          paymentForThisDebt = 0;
+        }
         
-        print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining)');
-        
-        // Update debt
-        final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
-        final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
-        
-        _debts[debtIndex] = currentDebt.copyWith(
-          paidAmount: newTotalPaidAmount,
-          status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
-          paidAt: DateTime.now(),
-        );
-        
-        // Update in storage
-        await _dataService.updateDebt(_debts[debtIndex]);
-        
-        remainingPayment -= paymentForThisDebt;
-        
-        print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
+        if (paymentForThisDebt > 0) {
+          print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining, Proportion: ${((currentRemaining / totalRemaining) * 100).toStringAsFixed(1)}%)');
+          
+          // Update debt
+          final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
+          final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
+          
+          _debts[debtIndex] = currentDebt.copyWith(
+            paidAmount: newTotalPaidAmount,
+            status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+            paidAt: DateTime.now(),
+          );
+          
+          // Update in storage
+          await _dataService.updateDebt(_debts[debtIndex]);
+          
+          remainingPayment -= paymentForThisDebt;
+          
+          print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
+        }
       }
       
       // Create a consolidated payment activity
