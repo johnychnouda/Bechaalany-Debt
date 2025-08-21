@@ -687,11 +687,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show products based on customer's payment status:
-        // 1. If customer has pending debts: show only unpaid/partially paid products
-        // 2. If customer has NO pending debts: clear all products (customer has no more debts)
-        
-
+        // CRITICAL FIX: Always show all customer products, never hide them automatically
+        // Products should only disappear when explicitly deleted by the user
+        // This prevents the mysterious product disappearances during payments
         
         // Debug: Log all customer debts to see what's happening
         print('🔍 Debug: Customer ${_currentCustomer.name} has ${customerAllDebts.length} total debts:');
@@ -700,9 +698,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
         print('🔍 Debug: Total pending debt: $totalPendingDebt');
         
-        final customerActiveDebts = totalPendingDebt > 0 
-            ? customerAllDebts.where((debt) => debt.remainingAmount > 0).toList()  // Show only unpaid/partially paid products
-            : <Debt>[];  // Clear all products when fully settled
+        // Always show all customer products - never hide them automatically
+        final customerActiveDebts = customerAllDebts;  // Show ALL products, regardless of payment status
             
         print('🔍 Debug: After filtering, ${customerActiveDebts.length} active debts remain');
 
