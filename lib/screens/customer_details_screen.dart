@@ -999,10 +999,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ),
                                         ),
                                           // BUSINESS RULE: Show red X delete icon only when:
-                                          // 1. THIS SPECIFIC debt has no payments AND
-                                          // 2. Customer has made NO payments at all
-                                          // This prevents deletion of products after any payment is made
-                                          if (debt.paidAmount == 0 && totalPaid == 0) ...[
+                                          // THIS SPECIFIC debt has no payments
+                                          // This allows deletion of individual debts that haven't been paid
+                                          if (debt.paidAmount == 0) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
                                               onTap: () => _showDeleteDebtDialog(context, debt),
