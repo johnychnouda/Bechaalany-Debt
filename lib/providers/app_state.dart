@@ -1961,50 +1961,67 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Apply payment across multiple debts
+  // Apply payment across multiple debts with proportional distribution
   Future<void> applyPaymentAcrossDebts(List<String> debtIds, double paymentAmount) async {
     try {
       if (debtIds.isEmpty || paymentAmount <= 0) return;
       
-      double remainingPayment = paymentAmount;
-      final sortedDebts = _debts.where((d) => debtIds.contains(d.id))
+      // Get all pending debts for the customer
+      final pendingDebts = _debts.where((d) => debtIds.contains(d.id))
           .where((d) => d.remainingAmount > 0)
-          .toList()
-        ..sort((a, b) => a.remainingAmount.compareTo(b.remainingAmount));
+          .toList();
       
-      // Track the first debt for activity creation (we'll create one consolidated activity)
-      final firstDebt = sortedDebts.isNotEmpty ? sortedDebts.first : null;
-      final oldStatus = firstDebt?.status ?? DebtStatus.pending;
+      if (pendingDebts.isEmpty) return;
       
-      for (final debt in sortedDebts) {
+      // Sort debts by creation date (oldest first) for fair distribution
+      pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      // Calculate total remaining amount across all pending debts
+      final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      
+      if (totalRemaining <= 0) return;
+      
+      // Track the first debt for activity creation
+      final firstDebt = pendingDebts.first;
+      final oldStatus = firstDebt.status;
+      
+      // Distribute payment proportionally across all debts
+      double remainingPayment = paymentAmount;
+      
+      for (final debt in pendingDebts) {
         if (remainingPayment <= 0) break;
         
-        final paymentForThisDebt = remainingPayment > debt.remainingAmount 
-            ? debt.remainingAmount 
-            : remainingPayment;
+        // Calculate proportional payment for this debt
+        final debtProportion = debt.remainingAmount / totalRemaining;
+        final paymentForThisDebt = (paymentAmount * debtProportion).clamp(0.0, debt.remainingAmount);
         
-        final updatedDebt = debt.copyWith(
-          paidAmount: debt.paidAmount + paymentForThisDebt,
-          status: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-          paidAt: DateTime.now(), // Update payment time
-        );
+        // Ensure we don't overpay
+        final actualPayment = remainingPayment < paymentForThisDebt ? remainingPayment : paymentForThisDebt;
         
-        // Update in storage
-        await _dataService.updateDebt(updatedDebt);
-        
-        // Update local debt list
-        final index = _debts.indexWhere((d) => d.id == debt.id);
-        if (index != -1) {
-          _debts[index] = updatedDebt;
+        if (actualPayment > 0) {
+          final updatedDebt = debt.copyWith(
+            paidAmount: debt.paidAmount + actualPayment,
+            status: (debt.paidAmount + actualPayment) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
+            paidAt: DateTime.now(),
+          );
+          
+          // Update in storage
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update local debt list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+          }
+          
+          remainingPayment -= actualPayment;
         }
-        
-        remainingPayment -= paymentForThisDebt;
       }
       
-      // Create ONE consolidated payment activity showing the total payment amount
+      // Create consolidated payment activity
       if (firstDebt != null) {
         // Check if this payment completes ALL selected debts
-        final allSelectedDebtsCompleted = sortedDebts.every((debt) {
+        final allSelectedDebtsCompleted = pendingDebts.every((debt) {
           final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
           return debtIndex != -1 && _debts[debtIndex].status == DebtStatus.paid;
         });
@@ -2021,7 +2038,7 @@ class AppState extends ChangeNotifier {
           customerName: firstDebt.customerName,
           type: ActivityType.payment,
           description: description,
-          paymentAmount: paymentAmount, // Total payment amount, not individual debt amounts
+          paymentAmount: paymentAmount,
           amount: firstDebt.amount,
           oldStatus: oldStatus,
           newStatus: newStatus,
@@ -2035,6 +2052,142 @@ class AppState extends ChangeNotifier {
       // Clear cache and notify listeners to refresh UI
       _clearCache();
       notifyListeners();
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Apply payment evenly across all pending debts for a customer
+  Future<void> applyPaymentEvenlyAcrossCustomerDebts(String customerId, double paymentAmount) async {
+    try {
+      if (paymentAmount <= 0) return;
+      
+      // Get all pending debts for the customer
+      final pendingDebts = _debts.where((d) => 
+        d.customerId == customerId && d.remainingAmount > 0
+      ).toList();
+      
+      if (pendingDebts.isEmpty) return;
+      
+      // Sort debts by creation date (oldest first) for fair distribution
+      pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      // Calculate total remaining amount across all pending debts
+      final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      
+      if (totalRemaining <= 0) return;
+      
+      // Track the first debt for activity creation
+      final firstDebt = pendingDebts.first;
+      final oldStatus = firstDebt.status;
+      
+      // Distribute payment evenly across all debts
+      double remainingPayment = paymentAmount;
+      final paymentPerDebt = paymentAmount / pendingDebts.length;
+      
+      for (final debt in pendingDebts) {
+        if (remainingPayment <= 0) break;
+        
+        // Calculate payment for this debt (even distribution)
+        final paymentForThisDebt = paymentPerDebt.clamp(0.0, debt.remainingAmount);
+        
+        // Ensure we don't overpay
+        final actualPayment = remainingPayment < paymentForThisDebt ? remainingPayment : paymentForThisDebt;
+        
+        if (actualPayment > 0) {
+          final updatedDebt = debt.copyWith(
+            paidAmount: debt.paidAmount + actualPayment,
+            status: (debt.paidAmount + actualPayment) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
+            paidAt: DateTime.now(),
+          );
+          
+          // Update in storage
+          await _dataService.updateDebt(updatedDebt);
+          
+          // Update local debt list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+          }
+          
+          remainingPayment -= actualPayment;
+        }
+      }
+      
+      // Create consolidated payment activity
+      if (firstDebt != null) {
+        // Check if this payment completes ALL selected debts
+        final allSelectedDebtsCompleted = pendingDebts.every((debt) {
+          final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+          return debtIndex != -1 && _debts[debtIndex].status == DebtStatus.paid;
+        });
+        
+        final description = allSelectedDebtsCompleted
+            ? 'Fully paid: ${paymentAmount.toStringAsFixed(2)}\$'
+            : 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
+        
+        final newStatus = allSelectedDebtsCompleted ? DebtStatus.paid : DebtStatus.pending;
+        
+        final activity = Activity(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          customerId: firstDebt.customerId,
+          customerName: firstDebt.customerName,
+          type: ActivityType.payment,
+          description: description,
+          paymentAmount: paymentAmount,
+          amount: firstDebt.amount,
+          oldStatus: oldStatus,
+          newStatus: newStatus,
+          date: DateTime.now(),
+          debtId: null, // No specific debt ID since this is a consolidated payment
+        );
+        
+        await _addActivity(activity);
+      }
+      
+      // Clear cache and notify listeners to refresh UI
+      _clearCache();
+      notifyListeners();
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Fix existing uneven payment distributions for a customer
+  Future<void> fixUnevenPaymentDistribution(String customerId) async {
+    try {
+      // Get all debts for the customer that have partial payments
+      final customerDebts = _debts.where((d) => 
+        d.customerId == customerId && d.paidAmount > 0 && !d.isFullyPaid
+      ).toList();
+      
+      if (customerDebts.isEmpty) return;
+      
+      // Calculate total paid amount across all debts
+      final totalPaidAmount = customerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+      
+      if (totalPaidAmount <= 0) return;
+      
+      // Reset all paid amounts to 0 first
+      for (final debt in customerDebts) {
+        final updatedDebt = debt.copyWith(
+          paidAmount: 0.0,
+          status: DebtStatus.pending,
+        );
+        
+        await _dataService.updateDebt(updatedDebt);
+        
+        // Update local debt list
+        final index = _debts.indexWhere((d) => d.id == debt.id);
+        if (index != -1) {
+          _debts[index] = updatedDebt;
+        }
+      }
+      
+      // Now redistribute the total paid amount evenly across all debts
+      await applyPaymentEvenlyAcrossCustomerDebts(customerId, totalPaidAmount);
       
     } catch (e) {
       rethrow;

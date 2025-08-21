@@ -112,23 +112,9 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                         text: TextSpan(
                           children: [
                             TextSpan(
-                              text: 'Revenue',
-                              style: AppTheme.title3.copyWith(
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextSpan(
-                              text: '/',
+                              text: 'Financial',
                               style: AppTheme.title3.copyWith(
                                 color: AppColors.dynamicTextPrimary(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'Debts',
-                              style: AppTheme.title3.copyWith(
-                                color: AppColors.error,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -189,10 +175,29 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
   }
 
   Widget _buildProfitLossCard(String title, double amount, IconData icon, Color color, {String? subtitle}) {
+    // Determine background color based on the title
+    Color backgroundColor;
+    switch (title) {
+      case 'Total Revenue':
+        backgroundColor = AppColors.success.withValues(alpha: 0.1); // Light green
+        break;
+      case 'Potential Revenue':
+        backgroundColor = AppColors.warning.withValues(alpha: 0.1); // Light orange
+        break;
+      case 'Total Debts':
+        backgroundColor = AppColors.error.withValues(alpha: 0.1); // Light red
+        break;
+      case 'Total Payments':
+        backgroundColor = AppColors.info.withValues(alpha: 0.1); // Light blue
+        break;
+      default:
+        backgroundColor = AppColors.dynamicSurface(context).withValues(alpha: 0.5);
+    }
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context).withValues(alpha: 0.5), // 0.5 * 255
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: color.withValues(alpha: 0.1), // 0.1 * 255

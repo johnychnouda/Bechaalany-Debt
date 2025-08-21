@@ -65,7 +65,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       ),
       DashboardWidget(
         id: 'profit_loss',
-        title: 'Revenue/Debts Analysis',
+        title: 'Financial Analysis',
         icon: Icons.analytics,
         color: AppColors.primary,
         widget: const ProfitLossWidget(),

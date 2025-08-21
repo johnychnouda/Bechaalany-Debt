@@ -1049,10 +1049,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () => _showConsolidatedPaymentDialog(context, customerActiveDebts),
-                                        icon: const Icon(Icons.payment, size: 16),
+                                        icon: const Icon(Icons.payment, size: 20),
                                         label: const Text('Make Payment'),
                                         style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.dynamicPrimary(context),
+                                          backgroundColor: AppColors.primary,
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(vertical: 12),
                                           shape: RoundedRectangleBorder(
@@ -1063,11 +1063,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     ),
                                   ],
                                 ),
-
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
                         ],
                       ],
                       
@@ -1257,9 +1255,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   void _applyConsolidatedPartialPayment(double paymentAmount, List<Debt> pendingDebts, BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     
-    // Use the existing method that handles payment across multiple debts
-    final debtIds = pendingDebts.map((debt) => debt.id).toList();
-    appState.applyPaymentAcrossDebts(debtIds, paymentAmount);
+    // Use the new even distribution method for better partial payment handling
+    // This ensures payments are split evenly across all pending debts
+    appState.applyPaymentEvenlyAcrossCustomerDebts(_currentCustomer.id, paymentAmount);
   }
   
   // Show exact payment dialog to complete all debts

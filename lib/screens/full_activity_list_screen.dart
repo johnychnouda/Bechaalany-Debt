@@ -308,53 +308,80 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   }
 
   Widget _buildActivityItem(Activity activity) {
-    // Determine if this is a full payment using the helper method
-    bool isFullPayment = activity.isPaymentCompleted;
-
     IconData icon;
     Color iconColor;
     Color backgroundColor;
+    String statusText;
 
     switch (activity.type) {
-      case ActivityType.newDebt:
-        icon = Icons.add_circle;
-        iconColor = AppColors.primary;
-        backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-        break;
       case ActivityType.payment:
-        if (isFullPayment) {
+        // Check if this is a full payment or partial payment
+        if (activity.isPaymentCompleted) {
           icon = Icons.check_circle;
           iconColor = AppColors.success;
           backgroundColor = AppColors.success.withValues(alpha: 0.1);
+          statusText = 'Fully Paid';
         } else {
           icon = Icons.payment;
           iconColor = AppColors.warning;
           backgroundColor = AppColors.warning.withValues(alpha: 0.1);
+          statusText = 'Partial Payment';
+        }
+        break;
+      case ActivityType.newDebt:
+        // Check if this debt is still pending or has been paid
+        if (activity.debtId != null) {
+          // Try to find the current debt status
+          final appState = Provider.of<AppState>(context, listen: false);
+          final currentDebt = appState.debts.where(
+            (debt) => debt.id == activity.debtId,
+          ).firstOrNull;
+          
+          if (currentDebt != null && currentDebt.remainingAmount > 0) {
+            // Debt is still pending - show clock icon to indicate waiting
+            icon = Icons.schedule;
+            iconColor = AppColors.error;
+            backgroundColor = AppColors.error.withValues(alpha: 0.1);
+            statusText = 'Outstanding Debt';
+          } else {
+            // Debt has been paid - show blue checkmark to distinguish from "Fully Paid"
+            icon = Icons.check_circle;
+            iconColor = AppColors.info;
+            backgroundColor = AppColors.info.withValues(alpha: 0.1);
+            statusText = 'Debt Paid';
+          }
+        } else {
+          // Fallback to blue plus if no debt ID
+          icon = Icons.add_shopping_cart;
+          iconColor = AppColors.primary;
+          backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+          statusText = 'New Debt';
         }
         break;
       case ActivityType.debtCleared:
-        // This case should not be reached since we filter out debtCleared activities
-        icon = Icons.delete_forever;
-        iconColor = Colors.red;
-        backgroundColor = Colors.red.withValues(alpha: 0.1);
+        icon = Icons.check_circle;
+        iconColor = AppColors.success;
+        backgroundColor = AppColors.success.withValues(alpha: 0.1);
+        statusText = 'Debt Cleared';
         break;
+      default:
+        icon = Icons.info;
+        iconColor = Colors.grey;
+        backgroundColor = Colors.grey.withValues(alpha: 0.1);
+        statusText = 'Activity';
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: iconColor,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: iconColor, size: 16),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,36 +389,18 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                 Text(
                   activity.customerName,
                   style: const TextStyle(
-                    fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: 2),
-                // Only show product description for new debts, not for payments
-                if (activity.type == ActivityType.newDebt)
-                  Text(
-                    DebtDescriptionUtils.cleanDescription(activity.description),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
                 Text(
-                  _getActivityText(activity, isFullPayment),
+                  activity.description,
                   style: TextStyle(
-                    fontSize: 10,
-                    color: activity.type == ActivityType.payment 
-                        ? (isFullPayment ? AppColors.success : AppColors.warning)
-                        : AppColors.textLight,
+                    fontSize: 11,
+                    color: Colors.grey[700],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatActivityDate(activity.date),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppColors.textLight,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -399,26 +408,21 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (activity.type == ActivityType.newDebt)
-                Text(
-                  CurrencyFormatter.formatAmount(context, activity.amount),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+              Text(
+                statusText,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: iconColor,
+                  fontWeight: FontWeight.w600,
                 ),
-              if (activity.type == ActivityType.payment && activity.paymentAmount != null)
-                Text(
-                  isFullPayment
-                      ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}'
-                      : 'Partial: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount!)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isFullPayment ? AppColors.success : AppColors.warning,
-                  ),
+              ),
+              Text(
+                _formatActivityDate(activity.date),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey[600],
                 ),
+              ),
             ],
           ),
         ],
@@ -426,15 +430,25 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     );
   }
 
-  String _getActivityText(Activity activity, bool isFullPayment) {
-    switch (activity.type) {
-      case ActivityType.payment:
-        return isFullPayment ? 'Payment completed' : 'Partial payment';
-      case ActivityType.newDebt:
-        return 'New debt added';
-      case ActivityType.debtCleared:
-        return 'Debt cleared'; // This case should not be reached since we filter out debtCleared
+  String _formatTime(DateTime date) {
+    // Format time as HH:MM:SS AM/PM
+    int hour = date.hour;
+    String period = 'AM';
+    
+    if (hour >= 12) {
+      period = 'PM';
+      if (hour > 12) {
+        hour -= 12;
+      }
     }
+    if (hour == 0) {
+      hour = 12;
+    }
+    
+    final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
+    
+    return '$hour:$minute:$second $period';
   }
 
   String _formatActivityDate(DateTime date) {
@@ -560,9 +574,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     switch (view) {
       case ActivityView.daily:
-        // Show activities from the last 24 hours instead of just today
-        final startDate = now.subtract(const Duration(hours: 24));
-        final endDate = now;
+        // Show only today's activities (from 00:00:00 to 23:59:59)
+        final startDate = today;
+        final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
         return _getActivitiesForPeriod(appState, startDate, endDate);
         
       case ActivityView.weekly:
@@ -598,17 +612,14 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       // Check if activity date is within the period
       bool isWithinPeriod;
       
-      // For daily view (24-hour rolling window), use exact time comparison
-      if (startDate.hour > 0 || endDate.hour > 0) {
-        isWithinPeriod = activity.date.isAfter(startDate) && activity.date.isBefore(endDate);
-      } else {
-        // For other views (weekly, monthly, yearly), use date-only comparison
-        final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-        final startDateOnly = DateTime(startDate.year, startDate.month, startDate.day);
-        final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
-        isWithinPeriod = (activityDate.isAtSameMomentAs(startDateOnly) || activityDate.isAfter(startDateOnly)) && 
-                        (activityDate.isAtSameMomentAs(endDateOnly) || activityDate.isBefore(endDateOnly));
-      }
+      // Always use date-only comparison for consistent behavior
+      // This ensures activities are grouped by calendar date, not by time
+      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
+      final startDateOnly = DateTime(startDate.year, startDate.month, startDate.day);
+      final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
+      
+      isWithinPeriod = (activityDate.isAtSameMomentAs(startDateOnly) || activityDate.isAfter(startDateOnly)) && 
+                      (activityDate.isAtSameMomentAs(endDateOnly) || activityDate.isBefore(endDateOnly));
       
       if (isWithinPeriod) {
         // Show all activities within the period - no additional filtering

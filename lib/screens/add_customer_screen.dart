@@ -364,38 +364,83 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildModernField(
-                    label: 'Customer ID *',
-                    controller: _idController,
-                    placeholder: 'Enter customer ID',
-                    icon: Icons.tag,
-                    keyboardType: TextInputType.number,
-                    enabled: widget.customer == null, // Disable editing when updating existing customer
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter customer ID';
-                      }
-                      
-                      // Check for duplicate ID (always check, even when editing)
-                      if (_isDuplicateId(value.trim())) {
-                        return 'Customer ID already exists';
-                      }
-                      
-                      // Check for special characters
-                      if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value.trim())) {
-                        return 'Customer ID can only contain letters, numbers, underscore, and hyphen';
-                      }
-                      
-                      return null;
-                    },
-                    onChanged: (value) {
-                      setState(() {
-                        _isIdDuplicate = _isDuplicateId(value.trim());
-                      });
-                    },
-                  ),
-                  if (_isIdDuplicate && _idController.text.trim().isNotEmpty)
-                    _buildDuplicateWarning('This Customer ID already exists'),
+                  if (widget.customer != null) ...[
+                    // Customer ID display styled like the customer field in Add Debt from Product
+                    Text(
+                      'Customer ID',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.dynamicTextPrimary(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.dynamicSurface(context).withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.dynamicBorder(context).withOpacity(0.5),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.tag,
+                            color: AppColors.dynamicTextSecondary(context),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            widget.customer!.id,
+                            style: TextStyle(
+                              color: AppColors.dynamicTextPrimary(context),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ] else ...[
+                    // Editable field when adding new customer
+                    _buildModernField(
+                      label: 'Customer ID *',
+                      controller: _idController,
+                      placeholder: 'Enter customer ID',
+                      icon: Icons.tag,
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter customer ID';
+                        }
+                        
+                        // Check for duplicate ID
+                        if (_isDuplicateId(value.trim())) {
+                          return 'Customer ID already exists';
+                        }
+                        
+                        // Check for special characters
+                        if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value.trim())) {
+                          return 'Customer ID can only contain letters, numbers, underscore, and hyphen';
+                        }
+                        
+                        return null;
+                      },
+                      onChanged: (value) {
+                        setState(() {
+                          _isIdDuplicate = _isDuplicateId(value.trim());
+                        });
+                      },
+                    ),
+                    if (_isIdDuplicate && _idController.text.trim().isNotEmpty)
+                      _buildDuplicateWarning('This Customer ID already exists'),
+                    const SizedBox(height: 16),
+                  ],
                 ],
               ),
               

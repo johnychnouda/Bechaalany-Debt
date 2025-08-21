@@ -187,16 +187,16 @@ class _ActivityWidgetState extends State<ActivityWidget> {
           ).firstOrNull;
           
           if (currentDebt != null && currentDebt.remainingAmount > 0) {
-            // Debt is still pending - show red X
-            icon = Icons.close;
+            // Debt is still pending - show clock icon to indicate waiting
+            icon = Icons.schedule;
             iconColor = Colors.red;
             backgroundColor = Colors.red.withValues(alpha: 0.1);
             statusText = 'Outstanding Debt';
           } else {
-            // Debt has been paid - show green checkmark
+            // Debt has been paid - show blue checkmark to distinguish from "Fully Paid"
             icon = Icons.check_circle;
-            iconColor = Colors.green;
-            backgroundColor = Colors.green.withValues(alpha: 0.1);
+            iconColor = Colors.blue;
+            backgroundColor = Colors.blue.withValues(alpha: 0.1);
             statusText = 'Debt Paid';
           }
         } else {
