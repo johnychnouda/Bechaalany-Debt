@@ -134,10 +134,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         
         if (mounted) {
           final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'Data Restored',
-            body: 'Data restored successfully',
-          );
+          await notificationService.showBackupRestoredNotification();
           Navigator.of(context).pop();
         }
       }

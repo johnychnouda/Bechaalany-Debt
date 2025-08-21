@@ -1,7 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:async';
 import 'dart:io';
 
 class NotificationService {
@@ -40,7 +40,6 @@ class NotificationService {
     await _requestPermissions();
     
     _isInitialized = true;
-
   }
 
   Future<void> _requestPermissions() async {
@@ -73,7 +72,6 @@ class NotificationService {
 
   void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap
-
   }
 
   // ===== NOTIFICATION SETTINGS =====
@@ -121,7 +119,7 @@ class NotificationService {
       await prefs.setInt('weeklyReportWeekday', weeklyReportWeekday);
     }
     if (weeklyReportTime != null) {
-      await prefs.setString('weeklyReportTime', '${weeklyReportTime.hour}:${weeklyReportTime.minute}');
+      await prefs.setString('weeklyReportTime', '${weeklyReportWeekday}:${weeklyReportTime.minute}');
     }
     if (interruptionLevel != null) {
       await prefs.setString('interruptionLevel', interruptionLevel);
@@ -233,24 +231,24 @@ class NotificationService {
       platformChannelSpecifics,
       payload: payload,
     );
-
-    
   }
 
+  // ===== BUSINESS OPERATION NOTIFICATIONS =====
+
   // Customer-related notifications
-  Future<void> showCustomerAddedNotification(dynamic customer) async {
+  Future<void> showCustomerAddedNotification(String customerName) async {
     await showSuccessNotification(
       title: 'Customer Added',
-      body: '${customer.name} has been added successfully',
-      payload: 'customer_added_${customer.id}',
+      body: '$customerName has been added successfully',
+      payload: 'customer_added',
     );
   }
 
-  Future<void> showCustomerUpdatedNotification(dynamic customer) async {
+  Future<void> showCustomerUpdatedNotification(String customerName) async {
     await showSuccessNotification(
       title: 'Customer Updated',
-      body: 'Contact information for ${customer.name} has been updated',
-      payload: 'customer_updated_${customer.id}',
+      body: 'Contact information for $customerName has been updated',
+      payload: 'customer_updated',
     );
   }
 
@@ -263,35 +261,19 @@ class NotificationService {
   }
 
   // Debt-related notifications
-  Future<void> showDebtAddedNotification(dynamic debt) async {
+  Future<void> showDebtAddedNotification(String customerName, double amount) async {
     await showSuccessNotification(
       title: 'Debt Recorded',
-      body: '${debt.customerName} owes \$${debt.amount.toStringAsFixed(2)}',
-      payload: 'debt_added_${debt.id}',
+      body: '$customerName owes \$${amount.toStringAsFixed(2)}',
+      payload: 'debt_added',
     );
   }
 
-  Future<void> showDebtUpdatedNotification(dynamic debt) async {
+  Future<void> showDebtUpdatedNotification(String customerName) async {
     await showSuccessNotification(
       title: 'Debt Updated',
-      body: '${debt.customerName}\'s debt has been updated',
-      payload: 'debt_updated_${debt.id}',
-    );
-  }
-
-  Future<void> showDebtPaidNotification(dynamic debt) async {
-    await showSuccessNotification(
-      title: 'Debt Paid',
-      body: '${debt.customerName} has paid \$${debt.amount.toStringAsFixed(2)}',
-      payload: 'debt_paid_${debt.id}',
-    );
-  }
-
-  Future<void> showPartialPaymentNotification(dynamic debt, double amount) async {
-    await showInfoNotification(
-      title: 'Partial Payment',
-      body: '${debt.customerName} paid \$${amount.toStringAsFixed(2)}',
-      payload: 'partial_payment_${debt.id}',
+      body: '$customerName\'s debt has been updated',
+      payload: 'debt_updated',
     );
   }
 
@@ -303,103 +285,28 @@ class NotificationService {
     );
   }
 
-  // Payment reminder notifications
-  Future<void> showPaymentReminderNotification(dynamic debt) async {
-    await showWarningNotification(
-      title: 'Payment Reminder',
-      body: '${debt.customerName} owes \$${debt.remainingAmount.toStringAsFixed(2)}',
-      payload: 'payment_reminder_${debt.id}',
-    );
-  }
-
-  Future<void> showOverduePaymentNotification(dynamic debt) async {
-    await showErrorNotification(
-      title: 'Overdue Payment',
-      body: '${debt.customerName} has an overdue payment of \$${debt.remainingAmount.toStringAsFixed(2)}',
-      payload: 'overdue_payment_${debt.id}',
-    );
-  }
-
-  // Backup notifications
-  Future<void> showBackupCreatedNotification() async {
+  Future<void> showDebtMarkedAsPaidNotification(String customerName, double amount) async {
     await showSuccessNotification(
-      title: 'Backup Created',
-      body: 'Your data has been backed up successfully',
-      payload: 'backup_created',
+      title: 'Debt Paid',
+      body: '$customerName has paid \$${amount.toStringAsFixed(2)}',
+      payload: 'debt_paid',
     );
   }
 
-  Future<void> showBackupRestoredNotification() async {
-    await showSuccessNotification(
-      title: 'Backup Restored',
-      body: 'Your data has been restored from backup',
-      payload: 'backup_restored',
-    );
-  }
-
-  Future<void> showBackupFailedNotification(String error) async {
-    await showErrorNotification(
-      title: 'Backup Failed',
-      body: 'Failed to create backup: $error',
-      payload: 'backup_failed',
-    );
-  }
-
-
-
-
-
-  // Settings notifications
-  Future<void> showSettingsUpdatedNotification() async {
-    await showSuccessNotification(
-      title: 'Settings Updated',
-      body: 'Your app settings have been saved',
-      payload: 'settings_updated',
-    );
-  }
-
-  // Daily summary notifications
-  Future<void> showDailySummaryNotification({
-    required int totalCustomers,
-    required int totalDebts,
-    required double totalAmount,
-    required double totalPaid,
-  }) async {
+  Future<void> showPartialPaymentNotification(String customerName, double amount) async {
     await showInfoNotification(
-      title: 'Daily Summary',
-      body: '$totalCustomers customers, $totalDebts debts, \$${totalAmount.toStringAsFixed(2)} total, \$${totalPaid.toStringAsFixed(2)} paid',
-      payload: 'daily_summary',
+      title: 'Partial Payment',
+      body: '$customerName paid \$${amount.toStringAsFixed(2)}',
+      payload: 'partial_payment',
     );
   }
 
-  // Weekly report notifications
-  Future<void> showWeeklyReportNotification({
-    required int newCustomers,
-    required int newDebts,
-    required double totalRevenue,
-  }) async {
-    await showInfoNotification(
-      title: 'Weekly Report',
-      body: '$newCustomers new customers, $newDebts new debts, \$${totalRevenue.toStringAsFixed(2)} revenue',
-      payload: 'weekly_report',
+  Future<void> showPaymentAppliedNotification(String customerName, double amount) async {
+    await showSuccessNotification(
+      title: 'Payment Applied',
+      body: '\$${amount.toStringAsFixed(2)} applied to $customerName\'s debt',
+      payload: 'payment_applied',
     );
-  }
-
-  // Cancel all notifications
-  Future<void> cancelAllNotifications() async {
-    await _notifications.cancelAll();
-
-  }
-
-  // Cancel specific notification
-  Future<void> cancelNotification(int id) async {
-    await _notifications.cancel(id);
-    
-  }
-
-  // Get pending notifications
-  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    return await _notifications.pendingNotificationRequests();
   }
 
   // Category-related notifications
@@ -469,47 +376,53 @@ class NotificationService {
     );
   }
 
-  // Payment-related notifications
-  Future<void> showPaymentAppliedNotification(dynamic debt, double paymentAmount) async {
+  // Backup notifications
+  Future<void> showBackupCreatedNotification() async {
     await showSuccessNotification(
-      title: 'Payment Applied',
-      body: '\$${paymentAmount.toStringAsFixed(2)} applied to ${debt.customerName}\'s debt',
-      payload: 'payment_applied_${debt.id}',
+      title: 'Backup Created',
+      body: 'Your data has been backed up successfully',
+      payload: 'backup_created',
     );
   }
 
-
-
-  Future<void> showDataImportedNotification() async {
+  Future<void> showBackupRestoredNotification() async {
     await showSuccessNotification(
-      title: 'Data Imported',
-      body: 'Your data has been imported successfully',
-      payload: 'data_imported',
+      title: 'Backup Restored',
+      body: 'Your data has been restored from backup',
+      payload: 'backup_restored',
     );
   }
 
-  Future<void> showCacheClearedNotification() async {
-    await showInfoNotification(
-      title: 'Cache Cleared',
-      body: 'App cache has been cleared successfully',
-      payload: 'cache_cleared',
-    );
-  }
-
-  Future<void> showSyncCompletedNotification() async {
-    await showSuccessNotification(
-      title: 'Sync Complete',
-      body: 'Your data has been synchronized',
-      payload: 'sync_completed',
-    );
-  }
-
-  Future<void> showSyncFailedNotification() async {
+  Future<void> showBackupFailedNotification(String error) async {
     await showErrorNotification(
-      title: 'Sync Failed',
-      body: 'Unable to sync data. Please check your connection.',
-      payload: 'sync_failed',
+      title: 'Backup Failed',
+      body: 'Failed to create backup: $error',
+      payload: 'backup_failed',
     );
+  }
+
+  // Settings notifications
+  Future<void> showSettingsUpdatedNotification() async {
+    await showSuccessNotification(
+      title: 'Settings Updated',
+      body: 'Your app settings have been saved',
+      payload: 'settings_updated',
+    );
+  }
+
+  // Cancel all notifications
+  Future<void> cancelAllNotifications() async {
+    await _notifications.cancelAll();
+  }
+
+  // Cancel specific notification
+  Future<void> cancelNotification(int id) async {
+    await _notifications.cancel(id);
+  }
+
+  // Get pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return await _notifications.pendingNotificationRequests();
   }
 
   // Legacy methods for backward compatibility

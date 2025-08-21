@@ -93,10 +93,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       
       if (mounted) {
         final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Settings Updated',
-          body: 'Currency settings updated successfully',
-        );
+        await notificationService.showSettingsUpdatedNotification();
         // Reload the settings to show the updated values
         _loadCurrencySettings();
       }

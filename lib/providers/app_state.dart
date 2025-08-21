@@ -15,11 +15,13 @@ import '../services/data_service.dart';
 import '../services/revenue_calculation_service.dart';
 import '../services/theme_service.dart';
 import '../services/whatsapp_automation_service.dart';
+import '../services/notification_service.dart';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final ThemeService _themeService = ThemeService();
   final WhatsAppAutomationService _whatsappService = WhatsAppAutomationService();
+  final NotificationService _notificationService = NotificationService();
   
   // Migration service for data fixes
   final DataMigrationService _migrationService = DataMigrationService(DataService());
@@ -1133,6 +1135,9 @@ class AppState extends ChangeNotifier {
       _customers.add(customer);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showCustomerAddedNotification(customer.name);
     } catch (e) {
       rethrow;
     }
@@ -1146,6 +1151,9 @@ class AppState extends ChangeNotifier {
         _customers[index] = customer;
         _clearCache();
         notifyListeners();
+        
+        // Show notification
+        await _notificationService.showCustomerUpdatedNotification(customer.name);
       }
     } catch (e) {
       rethrow;
@@ -1154,10 +1162,17 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteCustomer(String customerId) async {
     try {
+      // Get customer name before deletion for notification
+      final customer = _customers.firstWhere((c) => c.id == customerId);
+      final customerName = customer.name;
+      
       await _dataService.deleteCustomer(customerId);
       _customers.removeWhere((c) => c.id == customerId);
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showCustomerDeletedNotification(customerName);
     } catch (e) {
       rethrow;
     }
@@ -1194,6 +1209,9 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showDebtAddedNotification(debt.customerName, debt.amount);
     } catch (e) {
       rethrow;
     }
@@ -1207,6 +1225,9 @@ class AppState extends ChangeNotifier {
         _debts[index] = debt;
         _clearCache();
         notifyListeners();
+        
+        // Show notification
+        await _notificationService.showDebtUpdatedNotification(debt.customerName);
       }
     } catch (e) {
       rethrow;
@@ -1217,6 +1238,8 @@ class AppState extends ChangeNotifier {
     try {
       // Get the debt before deleting to clean up related data
       final debt = _debts.firstWhere((d) => d.id == debtId);
+      final customerName = debt.customerName;
+      final amount = debt.amount;
       
       await _dataService.deleteDebt(debtId);
       
@@ -1229,6 +1252,9 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
+      
+      // Show notification
+      await _notificationService.showDebtDeletedNotification(customerName, amount);
     } catch (e) {
       rethrow;
     }
@@ -1250,6 +1276,9 @@ class AppState extends ChangeNotifier {
       // Record a payment activity for the full debt amount when marking as paid
       final paymentAmount = debt.amount;
       await addPaymentActivity(debt, paymentAmount, oldStatus, updatedDebt.status);
+      
+      // Show notification
+      await _notificationService.showDebtMarkedAsPaidNotification(debt.customerName, debt.amount);
     } catch (e) {
       rethrow;
     }
@@ -1321,6 +1350,9 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
+      
+      // Show notification for partial payment
+      await _notificationService.showPartialPaymentNotification(originalDebt.customerName, paymentAmount);
       
       // Reschedule notifications
       await _scheduleNotifications();
@@ -1418,7 +1450,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      // await _notificationService.showCategoryAddedNotification(category.name); // This line was removed
+      await _notificationService.showCategoryAddedNotification(category.name);
     } catch (e) {
       rethrow;
     }
@@ -1434,7 +1466,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         // Show notification
-        // await _notificationService.showCategoryUpdatedNotification(category.name); // This line was removed
+        await _notificationService.showCategoryUpdatedNotification(category.name);
       }
     } catch (e) {
       rethrow;
@@ -1453,7 +1485,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      // await _notificationService.showCategoryDeletedNotification(categoryName); // This line was removed
+      await _notificationService.showCategoryDeletedNotification(categoryName);
     } catch (e) {
       rethrow;
     }
@@ -1486,7 +1518,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      // await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName); // This line was removed
+      await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName);
     } catch (e) {
       rethrow;
     }
@@ -1502,7 +1534,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         // Show notification
-        // await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName); // This line was removed
+        await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName);
       }
     } catch (e) {
       rethrow;
@@ -1521,7 +1553,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      // await _notificationService.showProductPurchaseDeletedNotification(purchaseName); // This line was removed
+      await _notificationService.showProductPurchaseDeletedNotification(purchaseName);
     } catch (e) {
       rethrow;
     }

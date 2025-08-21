@@ -204,15 +204,9 @@ class BackupService {
       await _dataService.createBackup();
       await setLastBackupTime(DateTime.now());
       
-      await _notificationService.showSuccessNotification(
-        title: 'Backup Created',
-        body: 'Manual backup completed successfully',
-      );
+      await _notificationService.showBackupCreatedNotification();
     } catch (e) {
-      await _notificationService.showErrorNotification(
-        title: 'Backup Failed',
-        body: 'Manual backup failed: $e',
-      );
+      await _notificationService.showBackupFailedNotification(e.toString());
       rethrow;
     }
   }
