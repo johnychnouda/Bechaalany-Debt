@@ -820,6 +820,37 @@ class AppState extends ChangeNotifier {
     print('  Total calculated paid: ${totalPaid}');
   }
   
+  /// Debug method to print all debts for a specific customer
+  void debugPrintCustomerDebts(String customerId) {
+    print('🔍 DEBUG: Customer debts for customer ID: $customerId');
+    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+    
+    if (customerDebts.isEmpty) {
+      print('  No debts found for this customer');
+      return;
+    }
+    
+    for (final debt in customerDebts) {
+      print('  Debt: ${debt.description}');
+      print('    Amount: ${debt.amount}');
+      print('    Paid Amount: ${debt.paidAmount}');
+      print('    Remaining Amount: ${debt.remainingAmount}');
+      print('    Status: ${debt.status}');
+      print('    Created: ${debt.createdAt}');
+      print('    Currency: ${debt.storedCurrency}');
+      print('    ---');
+    }
+    
+    final totalAmount = customerDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+    final totalPaid = customerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+    final totalRemaining = customerDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    
+    print('  SUMMARY:');
+    print('    Total Amount: $totalAmount');
+    print('    Total Paid: $totalPaid');
+    print('    Total Remaining: $totalRemaining');
+  }
+  
   /// Fix the current partial payment distribution for Johny Chnouda
   /// This method will properly distribute the $0.15 payment across the Syria tel debts
   Future<void> fixJohnyChnoudaPartialPayment() async {

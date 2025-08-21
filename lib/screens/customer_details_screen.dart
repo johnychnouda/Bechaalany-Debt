@@ -141,6 +141,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       );
     }
   }
+  
+  void _debugCustomerDebts(BuildContext context, AppState appState) {
+    print('🔍 Debugging customer debts for: ${_currentCustomer.name}');
+    appState.debugPrintCustomerDebts(_currentCustomer.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Debug info printed to console - check logs'),
+        backgroundColor: Colors.grey,
+      ),
+    );
+  }
 
   void _showReceiptSharingOptions(BuildContext context, AppState appState) {
     // Check available contact methods
@@ -1050,8 +1061,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                               color: AppColors.dynamicTextPrimary(context),
                                             ),
                                           ),
-                                          // Show red X delete icon only when THIS SPECIFIC debt has no payments
-                                          if (debt.paidAmount == 0) ...[
+                                          // BUSINESS RULE: Show red X delete icon only when:
+                                          // 1. THIS SPECIFIC debt has no payments AND
+                                          // 2. Customer has made NO payments at all
+                                          // This prevents deletion of products after any payment is made
+                                          if (debt.paidAmount == 0 && totalPaid == 0) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
                                               onTap: () => _showDeleteDebtDialog(context, debt),
@@ -1179,6 +1193,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     label: const Text('Fix Partial Payment'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // Debug button to check current debt state
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _debugCustomerDebts(context, appState),
+                                    icon: const Icon(Icons.bug_report, size: 16),
+                                    label: const Text('Debug Debt State'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                       shape: RoundedRectangleBorder(
