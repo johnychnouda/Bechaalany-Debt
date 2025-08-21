@@ -638,12 +638,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show ALL products for transparency - only hide those that are explicitly fully paid
-        // This ensures no products are hidden due to calculation precision issues
+        // Show ALL products until customer's total pending amount is fully paid
+        // This ensures no products are hidden due to partial payments or calculation issues
         final customerActiveDebts = customerAllDebts.where((debt) {
-          // Show the product if it's NOT fully paid
-          // This is the most reliable way to ensure products stay visible until completely paid
-          return !debt.isFullyPaid;
+          // Show the product if:
+          // 1. Customer still has pending amounts (totalPendingDebt > 0), OR
+          // 2. This specific debt has no payments (paidAmount == 0), OR
+          // 3. This specific debt has partial payments (paidAmount < amount)
+          return totalPendingDebt > 0 || 
+                 debt.paidAmount == 0 || 
+                 debt.paidAmount < debt.amount;
         }).toList();
 
         return Scaffold(
