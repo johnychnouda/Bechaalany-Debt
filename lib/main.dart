@@ -13,9 +13,11 @@ import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'services/backup_service.dart';
+import 'services/notification_service.dart';
 
-// Global backup service instance
+// Global service instances
 BackupService? _globalBackupService;
+NotificationService? _globalNotificationService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -152,6 +154,14 @@ void main() async {
       // Handle initialization error silently
     }
     
+    // Initialize notification service first
+    try {
+      _globalNotificationService = NotificationService();
+      await _globalNotificationService!.initialize();
+    } catch (e) {
+      // Handle notification service initialization error silently
+    }
+    
     // Initialize automatic daily backup service
     try {
       _globalBackupService = BackupService();
@@ -200,9 +210,13 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came to foreground, reinitialize backup service
+        // App came to foreground, reinitialize services
         if (_globalBackupService != null) {
           _globalBackupService!.handleAppLifecycleChange();
+        }
+        if (_globalNotificationService != null) {
+          // Re-request notification permissions if needed
+          _globalNotificationService!.reRequestPermissions();
         }
         break;
       case AppLifecycleState.paused:

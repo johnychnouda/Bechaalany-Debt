@@ -66,6 +66,11 @@ class NotificationService {
     }
   }
 
+  // Public method to re-request permissions (for app lifecycle handling)
+  Future<void> reRequestPermissions() async {
+    await _requestPermissions();
+  }
+
   void _onNotificationTapped(NotificationResponse response) {
     // Handle notification tap
 
