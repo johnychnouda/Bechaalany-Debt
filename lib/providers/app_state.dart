@@ -1145,17 +1145,39 @@ class AppState extends ChangeNotifier {
 
   Future<void> updateCustomer(Customer customer) async {
     try {
+      print('🔧 AppState: Updating customer: ${customer.name}');
+      print('  ID: ${customer.id}');
+      print('  Phone: ${customer.phone}');
+      print('  Email: ${customer.email}');
+      print('  Address: ${customer.address}');
+      print('  UpdatedAt: ${customer.updatedAt}');
+      
       await _dataService.updateCustomer(customer);
+      
+      // Refresh the customer list from the data service to ensure consistency
+      _customers = _dataService.customers;
+      
       final index = _customers.indexWhere((c) => c.id == customer.id);
       if (index != -1) {
+        print('✅ AppState: Customer found in local list at index $index');
+        // Update the local list with the fresh data from database
         _customers[index] = customer;
         _clearCache();
         notifyListeners();
         
         // Show notification
         await _notificationService.showCustomerUpdatedNotification(customer.name);
+        print('✅ AppState: Customer updated successfully in local state');
+      } else {
+        print('❌ AppState: Customer not found in local list, ID: ${customer.id}');
+        // If customer not found in local list, add it
+        _customers.add(customer);
+        _clearCache();
+        notifyListeners();
+        print('✅ AppState: Customer added to local list as fallback');
       }
     } catch (e) {
+      print('❌ AppState: Error updating customer: $e');
       rethrow;
     }
   }
@@ -2401,6 +2423,34 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
     } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Refresh all data from the data service
+  Future<void> refreshDataFromService() async {
+    try {
+      print('🔧 AppState: Refreshing all data from service');
+      _customers = _dataService.customers;
+      _debts = _dataService.debts;
+      _categories = _dataService.categories;
+      _productPurchases = _dataService.productPurchases;
+      _partialPayments = _dataService.partialPayments;
+      _activities = _dataService.activities;
+      _currencySettings = _dataService.currencySettings;
+      
+      print('✅ AppState: Data refreshed successfully');
+      print('  Customers: ${_customers.length}');
+      print('  Debts: ${_debts.length}');
+      print('  Categories: ${_categories.length}');
+      print('  Product Purchases: ${_productPurchases.length}');
+      print('  Partial Payments: ${_partialPayments.length}');
+      print('  Activities: ${_activities.length}');
+      
+      _clearCache();
+      notifyListeners();
+    } catch (e) {
+      print('❌ AppState: Error refreshing data: $e');
       rethrow;
     }
   }

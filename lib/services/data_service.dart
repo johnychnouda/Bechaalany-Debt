@@ -433,8 +433,44 @@ class DataService {
   
   Future<void> updateCustomer(Customer customer) async {
     try {
-      _customerBoxSafe.put(customer.id, customer);
+      print('🔧 DataService: Updating customer: ${customer.name}');
+      print('  ID: ${customer.id}');
+      print('  Phone: ${customer.phone}');
+      print('  Email: ${customer.email}');
+      print('  Address: ${customer.address}');
+      print('  UpdatedAt: ${customer.updatedAt}');
+      
+      // Check if customer exists before update
+      final existingCustomer = _customerBoxSafe.get(customer.id);
+      if (existingCustomer != null) {
+        print('✅ DataService: Existing customer found:');
+        print('  Existing Name: ${existingCustomer.name}');
+        print('  Existing Phone: ${existingCustomer.phone}');
+        print('  Existing Email: ${existingCustomer.email}');
+        print('  Existing Address: ${existingCustomer.address}');
+      } else {
+        print('❌ DataService: No existing customer found with ID: ${customer.id}');
+      }
+      
+      // Force a refresh of the customer data
+      await _customerBoxSafe.put(customer.id, customer);
+      
+      // Force Hive to sync the data
+      await _customerBoxSafe.flush();
+      
+      // Verify the update
+      final updatedCustomer = _customerBoxSafe.get(customer.id);
+      if (updatedCustomer != null) {
+        print('✅ DataService: Customer updated successfully');
+        print('  Verified ID: ${updatedCustomer.id}');
+        print('  Verified Phone: ${updatedCustomer.phone}');
+        print('  Verified Email: ${updatedCustomer.email}');
+        print('  Verified Address: ${updatedCustomer.address}');
+      } else {
+        print('❌ DataService: Customer update verification failed');
+      }
     } catch (e) {
+      print('❌ DataService: Error updating customer: $e');
       rethrow;
     }
   }

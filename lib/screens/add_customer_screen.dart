@@ -194,13 +194,44 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         email: email.isEmpty ? null : email,
         address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
         createdAt: widget.customer?.createdAt ?? DateTime.now(),
-        updatedAt: widget.customer != null ? DateTime.now() : null,
+        updatedAt: DateTime.now(), // Always set updatedAt to current time
       );
+
+      // Debug: Print the customer data being updated
+      print('🔧 AddCustomerScreen: Updating customer with data:');
+      print('  ID: "${customer.id}" (length: ${customer.id.length})');
+      print('  Name: "${customer.name}"');
+      print('  Phone: "${customer.phone}"');
+      print('  Email: "${customer.email}"');
+      print('  Address: "${customer.address}"');
+      print('  Original ID: "${widget.customer?.id}" (length: ${widget.customer?.id.length})');
+      print('  IDs match: ${customer.id == widget.customer?.id}');
+
+      // Validate that ID is not changed when updating
+      if (widget.customer != null && customer.id != widget.customer!.id) {
+        print('❌ AddCustomerScreen: Customer ID changed during update!');
+        print('  Original ID: "${widget.customer!.id}"');
+        print('  New ID: "${customer.id}"');
+        throw Exception('Customer ID cannot be changed during update');
+      }
 
       final appState = Provider.of<AppState>(context, listen: false);
       
       if (widget.customer != null) {
-        await appState.updateCustomer(customer);
+        // Ensure we're updating with the latest data and preserve the original ID
+        final updatedCustomer = customer.copyWith(
+          id: widget.customer!.id, // Always preserve the original ID
+          updatedAt: DateTime.now(), // Force update timestamp
+        );
+        
+        print('🔧 AddCustomerScreen: Final customer data for update:');
+        print('  ID: "${updatedCustomer.id}"');
+        print('  Name: "${updatedCustomer.name}"');
+        print('  Phone: "${updatedCustomer.phone}"');
+        print('  Email: "${updatedCustomer.email}"');
+        print('  Address: "${updatedCustomer.address}"');
+        
+        await appState.updateCustomer(updatedCustomer);
         if (mounted) {
           Navigator.pop(context, true); // Return true to indicate successful update
         }
