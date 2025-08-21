@@ -854,7 +854,7 @@ class AppState extends ChangeNotifier {
       }
       
       // If no payments have been applied yet, we need to apply the $0.15 payment
-      print('🔧 Applying $0.15 payment to Syria tel debts...');
+      print('🔧 Applying \$0.15 payment to Syria tel debts...');
       
       // Sort debts by creation date (oldest first)
       syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
