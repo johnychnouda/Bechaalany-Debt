@@ -1003,10 +1003,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                             color: AppColors.dynamicTextPrimary(context),
                                           ),
                                         ),
-                                          // BUSINESS RULE: Show red X delete icon for TRULY CONSISTENT behavior
-                                          // Since partial payments affect ALL products, we need to show red X on ALL products OR NONE
-                                          // Check if THIS specific debt has no payments AND customer has no partial payments at all
-                                          if (debt.paidAmount == 0 && !customerHasPartialPayments) ...[
+                                          // BUSINESS RULE: Show red X delete icon for intelligent behavior
+                                          // Show red X if THIS specific debt has no payments (debt.paidAmount == 0)
+                                          // This allows deletion of new debts while preventing deletion of paid debts
+                                          if (debt.paidAmount == 0) ...[
                                             const SizedBox(width: 8),
                                             GestureDetector(
                                               onTap: () => _showDeleteDebtDialog(context, debt),
