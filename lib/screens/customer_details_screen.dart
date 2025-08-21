@@ -153,6 +153,43 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     );
   }
 
+  Future<void> _restoreCorrectAmounts(BuildContext context, AppState appState) async {
+    try {
+      print('🔧 Restoring correct amounts for: ${_currentCustomer.name}');
+      
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Restoring correct amounts...'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+      
+      // Call the restoration method
+      await appState.restoreCorrectSyriaTelAmounts();
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Correct amounts restored!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      // Refresh the UI
+      setState(() {});
+      
+    } catch (e) {
+      print('❌ Error restoring amounts: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showReceiptSharingOptions(BuildContext context, AppState appState) {
     // Check available contact methods
     final hasPhone = _currentCustomer.phone.isNotEmpty;
@@ -1208,6 +1245,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     label: const Text('Debug Debt State'),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.grey,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // Restore correct amounts button
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _restoreCorrectAmounts(context, appState),
+                                    icon: const Icon(Icons.restore, size: 16),
+                                    label: const Text('Restore Correct Amounts'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.purple,
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(vertical: 8),
                                       shape: RoundedRectangleBorder(

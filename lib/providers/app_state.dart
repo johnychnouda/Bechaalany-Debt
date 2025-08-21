@@ -2348,4 +2348,71 @@ class AppState extends ChangeNotifier {
   void fixRevenueNow() {
     
   }
+
+  /// Restore the correct Syria tel debt amounts for Johny Chnouda
+  /// This fixes the corrupted amounts that were modified by the migration service
+  Future<void> restoreCorrectSyriaTelAmounts() async {
+    try {
+      print('🔧 Restoring correct Syria tel debt amounts for Johny Chnouda...');
+      
+      // Find Johny Chnouda's customer ID
+      final customer = _customers.firstWhere(
+        (c) => c.name.toLowerCase().contains('johny') || c.name.toLowerCase().contains('chnouda'),
+        orElse: () => throw Exception('Johny Chnouda not found'),
+      );
+      
+      print('👤 Found customer: ${customer.name} (ID: ${customer.id})');
+      
+      // Get all Syria tel debts for this customer
+      final syriaTelDebts = _debts.where((d) => 
+        d.customerId == customer.id && 
+        d.description.toLowerCase().contains('syria tel')
+      ).toList();
+      
+      print('📱 Found ${syriaTelDebts.length} Syria tel debts');
+      
+      // Sort by creation date to assign correct amounts
+      syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      // The correct amounts based on the original values
+      final correctAmounts = [0.19, 0.38, 0.38];
+      
+      for (int i = 0; i < syriaTelDebts.length && i < correctAmounts.length; i++) {
+        final debt = syriaTelDebts[i];
+        final correctAmount = correctAmounts[i];
+        
+        print('🔧 Restoring debt ${i + 1}: ${debt.description}');
+        print('  Current amount: ${debt.amount}');
+        print('  Correct amount: $correctAmount');
+        print('  Current paid: ${debt.paidAmount}');
+        
+        // Restore the correct amount while preserving paid amounts
+        final updatedDebt = debt.copyWith(
+          amount: correctAmount,
+          originalSellingPrice: correctAmount, // Set as USD
+          storedCurrency: 'USD',
+        );
+        
+        // Update in storage
+        await _dataService.updateDebt(updatedDebt);
+        
+        // Update local debt list
+        final index = _debts.indexWhere((d) => d.id == debt.id);
+        if (index != -1) {
+          _debts[index] = updatedDebt;
+          print('✅ Restored debt: ${debt.description} - Amount: ${updatedDebt.amount}, Paid: ${updatedDebt.paidAmount}');
+        }
+      }
+      
+      print('✅ Successfully restored correct Syria tel debt amounts');
+      
+      // Clear cache and notify listeners
+      _clearCache();
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error restoring Syria tel amounts: $e');
+      rethrow;
+    }
+  }
 }
