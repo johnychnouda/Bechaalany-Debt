@@ -981,23 +981,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                             color: AppColors.dynamicTextSecondary(context),
                                           ),
                                         ),
-                                        // Show payment status
-                                        Text(
-                                          debt.isFullyPaid 
-                                              ? 'Fully Paid' 
-                                              : debt.isPartiallyPaid 
-                                                  ? 'Partially Paid (${CurrencyFormatter.formatAmount(context, debt.paidAmount, storedCurrency: debt.storedCurrency)})'
-                                                  : 'Pending',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: debt.isFullyPaid 
-                                                ? AppColors.success 
-                                                : debt.isPartiallyPaid 
-                                                    ? AppColors.warning 
-                                                    : AppColors.error,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
+
                                       ],
                                     ),
                                   ),
@@ -1007,31 +991,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                                                                  Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              debt.isFullyPaid 
-                                                  ? 'Paid' 
-                                                  : 'Remaining: ${CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency)}',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: debt.isFullyPaid 
-                                                    ? AppColors.success 
-                                                    : AppColors.error,
-                                              ),
-                                            ),
-                                            if (!debt.isFullyPaid) ...[
-                                              Text(
-                                                'Original: ${CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency)}',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: AppColors.dynamicTextSecondary(context),
-                                                ),
-                                              ),
-                                            ],
-                                          ],
+                                                                                  Text(
+                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicTextPrimary(context),
+                                          ),
                                         ),
                                           // BUSINESS RULE: Show red X delete icon only when:
                                           // THIS SPECIFIC debt has no payments
