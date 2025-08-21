@@ -14,6 +14,9 @@ import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'services/backup_service.dart';
 
+// Global backup service instance
+BackupService? _globalBackupService;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -151,20 +154,19 @@ void main() async {
     
     // Initialize automatic daily backup service
     try {
-      final backupService = BackupService();
-      await backupService.initializeDailyBackup();
+      _globalBackupService = BackupService();
+      await _globalBackupService!.initializeDailyBackup();
       
       // Clean up any existing duplicate backups from today
-      await backupService.cleanupDuplicateBackupsFromToday();
+      await _globalBackupService!.cleanupDuplicateBackupsFromToday();
       
-
-      await backupService.forceCleanupTodayBackups();
+      await _globalBackupService!.forceCleanupTodayBackups();
       
       // Specifically remove the problematic 1:33 AM backup if it exists
-      await backupService.removeSpecificBackup();
+      await _globalBackupService!.removeSpecificBackup();
       
       // Clear any invalid backup timestamps
-      await backupService.clearInvalidBackupTimestamps();
+      await _globalBackupService!.clearInvalidBackupTimestamps();
     } catch (e) {
       // Handle backup service initialization error silently
     }
@@ -172,8 +174,49 @@ void main() async {
     runApp(const BechaalanyDebtApp());
 }
 
-class BechaalanyDebtApp extends StatelessWidget {
+class BechaalanyDebtApp extends StatefulWidget {
   const BechaalanyDebtApp({super.key});
+
+  @override
+  State<BechaalanyDebtApp> createState() => _BechaalanyDebtAppState();
+}
+
+class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // App came to foreground, reinitialize backup service
+        if (_globalBackupService != null) {
+          _globalBackupService!.handleAppLifecycleChange();
+        }
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // App went to background or was terminated
+        break;
+      case AppLifecycleState.inactive:
+        // App is inactive (e.g., incoming call)
+        break;
+      case AppLifecycleState.hidden:
+        // App is hidden (iOS specific)
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

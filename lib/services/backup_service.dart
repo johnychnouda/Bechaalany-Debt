@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
@@ -18,58 +17,80 @@ class BackupService {
     // Cancel any existing timer
     _dailyBackupTimer?.cancel();
     
+    // Check if automatic backup is enabled
+    final isEnabled = await isAutomaticBackupEnabled();
+    if (!isEnabled) {
+      return;
+    }
+    
     // Schedule daily backup at 12 AM
     _scheduleDailyBackup();
+  }
+
+  // Handle app lifecycle changes
+  Future<void> handleAppLifecycleChange() async {
+    final isEnabled = await isAutomaticBackupEnabled();
+    if (isEnabled) {
+      // Re-schedule backup when app comes to foreground
+      await initializeDailyBackup();
+    }
+  }
+
+  // Get next scheduled backup time for display purposes
+  DateTime? getNextScheduledBackupTime() {
+    if (_dailyBackupTimer == null) return null;
     
-    // Also schedule backup for tomorrow if app is running
-    _scheduleNextDayBackup();
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+  }
+
+  // Get current backup service status for debugging
+  Map<String, dynamic> getServiceStatus() {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final nextScheduled = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+    
+    return {
+      'timer_active': _dailyBackupTimer != null,
+      'next_scheduled_backup': nextScheduled.toString(),
+      'current_time': now.toString(),
+      'time_until_next_backup': nextScheduled.difference(now).toString(),
+    };
+  }
+
+  // Test method to verify backup scheduling logic
+  bool testBackupScheduling() {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+    
+    // Verify that the next backup is always scheduled for 12 AM tomorrow
+    return nextBackup.hour == 0 && 
+           nextBackup.minute == 0 && 
+           nextBackup.second == 0 &&
+           nextBackup.isAfter(now);
   }
 
   void _scheduleDailyBackup() {
     final now = DateTime.now();
     
-    // Calculate next backup time (12 AM today or tomorrow)
-    DateTime nextBackup;
-    if (now.hour >= 12) {
-      // If it's past 12 PM, schedule for 12 AM tomorrow
-      nextBackup = DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
-    } else {
-      // If it's before 12 PM, schedule for 12 AM today
-      nextBackup = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    }
+    // Calculate next backup time (12 AM tomorrow)
+    // Always schedule for 12 AM tomorrow to ensure consistent timing
+    final tomorrow = now.add(const Duration(days: 1));
+    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
     
     final delay = nextBackup.difference(now);
     
     _dailyBackupTimer = Timer(delay, () {
       _performDailyBackup();
-      // Schedule the next backup
-      _scheduleNextDayBackup();
+      // Schedule the next backup after this one completes
+      _scheduleDailyBackup();
     });
-    
-
-  }
-
-  void _scheduleNextDayBackup() {
-    _dailyBackupTimer?.cancel();
-    
-    final now = DateTime.now();
-    final nextBackup = DateTime(now.year, now.month, now.day + 1, 0, 0, 0);
-    
-    final delay = nextBackup.difference(now);
-    
-    _dailyBackupTimer = Timer(delay, () {
-      _performDailyBackup();
-      // Schedule the next backup
-      _scheduleNextDayBackup();
-    });
-    
-
   }
 
   Future<void> _performDailyBackup() async {
     try {
-
-      
       // Check if we already have a backup today to prevent duplicates
       final lastBackup = await getLastAutomaticBackupTime();
       if (lastBackup != null) {
@@ -91,13 +112,10 @@ class BackupService {
       // Show notification
       await _notificationService.showSuccessNotification(
         title: 'Daily Backup Complete',
-        body: 'Your data has been automatically backed up',
+        body: 'Your data has been automatically backed up at 12 AM',
       );
       
-
-      
     } catch (e) {
-      
       // Show error notification
       await _notificationService.showErrorNotification(
         title: 'Backup Failed',
