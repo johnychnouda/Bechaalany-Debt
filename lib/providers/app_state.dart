@@ -362,7 +362,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error fixing corrupted debt prices: $e');
+      // Error fixing corrupted debt prices
     }
   }
 
@@ -375,15 +375,10 @@ class AppState extends ChangeNotifier {
   /// This ensures the revenue calculation shows $0.13 instead of $0.28
   Future<void> fixAlfaUshareProduct() async {
     try {
-      print('🔧 Manually fixing alfa ushare product to correct values');
-      
       // Find and update the alfa ushare product
       for (final category in _categories) {
         for (final subcategory in category.subcategories) {
           if (subcategory.name.toLowerCase() == 'alfa ushare') {
-            print('  Found alfa ushare, updating to correct LBP values');
-            print('  Old - Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}');
-            
             // Set the correct LBP values to keep exchange rate card visible
             // Cost: $0.25 * 89,500 = 22,375 LBP
             // Selling: $0.38 * 89,500 = 34,010 LBP
@@ -392,9 +387,6 @@ class AppState extends ChangeNotifier {
             subcategory.costPriceCurrency = 'LBP'; // Keep as LBP
             subcategory.sellingPriceCurrency = 'LBP'; // Keep as LBP
             
-            print('  New - Cost: ${subcategory.costPrice} LBP, Selling: ${subcategory.sellingPrice} LBP');
-            print('  Exchange rate card will remain visible and revenue will be 0.13\$');
-            
             // Update in database
             await _dataService.updateCategory(category);
             
@@ -402,34 +394,27 @@ class AppState extends ChangeNotifier {
             await _loadData();
             notifyListeners();
             
-            print('  ✅ alfa ushare product fixed! Revenue should now show 0.13\$');
             return;
           }
         }
       }
-      
-      print('⚠️ alfa ushare product not found');
     } catch (e) {
-      print('❌ Error fixing alfa ushare: $e');
+      // Error fixing alfa ushare product
     }
   }
 
   /// Force refresh the cache after migration to ensure UI shows correct values
   /// This is needed when migration updates debt amounts directly through DataService
   void forceCacheRefresh() {
-    print('🧹 Force refreshing AppState cache...');
     _clearCache();
     notifyListeners();
-    print('✅ Cache cleared and UI notified - totals should now show correct amounts');
   }
 
   /// Manual method to clear cache and refresh UI
   /// Call this if totals are still showing incorrect values
   void manualCacheClear() {
-    print('🧹 Manual cache clear requested...');
     _clearCache();
     notifyListeners();
-    print('✅ Manual cache clear completed - UI should refresh');
   }
   
   /// Force refresh of all calculated totals
@@ -453,13 +438,10 @@ class AppState extends ChangeNotifier {
   /// Also automatically fixes any new Syria tel debts with incorrect currency
   Future<void> fixSyriaTelDebt() async {
     try {
-      print('🔧 Fixing Syria tel debt currency and amount...');
       int fixedCount = 0;
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('syria tel')) {
-          print('🔧 Fixing Syria tel debt: ${debt.description} (Current amount: ${debt.amount}, Currency: ${debt.storedCurrency})');
-          
           // Update the debt with correct USD values
           final updatedDebt = debt.copyWith(
             amount: 0.38, // Correct USD amount
@@ -468,11 +450,6 @@ class AppState extends ChangeNotifier {
             originalCostPrice: 0.0, // Set appropriate cost price
             originalSellingPrice: 0.38, // Set appropriate selling price
           );
-          
-          print('🔧 Updating Syria tel debt with correct USD pricing:');
-          print('  Amount: ${updatedDebt.amount}');
-          print('  Currency: ${updatedDebt.storedCurrency}');
-          print('  Selling Price: ${updatedDebt.originalSellingPrice}');
           
           // Update in database
           await _dataService.updateDebt(updatedDebt);
@@ -499,13 +476,10 @@ class AppState extends ChangeNotifier {
   /// This prevents the issue from happening again
   Future<void> autoFixSyriaTelDebts() async {
     try {
-      print('🔧 Auto-fixing Syria tel debts on app start...');
       int fixedCount = 0;
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('syria tel')) {
-          print('🔧 Checking Syria tel debt: ${debt.description} (Amount: ${debt.amount}, Currency: ${debt.storedCurrency})');
-          
           bool needsFix = false;
           String fixReason = '';
           
@@ -522,8 +496,6 @@ class AppState extends ChangeNotifier {
           }
           
           if (needsFix) {
-            print('🔧 Auto-fixing Syria tel debt: $fixReason');
-            
             // Determine the correct amount based on the debt description or other criteria
             // For now, preserve the original amount if it's reasonable, otherwise use 0.38
             double correctAmount = debt.amount;
@@ -547,10 +519,7 @@ class AppState extends ChangeNotifier {
             if (index != -1) {
               _debts[index] = updatedDebt;
               fixedCount++;
-              print('✅ Fixed debt: ${debt.description}');
             }
-          } else {
-            print('✅ Debt is already correct: ${debt.description}');
           }
         }
       }
@@ -558,12 +527,9 @@ class AppState extends ChangeNotifier {
       if (fixedCount > 0) {
         _clearCache();
         notifyListeners();
-        print('✅ Auto-fixed $fixedCount Syria tel debts on app start');
-      } else {
-        print('✅ All Syria tel debts are already correct');
       }
     } catch (e) {
-      print('❌ Error during auto-fix of Syria tel debts: $e');
+      // Error during auto-fix of Syria tel debts
       // Don't rethrow - this is a background fix that shouldn't crash the app
     }
   }
@@ -571,9 +537,6 @@ class AppState extends ChangeNotifier {
   /// Private method to fix a single Syria tel debt
   Future<void> _autoFixSingleSyriaTelDebt(Debt debt) async {
     try {
-      print('🔧 Auto-fixing single Syria tel debt: ${debt.description}');
-      print('  Current: Amount=${debt.amount}, Currency=${debt.storedCurrency}');
-      
       // Update the debt with correct USD values
       final updatedDebt = debt.copyWith(
         amount: debt.amount, // Preserve original amount
@@ -589,11 +552,9 @@ class AppState extends ChangeNotifier {
       final index = _debts.indexWhere((d) => d.id == debt.id);
       if (index != -1) {
         _debts[index] = updatedDebt;
-        print('✅ Auto-fixed single Syria tel debt');
-        print('  Updated: Amount=${updatedDebt.amount}, Currency=${updatedDebt.storedCurrency}');
       }
     } catch (e) {
-      print('❌ Error during auto-fix of single Syria tel debt: $e');
+      // Error during auto-fix of single Syria tel debt
       // Don't rethrow - this is a background fix that shouldn't crash the app
     }
   }
@@ -601,8 +562,6 @@ class AppState extends ChangeNotifier {
   /// Recreate missing Syria tel debt for the 2:36:59 PM purchase
   Future<void> recreateMissingSyriaTelDebt() async {
     try {
-      print('🔧 Recreating missing Syria tel debt for 2:36:59 PM purchase...');
-      
       // Find the missing activity
       final missingActivity = _activities.firstWhere(
         (a) => a.customerId == '1' && 
@@ -611,8 +570,6 @@ class AppState extends ChangeNotifier {
                a.date.hour == 14 && a.date.minute == 36,
         orElse: () => throw Exception('Missing activity not found'),
       );
-      
-      print('🔧 Found missing activity: ${missingActivity.description} at ${missingActivity.date}');
       
       // Create the missing debt
       final missingDebt = Debt(
@@ -638,9 +595,7 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      print('✅ Successfully recreated missing Syria tel debt');
     } catch (e) {
-      print('❌ Error recreating missing Syria tel debt: $e');
       rethrow;
     }
   }
@@ -653,8 +608,6 @@ class AppState extends ChangeNotifier {
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa')) {
-          print('🔧 Fixing alfa debt: ${debt.description} (Current amount: ${debt.amount})');
-          
           // Update the debt with correct values to match the product
           // Product pricing: Cost: 2.00$, Selling: 4.50$, Revenue: 2.50$
           // Debt amount should match product selling price: 4.50$
@@ -665,13 +618,6 @@ class AppState extends ChangeNotifier {
             storedCurrency: 'USD', // Store as USD for consistency
           );
           
-          print('🔧 Updating alfa debt with correct USD pricing:');
-          print('  Amount: ${updatedDebt.amount}');
-          print('  Cost Price: ${updatedDebt.originalCostPrice}');
-          print('  Selling Price: ${updatedDebt.originalSellingPrice}');
-          print('  Stored Currency: ${updatedDebt.storedCurrency}');
-          print('  Expected Revenue: ${updatedDebt.originalSellingPrice! - updatedDebt.originalCostPrice!}');
-          
           await _dataService.updateDebt(updatedDebt);
           
           // Update local debt list
@@ -681,27 +627,23 @@ class AppState extends ChangeNotifier {
           }
           
           fixedCount++;
-          print('✅ Fixed alfa debt: ${debt.description} (New amount: 4.50, Cost: 2.00, Revenue: 2.50)');
         }
       }
       
       if (fixedCount > 0) {
         _clearCache();
         notifyListeners();
-        print('🎯 Fixed $fixedCount alfa debts with correct pricing');
       }
     } catch (e) {
-      print('❌ Error fixing alfa debts: $e');
+      // Error fixing alfa debts
     }
   }
 
   /// Force complete data reload to clear all cached values
   /// This is a more aggressive approach when cache clearing doesn't work
   Future<void> forceCompleteDataReload() async {
-    print('🔄 Force complete data reload...');
     _clearCache();
     await _loadData();
-    print('✅ Complete data reload finished - all cached values should be updated');
   }
 
   /// Reset the migration flag to allow re-running migration
@@ -810,60 +752,73 @@ class AppState extends ChangeNotifier {
   
   /// Debug method to print current debt amounts for troubleshooting
   void debugPrintDebtAmounts() {
-    print('🔍 DEBUG: Current debt amounts:');
-    for (final debt in _debts) {
-      if (debt.description.toLowerCase().contains('syria tel')) {
-        print('  Syria tel debt: Amount=${debt.amount}, Paid=${debt.paidAmount}, Remaining=${debt.remainingAmount}, Currency=${debt.storedCurrency}');
-      }
-    }
-    print('  Total calculated debt: ${totalDebt}');
-    print('  Total calculated paid: ${totalPaid}');
+    // Debug method - no output
   }
   
   /// Debug method to print all debts for a specific customer
   void debugPrintCustomerDebts(String customerId) {
-    print('🔍 DEBUG: Customer debts for customer ID: $customerId');
-    final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
-    
-    if (customerDebts.isEmpty) {
-      print('  No debts found for this customer');
-      return;
+    // Debug method - no output
+  }
+  
+  /// Fix payment activities that should be marked as "Payment completed" instead of "Partial payment"
+  /// This addresses the issue where payments that complete debts are still showing as partial
+  Future<void> fixPaymentActivityStatuses() async {
+    try {
+      int fixedCount = 0;
+      
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.debtId != null &&
+            activity.description.contains('Partial payment')) {
+          
+          // Find the corresponding debt
+          Debt? debt;
+          try {
+            debt = _debts.firstWhere((d) => d.id == activity.debtId);
+          } catch (e) {
+            debt = null;
+          }
+          
+          if (debt != null && debt.isFullyPaid) {
+            // This debt is fully paid, so the activity should show "Payment completed"
+            final updatedActivity = activity.copyWith(
+              description: 'Payment completed: ${(activity.paymentAmount ?? 0).toStringAsFixed(2)}\$',
+              newStatus: DebtStatus.paid,
+            );
+            
+            // Update in storage
+            await _dataService.updateActivity(updatedActivity);
+            
+            // Update local list
+            final index = _activities.indexWhere((a) => a.id == activity.id);
+            if (index != -1) {
+              _activities[index] = updatedActivity;
+            }
+            
+            fixedCount++;
+          }
+        }
+      }
+      
+      if (fixedCount > 0) {
+        _clearCache();
+        notifyListeners();
+        print('✅ Fixed $fixedCount payment activity statuses');
+      }
+    } catch (e) {
+      print('❌ Error fixing payment activity statuses: $e');
     }
-    
-    for (final debt in customerDebts) {
-      print('  Debt: ${debt.description}');
-      print('    Amount: ${debt.amount}');
-      print('    Paid Amount: ${debt.paidAmount}');
-      print('    Remaining Amount: ${debt.remainingAmount}');
-      print('    Status: ${debt.status}');
-      print('    Created: ${debt.createdAt}');
-      print('    Currency: ${debt.storedCurrency}');
-      print('    ---');
-    }
-    
-    final totalAmount = customerDebts.fold(0.0, (sum, debt) => sum + debt.amount);
-    final totalPaid = customerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-    final totalRemaining = customerDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-    
-    print('  SUMMARY:');
-    print('    Total Amount: $totalAmount');
-    print('    Total Paid: $totalPaid');
-    print('    Total Remaining: $totalRemaining');
   }
   
   /// Fix the current partial payment distribution for Johny Chnouda
   /// This method will properly distribute the $0.15 payment across the Syria tel debts
   Future<void> fixJohnyChnoudaPartialPayment() async {
     try {
-      print('🔧 Fixing Johny Chnouda partial payment distribution...');
-      
       // Find Johny Chnouda's customer ID
       final customer = _customers.firstWhere(
         (c) => c.name.toLowerCase().contains('johny') || c.name.toLowerCase().contains('chnouda'),
         orElse: () => throw Exception('Johny Chnouda not found'),
       );
-      
-      print('👤 Found customer: ${customer.name} (ID: ${customer.id})');
       
       // Get all Syria tel debts for this customer
       final syriaTelDebts = _debts.where((d) => 
@@ -871,17 +826,11 @@ class AppState extends ChangeNotifier {
         d.description.toLowerCase().contains('syria tel')
       ).toList();
       
-      print('📱 Found ${syriaTelDebts.length} Syria tel debts');
-      
       // Check if there are any partial payments that need to be distributed
       final totalPaidAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
       final totalDebtAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.amount);
       
-      print('💰 Current state: Total paid: $totalPaidAmount, Total debt: $totalDebtAmount');
-      
       if (totalPaidAmount > 0) {
-        print('🔧 Found existing partial payment of $totalPaidAmount - redistributing it properly...');
-        
         // Reset all paid amounts to 0 first
         for (final debt in syriaTelDebts) {
           final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
@@ -891,13 +840,11 @@ class AppState extends ChangeNotifier {
               status: DebtStatus.pending,
             );
             await _dataService.updateDebt(_debts[debtIndex]);
-            print('🔄 Reset debt: ${debt.description} - Paid amount reset to 0');
           }
         }
       }
       
       // Now apply the $0.15 payment properly
-      print('🔧 Applying \$0.15 payment to Syria tel debts...');
       
       // Sort debts by creation date (oldest first)
       syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -906,7 +853,6 @@ class AppState extends ChangeNotifier {
       
       // Calculate total remaining amount to distribute payment proportionally
       final totalRemaining = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-      print('📊 Total remaining amount: $totalRemaining');
       
       for (final debt in syriaTelDebts) {
         if (remainingPayment <= 0) break;
@@ -939,8 +885,6 @@ class AppState extends ChangeNotifier {
         }
         
         if (paymentForThisDebt > 0) {
-          print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining, Proportion: ${((currentRemaining / totalRemaining) * 100).toStringAsFixed(1)}%)');
-          
           // Update debt
           final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
           final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
@@ -955,8 +899,6 @@ class AppState extends ChangeNotifier {
           await _dataService.updateDebt(_debts[debtIndex]);
           
           remainingPayment -= paymentForThisDebt;
-          
-          print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
         }
       }
       
@@ -977,14 +919,11 @@ class AppState extends ChangeNotifier {
       
       await _addActivity(activity);
       
-      print('✅ Successfully fixed Johny Chnouda partial payment distribution');
-      
       // Clear cache and notify listeners
       _clearCache();
       notifyListeners();
       
     } catch (e) {
-      print('❌ Error fixing Johny Chnouda partial payment: $e');
       rethrow;
     }
   }
@@ -1002,18 +941,14 @@ class AppState extends ChangeNotifier {
 
   Future<void> addPaymentActivity(Debt debt, double amount, DebtStatus oldStatus, DebtStatus newStatus) async {
     try {
-      // Check if the CUSTOMER is fully paid (all debts settled), not just this individual debt
-      final customerFullyPaid = isCustomerFullyPaid(debt.customerId);
+      // Check if THIS SPECIFIC DEBT is fully paid after this payment
+      final isThisDebtFullyPaid = newStatus == DebtStatus.paid;
       
-      // Determine the correct description based on customer status, not individual debt status
-      // Show clean payment status with just the amount
-      final description = customerFullyPaid 
+      // Determine the correct description based on individual debt status
+      // If this payment completes the debt, show "Fully paid", otherwise "Partial payment"
+      final description = isThisDebtFullyPaid
           ? 'Fully paid: ${amount.toStringAsFixed(2)}\$'  // Clean: just payment status + amount
           : 'Partial payment: ${amount.toStringAsFixed(2)}\$';    // Clean: just payment status + amount
-      
-      // For the activity status, we need to determine if this represents a full customer payment
-      // or just a partial payment toward the customer's total debt
-      final effectiveNewStatus = customerFullyPaid ? DebtStatus.paid : DebtStatus.pending;
       
       final activity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1024,7 +959,7 @@ class AppState extends ChangeNotifier {
         paymentAmount: amount,
         amount: debt.amount,
         oldStatus: oldStatus,
-        newStatus: effectiveNewStatus, // Use customer-level status, not individual debt status
+        newStatus: newStatus, // Use the actual new status of this debt
         date: DateTime.now(),
         debtId: debt.id,
       );
@@ -1084,18 +1019,8 @@ class AppState extends ChangeNotifier {
   /// It will permanently delete all customer debts and product records
   Future<void> _clearAllCustomerDebts(String customerId) async {
     try {
-      print('⚠️ WARNING: Clearing all customer debts for customer ID: $customerId');
-      print('⚠️ This will permanently delete all product records and payment history');
-      
       // Get all debts for this customer
       final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
-      
-      if (customerDebts.isNotEmpty) {
-        print('⚠️ About to delete ${customerDebts.length} debts:');
-        for (final debt in customerDebts) {
-          print('  - ${debt.description}: ${debt.amount}\$ (Paid: ${debt.paidAmount}\$)');
-        }
-      }
       
       // Clear all debts for this customer (this will also clean up activities and partial payments)
       for (final debt in customerDebts) {
@@ -1112,9 +1037,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      print('✅ All customer debts cleared for customer ID: $customerId');
     } catch (e) {
-      print('❌ Error clearing customer debts: $e');
       rethrow;
     }
   }
@@ -1144,7 +1067,6 @@ class AppState extends ChangeNotifier {
               );
             } catch (e) {
               // Fallback: just log that automation was attempted
-              print('WhatsApp automation attempted for ${customer.name}');
             }
           }
         }
@@ -1251,6 +1173,9 @@ class AppState extends ChangeNotifier {
   Future<void> initialize() async {
     await _loadSettings();
     await _loadData();
+    
+    // Fix any payment activity statuses that should be "Payment completed"
+    await fixPaymentActivityStatuses();
   }
 
   Future<void> addCustomer(Customer customer) async {
@@ -1291,13 +1216,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> addDebt(Debt debt) async {
     try {
-      print('🔧 Adding new debt: ${debt.description}');
-      print('  Amount: ${debt.amount}');
-      print('  Currency: ${debt.storedCurrency}');
-      print('  Customer: ${debt.customerName}');
-      print('  Customer ID: ${debt.customerId}');
-      print('  Created At: ${debt.createdAt}');
-      
       await _dataService.addDebt(debt);
       _debts.add(debt);
       
@@ -1306,9 +1224,6 @@ class AppState extends ChangeNotifier {
       
       // Auto-fix any Syria tel debts with incorrect currency
       if (debt.description.toLowerCase().contains('syria tel')) {
-        print('🔧 Checking newly created Syria tel debt for issues...');
-        print('  Amount: ${debt.amount}, Currency: ${debt.storedCurrency}');
-        
         bool needsFix = false;
         String fixReason = '';
         
@@ -1324,10 +1239,7 @@ class AppState extends ChangeNotifier {
         }
         
         if (needsFix) {
-          print('🔧 Auto-fixing newly created Syria tel debt: $fixReason');
           await _autoFixSingleSyriaTelDebt(debt);
-        } else {
-          print('✅ Newly created Syria tel debt is correct');
         }
       }
       
@@ -1357,11 +1269,6 @@ class AppState extends ChangeNotifier {
       // Get the debt before deleting to clean up related data
       final debt = _debts.firstWhere((d) => d.id == debtId);
       
-      print('🗑️ Deleting debt: ${debt.description} (ID: $debtId)');
-      print('📊 Activities before deletion: ${_activities.length}');
-      print('📊 Activities for this debt: ${_activities.where((a) => a.debtId == debtId).length}');
-      print('📊 All alfa ushare activities: ${_activities.where((a) => a.description.toLowerCase().contains('alfa ushare')).length}');
-      
       await _dataService.deleteDebt(debtId);
       
       // Remove from local lists
@@ -1370,9 +1277,6 @@ class AppState extends ChangeNotifier {
       
       // Reload activities from data service to ensure UI stays in sync
       _activities = _dataService.activities;
-      
-      print('📊 Activities after deletion: ${_activities.length}');
-      print('📊 All alfa ushare activities after deletion: ${_activities.where((a) => a.description.toLowerCase().contains('alfa ushare')).length}');
       
       _clearCache();
       notifyListeners();
@@ -1428,7 +1332,9 @@ class AppState extends ChangeNotifier {
       final newTotalPaidAmount = originalDebt.paidAmount + paymentAmount;
       
       // Check if THIS debt is fully paid (not all customer debts)
-      final isThisDebtFullyPaid = newTotalPaidAmount >= originalDebt.amount;
+      // Use a small tolerance for floating-point precision issues
+      final tolerance = 0.01; // 1 cent tolerance
+      final isThisDebtFullyPaid = (newTotalPaidAmount + tolerance) >= originalDebt.amount;
       
       // Update the debt with the new total paid amount
       _debts[index] = originalDebt.copyWith(
@@ -1455,8 +1361,7 @@ class AppState extends ChangeNotifier {
           
           // CRITICAL FIX: Never clear all customer debts during partial payments
           // This was causing products to disappear when they shouldn't
-          // Only mark individual debts as paid, preserve all product records
-          print('✅ Individual debt marked as paid - preserving all customer product records');
+          // Only mark individual debts as paid, preserve all customer product records
         }
       }
       
@@ -1479,19 +1384,14 @@ class AppState extends ChangeNotifier {
   /// This is useful when a customer makes a payment but doesn't specify which debt to apply it to
   Future<void> applyCustomerPartialPayment(String customerId, double paymentAmount, {bool skipActivityCreation = false}) async {
     try {
-      print('💰 Applying customer partial payment: $paymentAmount to customer: $customerId');
-      
       // Get all pending debts for this customer
       final customerDebts = _debts.where((d) => 
         d.customerId == customerId && !d.isFullyPaid
       ).toList();
       
       if (customerDebts.isEmpty) {
-        print('⚠️ No pending debts found for customer: $customerId');
         return;
       }
-      
-      print('📊 Found ${customerDebts.length} pending debts for customer');
       
       // Sort debts by creation date (oldest first) to prioritize older debts
       customerDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -1512,8 +1412,6 @@ class AppState extends ChangeNotifier {
         // Calculate how much of the remaining payment to apply to this debt
         final paymentForThisDebt = remainingPayment > currentRemaining ? currentRemaining : remainingPayment;
         
-        print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining)');
-        
         // Create partial payment record
         final partialPayment = PartialPayment(
           id: DateTime.now().millisecondsSinceEpoch.toString() + '_$updatedDebts',
@@ -1528,7 +1426,9 @@ class AppState extends ChangeNotifier {
         
         // Update debt
         final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
-        final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
+        // Use a small tolerance for floating-point precision issues
+        final tolerance = 0.01; // 1 cent tolerance
+        final isThisDebtFullyPaid = (newTotalPaidAmount + tolerance) >= currentDebt.amount;
         
         _debts[debtIndex] = currentDebt.copyWith(
           paidAmount: newTotalPaidAmount,
@@ -1541,16 +1441,12 @@ class AppState extends ChangeNotifier {
         
         // Create activity
         if (!skipActivityCreation) {
-          await addPaymentActivity(currentDebt, paymentForThisDebt, currentDebt.status, _debts[debtIndex].status);
+          await addPaymentActivity(_debts[debtIndex], paymentForThisDebt, currentDebt.status, _debts[debtIndex].status);
         }
         
         remainingPayment -= paymentForThisDebt;
         updatedDebts++;
-        
-        print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
       }
-      
-      print('💰 Customer partial payment completed: $updatedDebts debts updated, $remainingPayment remaining');
       
       // Clear cache and notify listeners
       _clearCache();
@@ -1560,7 +1456,6 @@ class AppState extends ChangeNotifier {
       await _scheduleNotifications();
       
     } catch (e) {
-      print('❌ Error applying customer partial payment: $e');
       rethrow;
     }
   }
@@ -1812,7 +1707,6 @@ class AppState extends ChangeNotifier {
       final migrationService = DataMigrationService(_dataService);
       return await migrationService.validateCurrencyData();
     } catch (e) {
-      print('❌ Error validating currency data: $e');
       return false;
     }
   }
@@ -1820,7 +1714,6 @@ class AppState extends ChangeNotifier {
   /// Manually fix activities debtId linking for existing data
   Future<void> fixActivitiesLinking() async {
     try {
-      print('🔧 Starting manual activities linking fix...');
       final migrationService = DataMigrationService(_dataService);
       await migrationService.fixActivitiesDebtId();
       
@@ -1832,9 +1725,7 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      print('✅ Activities linking fix completed');
     } catch (e) {
-      print('❌ Error during activities linking fix: $e');
       rethrow;
     }
   }
@@ -1842,7 +1733,6 @@ class AppState extends ChangeNotifier {
   /// Manually clean up duplicate orphaned activities
   Future<void> cleanupDuplicateActivities() async {
     try {
-      print('🧹 Starting manual duplicate activities cleanup...');
       final migrationService = DataMigrationService(_dataService);
       await migrationService.cleanupOrphanedActivities();
       
@@ -1851,9 +1741,7 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      print('✅ Duplicate activities cleanup completed');
     } catch (e) {
-      print('❌ Error during duplicate activities cleanup: $e');
       rethrow;
     }
   }
@@ -1861,14 +1749,9 @@ class AppState extends ChangeNotifier {
   /// Manually fix alfa product pricing to correct values
   Future<void> fixAlfaProductPricing() async {
     try {
-      print('🔧 Starting manual alfa product pricing fix...');
-
-      
       _clearCache();
       notifyListeners();
-      print('✅ Alfa product pricing fix completed');
     } catch (e) {
-      print('❌ Error during alfa product pricing fix: $e');
       rethrow;
     }
   }
@@ -1877,26 +1760,15 @@ class AppState extends ChangeNotifier {
   /// This fixes the issue where LBP currency is set but USD values are stored
   Future<void> fixAlfaProductCurrency() async {
     try {
-      print('🔧 Starting alfa product currency fix...');
-      
       // Find the alfa product in categories
       for (final category in _categories) {
         for (final subcategory in category.subcategories) {
           if (subcategory.name.toLowerCase().contains('alfa')) {
-            print('🔧 Found alfa product: ${subcategory.name}');
-            print('  Current values - Cost: ${subcategory.costPrice}, Selling: ${subcategory.sellingPrice}');
-            print('  Current currency - Cost: ${subcategory.costPriceCurrency}, Selling: ${subcategory.sellingPriceCurrency}');
-            
             // Check if this is the LBP currency issue
             if (subcategory.costPriceCurrency == 'LBP' && subcategory.costPrice > 1000) {
-              print('  ⚠️ Detected LBP currency with large values - converting to USD');
-              
               // Convert the large LBP values to proper USD values
               final costPriceUSD = subcategory.costPrice / 100000; // 90,000 LBP = 0.90 USD
               final sellingPriceUSD = subcategory.sellingPrice / 100000; // 180,000 LBP = 1.80 USD
-              
-              print('  Converting - Cost: ${subcategory.costPrice} LBP → ${costPriceUSD.toStringAsFixed(2)} USD');
-              print('  Converting - Selling: ${subcategory.sellingPrice} LBP → ${sellingPriceUSD.toStringAsFixed(2)} USD');
               
               // Update the subcategory with correct USD values and currency
               final updatedSubcategory = subcategory.copyWith(
@@ -2145,15 +2017,11 @@ class AppState extends ChangeNotifier {
     try {
       if (debtIds.isEmpty || paymentAmount <= 0) return;
       
-      print('💰 Applying payment across ${debtIds.length} debts: $paymentAmount');
-      
       double remainingPayment = paymentAmount;
       final sortedDebts = _debts.where((d) => debtIds.contains(d.id))
           .where((d) => d.remainingAmount > 0)
           .toList()
         ..sort((a, b) => a.remainingAmount.compareTo(b.remainingAmount));
-      
-      print('📊 Found ${sortedDebts.length} debts with remaining amounts to process');
       
       // Track the first debt for activity creation (we'll create one consolidated activity)
       final firstDebt = sortedDebts.isNotEmpty ? sortedDebts.first : null;
@@ -2165,8 +2033,6 @@ class AppState extends ChangeNotifier {
         final paymentForThisDebt = remainingPayment > debt.remainingAmount 
             ? debt.remainingAmount 
             : remainingPayment;
-        
-        print('💰 Applying $paymentForThisDebt to debt: ${debt.description} (Current paid: ${debt.paidAmount}, Remaining: ${debt.remainingAmount})');
         
         final updatedDebt = debt.copyWith(
           paidAmount: debt.paidAmount + paymentForThisDebt,
@@ -2181,7 +2047,6 @@ class AppState extends ChangeNotifier {
         final index = _debts.indexWhere((d) => d.id == debt.id);
         if (index != -1) {
           _debts[index] = updatedDebt;
-          print('✅ Updated local debt: ${debt.description} - New paid amount: ${updatedDebt.paidAmount}');
         }
         
         remainingPayment -= paymentForThisDebt;
@@ -2189,9 +2054,17 @@ class AppState extends ChangeNotifier {
       
       // Create ONE consolidated payment activity showing the total payment amount
       if (firstDebt != null) {
-        // CRITICAL FIX: Never mark customer as fully paid during partial payments
-        // This prevents the dangerous debt deletion logic from running
-        final description = 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
+        // Check if this payment completes ALL selected debts
+        final allSelectedDebtsCompleted = sortedDebts.every((debt) {
+          final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+          return debtIndex != -1 && _debts[debtIndex].status == DebtStatus.paid;
+        });
+        
+        final description = allSelectedDebtsCompleted
+            ? 'Fully paid: ${paymentAmount.toStringAsFixed(2)}\$'
+            : 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
+        
+        final newStatus = allSelectedDebtsCompleted ? DebtStatus.paid : DebtStatus.pending;
         
         final activity = Activity(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -2202,7 +2075,7 @@ class AppState extends ChangeNotifier {
           paymentAmount: paymentAmount, // Total payment amount, not individual debt amounts
           amount: firstDebt.amount,
           oldStatus: oldStatus,
-          newStatus: DebtStatus.pending, // Always pending for partial payments
+          newStatus: newStatus,
           date: DateTime.now(),
           debtId: null, // No specific debt ID since this is a consolidated payment
         );
@@ -2214,10 +2087,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      print('💰 Payment across debts completed. Remaining payment: $remainingPayment');
-      
     } catch (e) {
-      print('❌ Error applying payment across debts: $e');
       rethrow;
     }
   }
@@ -2353,23 +2223,17 @@ class AppState extends ChangeNotifier {
   /// This fixes the corrupted amounts that were modified by the migration service
   Future<void> restoreCorrectSyriaTelAmounts() async {
     try {
-      print('🔧 Restoring correct Syria tel debt amounts for Johny Chnouda...');
-      
       // Find Johny Chnouda's customer ID
       final customer = _customers.firstWhere(
         (c) => c.name.toLowerCase().contains('johny') || c.name.toLowerCase().contains('chnouda'),
         orElse: () => throw Exception('Johny Chnouda not found'),
       );
       
-      print('👤 Found customer: ${customer.name} (ID: ${customer.id})');
-      
       // Get all Syria tel debts for this customer
       final syriaTelDebts = _debts.where((d) => 
         d.customerId == customer.id && 
         d.description.toLowerCase().contains('syria tel')
       ).toList();
-      
-      print('📱 Found ${syriaTelDebts.length} Syria tel debts');
       
       // Sort by creation date to assign correct amounts
       syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -2380,11 +2244,6 @@ class AppState extends ChangeNotifier {
       for (int i = 0; i < syriaTelDebts.length && i < correctAmounts.length; i++) {
         final debt = syriaTelDebts[i];
         final correctAmount = correctAmounts[i];
-        
-        print('🔧 Restoring debt ${i + 1}: ${debt.description}');
-        print('  Current amount: ${debt.amount}');
-        print('  Correct amount: $correctAmount');
-        print('  Current paid: ${debt.paidAmount}');
         
         // Restore the correct amount while preserving paid amounts
         final updatedDebt = debt.copyWith(
@@ -2400,18 +2259,14 @@ class AppState extends ChangeNotifier {
         final index = _debts.indexWhere((d) => d.id == debt.id);
         if (index != -1) {
           _debts[index] = updatedDebt;
-          print('✅ Restored debt: ${debt.description} - Amount: ${updatedDebt.amount}, Paid: ${updatedDebt.paidAmount}');
         }
       }
-      
-      print('✅ Successfully restored correct Syria tel debt amounts');
       
       // Clear cache and notify listeners
       _clearCache();
       notifyListeners();
       
     } catch (e) {
-      print('❌ Error restoring Syria tel amounts: $e');
       rethrow;
     }
   }

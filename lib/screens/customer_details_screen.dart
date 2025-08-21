@@ -100,95 +100,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
 
 
-  Future<void> _testAutoFix(BuildContext context, AppState appState) async {
-    try {
-      print('🔧 Testing auto-fix for Syria tel debts...');
-      await appState.autoFixSyriaTelDebts();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Auto-fix test completed - check console for details'),
-          backgroundColor: Colors.blue,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error testing auto-fix: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-  
-  Future<void> _fixPartialPayment(BuildContext context, AppState appState) async {
-    try {
-      print('🔧 Fixing partial payment distribution...');
-      await appState.fixJohnyChnoudaPartialPayment();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Partial payment fix completed - check console for details'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      // Refresh the screen to show updated state
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error fixing partial payment: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-  
-  void _debugCustomerDebts(BuildContext context, AppState appState) {
-    print('🔍 Debugging customer debts for: ${_currentCustomer.name}');
-    appState.debugPrintCustomerDebts(_currentCustomer.id);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Debug info printed to console - check logs'),
-        backgroundColor: Colors.grey,
-      ),
-    );
-  }
 
-  Future<void> _restoreCorrectAmounts(BuildContext context, AppState appState) async {
-    try {
-      print('🔧 Restoring correct amounts for: ${_currentCustomer.name}');
-      
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Restoring correct amounts...'),
-          backgroundColor: Colors.blue,
-        ),
-      );
-      
-      // Call the restoration method
-      await appState.restoreCorrectSyriaTelAmounts();
-      
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Correct amounts restored!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Refresh the UI
-      setState(() {});
-      
-    } catch (e) {
-      print('❌ Error restoring amounts: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  
+  
 
   void _showReceiptSharingOptions(BuildContext context, AppState appState) {
     // Check available contact methods
@@ -724,21 +638,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // CRITICAL FIX: Always show all customer products, never hide them automatically
-        // Products should only disappear when explicitly deleted by the user
-        // This prevents the mysterious product disappearances during payments
-        
-        // Debug: Log all customer debts to see what's happening
-        print('🔍 Debug: Customer ${_currentCustomer.name} has ${customerAllDebts.length} total debts:');
-        for (final debt in customerAllDebts) {
-          print('  - ${debt.description}: amount=${debt.amount}, paid=${debt.paidAmount}, remaining=${debt.remainingAmount}, currency=${debt.storedCurrency}, created=${debt.createdAt}');
-        }
-        print('🔍 Debug: Total pending debt: $totalPendingDebt');
-        
-        // Always show all customer products - never hide them automatically
-        final customerActiveDebts = customerAllDebts;  // Show ALL products, regardless of payment status
-            
-        print('🔍 Debug: After filtering, ${customerActiveDebts.length} active debts remain');
+        // Only show products that have pending amounts (not fully paid)
+        // Hide fully paid products even if customer has other pending debts
+        final customerActiveDebts = customerAllDebts.where((debt) => debt.remainingAmount > 0).toList();
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -994,7 +896,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       ),
                       
                       // Product List - Show when there are products to display
-                      if (widget.showDebtsSection && customerActiveDebts.isNotEmpty) ...[
+                      if (widget.showDebtsSection) ...[
+                        if (customerActiveDebts.isNotEmpty) ...[
                         // Section Title
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1028,25 +931,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           ),
                         ),
                         
-                        // Simple Debts List - Show only active debts (not fully paid)
+                        // Simple Debts List - Show ALL products with payment status
                         ...customerActiveDebts.asMap().entries.map((entry) {
                           final index = entry.key;
                           final debt = entry.value;
                           final isLastDebt = index == customerActiveDebts.length - 1;
                           
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.dynamicPrimary(context).withAlpha(15),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: AppColors.dynamicPrimary(context).withAlpha(40),
-                                  width: 1,
+                                                      return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.dynamicPrimary(context).withAlpha(15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: AppColors.dynamicPrimary(context).withAlpha(40),
+                                    width: 1,
+                                  ),
                                 ),
-                              ),
                               child: Row(
                                 children: [
                                   Icon(
@@ -1081,20 +984,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                       ],
                                     ),
                                   ),
-                                  Column(
+                                                                                                          Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text(
-                                            CurrencyFormatter.formatAmount(context, debt.remainingAmount, storedCurrency: debt.storedCurrency),
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.dynamicTextPrimary(context),
-                                            ),
+                                                                                  Text(
+                                          CurrencyFormatter.formatAmount(context, debt.amount, storedCurrency: debt.storedCurrency),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicTextPrimary(context),
                                           ),
+                                        ),
                                           // BUSINESS RULE: Show red X delete icon only when:
                                           // 1. THIS SPECIFIC debt has no payments AND
                                           // 2. Customer has made NO payments at all
@@ -1119,7 +1022,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ],
                                         ],
                                       ),
-                                      
+
                                     ],
                                   ),
                                 ],
@@ -1128,67 +1031,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           );
                         }),
                         
-                        // Show message when customer has no products (either no products or all debts settled)
-                        if (widget.showDebtsSection && customerActiveDebts.isEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: AppColors.dynamicSuccess(context).withAlpha(10),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: AppColors.dynamicSuccess(context).withAlpha(30),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.check_circle,
-                                    color: AppColors.dynamicSuccess(context),
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          totalPendingDebt <= 0 ? 'All Debts Settled!' : 'No Products Yet',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.dynamicSuccess(context),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          totalPendingDebt <= 0 
-                                              ? 'This customer has no outstanding debts.'
-                                              : 'This customer has not purchased any products yet.',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: AppColors.dynamicTextSecondary(context),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          totalPendingDebt <= 0
-                                              ? 'Products will reappear when new debts are created.'
-                                              : 'Add products using the + button below.',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.dynamicTextSecondary(context),
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
                         ],
                         
                         // Simple Action Buttons - Only show when there are pending debts
@@ -1217,60 +1059,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                // Debug button to fix partial payment distribution
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _fixPartialPayment(context, appState),
-                                    icon: const Icon(Icons.build, size: 16),
-                                    label: const Text('Fix Partial Payment'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // Debug button to check current debt state
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _debugCustomerDebts(context, appState),
-                                    icon: const Icon(Icons.bug_report, size: 16),
-                                    label: const Text('Debug Debt State'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.grey,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // Restore correct amounts button
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: () => _restoreCorrectAmounts(context, appState),
-                                    icon: const Icon(Icons.restore, size: 16),
-                                    label: const Text('Restore Correct Amounts'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.purple,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                  ),
-                                ),
+
                               ],
                             ),
                           ),
@@ -1340,8 +1129,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     ],
                   ),
                 ),
-                
-
                 
                 const SizedBox(height: 20),
               ],
