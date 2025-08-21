@@ -119,6 +119,28 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       );
     }
   }
+  
+  Future<void> _fixPartialPayment(BuildContext context, AppState appState) async {
+    try {
+      print('🔧 Fixing partial payment distribution...');
+      await appState.fixJohnyChnoudaPartialPayment();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Partial payment fix completed - check console for details'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Refresh the screen to show updated state
+      setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error fixing partial payment: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   void _showReceiptSharingOptions(BuildContext context, AppState appState) {
     // Check available contact methods
@@ -1126,29 +1148,46 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           const SizedBox(height: 16),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
+                            child: Column(
                               children: [
-                                if (totalPendingDebt > 0) ...[
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _showConsolidatedPaymentDialog(context, customerActiveDebts),
-                                      icon: const Icon(Icons.payment, size: 16),
-                                      label: const Text('Make Payment'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.dynamicPrimary(context),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _showConsolidatedPaymentDialog(context, customerActiveDebts),
+                                        icon: const Icon(Icons.payment, size: 16),
+                                        label: const Text('Make Payment'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppColors.dynamicPrimary(context),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
                                         ),
                                       ),
                                     ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                // Debug button to fix partial payment distribution
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () => _fixPartialPayment(context, appState),
+                                    icon: const Icon(Icons.build, size: 16),
+                                    label: const Text('Fix Partial Payment'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 8),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
                                   ),
-                                  const SizedBox(width: 12),
-                                                            ],
-
-
-                          ],
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 16),

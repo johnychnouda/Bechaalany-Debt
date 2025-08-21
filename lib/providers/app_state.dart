@@ -819,6 +819,108 @@ class AppState extends ChangeNotifier {
     print('  Total calculated debt: ${totalDebt}');
     print('  Total calculated paid: ${totalPaid}');
   }
+  
+  /// Fix the current partial payment distribution for Johny Chnouda
+  /// This method will properly distribute the $0.15 payment across the Syria tel debts
+  Future<void> fixJohnyChnoudaPartialPayment() async {
+    try {
+      print('🔧 Fixing Johny Chnouda partial payment distribution...');
+      
+      // Find Johny Chnouda's customer ID
+      final customer = _customers.firstWhere(
+        (c) => c.name.toLowerCase().contains('johny') || c.name.toLowerCase().contains('chnouda'),
+        orElse: () => throw Exception('Johny Chnouda not found'),
+      );
+      
+      print('👤 Found customer: ${customer.name} (ID: ${customer.id})');
+      
+      // Get all Syria tel debts for this customer
+      final syriaTelDebts = _debts.where((d) => 
+        d.customerId == customer.id && 
+        d.description.toLowerCase().contains('syria tel')
+      ).toList();
+      
+      print('📱 Found ${syriaTelDebts.length} Syria tel debts');
+      
+      // Check if there are any partial payments that need to be distributed
+      final totalPaidAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+      final totalDebtAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+      
+      print('💰 Current state: Total paid: $totalPaidAmount, Total debt: $totalDebtAmount');
+      
+      if (totalPaidAmount > 0) {
+        print('✅ Partial payment already distributed correctly');
+        return;
+      }
+      
+      // If no payments have been applied yet, we need to apply the $0.15 payment
+      print('🔧 Applying $0.15 payment to Syria tel debts...');
+      
+      // Sort debts by creation date (oldest first)
+      syriaTelDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      double remainingPayment = 0.15;
+      
+      for (final debt in syriaTelDebts) {
+        if (remainingPayment <= 0) break;
+        
+        final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+        if (debtIndex == -1) continue;
+        
+        final currentDebt = _debts[debtIndex];
+        final currentRemaining = currentDebt.remainingAmount;
+        
+        // Calculate how much of the remaining payment to apply to this debt
+        final paymentForThisDebt = remainingPayment > currentRemaining ? currentRemaining : remainingPayment;
+        
+        print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining)');
+        
+        // Update debt
+        final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
+        final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
+        
+        _debts[debtIndex] = currentDebt.copyWith(
+          paidAmount: newTotalPaidAmount,
+          status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+          paidAt: DateTime.now(),
+        );
+        
+        // Update in storage
+        await _dataService.updateDebt(_debts[debtIndex]);
+        
+        remainingPayment -= paymentForThisDebt;
+        
+        print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
+      }
+      
+      // Create a consolidated payment activity
+      final activity = Activity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        customerId: customer.id,
+        customerName: customer.name,
+        type: ActivityType.payment,
+        description: 'Partial payment: 0.15\$',
+        paymentAmount: 0.15,
+        amount: 0.15,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.pending,
+        date: DateTime.now(),
+        debtId: null,
+      );
+      
+      await _addActivity(activity);
+      
+      print('✅ Successfully fixed Johny Chnouda partial payment distribution');
+      
+      // Clear cache and notify listeners
+      _clearCache();
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error fixing Johny Chnouda partial payment: $e');
+      rethrow;
+    }
+  }
 
   Future<void> _addActivity(Activity activity) async {
     try {
@@ -1283,6 +1385,96 @@ class AppState extends ChangeNotifier {
       // Reschedule notifications
       await _scheduleNotifications();
     } catch (e) {
+      rethrow;
+    }
+  }
+  
+  /// Apply a partial payment to a customer, distributing it across their pending debts
+  /// This is useful when a customer makes a payment but doesn't specify which debt to apply it to
+  Future<void> applyCustomerPartialPayment(String customerId, double paymentAmount, {bool skipActivityCreation = false}) async {
+    try {
+      print('💰 Applying customer partial payment: $paymentAmount to customer: $customerId');
+      
+      // Get all pending debts for this customer
+      final customerDebts = _debts.where((d) => 
+        d.customerId == customerId && !d.isFullyPaid
+      ).toList();
+      
+      if (customerDebts.isEmpty) {
+        print('⚠️ No pending debts found for customer: $customerId');
+        return;
+      }
+      
+      print('📊 Found ${customerDebts.length} pending debts for customer');
+      
+      // Sort debts by creation date (oldest first) to prioritize older debts
+      customerDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      
+      double remainingPayment = paymentAmount;
+      int updatedDebts = 0;
+      
+      // Distribute payment across debts, starting with the oldest
+      for (final debt in customerDebts) {
+        if (remainingPayment <= 0) break;
+        
+        final debtIndex = _debts.indexWhere((d) => d.id == debt.id);
+        if (debtIndex == -1) continue;
+        
+        final currentDebt = _debts[debtIndex];
+        final currentRemaining = currentDebt.remainingAmount;
+        
+        // Calculate how much of the remaining payment to apply to this debt
+        final paymentForThisDebt = remainingPayment > currentRemaining ? currentRemaining : remainingPayment;
+        
+        print('💰 Applying $paymentForThisDebt to debt: ${currentDebt.description} (Remaining: $currentRemaining)');
+        
+        // Create partial payment record
+        final partialPayment = PartialPayment(
+          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$updatedDebts',
+          debtId: currentDebt.id,
+          amount: paymentForThisDebt,
+          paidAt: DateTime.now(),
+        );
+        
+        // Add to storage
+        await _dataService.addPartialPayment(partialPayment);
+        _partialPayments.add(partialPayment);
+        
+        // Update debt
+        final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
+        final isThisDebtFullyPaid = newTotalPaidAmount >= currentDebt.amount;
+        
+        _debts[debtIndex] = currentDebt.copyWith(
+          paidAmount: newTotalPaidAmount,
+          status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+          paidAt: DateTime.now(),
+        );
+        
+        // Update in storage
+        await _dataService.updateDebt(_debts[debtIndex]);
+        
+        // Create activity
+        if (!skipActivityCreation) {
+          await addPaymentActivity(currentDebt, paymentForThisDebt, currentDebt.status, _debts[debtIndex].status);
+        }
+        
+        remainingPayment -= paymentForThisDebt;
+        updatedDebts++;
+        
+        print('✅ Updated debt: ${currentDebt.description} - New paid amount: $newTotalPaidAmount, Fully paid: $isThisDebtFullyPaid');
+      }
+      
+      print('💰 Customer partial payment completed: $updatedDebts debts updated, $remainingPayment remaining');
+      
+      // Clear cache and notify listeners
+      _clearCache();
+      notifyListeners();
+      
+      // Reschedule notifications
+      await _scheduleNotifications();
+      
+    } catch (e) {
+      print('❌ Error applying customer partial payment: $e');
       rethrow;
     }
   }
@@ -1867,11 +2059,15 @@ class AppState extends ChangeNotifier {
     try {
       if (debtIds.isEmpty || paymentAmount <= 0) return;
       
+      print('💰 Applying payment across ${debtIds.length} debts: $paymentAmount');
+      
       double remainingPayment = paymentAmount;
       final sortedDebts = _debts.where((d) => debtIds.contains(d.id))
           .where((d) => d.remainingAmount > 0)
           .toList()
         ..sort((a, b) => a.remainingAmount.compareTo(b.remainingAmount));
+      
+      print('📊 Found ${sortedDebts.length} debts with remaining amounts to process');
       
       // Track the first debt for activity creation (we'll create one consolidated activity)
       final firstDebt = sortedDebts.isNotEmpty ? sortedDebts.first : null;
@@ -1884,14 +2080,23 @@ class AppState extends ChangeNotifier {
             ? debt.remainingAmount 
             : remainingPayment;
         
+        print('💰 Applying $paymentForThisDebt to debt: ${debt.description} (Current paid: ${debt.paidAmount}, Remaining: ${debt.remainingAmount})');
+        
         final updatedDebt = debt.copyWith(
           paidAmount: debt.paidAmount + paymentForThisDebt,
           status: (debt.paidAmount + paymentForThisDebt) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-          // Note: remainingAmount is a computed getter, not a field that can be set
-          // The debt will automatically calculate the correct remaining amount
+          paidAt: DateTime.now(), // Update payment time
         );
         
-        await updateDebt(updatedDebt);
+        // Update in storage
+        await _dataService.updateDebt(updatedDebt);
+        
+        // Update local debt list
+        final index = _debts.indexWhere((d) => d.id == debt.id);
+        if (index != -1) {
+          _debts[index] = updatedDebt;
+          print('✅ Updated local debt: ${debt.description} - New paid amount: ${updatedDebt.paidAmount}');
+        }
         
         remainingPayment -= paymentForThisDebt;
       }
@@ -1921,7 +2126,15 @@ class AppState extends ChangeNotifier {
         
         await _addActivity(activity);
       }
+      
+      // Clear cache and notify listeners to refresh UI
+      _clearCache();
+      notifyListeners();
+      
+      print('💰 Payment across debts completed. Remaining payment: $remainingPayment');
+      
     } catch (e) {
+      print('❌ Error applying payment across debts: $e');
       rethrow;
     }
   }
