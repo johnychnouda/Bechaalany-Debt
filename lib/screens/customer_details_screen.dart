@@ -186,7 +186,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                     color: CupertinoColors.systemOrange,
                     onTap: () {
                       Navigator.pop(context);
-                      _sendWhatsAppPaymentReminder(context, appState);
+                      _showPersonalizedPaymentReminderDialog(context, appState);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -451,6 +451,90 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         final notificationService = NotificationService();
         await notificationService.showSuccessNotification(
           title: 'Payment Reminder Sent',
+          body: 'WhatsApp payment reminder has been sent to ${widget.customer.name}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Payment Reminder Failed',
+          body: 'Failed to send payment reminder: $e',
+        );
+      }
+    }
+  }
+
+  // Show personalized payment reminder dialog
+  void _showPersonalizedPaymentReminderDialog(BuildContext context, AppState appState) {
+    final TextEditingController messageController = TextEditingController();
+    
+    // Pre-fill with default message
+    final customerDebts = appState.debts.where((d) => d.customerId == widget.customer.id && !d.isFullyPaid).toList();
+    final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+    final defaultMessage = 'Hello ${widget.customer.name}, this is a friendly reminder that you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
+    
+    messageController.text = defaultMessage;
+    
+    showCupertinoDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CupertinoAlertDialog(
+          title: Text('Personalized Payment Reminder'),
+          content: Column(
+            children: [
+              const SizedBox(height: 16),
+              Text(
+                'Customize your message for ${widget.customer.name}:',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              CupertinoTextField(
+                controller: messageController,
+                placeholder: 'Enter your personalized message...',
+                maxLines: 4,
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Outstanding Balance: \$${totalAmount.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: CupertinoColors.systemOrange,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            CupertinoDialogAction(
+              child: const Text('Send Reminder'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _sendPersonalizedWhatsAppPaymentReminder(context, appState, messageController.text);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Send personalized WhatsApp payment reminder
+  Future<void> _sendPersonalizedWhatsAppPaymentReminder(BuildContext context, AppState appState, String customMessage) async {
+    try {
+      await appState.sendWhatsAppPaymentReminder(widget.customer.id, customMessage: customMessage);
+      
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Personalized Payment Reminder Sent',
           body: 'WhatsApp payment reminder has been sent to ${widget.customer.name}',
         );
       }
