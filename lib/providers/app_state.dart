@@ -524,12 +524,19 @@ class AppState extends ChangeNotifier {
           if (needsFix) {
             print('🔧 Auto-fixing Syria tel debt: $fixReason');
             
+            // Determine the correct amount based on the debt description or other criteria
+            // For now, preserve the original amount if it's reasonable, otherwise use 0.38
+            double correctAmount = debt.amount;
+            if (debt.amount < 0.1 || debt.amount > 1.0) {
+              correctAmount = 0.38; // Default amount for Syria tel
+            }
+            
             // Update the debt with correct USD values
             final updatedDebt = debt.copyWith(
-              amount: 0.38, // Correct USD amount
+              amount: correctAmount, // Preserve original amount if reasonable
               storedCurrency: 'USD', // Store as USD for consistency
               originalCostPrice: 0.0, // Set appropriate cost price
-              originalSellingPrice: 0.38, // Set appropriate selling price
+              originalSellingPrice: correctAmount, // Set appropriate selling price
             );
             
             // Update in database
@@ -569,10 +576,10 @@ class AppState extends ChangeNotifier {
       
       // Update the debt with correct USD values
       final updatedDebt = debt.copyWith(
-        amount: 0.38, // Correct USD amount
+        amount: debt.amount, // Preserve original amount
         storedCurrency: 'USD', // Store as USD for consistency
         originalCostPrice: 0.0, // Set appropriate cost price
-        originalSellingPrice: 0.38, // Set appropriate selling price
+        originalSellingPrice: debt.amount, // Set appropriate selling price
       );
       
       // Update in database
@@ -793,6 +800,24 @@ class AppState extends ChangeNotifier {
     _cachedPendingCount = null;
     _cachedRecentDebts = null;
     _cachedTopDebtors = null;
+  }
+  
+  /// Public method to clear cache and refresh calculations
+  void refreshCalculations() {
+    _clearCache();
+    notifyListeners();
+  }
+  
+  /// Debug method to print current debt amounts for troubleshooting
+  void debugPrintDebtAmounts() {
+    print('🔍 DEBUG: Current debt amounts:');
+    for (final debt in _debts) {
+      if (debt.description.toLowerCase().contains('syria tel')) {
+        print('  Syria tel debt: Amount=${debt.amount}, Paid=${debt.paidAmount}, Remaining=${debt.remainingAmount}, Currency=${debt.storedCurrency}');
+      }
+    }
+    print('  Total calculated debt: ${totalDebt}');
+    print('  Total calculated paid: ${totalPaid}');
   }
 
   Future<void> _addActivity(Activity activity) async {
@@ -1904,18 +1929,26 @@ class AppState extends ChangeNotifier {
   // Calculation methods
   double _calculateTotalDebt() {
     final pendingDebts = _debts.where((d) => d.paidAmount < d.amount).toList();
-    final totalDebt = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    double totalDebt = 0.0;
     
-    return totalDebt;
+    for (final debt in pendingDebts) {
+      totalDebt += debt.remainingAmount;
+    }
+    
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    return ((totalDebt * 100).round() / 100);
   }
   
   double _calculateTotalPaid() {
     // Count all payments made (including partial payments), not just fully paid debts
-    final totalPaid = _debts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+    double totalPaid = 0.0;
     
-
+    for (final debt in _debts) {
+      totalPaid += debt.paidAmount;
+    }
     
-    return totalPaid;
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    return ((totalPaid * 100).round() / 100);
   }
   
   int _calculatePendingCount() {
@@ -1934,7 +1967,15 @@ class AppState extends ChangeNotifier {
       final customerDebtsList = _debts.where((debt) => 
         debt.customerId == customer.id && debt.paidAmount < debt.amount
       ).toList();
-      final totalDebt = customerDebtsList.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+      
+      double totalDebt = 0.0;
+      for (final debt in customerDebtsList) {
+        totalDebt += debt.remainingAmount;
+      }
+      
+      // Fix floating-point precision issues by rounding to 2 decimal places
+      totalDebt = ((totalDebt * 100).round() / 100);
+      
       if (totalDebt > 0) {
         customerDebts[customer.id] = totalDebt;
       }
@@ -1989,7 +2030,14 @@ class AppState extends ChangeNotifier {
   // Get customer-level total remaining amount
   double getCustomerTotalRemainingAmount(String customerId) {
     final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
-    return customerDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    double totalRemaining = 0.0;
+    
+    for (final debt in customerDebts) {
+      totalRemaining += debt.remainingAmount;
+    }
+    
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    return ((totalRemaining * 100).round() / 100);
   }
 
   // Settings methods

@@ -178,7 +178,11 @@ class Debt extends HiveObject {
     }
   }
 
-  double get remainingAmount => amount - paidAmount;
+  double get remainingAmount {
+    final remaining = amount - paidAmount;
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    return ((remaining * 100).round() / 100);
+  }
 
   bool get isFullyPaid => paidAmount >= amount;
 
