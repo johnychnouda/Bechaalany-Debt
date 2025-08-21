@@ -641,11 +641,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Show ALL products for transparency - only hide those that are explicitly fully paid
         // This ensures no products are hidden due to calculation precision issues
         final customerActiveDebts = customerAllDebts.where((debt) {
-          // Show the product if:
-          // 1. It has any remaining amount (remainingAmount > 0), OR
-          // 2. It has no payments at all (paidAmount == 0), OR  
-          // 3. It has partial payments but might be marked as fully paid due to precision issues
-          return debt.remainingAmount > 0 || debt.paidAmount == 0 || debt.paidAmount < debt.amount;
+          // Show the product if it's NOT fully paid
+          // This is the most reliable way to ensure products stay visible until completely paid
+          return !debt.isFullyPaid;
         }).toList();
 
         return Scaffold(
