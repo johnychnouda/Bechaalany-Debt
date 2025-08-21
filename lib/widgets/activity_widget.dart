@@ -178,10 +178,34 @@ class _ActivityWidgetState extends State<ActivityWidget> {
         }
         break;
       case ActivityType.newDebt:
-        icon = Icons.add_shopping_cart;
-        iconColor = Colors.blue;
-        backgroundColor = Colors.blue.withValues(alpha: 0.1);
-        statusText = 'New Debt';
+        // Check if this debt is still pending or has been paid
+        if (activity.debtId != null) {
+          // Try to find the current debt status
+          final appState = Provider.of<AppState>(context, listen: false);
+          final currentDebt = appState.debts.where(
+            (debt) => debt.id == activity.debtId,
+          ).firstOrNull;
+          
+          if (currentDebt != null && currentDebt.remainingAmount > 0) {
+            // Debt is still pending - show red X
+            icon = Icons.close;
+            iconColor = Colors.red;
+            backgroundColor = Colors.red.withValues(alpha: 0.1);
+            statusText = 'Outstanding Debt';
+          } else {
+            // Debt has been paid - show green checkmark
+            icon = Icons.check_circle;
+            iconColor = Colors.green;
+            backgroundColor = Colors.green.withValues(alpha: 0.1);
+            statusText = 'Debt Paid';
+          }
+        } else {
+          // Fallback to blue plus if no debt ID
+          icon = Icons.add_shopping_cart;
+          iconColor = Colors.blue;
+          backgroundColor = Colors.blue.withValues(alpha: 0.1);
+          statusText = 'New Debt';
+        }
         break;
       case ActivityType.debtCleared:
         icon = Icons.check_circle;

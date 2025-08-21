@@ -95,9 +95,30 @@ class RecentActivityWidget extends StatelessWidget {
 
                       switch (activity.type) {
                         case ActivityType.newDebt:
-                          icon = Icons.add_circle;
-                          iconColor = AppColors.primary;
-                          backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+                          // Check if this debt is still pending or has been paid
+                          if (activity.debtId != null) {
+                            // Try to find the current debt status
+                            final currentDebt = appState.debts.where(
+                              (debt) => debt.id == activity.debtId,
+                            ).firstOrNull;
+                            
+                            if (currentDebt != null && currentDebt.remainingAmount > 0) {
+                              // Debt is still pending - show red X
+                              icon = Icons.close;
+                              iconColor = AppColors.error;
+                              backgroundColor = AppColors.error.withValues(alpha: 0.1);
+                            } else {
+                              // Debt has been paid - show green checkmark
+                              icon = Icons.check_circle;
+                              iconColor = AppColors.success;
+                              backgroundColor = AppColors.success.withValues(alpha: 0.1);
+                            }
+                          } else {
+                            // Fallback to blue plus if no debt ID
+                            icon = Icons.add_circle;
+                            iconColor = AppColors.primary;
+                            backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+                          }
                           break;
                         case ActivityType.payment:
                           if (isFullPayment) {
