@@ -202,63 +202,77 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> {
                               width: 0.5,
                             ),
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
-                            leading: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: CupertinoColors.systemRed.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                CupertinoIcons.person_circle,
-                                color: CupertinoColors.systemRed,
-                                size: 24,
-                              ),
-                            ),
-                            title: Text(
-                              customer.name,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.dynamicTextPrimary(context),
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
                               children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  customer.phone,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.dynamicTextSecondary(context),
+                                // Leading icon
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: CupertinoColors.systemRed.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    CupertinoIcons.person_circle,
+                                    color: CupertinoColors.systemRed,
+                                    size: 24,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Outstanding: \$${totalDebt.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: CupertinoColors.systemRed,
+                                const SizedBox(width: 16),
+                                
+                                // Content
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        customer.name,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.dynamicTextPrimary(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        customer.phone,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.dynamicTextSecondary(context),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Outstanding: \$${totalDebt.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: CupertinoColors.systemRed,
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                ),
+                                
+                                const SizedBox(width: 16),
+                                
+                                // Trailing button
+                                CupertinoButton(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  color: CupertinoColors.systemBlue,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: const Text(
+                                    'Send Reminder',
+                                    style: TextStyle(
+                                      color: CupertinoColors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  onPressed: () => _showPersonalizedReminderDialog(context, customer, totalDebt),
                                 ),
                               ],
-                            ),
-                            trailing: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              color: CupertinoColors.systemBlue,
-                              borderRadius: BorderRadius.circular(8),
-                              child: const Text(
-                                'Send Reminder',
-                                style: TextStyle(
-                                  color: CupertinoColors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              onPressed: () => _showPersonalizedReminderDialog(context, customer, totalDebt),
                             ),
                           ),
                         );
