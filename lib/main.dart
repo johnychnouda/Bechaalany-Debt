@@ -14,6 +14,7 @@ import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'services/backup_service.dart';
 import 'services/notification_service.dart';
+import 'services/firebase_service.dart';
 
 // Global service instances
 BackupService? _globalBackupService;
@@ -152,6 +153,15 @@ void main() async {
     }
       } catch (e) {
       // Handle initialization error silently
+    }
+    
+    // Initialize Firebase service
+    try {
+      await FirebaseService.instance.initialize();
+      // Sign in anonymously for data sync
+      await FirebaseService.instance.signInAnonymously();
+    } catch (e) {
+      // Handle Firebase initialization error silently
     }
     
     // Initialize notification service first
