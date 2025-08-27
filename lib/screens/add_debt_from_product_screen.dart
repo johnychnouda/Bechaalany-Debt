@@ -637,12 +637,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       String storedCurrency;
       
       // Debug: Log the actual product data
-      print('🔍 Debug: Product data for ${_selectedSubcategory!.name}:');
-      print('  Cost Price: ${_selectedSubcategory!.costPrice}');
-      print('  Selling Price: ${_selectedSubcategory!.sellingPrice}');
-      print('  Cost Currency: ${_selectedSubcategory!.costPriceCurrency}');
-      print('  Selling Currency: ${_selectedSubcategory!.sellingPriceCurrency}');
-      print('  Exchange Rate: ${appState.currencySettings?.exchangeRate}');
+
       
       if (_selectedSubcategory!.sellingPriceCurrency == 'LBP') {
         // LBP PRODUCT: Use current exchange rate for dynamic USD pricing
@@ -653,40 +648,25 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           actualCostPrice = _selectedSubcategory!.costPrice / currencySettings.exchangeRate!;
           storedCurrency = 'USD'; // Store as USD since we're converting to USD amounts
           
-          print('🔧 Dynamic LBP pricing with current exchange rate:');
-          print('  Product: ${_selectedSubcategory!.name}');
-          print('  LBP Cost: ${_selectedSubcategory!.costPrice} LBP');
-          print('  LBP Selling: ${_selectedSubcategory!.sellingPrice} LBP');
-          print('  Current Exchange Rate: 1 USD = ${currencySettings.exchangeRate} LBP');
-          print('  USD Cost: ${actualCostPrice.toStringAsFixed(2)} USD');
-          print('  USD Selling: ${actualSellingPrice.toStringAsFixed(2)} USD');
-          print('  Stored Currency: USD (converted from LBP)');
+          // Convert LBP to current USD using live exchange rate
+          actualSellingPrice = _selectedSubcategory!.sellingPrice / currencySettings.exchangeRate!;
+          actualCostPrice = _selectedSubcategory!.costPrice / currencySettings.exchangeRate!;
+          storedCurrency = 'USD'; // Store as USD since we're converting to USD amounts
         } else {
           // No exchange rate set, fallback to stored values
           actualSellingPrice = _selectedSubcategory!.sellingPrice;
           actualCostPrice = _selectedSubcategory!.costPrice;
           storedCurrency = 'LBP';
-          print('⚠️ No exchange rate set, using stored LBP values');
         }
       } else {
         // USD PRODUCT: Use stored USD values directly
         actualSellingPrice = _selectedSubcategory!.sellingPrice;
         actualCostPrice = _selectedSubcategory!.costPrice;
         storedCurrency = 'USD';
-        
-        print('🔧 USD product pricing:');
-        print('  Product: ${_selectedSubcategory!.name}');
-        print('  USD Cost: ${actualCostPrice.toStringAsFixed(2)} USD');
-        print('  USD Selling: ${actualSellingPrice.toStringAsFixed(2)} USD');
       }
       
       // Calculate total amount using the determined selling price
       totalAmount = actualSellingPrice * quantity;
-      
-      print('🔧 Final debt creation:');
-      print('  Total Debt Amount: ${totalAmount.toStringAsFixed(2)} USD');
-      print('  Stored Currency: $storedCurrency');
-      print('  Quantity: $quantity');
       
       // Create description with quantity if > 1
       String description = _selectedSubcategory!.name;
@@ -715,17 +695,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         storedCurrency: storedCurrency, // Store the original currency (LBP or USD)
       );
       
-      // Debug: Log the created debt data
-      print('🔍 Debug: Created debt data:');
-      print('  Amount: ${debt.amount}');
-      print('  Stored Currency: ${debt.storedCurrency}');
-      print('  Original Selling Price: ${debt.originalSellingPrice}');
-      print('  Original Cost Price: ${debt.originalCostPrice}');
-      print('  Description: ${debt.description}');
-
-              print('🔧 About to add debt to app state...');
-        await appState.addDebt(debt);
-        print('🔧 Debt added to app state successfully');
+      await appState.addDebt(debt);
         
         if (mounted) {
         Navigator.of(context).pop();

@@ -172,12 +172,12 @@ class PdfFontUtils {
       try {
         final font = getUnicodeFont();
         if (font != null) {
-                  return pw.TextStyle(
-          font: font,
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-          color: color ?? PdfColors.black,
-        );
+          return pw.TextStyle(
+            font: font,
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            color: color ?? PdfColors.black,
+          );
         }
       } catch (e) {
         // Fallback to default style

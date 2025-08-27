@@ -433,23 +433,14 @@ class DataService {
   
   Future<void> updateCustomer(Customer customer) async {
     try {
-      print('🔧 DataService: Updating customer: ${customer.name}');
-      print('  ID: ${customer.id}');
-      print('  Phone: ${customer.phone}');
-      print('  Email: ${customer.email}');
-      print('  Address: ${customer.address}');
-      print('  UpdatedAt: ${customer.updatedAt}');
+      
       
       // Check if customer exists before update
       final existingCustomer = _customerBoxSafe.get(customer.id);
       if (existingCustomer != null) {
-        print('✅ DataService: Existing customer found:');
-        print('  Existing Name: ${existingCustomer.name}');
-        print('  Existing Phone: ${existingCustomer.phone}');
-        print('  Existing Email: ${existingCustomer.email}');
-        print('  Existing Address: ${existingCustomer.address}');
+        // Customer exists
       } else {
-        print('❌ DataService: No existing customer found with ID: ${customer.id}');
+        // Customer not found
       }
       
       // Force a refresh of the customer data
@@ -461,16 +452,11 @@ class DataService {
       // Verify the update
       final updatedCustomer = _customerBoxSafe.get(customer.id);
       if (updatedCustomer != null) {
-        print('✅ DataService: Customer updated successfully');
-        print('  Verified ID: ${updatedCustomer.id}');
-        print('  Verified Phone: ${updatedCustomer.phone}');
-        print('  Verified Email: ${updatedCustomer.email}');
-        print('  Verified Address: ${updatedCustomer.address}');
+
       } else {
-        print('❌ DataService: Customer update verification failed');
+        // Customer update verification failed
       }
     } catch (e) {
-      print('❌ DataService: Error updating customer: $e');
       rethrow;
     }
   }
@@ -532,18 +518,9 @@ class DataService {
   
   Future<void> addDebt(Debt debt) async {
     try {
-      print('🔧 DataService: Adding debt to database: ${debt.description}');
-      print('  ID: ${debt.id}');
-      print('  Amount: ${debt.amount}');
-      print('  Currency: ${debt.storedCurrency}');
-      
       await _autoBackup(); // Create backup before adding
       _debtBoxSafe.put(debt.id, debt);
-      
-      print('🔧 DataService: Debt successfully saved to database');
-      print('  Total debts in database: ${_debtBoxSafe.length}');
     } catch (e) {
-      print('❌ DataService: Error saving debt: $e');
       rethrow;
     }
   }
@@ -960,26 +937,17 @@ class DataService {
       // Only remove debts that have the exact same ID (which shouldn't happen)
       for (final group in debtGroups.values) {
         if (group.length > 1) {
-          print('🔍 Found ${group.length} debts with identical ID: ${group.first.id}');
-          print('  This indicates a database corruption issue - keeping only the first one');
-          
           // Keep the first debt, remove the rest (they're identical anyway)
           for (int i = 1; i < group.length; i++) {
             final duplicateDebt = group[i];
             await _debtBoxSafe.delete(duplicateDebt.id);
             removedCount++;
-            print('  🗑️ Removed corrupted duplicate debt: ${duplicateDebt.description} (ID: ${duplicateDebt.id})');
           }
         }
       }
       
-      if (removedCount > 0) {
-        print('🧹 Removed $removedCount corrupted duplicate debt entries');
-      } else {
-        print('✅ No corrupted duplicate debts found - all debts are unique');
-      }
+      // Duplicate debts removed
     } catch (e) {
-      print('❌ Error removing duplicate debts: $e');
       rethrow;
     }
   }

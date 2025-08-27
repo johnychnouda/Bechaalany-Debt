@@ -82,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 [
                   _buildSwitchRow(
                     'Enable Automated Messages',
-                    'Send WhatsApp messages when debts are fully settled',
+                    'Send WhatsApp messages for debt settlements and payment reminders',
                     CupertinoIcons.chat_bubble_2,
                     Provider.of<AppState>(context).whatsappAutomationEnabled,
                     (value) => Provider.of<AppState>(context, listen: false).setWhatsappAutomationEnabled(value),
@@ -113,7 +113,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 [
                   _buildNavigationRow(
                     'Clear Debts & Activities',
-                    'Remove all debts, activities, and payment records (preserves products and customers)',
+                    'Remove all debts, activities, and payment records',
                     CupertinoIcons.trash,
                     () => _showClearDebtsDialog(),
                   ),
@@ -198,34 +198,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: AppColors.dynamicTextPrimary(context),
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.dynamicTextSecondary(context),
-          ),
-        ),
-        trailing: CupertinoSwitch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: AppColors.dynamicPrimary(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.dynamicTextPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.dynamicTextSecondary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            CupertinoSwitch(
+              value: value,
+              onChanged: onChanged,
+              activeColor: AppColors.dynamicPrimary(context),
+            ),
+          ],
         ),
       ),
     );
@@ -340,33 +354,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.systemGray6,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                currentMessage.isNotEmpty ? currentMessage : 'No custom message set',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.dynamicTextSecondary(context),
-                  fontStyle: currentMessage.isEmpty ? FontStyle.italic : FontStyle.normal,
-                ),
-              ),
-            ),
-          ],
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
         ),
         trailing: Icon(
           CupertinoIcons.chevron_right,
@@ -466,9 +459,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'Custom WhatsApp Message',
           style: TextStyle(
             color: AppColors.dynamicTextPrimary(context),
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -490,15 +486,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Use {customerName} to include the customer\'s name in your message.',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
+
           ],
         ),
         actions: [

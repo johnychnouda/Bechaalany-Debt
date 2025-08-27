@@ -74,6 +74,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
+          indicatorSize: TabBarIndicatorSize.label,
+          indicatorWeight: 2,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
@@ -124,9 +126,10 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     style: AppTheme.title2.copyWith(
                       color: AppColors.dynamicTextPrimary(context),
                       fontWeight: FontWeight.w600,
+                      fontSize: 20,
                     ),
                     overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
+                    maxLines: 1,
                     textAlign: TextAlign.center,
                   ),
                                     const SizedBox(height: 8),
@@ -393,15 +396,16 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     fontSize: 12,
                   ),
                 ),
-                Text(
-                  activity.description,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[700],
+                if (activity.type != ActivityType.payment || activity.isPaymentCompleted)
+                  Text(
+                    activity.description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[700],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ],
             ),
           ),
@@ -409,7 +413,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                statusText,
+                activity.type == ActivityType.payment && !activity.isPaymentCompleted
+                    ? 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0)}'
+                    : statusText,
                 style: TextStyle(
                   fontSize: 10,
                   color: iconColor,

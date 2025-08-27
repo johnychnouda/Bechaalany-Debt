@@ -20,6 +20,7 @@ import '../utils/debt_description_utils.dart';
 import '../services/receipt_sharing_service.dart';
 import '../providers/app_state.dart';
 import 'add_customer_screen.dart';
+import 'customer_details_screen.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -82,6 +83,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   @override
   Widget build(BuildContext context) {
+
+    
     // Filter debts to only include those relevant to the payment being viewed
     // This excludes new debts that were created after the payment was completed
     final relevantDebts = _getRelevantDebts(widget.customerDebts);
@@ -93,17 +96,47 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+    
+    // Calculate total paid amount from partial payments for this customer
+    final totalPaidFromPartialPayments = widget.partialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    
+    // Calculate total paid amount from payment activities for this customer
+    final totalPaidFromActivities = widget.activities
+        .where((activity) => 
+            activity.type == ActivityType.payment && 
+            activity.customerId == widget.customer.id)
+        .fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+    
+    // Use the higher of the two values to ensure we don't miss any payments
+    final totalPaidAmount = totalPaidFromActivities > totalPaidFromPartialPayments ? totalPaidFromActivities : totalPaidFromPartialPayments;
+    
+    // Calculate total original amount
+    final totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    
+
 
     return Scaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
         title: Text(
-          'Debt Receipt',
+          'Receipt',
           style: TextStyle(
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
         backgroundColor: AppColors.dynamicSurface(context),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+          onPressed: () {
+            // Simple approach: pop multiple times to get back to customer details
+            Navigator.of(context).pop(); // Pop receipt
+            Navigator.of(context).pop(); // Pop debt history
+            Navigator.of(context).pop(); // Pop any other screen
+          },
+        ),
         iconTheme: IconThemeData(
           color: AppColors.dynamicTextPrimary(context),
         ),
@@ -138,7 +171,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             const SizedBox(height: 24),
             _buildDebtDetails(sortedDebts, customerHasPartialPayments),
             const SizedBox(height: 24),
-            _buildTotalAmount(remainingAmount),
+            _buildTotalAmount(remainingAmount, totalPaidAmount, totalOriginalAmount),
           ],
         ),
       ),
@@ -273,6 +306,17 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       });
     }
     
+    // Add partial payments for this customer
+    for (PartialPayment payment in widget.partialPayments) {
+      allItems.add({
+        'type': 'partial_payment',
+        'description': 'Partial Payment',
+        'amount': payment.amount,
+        'date': payment.paidAt,
+        'payment': payment,
+      });
+    }
+    
     // Add payment activities for this customer that are relevant to the debts being viewed
     final customerPaymentActivities = widget.activities
         .where((activity) => 
@@ -378,8 +422,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               return _buildDebtItem(item['debt'] as Debt, customerHasPartialPayments);
             } else if (item['type'] == 'payment_activity') {
               return _buildPaymentActivityItem(item['activity'] as Activity);
-            } else {
+            } else if (item['type'] == 'partial_payment') {
               return _buildPartialPaymentItem(item['payment'] as PartialPayment);
+            } else {
+              return const SizedBox.shrink();
             }
           }).toList(),
         ],
@@ -632,21 +678,15 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  Widget _buildTotalAmount(double remainingAmount) {
-    // Get the relevant debts for calculations
-    final relevantDebts = _getRelevantDebts(widget.customerDebts);
-    
-    final totalOriginalAmount = relevantDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-    final partiallyPaidAmount = relevantDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
-    
+  Widget _buildTotalAmount(double remainingAmount, double totalPaidAmount, double totalOriginalAmount) {
     // Determine the payment status for the relevant debts
-    final hasPartialPayments = partiallyPaidAmount > 0;
-    final allDebtsFullyPaid = remainingAmount == 0 && relevantDebts.isNotEmpty;
-    final hasNewDebts = relevantDebts.any((debt) => debt.paidAmount == 0 && !debt.isFullyPaid);
+    final hasPartialPayments = totalPaidAmount > 0;
+    final allDebtsFullyPaid = remainingAmount == 0 && widget.customerDebts.isNotEmpty;
+    final hasNewDebts = widget.customerDebts.any((debt) => debt.paidAmount == 0 && !debt.isFullyPaid);
     
     DateTime? latestPaymentDate;
     if (allDebtsFullyPaid) {
-      latestPaymentDate = relevantDebts
+      latestPaymentDate = widget.customerDebts
           .where((debt) => debt.paidAt != null)
           .map((debt) => debt.paidAt!)
           .reduce((a, b) => a.isAfter(b) ? a : b);
@@ -661,6 +701,81 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       ),
       child: Column(
         children: [
+          // Summary Section - Show all three totals
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL ORIGINAL AMOUNT:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+              Text(
+                CurrencyFormatter.formatAmount(context, totalOriginalAmount),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicTextPrimary(context),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Total Paid Amount
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL PAID AMOUNT:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicSuccess(context),
+                ),
+              ),
+              Text(
+                CurrencyFormatter.formatAmount(context, totalPaidAmount),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicSuccess(context),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Total Remaining Amount
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TOTAL REMAINING AMOUNT:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicError(context),
+                ),
+              ),
+              Text(
+                CurrencyFormatter.formatAmount(context, remainingAmount),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.dynamicError(context),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
           // Case 1: New debt (no payments) - show only remaining amount
           if (hasNewDebts && !hasPartialPayments && !allDebtsFullyPaid) ...[
             Row(
@@ -700,7 +815,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   ),
                 ),
                 Text(
-                  CurrencyFormatter.formatAmount(context, partiallyPaidAmount),
+                  CurrencyFormatter.formatAmount(context, totalPaidAmount),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -1144,12 +1259,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     try {
       // Generate PDF receipt
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-        widget.customer,
-        widget.customerDebts,
-        widget.partialPayments,
-        widget.activities,
-        widget.specificDate,
-        widget.specificDebtId,
+        customer: widget.customer,
+        debts: widget.customerDebts,
+        partialPayments: widget.partialPayments,
+        activities: widget.activities,
+        specificDate: widget.specificDate,
+        specificDebtId: widget.specificDebtId,
       );
       
       if (pdfFile != null) {

@@ -31,23 +31,21 @@ class DataMigrationService {
       // Clean up any duplicate orphaned activities
       await cleanupOrphanedActivities();
       
-      print('✅ All migrations completed successfully');
+      // All migrations completed successfully
     } catch (e) {
-      print('❌ Error running migrations: $e');
+      // Handle error silently
     }
   }
 
   /// Fixes corrupted currency data in products and debts
   /// This handles cases where LBP amounts were incorrectly stored as USD amounts
   Future<void> fixCorruptedCurrencyData() async {
-    print('🔧 Starting corrupted currency data fix...');
     try {
       final categories = await _dataService.getCategories();
       final debts = await _dataService.getDebts();
       final currencySettings = await _dataService.getCurrencySettings();
       
       if (currencySettings?.exchangeRate == null) {
-        print('⚠️ No exchange rate set - cannot fix corrupted data');
         return;
       }
 
@@ -60,10 +58,6 @@ class DataMigrationService {
         
         for (final subcategory in category.subcategories) {
           if (_isCorruptedLBPProduct(subcategory, currencySettings!)) {
-            print('🔧 Fixing corrupted product: ${subcategory.name}');
-            print('  Old cost price: ${subcategory.costPrice}');
-            print('  Old selling price: ${subcategory.sellingPrice}');
-            
             // Handle Infinity and other invalid values
             double newCostPrice = subcategory.costPrice;
             double newSellingPrice = subcategory.sellingPrice;
@@ -71,25 +65,21 @@ class DataMigrationService {
             // If values are Infinity, NaN, or extremely large, set reasonable defaults
             if (newCostPrice.isInfinite || newCostPrice.isNaN || newCostPrice > 1000000) {
               newCostPrice = 50000.0; // Default LBP cost price
-              print('  ⚠️ Cost price was invalid, setting to default: $newCostPrice LBP');
             } else if (newCostPrice > 1000) {
               // Convert from USD to LBP if it's a reasonable USD amount
               newCostPrice = newCostPrice * currencySettings.exchangeRate!;
             } else if (newCostPrice < 1000 && (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
               // This is a LBP product with suspiciously low amounts - convert from USD to LBP
-              print('  🔧 Converting USD amounts to LBP for LBP product');
               newCostPrice = newCostPrice * currencySettings.exchangeRate!;
             }
             
             if (newSellingPrice.isInfinite || newSellingPrice.isNaN || newSellingPrice > 1000000) {
               newSellingPrice = 75000.0; // Default LBP selling price
-              print('  ⚠️ Selling price was invalid, setting to default: $newSellingPrice LBP');
             } else if (newSellingPrice > 1000) {
               // Convert from USD to LBP if it's a reasonable USD amount
               newSellingPrice = newSellingPrice * currencySettings.exchangeRate!;
             } else if (newSellingPrice < 1000 && (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
               // This is a LBP product with suspiciously low amounts - convert from USD to LBP
-              print('  🔧 Converting USD amounts to LBP for LBP product');
               newSellingPrice = newSellingPrice * currencySettings.exchangeRate!;
             }
             
@@ -100,9 +90,6 @@ class DataMigrationService {
             // Ensure currency fields are set to LBP
             subcategory.costPriceCurrency = 'LBP';
             subcategory.sellingPriceCurrency = 'LBP';
-            
-            print('  ✅ Fixed - New cost price: ${subcategory.costPrice} LBP');
-            print('  ✅ Fixed - New selling price: ${subcategory.sellingPrice} LBP');
             
             categoryUpdated = true;
             fixedProducts++;
@@ -117,9 +104,6 @@ class DataMigrationService {
       // Fix corrupted debt amounts
       for (final debt in debts) {
         if (_isCorruptedLBPDebt(debt, currencySettings!)) {
-          print('🔧 Fixing corrupted debt: ${debt.description}');
-          print('  Old original cost price: ${debt.originalCostPrice}');
-          print('  Old original selling price: ${debt.originalSellingPrice}');
           
           // Handle Infinity and other invalid values for debts
           double? newCostPrice = debt.originalCostPrice;
@@ -128,7 +112,6 @@ class DataMigrationService {
           if (newCostPrice != null) {
             if (newCostPrice.isInfinite || newCostPrice.isNaN || newCostPrice > 1000000) {
               newCostPrice = 50000.0; // Default LBP cost price
-              print('  ⚠️ Debt cost price was invalid, setting to default: $newCostPrice LBP');
             } else if (newCostPrice > 1000) {
               // Convert from USD to LBP if it's a reasonable USD amount
               newCostPrice = newCostPrice * currencySettings.exchangeRate!;
@@ -138,7 +121,6 @@ class DataMigrationService {
           if (newSellingPrice != null) {
             if (newSellingPrice.isInfinite || newSellingPrice.isNaN || newSellingPrice > 1000000) {
               newSellingPrice = 75000.0; // Default LBP selling price
-              print('  ⚠️ Debt selling price was invalid, setting to default: $newSellingPrice LBP');
             } else if (newSellingPrice > 1000) {
               // Convert from USD to LBP if it's a reasonable USD amount
               newSellingPrice = newSellingPrice * currencySettings.exchangeRate!;
@@ -153,20 +135,13 @@ class DataMigrationService {
           
           await _dataService.updateDebt(updatedDebt);
           
-          print('  ✅ Fixed debt amounts');
           fixedDebts++;
         }
       }
 
-      if (fixedProducts > 0 || fixedDebts > 0) {
-        print('🎉 Data migration completed!');
-        print('  Fixed products: $fixedProducts');
-        print('  Fixed debts: $fixedDebts');
-      } else {
-        print('✅ No corrupted data found');
-      }
+      // Data migration completed
     } catch (e) {
-      print('❌ Error during data migration: $e');
+      // Handle error silently
     }
   }
 
@@ -184,9 +159,6 @@ class DataMigrationService {
     if (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP') {
       // If LBP amounts are suspiciously low (< 1000), they might be USD amounts incorrectly stored
       if (subcategory.costPrice < 1000 || subcategory.sellingPrice < 1000) {
-        print('🔍 SUSPICIOUS: LBP product with low amounts - ${subcategory.name}');
-        print('  Cost: ${subcategory.costPrice} (should be much higher for LBP)');
-        print('  Selling: ${subcategory.sellingPrice} (should be much higher for LBP)');
         return true;
       }
       
@@ -592,17 +564,9 @@ class DataMigrationService {
   /// This ensures that when debts are deleted, only their specific activities are removed
   Future<void> fixActivitiesDebtId() async {
     try {
-      print('🔧 Starting activities debtId fix...');
-      
       // Get all activities and debts
       final activities = _dataService.activities;
       final debts = _dataService.debts;
-      
-      print('📊 Found ${activities.length} activities and ${debts.length} debts');
-      print('📊 Debts available for matching:');
-      for (final debt in debts) {
-        print('  - ${debt.description} (ID: ${debt.id}, Customer: ${debt.customerId}, Amount: ${debt.amount})');
-      }
       
       int fixedCount = 0;
       
@@ -610,20 +574,14 @@ class DataMigrationService {
         // Skip activities that already have debtId
         if (activity.debtId != null) continue;
         
-        print('🔍 Looking for debt match for activity: "${activity.description}" (Customer: ${activity.customerName}, Amount: ${activity.amount})');
-        
         // Try to find matching debt by description and customer
         Debt? matchingDebt;
         
         // Handle different activity types
-        print('  Activity type: ${activity.type}');
-        
         if (activity.type == ActivityType.newDebt) {
           // For new debt activities, the description format is "Product: Amount$"
-          print('  Processing new debt activity...');
           try {
             final productName = activity.description.split(':')[0].toLowerCase();
-            print('  Looking for product: "$productName"');
             matchingDebt = debts.firstWhere(
               (debt) => 
                 debt.description.toLowerCase() == productName &&
@@ -634,22 +592,19 @@ class DataMigrationService {
             // Try more flexible matching for new debt activities
             try {
               final productName = activity.description.split(':')[0].toLowerCase();
-              print('  Exact match failed, trying flexible match for product: "$productName"');
               matchingDebt = debts.firstWhere(
                 (debt) => 
                   debt.customerId == activity.customerId &&
                   debt.description.toLowerCase().contains(productName),
               );
             } catch (e) {
-              print('  No matching debt found for new debt activity');
+              // No matching debt found for new debt activity
             }
           }
         } else if (activity.type == ActivityType.payment) {
           // For payment activities, we need to find the debt by customer and amount
           // since the description is just "Fully paid: Amount$" or "Partial payment: Amount$"
-          print('  Processing payment activity...');
           try {
-            print('  Looking for debt with customer: ${activity.customerId}, amount: ${activity.amount}');
             matchingDebt = debts.firstWhere(
               (debt) => 
                 debt.customerId == activity.customerId &&
@@ -658,19 +613,16 @@ class DataMigrationService {
           } catch (e) {
             // Try to find any debt for this customer if exact amount match fails
             try {
-              print('  Exact amount match failed, trying to find any debt for customer: ${activity.customerId}');
               matchingDebt = debts.firstWhere(
                 (debt) => debt.customerId == activity.customerId,
               );
             } catch (e) {
-              print('  No matching debt found for payment activity');
+              // No matching debt found for payment activity
             }
           }
         }
         
         if (matchingDebt != null) {
-          print('✅ Found matching debt: "${matchingDebt.description}" (ID: ${matchingDebt.id})');
-          
           // Create updated activity with debtId
           final updatedActivity = activity.copyWith(
             debtId: matchingDebt.id,
@@ -679,16 +631,12 @@ class DataMigrationService {
           // Update the activity in storage
           await _dataService.updateActivity(updatedActivity);
           fixedCount++;
-          
-          print('🔗 Linked activity "${activity.description}" to debt ${matchingDebt.id}');
-        } else {
-          print('❌ No matching debt found for activity: "${activity.description}"');
         }
       }
       
-      print('✅ Fixed $fixedCount activities with debtId links');
+      // Fixed activities with debtId links
     } catch (e) {
-      print('❌ Error fixing activities debtId: $e');
+      // Handle error silently
     }
   }
 
@@ -696,8 +644,6 @@ class DataMigrationService {
   /// This removes orphaned activities that can cause confusion in the UI
   Future<void> cleanupOrphanedActivities() async {
     try {
-      print('🧹 Starting orphaned activities cleanup...');
-      
       // Get all activities and debts
       final activities = _dataService.activities;
       final debts = _dataService.debts;
@@ -706,8 +652,6 @@ class DataMigrationService {
       
       // Find activities without debtId that might be duplicates
       final orphanedActivities = activities.where((a) => a.debtId == null).toList();
-      
-      print('📊 Found ${orphanedActivities.length} orphaned activities');
       
       // Group orphaned activities by customer, description, and amount to identify duplicates
       final Map<String, List<Activity>> activityGroups = {};
@@ -728,18 +672,13 @@ class DataMigrationService {
             final duplicateActivity = group[i];
             await _dataService.deleteActivity(duplicateActivity.id);
             removedCount++;
-            print('🗑️ Removed duplicate orphaned activity: "${duplicateActivity.description}"');
           }
         }
       }
       
-      if (removedCount > 0) {
-        print('✅ Cleaned up $removedCount duplicate orphaned activities');
-      } else {
-        print('✅ No duplicate orphaned activities found');
-      }
+      // Cleaned up duplicate orphaned activities
     } catch (e) {
-      print('❌ Error cleaning up orphaned activities: $e');
+      // Handle error silently
     }
   }
 }

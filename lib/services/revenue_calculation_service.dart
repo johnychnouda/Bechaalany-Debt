@@ -269,9 +269,6 @@ class RevenueCalculationService {
             // SAFETY CHECK: Prevent extremely high revenue calculations
             final revenue = debt.originalRevenue;
             if (revenue > debt.amount * 10) { // Revenue shouldn't be more than 10x the debt amount
-              print('WARNING: Suspicious revenue calculation for ${debt.description}');
-              print('  Debt Amount: ${debt.amount}, Calculated Revenue: $revenue');
-              print('  Cost Price: ${debt.originalCostPrice}, Selling Price: ${debt.originalSellingPrice}');
               // Use a reasonable fallback
               totalPotentialRevenue += debt.amount * 0.3; // Assume 30% profit margin
             } else {
@@ -286,8 +283,6 @@ class RevenueCalculationService {
             // SAFETY CHECK: Prevent extremely high revenue calculations
             final revenue = debt.remainingRevenue;
             if (revenue > debt.remainingAmount * 10) { // Revenue shouldn't be more than 10x the remaining amount
-              print('WARNING: Suspicious remaining revenue calculation for ${debt.description}');
-              print('  Remaining Amount: ${debt.remainingAmount}, Calculated Revenue: $revenue');
               // Use a reasonable fallback
               totalPotentialRevenue += debt.remainingAmount * 0.3; // Assume 30% profit margin
             } else {
@@ -309,9 +304,6 @@ class RevenueCalculationService {
     
     // FINAL SAFETY CHECK: Cap potential revenue at reasonable levels
     if (totalPotentialRevenue > totalDebtAmount * 5) { // Revenue shouldn't be more than 5x total debt
-      print('WARNING: Total potential revenue ($totalPotentialRevenue) is suspiciously high');
-      print('  Total debt amount: $totalDebtAmount');
-      print('  Capping potential revenue to reasonable level');
       totalPotentialRevenue = totalDebtAmount * 0.5; // Cap at 50% of total debt amount
     }
     

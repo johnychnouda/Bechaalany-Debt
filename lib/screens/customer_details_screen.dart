@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
 import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
+import '../models/partial_payment.dart';
 
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/notification_service.dart';
 import '../services/receipt_sharing_service.dart';
+import '../widgets/pdf_viewer_popup.dart';
 import 'add_debt_from_product_screen.dart';
 import 'add_customer_screen.dart';
 import '../constants/app_colors.dart';
@@ -63,6 +64,65 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
   void _loadCustomerDebts() {
     // Customer debts are loaded in build method
+  }
+  
+  // Helper method to get all partial payments for the current customer
+  // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
+  List<PartialPayment> _getCustomerPartialPayments(AppState appState) {
+    return appState.partialPayments.where((p) {
+      // First try to find the debt this payment was made for
+      final linkedDebt = appState.debts.firstWhere(
+        (d) => d.id == p.debtId,
+        orElse: () => Debt(
+          id: p.debtId,
+          customerId: _currentCustomer.id,
+          customerName: _currentCustomer.name,
+          amount: 0,
+          description: 'Unknown Product',
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: p.paidAt,
+          subcategoryId: null,
+          subcategoryName: null,
+          originalSellingPrice: null,
+          originalCostPrice: null,
+          categoryName: null,
+          storedCurrency: 'USD',
+        ),
+      );
+      
+      // Include the payment if it's for this customer
+      return linkedDebt.customerId == _currentCustomer.id;
+    }).toList();
+  }
+  
+  // Helper method to get all partial payments for a specific customer
+  List<PartialPayment> _getCustomerPartialPaymentsById(AppState appState, String customerId, String customerName) {
+    return appState.partialPayments.where((p) {
+      // First try to find the debt this payment was made for
+      final linkedDebt = appState.debts.firstWhere(
+        (d) => d.id == p.debtId,
+        orElse: () => Debt(
+          id: p.debtId,
+          customerId: customerId,
+          customerName: customerName,
+          amount: 0,
+          description: 'Unknown Product',
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: p.paidAt,
+          subcategoryId: null,
+          subcategoryName: null,
+          originalSellingPrice: null,
+          originalCostPrice: null,
+          categoryName: null,
+          storedCurrency: 'USD',
+        ),
+      );
+      
+      // Include the payment if it's for this customer
+      return linkedDebt.customerId == customerId;
+    }).toList();
   }
   
   // Helper method to format dates
@@ -355,14 +415,88 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     );
   }
   
+  // Show PDF receipt popup for viewing and printing
+  Future<void> _showPDFReceiptPopup(BuildContext context, AppState appState) async {
+    try {
+      // Get customer data
+      final customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
+      
+      // Include ALL partial payments for this customer, not just those linked to existing debts
+      // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
+      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      
+      final customerActivities = appState.activities.where((a) => a.customerId == _currentCustomer.id).toList();
+      
+      // Check if customer has pending debts OR has made any payments
+      final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
+      final hasAnyPayments = customerPartialPayments.isNotEmpty || customerActivities.any((a) => a.type == ActivityType.payment);
+      
+      if (!hasPendingDebts && !hasAnyPayments) {
+        if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'No Receipt Data',
+            body: 'Customer has no pending debts or payment history to generate receipt for.',
+          );
+        }
+        return;
+      }
+      
+      // Generate PDF receipt
+      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        customer: _currentCustomer,
+        debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        partialPayments: customerPartialPayments,
+        activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        specificDate: null, // No specific date filter
+        specificDebtId: null, // No specific debt filter
+      );
+      
+      if (pdfFile != null) {
+        if (mounted) {
+          Navigator.of(context).push(
+            CupertinoPageRoute(
+              fullscreenDialog: true,
+              builder: (BuildContext context) => PDFViewerPopup(
+                pdfFile: pdfFile,
+                customerName: _currentCustomer.name,
+                customer: _currentCustomer, // Pass customer information
+                onClose: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'PDF Generation Error',
+            body: 'Failed to generate receipt PDF. Please try again.',
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'PDF Error',
+          body: 'Failed to generate receipt: $e',
+        );
+      }
+    }
+  }
+  
   Future<void> _shareReceiptViaWhatsApp(AppState appState) async {
     try {
+      // Include ALL partial payments for this customer, not just those linked to existing debts
+      final customerPartialPayments = _getCustomerPartialPaymentsById(appState, widget.customer.id, widget.customer.name);
+      
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
         widget.customer,
         appState.debts.where((d) => d.customerId == widget.customer.id).toList(),
-        appState.partialPayments.where((p) => 
-          appState.debts.any((d) => d.id == p.debtId && d.customerId == widget.customer.id)
-        ).toList(),
+        customerPartialPayments,
         appState.activities.where((a) => a.customerId == widget.customer.id).toList(),
         null, // No specific date filter
         null, // No specific debt filter
@@ -523,12 +657,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   Future<void> _shareReceiptViaEmail(AppState appState) async {
     try {
+      // Include ALL partial payments for this customer, not just those linked to existing debts
+      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      
       final success = await ReceiptSharingService.shareReceiptViaEmail(
         _currentCustomer,
         appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        appState.partialPayments.where((p) => 
-          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
-        ).toList(),
+        customerPartialPayments,
         appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
         null, // No specific date filter
         null, // No specific debt filter
@@ -558,16 +693,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   Future<void> _saveReceiptToIPhone(AppState appState) async {
     try {
+      // Include ALL partial payments for this customer, not just those linked to existing debts
+      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      
       // Generate PDF receipt
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-        _currentCustomer,
-        appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        appState.partialPayments.where((p) => 
-          appState.debts.any((d) => d.id == p.debtId && d.customerId == _currentCustomer.id)
-        ).toList(),
-        appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
-        null, // No specific date filter
-        null, // No specific debt filter
+        customer: _currentCustomer,
+        debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        partialPayments: customerPartialPayments,
+        activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        specificDate: null, // No specific date filter
+        specificDebtId: null, // No specific debt filter
       );
       
       if (pdfFile != null) {
@@ -989,16 +1125,16 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 ),
                               ),
                             ),
-                            // Receipt sharing button - Only show when customer has pending debts
+                            // PDF viewer button - Only show when customer has pending debts
                             if (totalPendingDebt > 0) ...[
                               IconButton(
-                                onPressed: () => _showReceiptSharingOptions(context, appState),
+                                onPressed: () => _showPDFReceiptPopup(context, appState),
                                 icon: Icon(
                                   Icons.receipt_long,
                                   color: AppColors.dynamicPrimary(context),
                                   size: 20,
                                 ),
-                                tooltip: 'Share Receipt',
+                                tooltip: 'View Receipt',
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
                                   minWidth: 32,
@@ -1443,16 +1579,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _applyConsolidatedPartialPayment(totalRemaining, pendingDebts, context);
-              },
-              child: const Text('Complete Payment'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                    _applyConsolidatedPartialPayment(totalRemaining, pendingDebts, context);
+                  },
+                  child: const Text('Complete Payment'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                ),
+              ],
             ),
           ],
         );

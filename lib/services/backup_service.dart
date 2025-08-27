@@ -19,6 +19,7 @@ class BackupService {
     
     // Check if automatic backup is enabled
     final isEnabled = await isAutomaticBackupEnabled();
+    
     if (!isEnabled) {
       return;
     }
@@ -30,6 +31,7 @@ class BackupService {
   // Handle app lifecycle changes
   Future<void> handleAppLifecycleChange() async {
     final isEnabled = await isAutomaticBackupEnabled();
+    
     if (isEnabled) {
       // Re-schedule backup when app comes to foreground
       await initializeDailyBackup();
@@ -45,32 +47,7 @@ class BackupService {
     return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
   }
 
-  // Get current backup service status for debugging
-  Map<String, dynamic> getServiceStatus() {
-    final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final nextScheduled = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
-    
-    return {
-      'timer_active': _dailyBackupTimer != null,
-      'next_scheduled_backup': nextScheduled.toString(),
-      'current_time': now.toString(),
-      'time_until_next_backup': nextScheduled.difference(now).toString(),
-    };
-  }
 
-  // Test method to verify backup scheduling logic
-  bool testBackupScheduling() {
-    final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
-    
-    // Verify that the next backup is always scheduled for 12 AM tomorrow
-    return nextBackup.hour == 0 && 
-           nextBackup.minute == 0 && 
-           nextBackup.second == 0 &&
-           nextBackup.isAfter(now);
-  }
 
   void _scheduleDailyBackup() {
     final now = DateTime.now();
@@ -81,6 +58,8 @@ class BackupService {
     final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
     
     final delay = nextBackup.difference(now);
+    
+
     
     _dailyBackupTimer = Timer(delay, () {
       _performDailyBackup();
@@ -139,7 +118,69 @@ class BackupService {
   // Check if automatic backup is enabled
   Future<bool> isAutomaticBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
+    final value = prefs.getBool('automatic_backup_enabled') ?? false; // Default to disabled
+    return value;
+  }
+
+  // Check if the backup service is already initialized
+  bool get isInitialized => _dailyBackupTimer != null;
+
+
+
+
+
+
+
+
+
+
+
+  // Check if the backup service is in a valid state
+  Future<bool> isInValidState() async {
+    final isEnabled = await isAutomaticBackupEnabled();
+    
+    if (!isEnabled) {
+      return true; // If disabled, state is valid
+    }
+    
+    // If enabled, check if timer is properly scheduled
+    if (_dailyBackupTimer == null) {
+      return false;
+    }
+    
+    // Check if timer delay is valid (positive)
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+    final delay = nextBackup.difference(now);
+    
+    if (delay.inMilliseconds <= 0) {
+      return false;
+    }
+    
+    return true;
+  }
+
+
+
+  // Safely reinitialize the backup service (for hot reloads)
+  Future<void> safeReinitialize() async {
+    // Check current automatic backup setting
+    final isEnabled = await isAutomaticBackupEnabled();
+    
+    if (isEnabled) {
+      // Cancel any existing timer first
+      _dailyBackupTimer?.cancel();
+      _dailyBackupTimer = null;
+      
+      await initializeDailyBackup();
+      
+      // Verify the timer was scheduled
+      if (_dailyBackupTimer == null) {
+        // Try to force schedule the timer
+        _scheduleDailyBackup();
+      }
+    }
   }
 
   // Get last automatic backup time - with validation that backup actually exists
@@ -336,11 +377,8 @@ class BackupService {
         await prefs.remove('last_automatic_backup_timestamp');
         await prefs.remove('last_backup_timestamp');
 
-        // If automatic backup is enabled but no backups exist, disable it
-        final isEnabled = await isAutomaticBackupEnabled();
-        if (isEnabled) {
-          await setAutomaticBackupEnabled(false);
-        }
+        // Don't automatically disable automatic backup - let user control this setting
+        // The automatic backup will create the first backup when it runs
       }
     } catch (e) {
       // Handle error silently

@@ -197,21 +197,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         updatedAt: DateTime.now(), // Always set updatedAt to current time
       );
 
-      // Debug: Print the customer data being updated
-      print('🔧 AddCustomerScreen: Updating customer with data:');
-      print('  ID: "${customer.id}" (length: ${customer.id.length})');
-      print('  Name: "${customer.name}"');
-      print('  Phone: "${customer.phone}"');
-      print('  Email: "${customer.email}"');
-      print('  Address: "${customer.address}"');
-      print('  Original ID: "${widget.customer?.id}" (length: ${widget.customer?.id.length})');
-      print('  IDs match: ${customer.id == widget.customer?.id}');
-
       // Validate that ID is not changed when updating
       if (widget.customer != null && customer.id != widget.customer!.id) {
-        print('❌ AddCustomerScreen: Customer ID changed during update!');
-        print('  Original ID: "${widget.customer!.id}"');
-        print('  New ID: "${customer.id}"');
         throw Exception('Customer ID cannot be changed during update');
       }
 
@@ -224,12 +211,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           updatedAt: DateTime.now(), // Force update timestamp
         );
         
-        print('🔧 AddCustomerScreen: Final customer data for update:');
-        print('  ID: "${updatedCustomer.id}"');
-        print('  Name: "${updatedCustomer.name}"');
-        print('  Phone: "${updatedCustomer.phone}"');
-        print('  Email: "${updatedCustomer.email}"');
-        print('  Address: "${updatedCustomer.address}"');
+
         
         await appState.updateCustomer(updatedCustomer);
         if (mounted) {

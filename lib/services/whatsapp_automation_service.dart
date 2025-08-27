@@ -28,17 +28,10 @@ class WhatsAppAutomationService {
     required DateTime settlementDate,
   }) async {
     try {
-      print('🔧 WhatsAppAutomation: Starting automation for customer: ${customer.name}');
-      print('  Phone: ${customer.phone}');
-      print('  Message: $customMessage');
-      
       // Check if customer has WhatsApp
       if (!await hasWhatsApp(customer.phone)) {
-        print('❌ WhatsAppAutomation: Customer does not have WhatsApp available');
         throw Exception('Customer does not have WhatsApp available');
       }
-
-      print('✅ WhatsAppAutomation: WhatsApp is available for customer');
 
       // Build the complete message
       final message = _buildSettlementMessage(
@@ -49,15 +42,11 @@ class WhatsAppAutomationService {
         settlementDate: settlementDate,
       );
 
-      print('📝 WhatsAppAutomation: Built message: $message');
-
       // Format phone number for WhatsApp
       final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
       
       // Create WhatsApp URL with pre-filled message
       final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
-      
-      print('🔗 WhatsAppAutomation: WhatsApp URL: $whatsappUrl');
       
       // Launch WhatsApp
       final launched = await launchUrl(
@@ -65,15 +54,8 @@ class WhatsAppAutomationService {
         mode: LaunchMode.externalApplication,
       );
       
-      if (launched) {
-        print('✅ WhatsAppAutomation: WhatsApp launched successfully');
-      } else {
-        print('❌ WhatsAppAutomation: Failed to launch WhatsApp');
-      }
-      
       return launched;
     } catch (e) {
-      print('❌ WhatsAppAutomation: Error sending message: $e');
       return false;
     }
   }

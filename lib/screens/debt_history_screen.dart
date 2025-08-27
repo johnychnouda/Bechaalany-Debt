@@ -601,16 +601,50 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     // Get all debts for this customer to show in receipt
     final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
     
+    // Debug: Check what partial payments exist
+
+    
+    // Include ALL partial payments for this customer, not just those linked to existing debts
+    // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
+    final customerPartialPayments = appState.partialPayments.where((p) {
+      // First try to find the debt this payment was made for
+      final linkedDebt = appState.debts.firstWhere(
+        (d) => d.id == p.debtId,
+        orElse: () {
+          return Debt(
+            id: p.debtId,
+            customerId: customerId,
+            customerName: customer.name,
+            amount: 0,
+            description: 'Unknown Product',
+            type: DebtType.credit,
+            status: DebtStatus.pending,
+            createdAt: p.paidAt,
+            subcategoryId: null,
+            subcategoryName: null,
+            originalSellingPrice: null,
+            originalCostPrice: null,
+            categoryName: null,
+            storedCurrency: 'USD',
+          );
+        },
+      );
+      
+      // Include the payment if it's for this customer
+      return linkedDebt.customerId == customerId;
+    }).toList();
+    
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerDebtReceiptScreen(
           customer: customer,
           customerDebts: allCustomerDebts,
-          partialPayments: appState.partialPayments,
+          partialPayments: customerPartialPayments,
           activities: appState.activities,
           specificDebtId: specificDebt.id, // Pass the specific debt ID
         ),
+        fullscreenDialog: true, // This should help with back navigation
       ),
     );
     

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
@@ -20,38 +20,129 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final BackupService _backupService = BackupService();
   List<String> _availableBackups = [];
   bool _isLoading = false;
-  bool _isAutomaticBackupEnabled = true;
+  bool _isAutomaticBackupEnabled = false;
   DateTime? _lastBackupTime;
-
+  String _nextBackupTime = '';
+  
+  // Timer to automatically refresh the countdown every minute
+  Timer? _refreshTimer;
+  
   @override
   void initState() {
     super.initState();
     _loadBackups();
-    _loadBackupSettings();
+    // Delay loading backup settings to ensure backup service is ready
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _loadBackupSettings();
+        _calculateNextBackupTime();
+        _startAutoRefresh();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadBackupSettings() async {
-    final isEnabled = await _backupService.isAutomaticBackupEnabled();
-    final lastAutomaticBackup = await _backupService.getLastAutomaticBackupTime();
-    
-    // Validate backup state - if no backups exist but toggle is ON, fix it
-    if (isEnabled && lastAutomaticBackup == null) {
-      await _backupService.clearInvalidBackupTimestamps();
-      // Reload settings after fixing
-      final correctedIsEnabled = await _backupService.isAutomaticBackupEnabled();
-      final correctedLastBackup = await _backupService.getLastAutomaticBackupTime();
+    try {
+      final isEnabled = await _backupService.isAutomaticBackupEnabled();
       
       setState(() {
-        _isAutomaticBackupEnabled = correctedIsEnabled;
-        _lastBackupTime = correctedLastBackup;
-      });
-    } else {
-      setState(() {
         _isAutomaticBackupEnabled = isEnabled;
-        _lastBackupTime = lastAutomaticBackup;
+      });
+      
+      // If automatic backup is enabled, calculate the next backup time
+      if (isEnabled) {
+        _calculateNextBackupTime();
+      }
+    } catch (e) {
+      // Retry after a short delay if there's an error
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted) {
+          _loadBackupSettings();
+        }
       });
     }
   }
+
+  void _calculateNextBackupTime() {
+    final now = DateTime.now();
+    final tomorrow = now.add(const Duration(days: 1));
+    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+    final timeRemaining = nextBackup.difference(now);
+    
+    final hours = timeRemaining.inHours;
+    final minutes = timeRemaining.inMinutes % 60;
+    final seconds = timeRemaining.inSeconds % 60;
+    
+    final newTimeString = '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
+    
+    // Only update state if the time string has changed
+    if (_nextBackupTime != newTimeString) {
+      setState(() {
+        _nextBackupTime = newTimeString;
+      });
+      
+
+    }
+  }
+
+  // Start automatic refresh timer
+  void _startAutoRefresh() {
+    // Refresh countdown every second for real-time countdown
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted && _isAutomaticBackupEnabled) {
+        _calculateNextBackupTime();
+      }
+    });
+    
+    // Also verify state every 5 seconds to ensure sync
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        _verifyAndSyncBackupState();
+      }
+    });
+  }
+
+  // Verify backup service state and sync with UI
+  Future<void> _verifyAndSyncBackupState() async {
+    try {
+      final serviceState = await _backupService.isAutomaticBackupEnabled();
+      
+      if (serviceState != _isAutomaticBackupEnabled) {
+        setState(() {
+          _isAutomaticBackupEnabled = serviceState;
+        });
+        
+        if (serviceState) {
+          _calculateNextBackupTime();
+          _refreshTimer?.cancel();
+          _startAutoRefresh();
+        } else {
+          _refreshTimer?.cancel();
+        }
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+
+
+
+
+
+
+
 
   Future<void> _loadBackups() async {
     setState(() {
@@ -86,7 +177,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     try {
       await _backupService.createManualBackup();
       await _loadBackups();
-      await _loadBackupSettings();
     } catch (e) {
       // Error notification is handled by backup service
     } finally {
@@ -210,8 +300,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
@@ -242,9 +330,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildBackupSection(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     _buildAutomaticBackupSection(),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     _buildAvailableBackupsSection(),
                   ],
                 ),
@@ -264,7 +352,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
             color: AppColors.dynamicSurface(context),
@@ -275,19 +363,19 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: AppColors.dynamicPrimary(context).withAlpha(26),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Icon(
                     CupertinoIcons.cloud_upload,
                     color: AppColors.dynamicPrimary(context),
-                    size: 18,
+                    size: 16,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -297,19 +385,12 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     children: [
                       Text(
                         'Create Backup',
-                        style: AppTheme.getDynamicTitle2(context).copyWith(
+                        style: AppTheme.getDynamicTitle3(context).copyWith(
                           color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Create a backup of all your data',
-                        style: AppTheme.getDynamicFootnote(context).copyWith(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 14,
-                        ),
-                      ),
+
                     ],
                   ),
                 ),
@@ -318,8 +399,8 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                   padding: EdgeInsets.zero,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+                      horizontal: 18,
+                      vertical: 10,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.dynamicPrimary(context),
@@ -353,7 +434,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(
             color: AppColors.dynamicSurface(context),
@@ -364,21 +445,22 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: AppColors.dynamicPrimary(context).withAlpha(26),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Icon(
                         CupertinoIcons.clock,
                         color: AppColors.dynamicPrimary(context),
-                        size: 18,
+                        size: 16,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -386,43 +468,83 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Daily Backup at 12 AM',
-                            style: AppTheme.getDynamicTitle3(context).copyWith(
-                              color: AppColors.dynamicTextPrimary(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Automatically backup your data daily',
-                            style: AppTheme.getDynamicFootnote(context).copyWith(
-                              color: AppColors.dynamicTextSecondary(context),
-                              fontSize: 14,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Daily Backup at 12 AM',
+                                  style: AppTheme.getDynamicTitle3(context).copyWith(
+                                    color: AppColors.dynamicTextPrimary(context),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
                     ),
                     CupertinoSwitch(
-                      value: _isAutomaticBackupEnabled,
-                      onChanged: (value) async {
-                        await _backupService.setAutomaticBackupEnabled(value);
-                        setState(() {
-                          _isAutomaticBackupEnabled = value;
-                        });
-                      },
-                      activeColor: AppColors.dynamicPrimary(context),
-                    ),
+                          value: _isAutomaticBackupEnabled,
+                          onChanged: (value) async {
+                            await _backupService.setAutomaticBackupEnabled(value);
+                            
+                            setState(() {
+                              _isAutomaticBackupEnabled = value;
+                            });
+                            
+                            // Recalculate next backup time when toggle changes
+                            if (value) {
+                              _calculateNextBackupTime();
+                              // Restart auto-refresh for the new state
+                              _refreshTimer?.cancel();
+                              _startAutoRefresh();
+                            } else {
+                              // Cancel timer when turning off
+                              _refreshTimer?.cancel();
+                            }
+                            
+                            // Verify the state was actually saved
+                            await Future.delayed(const Duration(milliseconds: 100));
+                            await _backupService.isAutomaticBackupEnabled();
+                          },
+                          activeColor: AppColors.dynamicPrimary(context),
+                        ),
                   ],
                 ),
-                if (_lastBackupTime != null) ...[
-                  const SizedBox(height: 16),
+                if (_isAutomaticBackupEnabled) ...[
+                  const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.dynamicBackground(context),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: AppColors.dynamicBorder(context),
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Next backup in: $_nextBackupTime',
+                        style: AppTheme.getDynamicFootnote(context).copyWith(
+                          color: AppColors.dynamicPrimary(context),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_lastBackupTime != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicBackground(context),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                         color: AppColors.dynamicBorder(context),
                         width: 0.5,
@@ -432,7 +554,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                       children: [
                         Icon(
                           CupertinoIcons.time,
-                          size: 16,
+                          size: 14,
                           color: AppColors.dynamicTextSecondary(context),
                         ),
                         const SizedBox(width: 8),
@@ -440,13 +562,16 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                           'Last backup: ${_formatLastBackupTime()}',
                           style: AppTheme.getDynamicFootnote(context).copyWith(
                             color: AppColors.dynamicTextSecondary(context),
-                            fontSize: 14,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     ),
                   ),
-                                ],
+                ],
+
+
+
               ],
             ),
           ),
@@ -529,7 +654,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (_availableBackups.isEmpty)
           Container(
             decoration: BoxDecoration(

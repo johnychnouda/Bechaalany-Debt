@@ -164,19 +164,27 @@ void main() async {
     
     // Initialize automatic daily backup service
     try {
-      _globalBackupService = BackupService();
-      await _globalBackupService!.initializeDailyBackup();
-      
-      // Clean up any existing duplicate backups from today
-      await _globalBackupService!.cleanupDuplicateBackupsFromToday();
-      
-      await _globalBackupService!.forceCleanupTodayBackups();
-      
-      // Specifically remove the problematic 1:33 AM backup if it exists
-      await _globalBackupService!.removeSpecificBackup();
-      
-      // Clear any invalid backup timestamps
-      await _globalBackupService!.clearInvalidBackupTimestamps();
+      // Check if backup service already exists (hot reload case)
+      if (_globalBackupService != null) {
+        // Use safe reinitialization to preserve user settings
+        await _globalBackupService!.safeReinitialize();
+      } else {
+        _globalBackupService = BackupService();
+        await _globalBackupService!.initializeDailyBackup();
+        
+        // Only run cleanup methods on fresh app start
+        
+        // Clean up any existing duplicate backups from today
+        await _globalBackupService!.cleanupDuplicateBackupsFromToday();
+        
+        await _globalBackupService!.forceCleanupTodayBackups();
+        
+        // Specifically remove the problematic 1:33 AM backup if it exists
+        await _globalBackupService!.removeSpecificBackup();
+        
+        // Clear any invalid backup timestamps
+        await _globalBackupService!.clearInvalidBackupTimestamps();
+      }
     } catch (e) {
       // Handle backup service initialization error silently
     }
