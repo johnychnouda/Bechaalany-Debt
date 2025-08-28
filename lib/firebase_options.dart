@@ -50,12 +50,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-    appId: '1:XXXXXXXXXX:web:XXXXXXXXXX',
-    messagingSenderId: 'XXXXXXXXXX',
+    apiKey: 'AIzaSyAr_fbII2W9n31c4cEo0u8YBECO-MhpLRk',
+    appId: '1:1016883344576:web:775a8ccabe9d8a6e80e925',
+    messagingSenderId: '1016883344576',
     projectId: 'bechaalany-debt-app',
     authDomain: 'bechaalany-debt-app.firebaseapp.com',
-    storageBucket: 'bechaalany-debt-app.appspot.com',
+    storageBucket: 'bechaalany-debt-app.firebasestorage.app',
     measurementId: 'G-XXXXXXXXXX',
   );
 
