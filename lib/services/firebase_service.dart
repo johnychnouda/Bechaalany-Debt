@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import '../firebase_options.dart';
 
 class FirebaseService {
@@ -17,17 +18,36 @@ class FirebaseService {
   // Initialize Firebase
   Future<void> initialize() async {
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Use the same config that works in the web test
+      if (kIsWeb) {
+        // For web, use the working configuration
+        await Firebase.initializeApp(
+          options: const FirebaseOptions(
+            apiKey: 'AIzaSyAr_fbII2W9n31c4cEo0u8YBECO-MhpLRk',
+            appId: '1:1016883344576:web:1115dc80bff5535f80e925',
+            messagingSenderId: '1016883344576',
+            projectId: 'bechaalany-debt-app',
+            authDomain: 'bechaalany-debt-app.firebaseapp.com',
+            storageBucket: 'bechaalany-debt-app.firebasestorage.app',
+          ),
+        );
+      } else {
+        // For iOS, use the default options
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
       
       _firestore = FirebaseFirestore.instance;
       _auth = FirebaseAuth.instance;
       _storage = FirebaseStorage.instance;
       
       print('Firebase initialized successfully');
+      print('Firebase project ID: ${_firestore.app.options.projectId}');
+      print('Firebase auth domain: ${_auth.app.options.authDomain}');
     } catch (e) {
       print('Error initializing Firebase: $e');
+      print('Error details: ${e.toString()}');
       rethrow;
     }
   }

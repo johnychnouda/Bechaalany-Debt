@@ -194,15 +194,12 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
       padding: const EdgeInsets.all(12), // Further reduced from 16
       child: Row(
         children: [
+          // Original clean logo design - matching iOS app
           LogoUtils.buildLogo(
             context: context,
-            width: 40, // Further reduced from 48
-            height: 40, // Further reduced from 48
-            placeholder: const Icon(
-              Icons.account_balance_wallet,
-              color: AppColors.primary,
-              size: 40, // Further reduced from 48
-            ),
+            width: 40, // Back to original size
+            height: 40, // Back to original size
+            // Removed placeholder to let actual logo show
           ),
           const SizedBox(width: 8), // Reduced from 12
           Expanded(
