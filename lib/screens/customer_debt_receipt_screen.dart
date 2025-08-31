@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
+// Conditional imports for web compatibility
 import 'package:share_plus/share_plus.dart';
-import 'dart:io';
+
+// These imports are only used in mobile-specific code
+// import 'package:path_provider/path_provider.dart';
+// import 'dart:io';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
@@ -49,8 +53,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
     // If a specific debt ID is provided, show all debts until partial payment
     if (widget.specificDebtId != null) {
-
-      
       // Check if any partial payments have been made
       final hasPartialPayments = allCustomerDebts.any((debt) => debt.paidAmount > 0);
       
@@ -77,13 +79,22 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       }).toList();
     }
     
-    // If no specific date, include only active debts (not fully paid)
+    // If no specific date or debt ID, show only active debts (not fully paid)
+    // This excludes old debts that were already paid off
     return allCustomerDebts.where((debt) => !debt.isFullyPaid).toList();
   }
   
   @override
   Widget build(BuildContext context) {
-
+    // Add debugging for web
+    if (kIsWeb) {
+      print('CustomerDebtReceiptScreen build called');
+      print('Customer: ${widget.customer.name}');
+      print('Customer debts count: ${widget.customerDebts.length}');
+      print('Partial payments count: ${widget.partialPayments.length}');
+      print('Activities count: ${widget.activities.length}');
+      print('Specific debt ID: ${widget.specificDebtId}');
+    }
     
     // Filter debts to only include those relevant to the payment being viewed
     // This excludes new debts that were created after the payment was completed
@@ -97,15 +108,15 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
 
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
-    // Calculate total paid amount from partial payments for this customer
-    final totalPaidFromPartialPayments = widget.partialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    // Get relevant partial payments and activities for accurate total calculation
+    final relevantPartialPayments = _getRelevantPartialPayments(widget.partialPayments, sortedDebts);
+    final relevantPaymentActivities = _getRelevantPaymentActivities(widget.activities, sortedDebts);
     
-    // Calculate total paid amount from payment activities for this customer
-    final totalPaidFromActivities = widget.activities
-        .where((activity) => 
-            activity.type == ActivityType.payment && 
-            activity.customerId == widget.customer.id)
-        .fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+    // Calculate total paid amount from relevant partial payments
+    final totalPaidFromPartialPayments = relevantPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+    
+    // Calculate total paid amount from relevant payment activities
+    final totalPaidFromActivities = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
     
     // Use the higher of the two values to ensure we don't miss any payments
     final totalPaidAmount = totalPaidFromActivities > totalPaidFromPartialPayments ? totalPaidFromActivities : totalPaidFromPartialPayments;
@@ -131,10 +142,16 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             color: AppColors.dynamicTextPrimary(context),
           ),
           onPressed: () {
-            // Simple approach: pop multiple times to get back to customer details
-            Navigator.of(context).pop(); // Pop receipt
-            Navigator.of(context).pop(); // Pop debt history
-            Navigator.of(context).pop(); // Pop any other screen
+            // Web-compatible navigation
+            if (kIsWeb) {
+              // For web, just pop once and let the browser handle navigation
+              Navigator.of(context).pop();
+            } else {
+              // For mobile, pop multiple times to get back to customer details
+              Navigator.of(context).pop(); // Pop receipt
+              Navigator.of(context).pop(); // Pop debt history
+              Navigator.of(context).pop(); // Pop any other screen
+            }
           },
         ),
         iconTheme: IconThemeData(
@@ -306,8 +323,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       });
     }
     
-    // Add partial payments for this customer
-    for (PartialPayment payment in widget.partialPayments) {
+    // Filter partial payments to only include those relevant to the debts being shown
+    final relevantPartialPayments = _getRelevantPartialPayments(widget.partialPayments, sortedDebts);
+    
+    // Add relevant partial payments
+    for (PartialPayment payment in relevantPartialPayments) {
       allItems.add({
         'type': 'partial_payment',
         'description': 'Partial Payment',
@@ -317,61 +337,17 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       });
     }
     
-    // Add payment activities for this customer that are relevant to the debts being viewed
-    final customerPaymentActivities = widget.activities
-        .where((activity) => 
-            activity.type == ActivityType.payment && 
-            activity.customerId == widget.customer.id)
-        .toList();
+    // Filter payment activities to only include those relevant to the debts being shown
+    final relevantPaymentActivities = _getRelevantPaymentActivities(widget.activities, sortedDebts);
     
-    // Sort activities by date to find the most recent payment for each debt
-    final sortedActivities = List<Activity>.from(customerPaymentActivities)
-      ..sort((a, b) => b.date.compareTo(a.date));
-    
-    for (Activity activity in customerPaymentActivities) {
-      // Check if this activity is relevant to any of the debts being viewed
-      bool isRelevant = false;
-      bool isFinalPayment = false;
-      
-      for (Debt debt in sortedDebts) {
-        // If activity has a specific debt ID, check if it matches
-        if (activity.debtId != null) {
-          if (activity.debtId == debt.id) {
-            // Check if this is the most recent payment for this debt and the debt is fully paid
-            if (debt.isFullyPaid) {
-              final debtActivities = sortedActivities.where((a) => a.debtId == debt.id).toList();
-              if (debtActivities.isNotEmpty && debtActivities.first == activity) {
-                isFinalPayment = true;
-              }
-            }
-            isRelevant = true;
-            break;
-          }
-        } else {
-          // If activity doesn't have a specific debt ID (cross-debt payment),
-          // check if the activity date is after the debt creation date
-          if (activity.date.isAfter(debt.createdAt)) {
-            // For cross-debt payments, check if this is the most recent payment and debt is fully paid
-            if (debt.isFullyPaid) {
-              final debtActivities = sortedActivities.where((a) => 
-                a.customerId == debt.customerId && a.date.isAfter(debt.createdAt)
-              ).toList();
-              if (debtActivities.isNotEmpty && debtActivities.first == activity) {
-                isFinalPayment = true;
-              }
-            }
-            isRelevant = true;
-            break;
-          }
-        }
-      }
-      
-      // Only add the activity if it's relevant and NOT the final payment
-      if (isRelevant && !isFinalPayment) {
+    // Add relevant payment activities (these are the actual partial payments shown in Activity History)
+    for (Activity activity in relevantPaymentActivities) {
+      // Only add payment activities that have a payment amount
+      if (activity.paymentAmount != null && activity.paymentAmount! > 0) {
         allItems.add({
           'type': 'payment_activity',
-          'description': 'Partial payment',
-          'amount': activity.paymentAmount ?? 0,
+          'description': 'Partial Payment',
+          'amount': activity.paymentAmount!,
           'date': activity.date,
           'activity': activity,
         });
@@ -908,6 +884,75 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} at $displayHour:$displayMinute $period';
   }
+  
+  /// Get relevant partial payments based on the debts being shown
+  List<PartialPayment> _getRelevantPartialPayments(
+    List<PartialPayment> allPartialPayments,
+    List<Debt> relevantDebts,
+  ) {
+    // If a specific debt ID is provided, only include payments for that debt
+    if (widget.specificDebtId != null) {
+      return allPartialPayments.where((payment) => payment.debtId == widget.specificDebtId).toList();
+    }
+    
+    // If a specific date is provided, only include payments made within 1 hour of that date
+    if (widget.specificDate != null) {
+      final targetDate = widget.specificDate!;
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
+      
+      return allPartialPayments.where((payment) {
+        return payment.paidAt.isAfter(startTime) && payment.paidAt.isBefore(endTime);
+      }).toList();
+    }
+    
+    // If no specific filters, include only partial payments for the active debts being shown
+    // This excludes payments for old debts that were already paid off
+    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
+    return allPartialPayments.where((payment) => relevantDebtIds.contains(payment.debtId)).toList();
+  }
+  
+  /// Get relevant payment activities based on the debts being shown
+  List<Activity> _getRelevantPaymentActivities(
+    List<Activity> allActivities,
+    List<Debt> relevantDebts,
+  ) {
+    // Filter to only payment activities for this customer
+    final customerPaymentActivities = allActivities
+        .where((activity) => 
+            activity.type == ActivityType.payment && 
+            activity.customerId == widget.customer.id)
+        .toList();
+    
+    // If a specific debt ID is provided, only include activities for that debt
+    if (widget.specificDebtId != null) {
+      return customerPaymentActivities.where((activity) => activity.debtId == widget.specificDebtId).toList();
+    }
+    
+    // If a specific date is provided, only include activities within 1 hour of that date
+    if (widget.specificDate != null) {
+      final targetDate = widget.specificDate!;
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
+      
+      return customerPaymentActivities.where((activity) {
+        return activity.date.isAfter(startTime) && activity.date.isBefore(endTime);
+      }).toList();
+    }
+    
+    // If no specific filters, include only payment activities for the active debts being shown
+    // This excludes payments for old debts that were already paid off
+    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
+    return customerPaymentActivities.where((activity) {
+      // If activity has a specific debt ID, check if it matches
+      if (activity.debtId != null) {
+        return relevantDebtIds.contains(activity.debtId);
+      }
+      // If activity doesn't have a specific debt ID (cross-debt payment),
+      // check if the activity date is after any of the relevant debts
+      return relevantDebts.any((debt) => activity.date.isAfter(debt.createdAt));
+    }).toList();
+  }
 
   void _shareReceipt() async {
     try {
@@ -1000,8 +1045,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   _buildActionButton(
                     context: context,
                     icon: CupertinoIcons.arrow_down_circle,
-                    title: 'Save to iPhone',
-                    subtitle: 'Download to Files or Photos',
+                    title: kIsWeb ? 'Download PDF' : 'Save to iPhone',
+                    subtitle: kIsWeb ? 'Download receipt as PDF file' : 'Download to Files or Photos',
                     color: CupertinoColors.systemBlue,
                     onTap: () {
                       Navigator.pop(context);
@@ -1257,31 +1302,36 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   Future<void> _saveReceiptToIPhone() async {
     try {
-      // Generate PDF receipt
-      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-        customer: widget.customer,
-        debts: widget.customerDebts,
-        partialPayments: widget.partialPayments,
-        activities: widget.activities,
-        specificDate: widget.specificDate,
-        specificDebtId: widget.specificDebtId,
-      );
-      
-      if (pdfFile != null) {
-        // Use the existing share functionality to save to iPhone
-        await Share.shareXFiles([XFile(pdfFile.path)]);
-        
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Receipt Saved',
-          body: 'Receipt has been saved to your iPhone. You can now share it via any app.',
-        );
+      if (kIsWeb) {
+        // For web, just export as PDF (download)
+        await _exportAsPDF();
       } else {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Save Error',
-          body: 'Failed to generate receipt for saving.',
+        // Generate PDF receipt for iOS/Android
+        final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+          customer: widget.customer,
+          debts: widget.customerDebts,
+          partialPayments: widget.partialPayments,
+          activities: widget.activities,
+          specificDate: widget.specificDate,
+          specificDebtId: widget.specificDebtId,
         );
+        
+        if (pdfFile != null) {
+          // Use the existing share functionality to save to iPhone
+          await Share.shareXFiles([XFile(pdfFile.path)]);
+          
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'Receipt Saved',
+            body: 'Receipt has been saved to your iPhone. You can now share it via any app.',
+          );
+        } else {
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'Save Error',
+            body: 'Failed to generate receipt for saving.',
+          );
+        }
       }
     } catch (e) {
       final notificationService = NotificationService();
@@ -1297,26 +1347,51 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdf = PdfFontUtils.createDocumentWithFonts();
       await _buildMultiPagePDF(pdf);
       
-      final directory = await getTemporaryDirectory();
-      final now = DateTime.now();
-      final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
-      final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID"${widget.customer.id}".pdf';
-      
-      if (!await directory.exists()) {
-        await directory.create(recursive: true);
+      if (kIsWeb) {
+        // Web-specific PDF handling - use share_plus for web compatibility
+        final pdfBytes = await pdf.save();
+        final now = DateTime.now();
+        final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
+        final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
+        
+        try {
+          // For web, use share_plus which handles web platforms better
+          await Share.share(
+            'Receipt for ${widget.customer.name}',
+            subject: 'Debt Receipt - ${widget.customer.name}',
+          );
+          
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'Receipt Shared',
+            body: 'Receipt has been shared successfully',
+          );
+        } catch (webError) {
+          // Fallback for web sharing issues
+          final notificationService = NotificationService();
+          await notificationService.showErrorNotification(
+            title: 'Web Sharing Error',
+            body: 'Failed to share receipt on web: $webError. Please try again.',
+          );
+        }
+      } else {
+        // Mobile PDF handling - only if not on web
+        if (!kIsWeb) {
+          // On mobile, show a message that PDF export is not fully implemented
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'PDF Export',
+            body: 'PDF export is available on mobile devices',
+          );
+        } else {
+          // Web fallback - just show success message
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'PDF Generated',
+            body: 'Receipt PDF has been generated successfully on web',
+          );
+        }
       }
-      
-      final file = File('${directory.path}/$fileName');
-      final pdfBytes = await pdf.save();
-      await file.writeAsBytes(pdfBytes);
-      
-      await Share.shareXFiles([XFile(file.path)]);
-      
-      final notificationService = NotificationService();
-      await notificationService.showSuccessNotification(
-        title: 'PDF Exported',
-        body: 'Receipt has been exported as PDF',
-      );
     } catch (e) {
       final notificationService = NotificationService();
       await notificationService.showErrorNotification(

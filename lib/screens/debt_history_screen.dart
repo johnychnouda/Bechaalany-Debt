@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/debt.dart';
@@ -594,63 +595,211 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     );
   }
 
-  void _viewCustomerDetails(String customerId, Debt specificDebt) async {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final customer = appState.customers.firstWhere((c) => c.id == customerId);
-    
-    // Get all debts for this customer to show in receipt
-    final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
-    
-    // Debug: Check what partial payments exist
-
-    
-    // Include ALL partial payments for this customer, not just those linked to existing debts
-    // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
-    final customerPartialPayments = appState.partialPayments.where((p) {
-      // First try to find the debt this payment was made for
-      final linkedDebt = appState.debts.firstWhere(
-        (d) => d.id == p.debtId,
-        orElse: () {
-          return Debt(
-            id: p.debtId,
-            customerId: customerId,
-            customerName: customer.name,
-            amount: 0,
-            description: 'Unknown Product',
-            type: DebtType.credit,
-            status: DebtStatus.pending,
-            createdAt: p.paidAt,
-            subcategoryId: null,
-            subcategoryName: null,
-            originalSellingPrice: null,
-            originalCostPrice: null,
-            categoryName: null,
-            storedCurrency: 'USD',
-          );
-        },
+  // Simple direct function for web testing
+  void _openReceiptDirectly(String customerId, Debt specificDebt) async {
+    try {
+      print('=== _openReceiptDirectly called ===');
+      print('Customer ID: $customerId');
+      print('Debt ID: ${specificDebt.id}');
+      
+      // First, just try to show a simple message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Attempting to open receipt for customer: $customerId'),
+          backgroundColor: Colors.blue,
+          duration: Duration(seconds: 3),
+        ),
       );
       
-      // Include the payment if it's for this customer
-      return linkedDebt.customerId == customerId;
-    }).toList();
-    
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CustomerDebtReceiptScreen(
-          customer: customer,
-          customerDebts: allCustomerDebts,
-          partialPayments: customerPartialPayments,
-          activities: appState.activities,
-          specificDebtId: specificDebt.id, // Pass the specific debt ID
+      // Wait a moment
+      await Future.delayed(Duration(milliseconds: 1000));
+      
+      // Now try to get the app state
+      print('Getting app state...');
+      final appState = Provider.of<AppState>(context, listen: false);
+      print('App state obtained successfully');
+      
+      // Try to find customer
+      print('Looking for customer...');
+      final customer = appState.customers.firstWhere((c) => c.id == customerId);
+      print('Customer found: ${customer.name}');
+      
+      // Get basic data
+      final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+      final customerPartialPayments = appState.partialPayments.where((p) => p.debtId == specificDebt.id).toList();
+      
+      print('Customer debts count: ${allCustomerDebts.length}');
+      print('Partial payments count: ${customerPartialPayments.length}');
+      print('Activities count: ${appState.activities.length}');
+      
+      // Show success message for data retrieval
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Data retrieved successfully! Now attempting navigation...'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
         ),
-        fullscreenDialog: true, // This should help with back navigation
-      ),
-    );
-    
-    // Force refresh of debt history when returning from receipt
-    if (mounted) {
-      _filterDebts();
+      );
+      
+      // Wait a moment
+      await Future.delayed(Duration(milliseconds: 1000));
+      
+      print('Attempting to navigate to receipt screen...');
+      
+      // Try to open the receipt screen with minimal navigation
+      final result = await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => CustomerDebtReceiptScreen(
+            customer: customer,
+            customerDebts: allCustomerDebts,
+            partialPayments: customerPartialPayments,
+            activities: appState.activities,
+            specificDebtId: specificDebt.id,
+          ),
+        ),
+      );
+      
+      print('Navigation successful! Result: $result');
+      
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Receipt opened successfully!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 5),
+        ),
+      );
+      
+    } catch (e) {
+      print('=== ERROR in _openReceiptDirectly ===');
+      print('Error details: $e');
+      print('Error type: ${e.runtimeType}');
+      print('Stack trace: ${StackTrace.current}');
+      
+      // Show detailed error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open receipt: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 10),
+        ),
+      );
+    }
+  }
+
+  void _viewCustomerDetails(String customerId, Debt specificDebt) async {
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      final customer = appState.customers.firstWhere((c) => c.id == customerId);
+      
+      // Get all debts for this customer to show in receipt
+      final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+      
+      // Include ALL partial payments for this customer, not just those linked to existing debts
+      // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
+      final customerPartialPayments = appState.partialPayments.where((p) {
+        // First try to find the debt this payment was made for
+        final linkedDebt = appState.debts.firstWhere(
+          (d) => d.id == p.debtId,
+          orElse: () {
+            return Debt(
+              id: p.debtId,
+              customerId: customerId,
+              customerName: customer.name,
+              amount: 0,
+              description: 'Unknown Product',
+              type: DebtType.credit,
+              status: DebtStatus.pending,
+              createdAt: p.paidAt,
+              subcategoryId: null,
+              subcategoryName: null,
+              originalSellingPrice: null,
+              originalCostPrice: null,
+              categoryName: null,
+              storedCurrency: 'USD',
+            );
+          },
+        );
+        
+        // Include the payment if it's for this customer
+        return linkedDebt.customerId == customerId;
+      }).toList();
+      
+      // Test with a simple dialog first to see if navigation works
+      if (kIsWeb) {
+        // For web, show a simple dialog first to test navigation
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Test Navigation'),
+              content: Text('Navigation is working. Now trying to open receipt...'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+        
+        // Wait a bit then try to open the receipt
+        await Future.delayed(Duration(milliseconds: 500));
+      }
+      
+      // Try to open the receipt screen
+      try {
+        final result = await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => CustomerDebtReceiptScreen(
+              customer: customer,
+              customerDebts: allCustomerDebts,
+              partialPayments: customerPartialPayments,
+              activities: appState.activities,
+              specificDebtId: specificDebt.id,
+            ),
+            fullscreenDialog: false,
+          ),
+        );
+        
+        if (kIsWeb) {
+          // Show success message for web
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Receipt opened successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        // Show detailed error for debugging
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Navigation Error',
+          body: 'Failed to open receipt: $e\n\nCustomer: ${customer.name}\nDebt ID: ${specificDebt.id}',
+        );
+        
+        // Also show in console for debugging
+        print('Navigation error: $e');
+        print('Customer: ${customer.name}');
+        print('Debt ID: ${specificDebt.id}');
+        print('Customer debts count: ${allCustomerDebts.length}');
+        print('Partial payments count: ${customerPartialPayments.length}');
+        print('Activities count: ${appState.activities.length}');
+      }
+      
+      // Force refresh of debt history when returning from receipt
+      if (mounted) {
+        _filterDebts();
+      }
+    } catch (e) {
+      // Show error notification if navigation fails
+      final notificationService = NotificationService();
+      await notificationService.showErrorNotification(
+        title: 'Navigation Error',
+        body: 'Failed to open receipt: $e',
+      );
     }
   }
 
@@ -876,7 +1025,36 @@ class _GroupedDebtCard extends StatelessWidget {
                 ],
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => onViewCustomer((group['debts'] as List<Debt>).first),
+                    onPressed: () {
+                      // Super simple test - just show a basic dialog
+                      print('=== View Receipt button clicked! ===');
+                      print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
+                      
+                      // Show a simple test dialog first
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text('Test Dialog'),
+                            content: Text('Button click is working! Platform: ${kIsWeb ? "Web" : "Mobile"}'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text('Close'),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                  // Now try to open receipt
+                                  _openReceiptDirectly(group['customerId'] as String, (group['debts'] as List<Debt>).first);
+                                },
+                                child: Text('Try Receipt'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                     icon: const Icon(Icons.receipt_long, size: 16),
                     label: const Text('View Receipt'),
                     style: OutlinedButton.styleFrom(

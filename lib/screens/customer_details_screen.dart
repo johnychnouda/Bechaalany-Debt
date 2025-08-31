@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../constants/app_theme.dart';
@@ -16,6 +17,7 @@ import '../services/receipt_sharing_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
 import 'add_debt_from_product_screen.dart';
 import 'add_customer_screen.dart';
+import 'customer_debt_receipt_screen.dart';
 import '../constants/app_colors.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
@@ -418,6 +420,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   // Show PDF receipt popup for viewing and printing
   Future<void> _showPDFReceiptPopup(BuildContext context, AppState appState) async {
     try {
+      print('=== _showPDFReceiptPopup called ===');
+      print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
+      
       // Get customer data
       final customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
       
@@ -426,6 +431,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final customerPartialPayments = _getCustomerPartialPayments(appState);
       
       final customerActivities = appState.activities.where((a) => a.customerId == _currentCustomer.id).toList();
+      
+      print('Customer debts count: ${customerDebts.length}');
+      print('Partial payments count: ${customerPartialPayments.length}');
+      print('Activities count: ${customerActivities.length}');
       
       // Check if customer has pending debts OR has made any payments
       final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
@@ -442,42 +451,69 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         return;
       }
       
-      // Generate PDF receipt
-      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-        customer: _currentCustomer,
-        debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        partialPayments: customerPartialPayments,
-        activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
-        specificDate: null, // No specific date filter
-        specificDebtId: null, // No specific debt filter
-      );
-      
-      if (pdfFile != null) {
+      if (kIsWeb) {
+        // Web-specific handling - navigate directly to receipt screen
+        print('Web platform detected, navigating to receipt screen...');
+        
         if (mounted) {
           Navigator.of(context).push(
-            CupertinoPageRoute(
-              fullscreenDialog: true,
-              builder: (BuildContext context) => PDFViewerPopup(
-                pdfFile: pdfFile,
-                customerName: _currentCustomer.name,
-                customer: _currentCustomer, // Pass customer information
-                onClose: () {
-                  Navigator.of(context).pop();
-                },
+            MaterialPageRoute(
+              builder: (context) => CustomerDebtReceiptScreen(
+                customer: _currentCustomer,
+                customerDebts: customerDebts,
+                partialPayments: customerPartialPayments,
+                activities: customerActivities,
+                specificDate: null,
+                specificDebtId: null,
               ),
             ),
           );
         }
       } else {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'PDF Generation Error',
-            body: 'Failed to generate receipt PDF. Please try again.',
-          );
+        // Mobile-specific handling - use PDF viewer popup
+        print('Mobile platform detected, using PDF viewer...');
+        
+        // Generate PDF receipt
+        final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+          customer: _currentCustomer,
+          debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+          partialPayments: customerPartialPayments,
+          activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+          specificDate: null, // No specific date filter
+          specificDebtId: null, // No specific debt filter
+        );
+        
+        if (pdfFile != null) {
+          if (mounted) {
+            Navigator.of(context).push(
+              CupertinoPageRoute(
+                fullscreenDialog: true,
+                builder: (BuildContext context) => PDFViewerPopup(
+                  pdfFile: pdfFile,
+                  customerName: _currentCustomer.name,
+                  customer: _currentCustomer, // Pass customer information
+                  onClose: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            final notificationService = NotificationService();
+            await notificationService.showErrorNotification(
+              title: 'PDF Generation Error',
+              body: 'Failed to generate receipt PDF. Please try again.',
+            );
+          }
         }
       }
     } catch (e) {
+      print('=== ERROR in _showPDFReceiptPopup ===');
+      print('Error details: $e');
+      print('Error type: ${e.runtimeType}');
+      
       if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(

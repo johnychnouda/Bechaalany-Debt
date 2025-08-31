@@ -147,7 +147,8 @@ class ReceiptSharingService {
   }) async {
     try {
       // Filter debts to only include those relevant to the payment being viewed
-      final sortedDebts = List<Debt>.from(debts);
+      final relevantDebts = _getRelevantDebts(debts, partialPayments, activities, customer, specificDate, specificDebtId);
+      final sortedDebts = List<Debt>.from(relevantDebts);
       sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
       // Check if customer has pending debts
@@ -170,35 +171,49 @@ class ReceiptSharingService {
         });
       }
       
-      // Add payment activities for this customer
-      final customerPaymentActivities = activities
-          .where((activity) => 
-              activity.type == ActivityType.payment && 
-              activity.customerId == customer.id)
-          .toList();
+      // Filter partial payments to only include those relevant to the debts being shown
+      final relevantPartialPayments = _getRelevantPartialPayments(partialPayments, sortedDebts, specificDate, specificDebtId);
       
-      for (Activity activity in customerPaymentActivities) {
+      // Add relevant partial payments
+      for (PartialPayment payment in relevantPartialPayments) {
         allItems.add({
-          'type': 'payment_activity',
+          'type': 'partial_payment',
           'description': 'Partial Payment',
-          'amount': activity.paymentAmount ?? 0,
-          'date': activity.date,
-          'activity': activity,
+          'amount': payment.amount,
+          'date': payment.paidAt,
+          'payment': payment,
         });
+      }
+      
+      // Filter payment activities to only include those relevant to the debts being shown
+      final relevantPaymentActivities = _getRelevantPaymentActivities(activities, sortedDebts, customer, specificDate, specificDebtId);
+      
+      // Add relevant payment activities (these are the actual partial payments shown in Activity History)
+      for (Activity activity in relevantPaymentActivities) {
+        // Only add payment activities that have a payment amount
+        if (activity.paymentAmount != null && activity.paymentAmount! > 0) {
+          allItems.add({
+            'type': 'payment_activity',
+            'description': 'Partial Payment',
+            'amount': activity.paymentAmount!,
+            'date': activity.date,
+            'activity': activity,
+          });
+        }
       }
       
       allItems.sort((a, b) => b['date'].compareTo(a['date']));
       
-      // Calculate total paid amount from ALL partial payments
-      double totalPaidFromPartialPayments = partialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
+      // Calculate total paid amount from relevant partial payments
+      double totalPaidFromPartialPayments = relevantPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
       
-      // Calculate total paid amount from ALL payment activities
-      double totalPaidFromActivities = customerPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
+      // Calculate total paid amount from relevant payment activities
+      double totalPaidFromActivities = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
       
       // Use the higher of the two values to ensure we don't miss any payments
       double totalPaidAmount = totalPaidFromActivities > totalPaidFromPartialPayments ? totalPaidFromActivities : totalPaidFromPartialPayments;
       
-      // Calculate total original amount from ALL debts
+      // Calculate total original amount from relevant debts
       double totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
       
       final sanitizedCustomerName = PdfFontUtils.sanitizeText(customer.name);
@@ -665,5 +680,121 @@ This is an automated receipt. Please contact us for any account-related inquirie
     final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
     
     return '${dateTime.day.toString().padLeft(2, '0')}/${dateTime.month.toString().padLeft(2, '0')}/${dateTime.year} at ${displayHour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}:${second.toString().padLeft(2, '0')} $period';
+  }
+  
+  /// Get relevant debts based on payment context
+  static List<Debt> _getRelevantDebts(
+    List<Debt> allCustomerDebts,
+    List<PartialPayment> partialPayments,
+    List<Activity> activities,
+    Customer customer,
+    DateTime? specificDate,
+    String? specificDebtId,
+  ) {
+    // If a specific debt ID is provided, show all debts until partial payment
+    if (specificDebtId != null) {
+      // Check if any partial payments have been made
+      final hasPartialPayments = allCustomerDebts.any((debt) => debt.paidAmount > 0);
+      
+      if (hasPartialPayments) {
+        // If partial payments exist, show only the specific debt
+        return allCustomerDebts.where((debt) {
+          return debt.id == specificDebtId;
+        }).toList();
+      } else {
+        // If no partial payments, show all debts (accumulate all new debts)
+        return allCustomerDebts.where((debt) => debt.paidAmount == 0).toList();
+      }
+    }
+    
+    // If a specific date is provided, filter debts to only include those relevant to that date
+    if (specificDate != null) {
+      final targetDate = specificDate;
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
+      
+      return allCustomerDebts.where((debt) {
+        // Include debts created within 1 hour of the specific debt time
+        return debt.createdAt.isAfter(startTime) && debt.createdAt.isBefore(endTime);
+      }).toList();
+    }
+    
+    // If no specific date or debt ID, show only active debts (not fully paid)
+    // This excludes old debts that were already paid off
+    return allCustomerDebts.where((debt) => !debt.isFullyPaid).toList();
+  }
+  
+  /// Get relevant partial payments based on the debts being shown
+  static List<PartialPayment> _getRelevantPartialPayments(
+    List<PartialPayment> allPartialPayments,
+    List<Debt> relevantDebts,
+    DateTime? specificDate,
+    String? specificDebtId,
+  ) {
+    // If a specific debt ID is provided, only include payments for that debt
+    if (specificDebtId != null) {
+      return allPartialPayments.where((payment) => payment.debtId == specificDebtId).toList();
+    }
+    
+    // If a specific date is provided, only include payments made within 1 hour of that date
+    if (specificDate != null) {
+      final targetDate = specificDate;
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
+      
+      return allPartialPayments.where((payment) {
+        return payment.paidAt.isAfter(startTime) && payment.paidAt.isBefore(endTime);
+      }).toList();
+    }
+    
+    // If no specific filters, include only partial payments for the active debts being shown
+    // This excludes payments for old debts that were already paid off
+    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
+    return allPartialPayments.where((payment) => relevantDebtIds.contains(payment.debtId)).toList();
+  }
+  
+  /// Get relevant payment activities based on the debts being shown
+  static List<Activity> _getRelevantPaymentActivities(
+    List<Activity> allActivities,
+    List<Debt> relevantDebts,
+    Customer customer,
+    DateTime? specificDate,
+    String? specificDebtId,
+  ) {
+    // Filter to only payment activities for this customer
+    final customerPaymentActivities = allActivities
+        .where((activity) => 
+            activity.type == ActivityType.payment && 
+            activity.customerId == customer.id)
+        .toList();
+    
+    // If a specific debt ID is provided, only include activities for that debt
+    if (specificDebtId != null) {
+      return customerPaymentActivities.where((activity) => activity.debtId == specificDebtId).toList();
+    }
+    
+    // If a specific date is provided, only include activities within 1 hour of that date
+    if (specificDate != null) {
+      final targetDate = specificDate;
+      final startTime = targetDate.subtract(const Duration(hours: 1));
+      final endTime = targetDate.add(const Duration(hours: 1));
+      
+      return customerPaymentActivities.where((activity) {
+        return activity.date.isAfter(startTime) && activity.date.isBefore(endTime);
+      }).toList();
+    }
+    
+    // If no specific filters, include only payment activities for the active debts being shown
+    // This excludes payments for old debts that were already paid off
+    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
+    return customerPaymentActivities.where((activity) {
+      // If activity has a specific debt ID, check if it matches
+      if (activity.debtId != null) {
+        return relevantDebtIds.contains(activity.debtId);
+      }
+      // If activity doesn't have a specific debt ID (cross-debt payment),
+      // check if the activity date is after any of the relevant debts
+      return relevantDebts.any((debt) => activity.date.isAfter(debt.createdAt));
+    }).toList();
   }
 }
