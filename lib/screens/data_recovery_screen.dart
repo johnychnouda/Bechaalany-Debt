@@ -150,12 +150,16 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
+      print('📱 Loading available backups...');
       final backups = await _dataService.getAvailableBackups();
+      print('📱 Found ${backups.length} backups: $backups');
+      
       setState(() {
         _availableBackups = backups;
         _isLoading = false;
       });
     } catch (e) {
+      print('❌ Error loading backups: $e');
       setState(() {
         _isLoading = false;
       });
@@ -175,9 +179,12 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
+      print('📱 User requested manual backup creation');
       await _backupService.createManualBackup();
+      print('📱 Manual backup completed, reloading backups...');
       await _loadBackups();
     } catch (e) {
+      print('❌ Manual backup failed: $e');
       // Error notification is handled by backup service
     } finally {
       setState(() {

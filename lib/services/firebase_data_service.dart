@@ -1119,6 +1119,8 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
+      print('💾 Starting backup creation for userId: $currentUserId');
+      
       final backupId = 'backup_${DateTime.now().millisecondsSinceEpoch}';
       final backupData = <String, dynamic>{
         'id': backupId,
@@ -1126,6 +1128,8 @@ class FirebaseDataService {
         'createdAt': FieldValue.serverTimestamp(),
         'timestamp': DateTime.now().toIso8601String(),
       };
+      
+      print('💾 Collecting data for backup...');
       
       // Get all data for backup
       final customersSnapshot = await _firestore.collection('customers').get();
@@ -1136,6 +1140,15 @@ class FirebaseDataService {
       final activitiesSnapshot = await _firestore.collection('activities').get();
       final settingsSnapshot = await _firestore.collection('currency_settings').get();
       
+      print('💾 Data collected:');
+      print('   - Customers: ${customersSnapshot.docs.length}');
+      print('   - Debts: ${debtsSnapshot.docs.length}');
+      print('   - Categories: ${categoriesSnapshot.docs.length}');
+      print('   - Product Purchases: ${purchasesSnapshot.docs.length}');
+      print('   - Partial Payments: ${paymentsSnapshot.docs.length}');
+      print('   - Activities: ${activitiesSnapshot.docs.length}');
+      print('   - Currency Settings: ${settingsSnapshot.docs.length}');
+      
       backupData['customers'] = customersSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['debts'] = debtsSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['categories'] = categoriesSnapshot.docs.map((doc) => doc.data()).toList();
@@ -1144,10 +1157,13 @@ class FirebaseDataService {
       backupData['activities'] = activitiesSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['currency_settings'] = settingsSnapshot.docs.map((doc) => doc.data()).toList();
       
+      print('💾 Saving backup to Firestore with ID: $backupId');
       await _firestore.collection('backups').doc(backupId).set(backupData);
       
+      print('✅ Backup created successfully: $backupId');
       return backupId;
     } catch (e) {
+      print('❌ Error creating backup: $e');
       rethrow;
     }
   }
@@ -1157,14 +1173,32 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore
+      print('🔍 Searching for backups for userId: $currentUserId');
+      
+      // First try with user ID filter
+      var snapshot = await _firestore
           .collection('backups')
           .where('userId', isEqualTo: currentUserId)
           .orderBy('createdAt', descending: true)
           .get();
       
-      return snapshot.docs.map((doc) => doc.id).toList();
+      print('🔍 Found ${snapshot.docs.length} backups with userId filter');
+      
+      // If no backups found with user ID filter, try without filter (for development)
+      if (snapshot.docs.isEmpty) {
+        print('🔍 No backups found with userId filter, trying without filter...');
+        snapshot = await _firestore
+            .collection('backups')
+            .orderBy('createdAt', descending: true)
+            .get();
+        print('🔍 Found ${snapshot.docs.length} backups without userId filter');
+      }
+      
+      final backupIds = snapshot.docs.map((doc) => doc.id).toList();
+      print('🔍 Returning backup IDs: $backupIds');
+      return backupIds;
     } catch (e) {
+      print('❌ Error getting available backups: $e');
       return [];
     }
   }

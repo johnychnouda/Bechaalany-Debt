@@ -8,6 +8,7 @@ import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
+import 'services/backup_service.dart';
 
 // Global service instances
 NotificationService? _globalNotificationService;
@@ -61,7 +62,12 @@ void main() async {
     }
     
     // Initialize automatic daily backup service
-
+    try {
+      final backupService = BackupService();
+      await backupService.initializeDailyBackup();
+    } catch (e) {
+      // Handle backup service initialization error silently
+    }
     
     runApp(const BechaalanyDebtApp());
 }
@@ -96,6 +102,14 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
         if (_globalNotificationService != null) {
           // Re-request notification permissions if needed
           _globalNotificationService!.reRequestPermissions();
+        }
+        
+        // Reinitialize backup service
+        try {
+          final backupService = BackupService();
+          await backupService.handleAppLifecycleChange();
+        } catch (e) {
+          // Handle backup service reinitialization error silently
         }
         break;
       case AppLifecycleState.paused:

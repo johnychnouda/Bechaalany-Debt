@@ -14,18 +14,23 @@ class BackupService {
 
   // Initialize automatic daily backup
   Future<void> initializeDailyBackup() async {
+    print('🚀 Initializing daily backup service...');
+    
     // Cancel any existing timer
     _dailyBackupTimer?.cancel();
     
     // Check if automatic backup is enabled
     final isEnabled = await isAutomaticBackupEnabled();
+    print('🚀 Automatic backup enabled: $isEnabled');
     
     if (!isEnabled) {
+      print('🚀 Automatic backup is disabled, skipping initialization');
       return;
     }
     
     // Schedule daily backup at 12 AM
     _scheduleDailyBackup();
+    print('🚀 Daily backup service initialized successfully');
   }
 
   // Handle app lifecycle changes
@@ -59,9 +64,11 @@ class BackupService {
     
     final delay = nextBackup.difference(now);
     
-
+    print('⏰ Scheduling daily backup for: ${nextBackup.toString()}');
+    print('⏰ Delay: ${delay.inHours}h ${delay.inMinutes % 60}m ${delay.inSeconds % 60}s');
     
     _dailyBackupTimer = Timer(delay, () {
+      print('⏰ Daily backup timer triggered');
       _performDailyBackup();
       // Schedule the next backup after this one completes
       _scheduleDailyBackup();
@@ -70,6 +77,8 @@ class BackupService {
 
   Future<void> _performDailyBackup() async {
     try {
+      print('🔄 Starting daily backup process...');
+      
       // Check if we already have a backup today to prevent duplicates
       final lastBackup = await getLastAutomaticBackupTime();
       if (lastBackup != null) {
@@ -78,15 +87,19 @@ class BackupService {
         final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
         
         if (lastBackupDate == today) {
+          print('🔄 Backup already performed today, skipping...');
           return;
         }
       }
       
+      print('🔄 Creating automatic backup...');
       // Create backup
-      await _dataService.createBackup();
+      final backupId = await _dataService.createBackup();
       
       // Update last automatic backup time
       await setLastAutomaticBackupTime(DateTime.now());
+      
+      print('✅ Daily backup completed successfully: $backupId');
       
       // Show notification
       await _notificationService.showSuccessNotification(
@@ -95,6 +108,7 @@ class BackupService {
       );
       
     } catch (e) {
+      print('❌ Daily backup failed: $e');
       // Show error notification
       await _notificationService.showErrorNotification(
         title: 'Backup Failed',
@@ -242,11 +256,14 @@ class BackupService {
   // Manual backup with notification
   Future<void> createManualBackup() async {
     try {
-      await _dataService.createBackup();
+      print('📱 Creating manual backup...');
+      final backupId = await _dataService.createBackup();
       await setLastBackupTime(DateTime.now());
       
+      print('✅ Manual backup created successfully: $backupId');
       await _notificationService.showBackupCreatedNotification();
     } catch (e) {
+      print('❌ Manual backup failed: $e');
       await _notificationService.showBackupFailedNotification(e.toString());
       rethrow;
     }
