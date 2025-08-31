@@ -138,9 +138,9 @@ class FirebaseDataService {
         .set(settingsData, SetOptions(merge: true));
   }
 
-  // ===== GENERIC METHODS FOR TESTING =====
+  // ===== DATA MIGRATION METHODS =====
   
-  // Generic add/update method for testing
+  // Generic add/update method
   Future<void> addOrUpdate(String collectionName, dynamic item) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
@@ -177,7 +177,7 @@ class FirebaseDataService {
     }
   }
 
-  // Generic get stream method for testing
+  // Generic get stream method
   Stream<List<Map<String, dynamic>>> getStream(String collectionName) {
     if (!isAuthenticated) return Stream.value([]);
     
@@ -190,15 +190,12 @@ class FirebaseDataService {
             .toList());
   }
 
-  // Generic delete method for testing
+  // Generic delete method
   Future<void> delete(String collectionName, String documentId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     await _firestore.collection(collectionName).doc(documentId).delete();
   }
-
-  // ===== DATA MIGRATION METHODS =====
-  
 
   Future<void> migrateAllDataToFirebase() async {
     if (!isAuthenticated) throw Exception('User not authenticated');
@@ -210,46 +207,6 @@ class FirebaseDataService {
     } catch (e) {
       print('Firebase migration failed: $e');
       rethrow;
-    }
-  }
-
-  // Test Firebase connection
-  Future<bool> testConnection() async {
-    try {
-      await _firestore.collection('test').doc('connection').get();
-      return true;
-    } catch (e) {
-      print('Firebase connection test failed: $e');
-      return false;
-    }
-  }
-
-  // Test Firestore write
-  Future<bool> testWrite() async {
-    try {
-      await _firestore.collection('test').doc('write_test').set({
-        'timestamp': FieldValue.serverTimestamp(),
-        'message': 'Firebase is working!',
-        'platform': 'web',
-      });
-      return true;
-    } catch (e) {
-      print('Firestore write test failed: $e');
-      return false;
-    }
-  }
-
-  // Test Firestore read
-  Future<Map<String, dynamic>?> testRead() async {
-    try {
-      final doc = await _firestore.collection('test').doc('write_test').get();
-      if (doc.exists) {
-        return doc.data();
-      }
-      return null;
-    } catch (e) {
-      print('Firestore read test failed: $e');
-      return null;
     }
   }
 }

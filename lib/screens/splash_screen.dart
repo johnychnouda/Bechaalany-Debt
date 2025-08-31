@@ -3,8 +3,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../utils/logo_utils.dart';
 import 'main_screen.dart';
-import '../services/firebase_test.dart';
-import '../services/firebase_debug.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -210,76 +209,6 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               
                               SizedBox(height: AppTheme.spacing32),
-                              
-                              // Firebase Test Button (temporary for debugging)
-                              ElevatedButton(
-                                onPressed: () async {
-                                  if (!mounted) return;
-                                  try {
-                                    await FirebaseTestService.testFirebaseConnection();
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Firebase test completed! Check console for details.'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Firebase test failed: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                ),
-                                child: const Text('🧪 Test Firebase'),
-                              ),
-                              
-                              SizedBox(height: AppTheme.spacing8),
-                              
-                              // Firebase Debug Button
-                              ElevatedButton(
-                                onPressed: () async {
-                                  if (!mounted) return;
-                                  try {
-                                    await FirebaseDebugService.debugFirebaseInitialization();
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Firebase debug completed! Check console for details.'),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
-                                    }
-                                  } catch (e) {
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Firebase debug failed: $e'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                ),
-                                child: const Text('🔍 Debug Firebase'),
-                              ),
-                              
-                              SizedBox(height: AppTheme.spacing16),
                               
                               // Developer information
                               Text(

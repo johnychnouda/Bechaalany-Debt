@@ -46,8 +46,6 @@ void main() async {
     // Initialize Firebase service
     try {
       await FirebaseService.instance.initialize();
-      // Sign in anonymously for data sync
-      await FirebaseService.instance.signInAnonymously();
     } catch (e) {
       // Handle Firebase initialization error silently
     }
