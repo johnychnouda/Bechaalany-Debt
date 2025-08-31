@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../utils/logo_utils.dart';
 import 'main_screen.dart';
+import '../services/firebase_test.dart';
+import '../services/firebase_debug.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,114 +15,55 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _logoController;
-  late AnimationController _textController;
   late AnimationController _fadeController;
-  
-  late Animation<double> _logoScaleAnimation;
-  late Animation<double> _logoOpacityAnimation;
-  late Animation<double> _textOpacityAnimation;
-  late Animation<double> _textSlideAnimation;
-
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     
-    // Initialize controllers
-    _logoController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
-    
-    _textController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
+    // Simplified animation controller
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
 
-    // Logo animations
-    _logoScaleAnimation = Tween<double>(
+    _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _logoController,
-      curve: Curves.easeOutCubic,
-    ));
-
-    _logoOpacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _logoController,
+      parent: _fadeController,
       curve: Curves.easeOut,
     ));
 
-    // Text animations
-    _textOpacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _textController,
-      curve: Curves.easeOut,
-    ));
-
-    _textSlideAnimation = Tween<double>(
-      begin: 20.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _textController,
-      curve: Curves.easeOut,
-    ));
-
-
-
-    // Start animations
-    _startAnimations();
+    // Start simple animation
+    _startAnimation();
   }
 
-  void _startAnimations() async {
-    // Start fade animation
+  void _startAnimation() async {
+    // Simple fade in
     _fadeController.forward();
     
-    // Start logo animation
-    await Future.delayed(const Duration(milliseconds: 300));
-    _logoController.forward();
-    
-    // Start text animation after logo
+    // Wait for fade animation to complete
     await Future.delayed(const Duration(milliseconds: 500));
-    _textController.forward();
     
-    // Wait for animations to complete and navigate
-    await Future.delayed(const Duration(milliseconds: 3200));
+    // Navigate after delay
+    await Future.delayed(const Duration(milliseconds: 2000));
     if (mounted) {
-      _navigateToMain();
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
     }
-  }
-
-  void _navigateToMain() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 600),
-      ),
-    );
   }
 
   @override
   void dispose() {
-    _logoController.dispose();
-    _textController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -135,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen>
       body: AnimatedBuilder(
         animation: _fadeController,
         builder: (context, child) {
-          return Container(
+          return DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -156,18 +99,18 @@ class _SplashScreenState extends State<SplashScreen>
                   children: [
                     // Elegant logo design
                     AnimatedBuilder(
-                      animation: _logoController,
+                      animation: _fadeController,
                       builder: (context, child) {
                         return Transform.scale(
-                          scale: _logoScaleAnimation.value,
+                          scale: _fadeAnimation.value,
                           child: Opacity(
-                            opacity: _logoOpacityAnimation.value,
+                            opacity: _fadeAnimation.value,
                             child: Center(
-                              child: SvgPicture.asset(
-                                'assets/images/Logolightmode.svg',
+                              child: LogoUtils.buildLogo(
+                                context: context,
                                 width: isSmallScreen ? 140 : isLargeScreen ? 180 : 160,
                                 height: isSmallScreen ? 140 : isLargeScreen ? 180 : 160,
-                                placeholderBuilder: (context) => Container(
+                                placeholder: Container(
                                   width: isSmallScreen ? 140 : isLargeScreen ? 180 : 160,
                                   height: isSmallScreen ? 140 : isLargeScreen ? 180 : 160,
                                   decoration: BoxDecoration(
@@ -191,113 +134,179 @@ class _SplashScreenState extends State<SplashScreen>
                     
                     // Elegant text design
                     AnimatedBuilder(
-                      animation: _textController,
+                      animation: _fadeController,
                       builder: (context, child) {
-                        return Transform.translate(
-                          offset: Offset(0, _textSlideAnimation.value),
-                          child: Opacity(
-                            opacity: _textOpacityAnimation.value,
-                            child: Column(
-                              children: [
-                                // App name with elegant styling - split colors
-                                RichText(
-                                  textAlign: TextAlign.center,
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: 'Bechaalany ',
-                                        style: AppTheme.title1.copyWith(
-                                          color: Colors.black,
-                                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: -0.5,
-                                        ),
+                        return Opacity(
+                          opacity: _fadeAnimation.value,
+                          child: Column(
+                            children: [
+                              // App name with elegant styling - split colors
+                              RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'Bechaalany ',
+                                      style: AppTheme.title1.copyWith(
+                                        color: Colors.black,
+                                        fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -0.5,
                                       ),
-                                      TextSpan(
-                                        text: 'Connect',
-                                        style: AppTheme.title1.copyWith(
-                                          color: Colors.red,
-                                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
-                                          fontWeight: FontWeight.w600,
-                                          letterSpacing: -0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                SizedBox(height: AppTheme.spacing12),
-                                
-                                // Tagline with elegant styling
-                                Text(
-                                  'Smart debt management',
-                                  style: AppTheme.body.copyWith(
-                                    color: Colors.grey[600],
-                                    fontSize: isSmallScreen ? 16 : 18,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.2,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                
-                                SizedBox(height: AppTheme.spacing16),
-                                
-                                // Enhanced loading text
-                                Text(
-                                  'Preparing your financial dashboard...',
-                                  style: AppTheme.body.copyWith(
-                                    color: AppColors.primary.withValues(alpha: 0.7),
-                                    fontSize: isSmallScreen ? 14 : 16,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: 0.3,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                
-                                SizedBox(height: AppTheme.spacing24),
-                                
-                                // Elegant loading indicator
-                                SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      AppColors.primary,
                                     ),
-                                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                    TextSpan(
+                                      text: 'Connect',
+                                      style: AppTheme.title1.copyWith(
+                                        color: Colors.red,
+                                        fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing12),
+                              
+                              // Tagline with elegant styling
+                              Text(
+                                'Smart debt management',
+                                style: AppTheme.body.copyWith(
+                                  color: Colors.grey[600],
+                                  fontSize: isSmallScreen ? 16 : 18,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.2,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing16),
+                              
+                              // Enhanced loading text
+                              Text(
+                                'Preparing your financial dashboard...',
+                                style: AppTheme.body.copyWith(
+                                  color: AppColors.primary.withValues(alpha: 0.7),
+                                  fontSize: isSmallScreen ? 14 : 16,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.1,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing24),
+                              
+                              // Loading indicator
+                              const SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.primary,
                                   ),
                                 ),
-                                
-                                SizedBox(height: AppTheme.spacing32),
-                                
-                                // Developer information
-                                Text(
-                                  'Developed By Johny Chnouda',
-                                  style: AppTheme.body.copyWith(
-                                    color: Colors.grey[500],
-                                    fontSize: isSmallScreen ? 12 : 14,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.2,
-                                  ),
-                                  textAlign: TextAlign.center,
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing32),
+                              
+                              // Firebase Test Button (temporary for debugging)
+                              ElevatedButton(
+                                onPressed: () async {
+                                  if (!mounted) return;
+                                  try {
+                                    await FirebaseTestService.testFirebaseConnection();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Firebase test completed! Check console for details.'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Firebase test failed: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                 ),
-                                
-                                SizedBox(height: AppTheme.spacing8),
-                                
-                                // App version
-                                Text(
-                                  'Version 1.0.0',
-                                  style: AppTheme.body.copyWith(
-                                    color: Colors.grey[400],
-                                    fontSize: isSmallScreen ? 11 : 13,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0.1,
-                                  ),
-                                  textAlign: TextAlign.center,
+                                child: const Text('🧪 Test Firebase'),
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing8),
+                              
+                              // Firebase Debug Button
+                              ElevatedButton(
+                                onPressed: () async {
+                                  if (!mounted) return;
+                                  try {
+                                    await FirebaseDebugService.debugFirebaseInitialization();
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Firebase debug completed! Check console for details.'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Firebase debug failed: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                 ),
-                              ],
-                            ),
+                                child: const Text('🔍 Debug Firebase'),
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing16),
+                              
+                              // Developer information
+                              Text(
+                                'Developed By Johny Chnouda',
+                                style: AppTheme.body.copyWith(
+                                  color: Colors.grey[500],
+                                  fontSize: isSmallScreen ? 12 : 14,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.2,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              
+                              SizedBox(height: AppTheme.spacing8),
+                              
+                              // App version
+                              Text(
+                                'Version 1.0.0',
+                                style: AppTheme.body.copyWith(
+                                  color: Colors.grey[400],
+                                  fontSize: isSmallScreen ? 11 : 13,
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.1,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         );
                       },
