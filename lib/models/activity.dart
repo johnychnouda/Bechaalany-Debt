@@ -1,42 +1,23 @@
-import 'package:hive/hive.dart';
 import 'debt.dart';
-part 'activity.g.dart';
 
-@HiveType(typeId: 9)
 enum ActivityType {
-  @HiveField(0)
   newDebt,
-  @HiveField(1)
   payment,
-  @HiveField(2)
   debtCleared,
 }
 
-@HiveType(typeId: 10)
-class Activity extends HiveObject {
-  @HiveField(0)
+class Activity {
   final String id;
-  @HiveField(1)
   final DateTime date;
-  @HiveField(2)
   final ActivityType type;
-  @HiveField(3)
   final String customerName;
-  @HiveField(4)
   final String customerId;
-  @HiveField(5)
   final String description;
-  @HiveField(6)
   final double amount;
-  @HiveField(7)
   final double? paymentAmount;
-  @HiveField(8)
   final DebtStatus? oldStatus;
-  @HiveField(9)
   final DebtStatus? newStatus;
-  @HiveField(10)
   final String? debtId; // Reference to the original debt (if still exists)
-  @HiveField(11)
   final String? notes; // Additional notes for revenue tracking and audit purposes
 
   Activity({

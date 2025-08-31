@@ -1,57 +1,30 @@
-import 'package:hive/hive.dart';
-part 'debt.g.dart';
-
-@HiveType(typeId: 1)
 enum DebtStatus {
-  @HiveField(0)
   pending,
-  @HiveField(1)
   paid,
 }
 
-@HiveType(typeId: 2)
 enum DebtType {
-  @HiveField(0)
   credit,
-  @HiveField(1)
   payment,
 }
 
-@HiveType(typeId: 3)
-class Debt extends HiveObject {
-  @HiveField(0)
+class Debt {
   final String id;
-  @HiveField(1)
   final String customerId;
-  @HiveField(2)
   final String customerName;
-  @HiveField(3)
   final double amount;
-  @HiveField(4)
   final String description;
-  @HiveField(5)
   final DebtType type;
-  @HiveField(6)
   final DebtStatus status;
-  @HiveField(7)
   final DateTime createdAt;
-  @HiveField(8)
   final DateTime? paidAt;
-  @HiveField(9)
   final String? notes;
-  @HiveField(10)
   final double paidAmount; // Amount that has been paid
-  @HiveField(11)
   final String? subcategoryId; // ID of the subcategory if debt was created from a product
-  @HiveField(12)
   final String? subcategoryName; // Name of the subcategory at time of debt creation
-  @HiveField(13)
   final double? originalSellingPrice; // Original selling price at time of debt creation
-  @HiveField(14)
   final String? categoryName; // Category name at time of debt creation
-  @HiveField(15)
   final double? originalCostPrice; // Original cost price at time of debt creation - CRITICAL for revenue calculation
-  @HiveField(16)
   final String? storedCurrency; // Original currency when debt was created (LBP or USD)
 
   Debt({

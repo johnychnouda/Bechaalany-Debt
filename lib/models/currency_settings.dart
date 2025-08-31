@@ -1,22 +1,12 @@
-import 'package:hive/hive.dart';
-
-part 'currency_settings.g.dart';
-
-@HiveType(typeId: 8)
-class CurrencySettings extends HiveObject {
-  @HiveField(0)
+class CurrencySettings {
   String baseCurrency;
 
-  @HiveField(1)
   String targetCurrency;
 
-  @HiveField(2)
   double? exchangeRate;
 
-  @HiveField(3)
   DateTime lastUpdated;
 
-  @HiveField(4)
   String? notes;
 
   CurrencySettings({

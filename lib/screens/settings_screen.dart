@@ -3,6 +3,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
+import '../services/firebase_data_service.dart';
+import '../services/firebase_auth_service.dart';
 
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
@@ -128,7 +130,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                   ),
-
+                ],
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Firebase Test Section
+              _buildSection(
+                'Firebase Test',
+                [
+                  _buildNavigationRow(
+                    'Test Firebase Connection',
+                    'Verify Firebase backend connectivity',
+                    CupertinoIcons.cloud,
+                    () => _testFirebaseConnection(),
+                  ),
+                  _buildNavigationRow(
+                    'Test Real-Time Sync',
+                    'Test data synchronization between platforms',
+                    CupertinoIcons.arrow_clockwise_circle,
+                    () => _testRealTimeSync(),
+                  ),
 
                 ],
               ),
@@ -880,5 +902,191 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ===== FIREBASE TEST METHODS =====
+  
+  void _testFirebaseConnection() async {
+    try {
+      // Show loading dialog
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const CupertinoAlertDialog(
+          content: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoActivityIndicator(),
+                SizedBox(height: 16),
+                Text('Testing Firebase connection...'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Import Firebase service
+      final firebaseService = FirebaseDataService();
+      
+      // Test connection
+      final isConnected = await firebaseService.testConnection();
+      
+      // Hide loading dialog
+      Navigator.pop(context);
+      
+      // Show result
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Text(
+            isConnected ? 'Success!' : 'Connection Failed',
+            style: TextStyle(
+              color: isConnected ? Colors.green : Colors.red,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: Text(
+            isConnected 
+                ? 'Firebase backend is connected and working!'
+                : 'Failed to connect to Firebase. Check your internet connection.',
+            style: TextStyle(
+              color: AppColors.dynamicTextSecondary(context),
+              fontSize: 14,
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      // Hide loading dialog
+      Navigator.pop(context);
+      
+      // Show error
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Text('Error'),
+          content: Text('Firebase test failed: $e'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _testRealTimeSync() async {
+    try {
+      // Show loading dialog
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const CupertinoAlertDialog(
+          content: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoActivityIndicator(),
+                SizedBox(height: 16),
+                Text('Testing real-time sync...'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Import Firebase service
+      final firebaseService = FirebaseDataService();
+      
+      // Test write
+      final writeSuccess = await firebaseService.testWrite();
+      
+      if (writeSuccess) {
+        // Test read
+        final data = await firebaseService.testRead();
+        
+        // Hide loading dialog
+        Navigator.pop(context);
+        
+        // Show result
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(
+              'Sync Test Complete!',
+              style: TextStyle(
+                color: Colors.green,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              data != null 
+                  ? 'Real-time sync is working! Data written and read successfully.'
+                  : 'Write successful but read failed. Check Firebase console.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        // Hide loading dialog
+        Navigator.pop(context);
+        
+        // Show error
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text('Sync Test Failed'),
+            content: Text('Failed to write data to Firebase.'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Hide loading dialog
+      Navigator.pop(context);
+      
+      // Show error
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: Text('Error'),
+          content: Text('Real-time sync test failed: $e'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
 
 }

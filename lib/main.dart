@@ -1,22 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
-import 'models/customer.dart';
-import 'models/debt.dart';
-import 'models/category.dart';
-import 'models/product_purchase.dart';
-import 'models/currency_settings.dart';
-import 'models/activity.dart';
-import 'models/partial_payment.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
-import 'services/backup_service.dart';
 import 'services/notification_service.dart';
 
 // Global service instances
-BackupService? _globalBackupService;
 NotificationService? _globalNotificationService;
 
 void main() async {
@@ -36,120 +28,16 @@ void main() async {
   );
   
   try {
-    // Initialize Hive
-    await Hive.initFlutter();
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     
-    // Register all adapters with error handling
-    try {
-      Hive.registerAdapter(CustomerAdapter());
-      Hive.registerAdapter(DebtAdapter());
-      Hive.registerAdapter(DebtStatusAdapter());
-      Hive.registerAdapter(DebtTypeAdapter());
-      Hive.registerAdapter(ProductCategoryAdapter());
-      Hive.registerAdapter(SubcategoryAdapter());
-      Hive.registerAdapter(PriceHistoryAdapter());
-      Hive.registerAdapter(ProductPurchaseAdapter());
-      Hive.registerAdapter(CurrencySettingsAdapter());
-      Hive.registerAdapter(ActivityAdapter());
-      Hive.registerAdapter(ActivityTypeAdapter());
-      Hive.registerAdapter(PartialPaymentAdapter());
-    } catch (e) {
-      // Continue anyway, some adapters might already be registered
-    }
+
     
-    // Open Hive boxes with better error handling
+
     
-    // Open each box individually with proper error handling
-    try {
-      if (!Hive.isBoxOpen('customers')) {
-        await Hive.openBox<Customer>('customers');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('customers');
-        await Hive.openBox<Customer>('customers');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
 
-    try {
-      if (!Hive.isBoxOpen('debts')) {
-        await Hive.openBox<Debt>('debts');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('debts');
-        await Hive.openBox<Debt>('debts');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
-
-    try {
-      if (!Hive.isBoxOpen('categories')) {
-        await Hive.openBox<ProductCategory>('categories');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('categories');
-        await Hive.openBox<ProductCategory>('categories');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
-
-    try {
-      if (!Hive.isBoxOpen('product_purchases')) {
-        await Hive.openBox<ProductPurchase>('product_purchases');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('product_purchases');
-        await Hive.openBox<ProductPurchase>('product_purchases');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
-
-    try {
-      if (!Hive.isBoxOpen('currency_settings')) {
-        await Hive.openBox<CurrencySettings>('currency_settings');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('currency_settings');
-        await Hive.openBox<CurrencySettings>('currency_settings');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
-
-    try {
-      if (!Hive.isBoxOpen('activities')) {
-        await Hive.openBox<Activity>('activities');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('activities');
-        await Hive.openBox<Activity>('activities');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
-
-    try {
-      if (!Hive.isBoxOpen('partial_payments')) {
-        await Hive.openBox<PartialPayment>('partial_payments');
-      }
-    } catch (e) {
-      try {
-        await Hive.deleteBoxFromDisk('partial_payments');
-        await Hive.openBox<PartialPayment>('partial_payments');
-      } catch (recreateError) {
-        // Handle recreation error silently
-      }
-    }
       } catch (e) {
       // Handle initialization error silently
     }
@@ -163,31 +51,7 @@ void main() async {
     }
     
     // Initialize automatic daily backup service
-    try {
-      // Check if backup service already exists (hot reload case)
-      if (_globalBackupService != null) {
-        // Use safe reinitialization to preserve user settings
-        await _globalBackupService!.safeReinitialize();
-      } else {
-        _globalBackupService = BackupService();
-        await _globalBackupService!.initializeDailyBackup();
-        
-        // Only run cleanup methods on fresh app start
-        
-        // Clean up any existing duplicate backups from today
-        await _globalBackupService!.cleanupDuplicateBackupsFromToday();
-        
-        await _globalBackupService!.forceCleanupTodayBackups();
-        
-        // Specifically remove the problematic 1:33 AM backup if it exists
-        await _globalBackupService!.removeSpecificBackup();
-        
-        // Clear any invalid backup timestamps
-        await _globalBackupService!.clearInvalidBackupTimestamps();
-      }
-    } catch (e) {
-      // Handle backup service initialization error silently
-    }
+
     
     runApp(const BechaalanyDebtApp());
 }
@@ -219,9 +83,6 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     switch (state) {
       case AppLifecycleState.resumed:
         // App came to foreground, reinitialize services
-        if (_globalBackupService != null) {
-          _globalBackupService!.handleAppLifecycleChange();
-        }
         if (_globalNotificationService != null) {
           // Re-request notification permissions if needed
           _globalNotificationService!.reRequestPermissions();

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/activity.dart';
@@ -9,8 +8,6 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/partial_payment.dart';
 import '../models/product_purchase.dart';
-import '../services/backup_service.dart';
-import '../services/data_migration_service.dart';
 import '../services/data_service.dart';
 import '../services/revenue_calculation_service.dart';
 import '../services/theme_service.dart';
@@ -23,8 +20,7 @@ class AppState extends ChangeNotifier {
   final WhatsAppAutomationService _whatsappService = WhatsAppAutomationService();
   final NotificationService _notificationService = NotificationService();
   
-  // Migration service for data fixes
-  final DataMigrationService _migrationService = DataMigrationService(DataService());
+
   
   // Data
   List<Customer> _customers = [];
@@ -1736,14 +1732,7 @@ class AppState extends ChangeNotifier {
   /// This should be called once after app startup to ensure data integrity
   Future<void> runCurrencyDataMigration() async {
     try {
-      final migrationService = DataMigrationService(_dataService);
-      await migrationService.fixCorruptedCurrencyData();
-      
-      // Fix existing activities by linking them to their corresponding debts
-      await migrationService.fixActivitiesDebtId();
-      
-      // Clean up any duplicate orphaned activities
-      await migrationService.cleanupOrphanedActivities();
+      // TODO: Implement Firebase data migration
       
       // Auto-fix any Syria tel debts with incorrect currency
       await autoFixSyriaTelDebts();
@@ -1759,8 +1748,8 @@ class AppState extends ChangeNotifier {
   /// Validates that all currency data is correct
   Future<bool> validateCurrencyData() async {
     try {
-      final migrationService = DataMigrationService(_dataService);
-      return await migrationService.validateCurrencyData();
+      // TODO: Implement Firebase data validation
+      return true;
     } catch (e) {
       return false;
     }
@@ -1769,11 +1758,7 @@ class AppState extends ChangeNotifier {
   /// Manually fix activities debtId linking for existing data
   Future<void> fixActivitiesLinking() async {
     try {
-      final migrationService = DataMigrationService(_dataService);
-      await migrationService.fixActivitiesDebtId();
-      
-      // Clean up any duplicate orphaned activities
-      await migrationService.cleanupOrphanedActivities();
+      // TODO: Implement Firebase activities linking
       
       // Reload activities to ensure UI stays in sync
       _activities = _dataService.activities;
@@ -1788,8 +1773,7 @@ class AppState extends ChangeNotifier {
   /// Manually clean up duplicate orphaned activities
   Future<void> cleanupDuplicateActivities() async {
     try {
-      final migrationService = DataMigrationService(_dataService);
-      await migrationService.cleanupOrphanedActivities();
+      // TODO: Implement Firebase activities cleanup
       
       // Reload activities to ensure UI stays in sync
       _activities = _dataService.activities;

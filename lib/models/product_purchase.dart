@@ -1,31 +1,15 @@
-import 'package:hive/hive.dart';
-
-part 'product_purchase.g.dart';
-
-@HiveType(typeId: 7)
-class ProductPurchase extends HiveObject {
+class ProductPurchase {
   // Define all required fields
-  @HiveField(0)
   final String id;
-  @HiveField(1)
   final String customerId;
-  @HiveField(2)
   final String categoryName;
-  @HiveField(3)
   final String subcategoryId;
-  @HiveField(4)
   final String subcategoryName;
-  @HiveField(5)
   final double costPrice;
-  @HiveField(6)
   final double sellingPrice;
-  @HiveField(7)
   final int quantity;
-  @HiveField(8)
   final double totalAmount;
-  @HiveField(9)
   final DateTime purchaseDate;
-  @HiveField(10)
   bool isPaid;
 
   // Add ProductPurchaseStatus enum if missing

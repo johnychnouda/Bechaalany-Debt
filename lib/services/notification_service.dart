@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,10 +16,7 @@ class NotificationService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    // Initialize notification settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    
+    // Initialize notification settings for iOS only
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -27,7 +25,6 @@ class NotificationService {
     );
 
     const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
       iOS: initializationSettingsIOS,
     );
 
@@ -43,16 +40,6 @@ class NotificationService {
   }
 
   Future<void> _requestPermissions() async {
-    if (Platform.isAndroid) {
-      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-          _notifications.resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>();
-
-      if (androidImplementation != null) {
-        await androidImplementation.requestNotificationsPermission();
-      }
-    }
-
     if (Platform.isIOS) {
       try {
         // iOS notification permissions are handled automatically by the initialization
@@ -199,18 +186,6 @@ class NotificationService {
       await initialize();
     }
 
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'bechaalany_debt_app',
-      'Bechaalany Debt App',
-      channelDescription: 'Notifications for debt management app',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-      enableVibration: true,
-      playSound: true,
-    );
-
     const DarwinNotificationDetails iOSPlatformChannelSpecifics =
         DarwinNotificationDetails(
       presentAlert: true,
@@ -220,7 +195,6 @@ class NotificationService {
     );
 
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
       iOS: iOSPlatformChannelSpecifics,
     );
 

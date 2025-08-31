@@ -1,21 +1,10 @@
-import 'package:hive/hive.dart';
-part 'customer.g.dart';
-
-@HiveType(typeId: 0)
-class Customer extends HiveObject {
-  @HiveField(0)
+class Customer {
   final String id;
-  @HiveField(1)
   final String name;
-  @HiveField(2)
   final String phone;
-  @HiveField(3)
   final String? email;
-  @HiveField(4)
   final String? address;
-  @HiveField(5)
   final DateTime createdAt;
-  @HiveField(6)
   final DateTime? updatedAt;
 
   Customer({

@@ -1,17 +1,8 @@
-import 'package:hive/hive.dart';
-part 'partial_payment.g.dart';
-
-@HiveType(typeId: 11)
-class PartialPayment extends HiveObject {
-  @HiveField(0)
+class PartialPayment {
   final String id;
-  @HiveField(1)
   final String debtId;
-  @HiveField(2)
   final double amount;
-  @HiveField(3)
   final DateTime paidAt;
-  @HiveField(4)
   final String? notes;
 
   PartialPayment({

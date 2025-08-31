@@ -1,22 +1,12 @@
-import 'package:hive/hive.dart';
-
-part 'category.g.dart';
-
-@HiveType(typeId: 4)
-class ProductCategory extends HiveObject {
-  @HiveField(0)
+class ProductCategory {
   String id;
 
-  @HiveField(1)
   String name;
 
-  @HiveField(2)
   String? description;
 
-  @HiveField(3)
   DateTime createdAt;
 
-  @HiveField(4)
   List<Subcategory> subcategories;
 
   ProductCategory({
@@ -66,33 +56,23 @@ class ProductCategory extends HiveObject {
   }
 }
 
-@HiveType(typeId: 5)
-class Subcategory extends HiveObject {
-  @HiveField(0)
+class Subcategory {
   String id;
 
-  @HiveField(1)
   String name;
 
-  @HiveField(2)
   String? description;
 
-  @HiveField(3)
   double costPrice;
 
-  @HiveField(4)
   double sellingPrice;
 
-  @HiveField(5)
   DateTime createdAt;
 
-  @HiveField(6)
   List<PriceHistory> priceHistory;
 
-  @HiveField(7)
   String costPriceCurrency;
 
-  @HiveField(8)
   String sellingPriceCurrency;
 
   Subcategory({
@@ -213,18 +193,13 @@ class Subcategory extends HiveObject {
   }
 }
 
-@HiveType(typeId: 6)
-class PriceHistory extends HiveObject {
-  @HiveField(0)
+class PriceHistory {
   String id;
 
-  @HiveField(1)
   double costPrice;
 
-  @HiveField(2)
   double sellingPrice;
 
-  @HiveField(3)
   DateTime changedAt;
 
   PriceHistory({

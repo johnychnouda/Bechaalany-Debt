@@ -39,10 +39,7 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+
 
 # iOS build directories
 ios/build/
@@ -58,8 +55,7 @@ remote_distribution/
 testflight_distribution/
 testflight_setup/
 
-# Hive database files
-*.hive
+
 *.lock
 
 # Generated files
