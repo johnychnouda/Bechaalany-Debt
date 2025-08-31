@@ -1,12 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../models/currency_settings.dart';
 import '../services/data_service.dart';
 import '../services/notification_service.dart';
 import '../providers/app_state.dart';
+
+class ThousandsSeparatorInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+    
+    // Remove all non-digit characters
+    String digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+    
+    if (digitsOnly.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+    
+    // Format with thousands separators
+    String formatted = NumberFormat('#,###').format(int.parse(digitsOnly));
+    
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 class CurrencySettingsScreen extends StatefulWidget {
   const CurrencySettingsScreen({super.key});
@@ -30,14 +56,54 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCurrencySettings();
+    
+    // Listen to currency settings changes in real-time
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.addListener(_onAppStateChanged);
+      
+      // Load currency settings after AppState is ready
+      _loadCurrencySettings();
+    });
+  }
+
+
+
+  void _onAppStateChanged() {
+    if (mounted) {
+      final appState = Provider.of<AppState>(context, listen: false);
+      if (appState.currencySettings != _currentSettings) {
+        setState(() {
+          _currentSettings = appState.currencySettings;
+          // Update the input field with current value
+          if (_currentSettings?.exchangeRate != null) {
+            // Format with thousands separators for better readability
+            final formattedRate = NumberFormat('#,###').format(_currentSettings!.exchangeRate!.toInt());
+            _exchangeRateController.text = formattedRate;
+            print('📱 Currency Settings: Updated input field with: ${_currentSettings!.exchangeRate} (formatted: $formattedRate)');
+          } else {
+            _exchangeRateController.text = '';
+            print('📱 Currency Settings: Cleared input field - no exchange rate');
+          }
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    // Remove listener when disposing
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.removeListener(_onAppStateChanged);
+    } catch (e) {
+      // AppState might not be available during dispose
+    }
     _exchangeRateController.dispose();
     super.dispose();
   }
+
+
 
   Future<void> _loadCurrencySettings() async {
     setState(() {
@@ -45,12 +111,33 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     });
 
     try {
-      _currentSettings = _dataService.currencySettings;
+      // Get currency settings from AppState first
+      final appState = Provider.of<AppState>(context, listen: false);
+      _currentSettings = appState.currencySettings;
       
-      // Always start with empty field - don't load existing values
-      _exchangeRateController.text = '';
+      // If AppState doesn't have it, try to fetch directly from Firebase
+      if (_currentSettings?.exchangeRate == null) {
+        print('📱 Currency Settings: AppState has no exchange rate, trying direct fetch...');
+        try {
+          _currentSettings = await _dataService.getCurrencySettings();
+          print('📱 Currency Settings: Direct fetch result: ${_currentSettings?.exchangeRate}');
+        } catch (e) {
+          print('❌ Currency Settings: Direct fetch failed: $e');
+        }
+      }
+      
+      // Show current exchange rate if it exists
+      if (_currentSettings?.exchangeRate != null) {
+        // Format with thousands separators for better readability
+        final formattedRate = NumberFormat('#,###').format(_currentSettings!.exchangeRate!.toInt());
+        _exchangeRateController.text = formattedRate;
+        print('📱 Currency Settings: Loaded exchange rate: ${_currentSettings!.exchangeRate} (formatted: $formattedRate)');
+      } else {
+        _exchangeRateController.text = '';
+        print('📱 Currency Settings: No exchange rate found');
+      }
     } catch (e) {
-      // Handle error silently
+      print('❌ Currency Settings: Error loading settings: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -94,6 +181,10 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       if (mounted) {
         final notificationService = NotificationService();
         await notificationService.showSettingsUpdatedNotification();
+        
+        // Don't clear the input field - keep the value user entered
+        // The AppState listener will update the display automatically
+        
         // Reload the settings to show the updated values
         _loadCurrencySettings();
       }
@@ -337,10 +428,10 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       return; // Don't format empty input
     }
     
-    // Parse as integer and format with commas
+    // Parse as integer and format with commas using NumberFormat
     final number = int.tryParse(digitsOnly);
     if (number != null) {
-      final formatted = _addThousandsSeparators(number.toString());
+      final formatted = NumberFormat('#,###').format(number);
       
       // Only update if the formatted text is different
       if (formatted != value) {

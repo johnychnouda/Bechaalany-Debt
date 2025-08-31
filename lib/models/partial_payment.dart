@@ -14,11 +14,32 @@ class PartialPayment {
   });
 
   factory PartialPayment.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic dateTime) {
+      if (dateTime is String) {
+        return DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        return dateTime;
+      } else if (dateTime != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (dateTime.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              dateTime.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return PartialPayment(
       id: json['id'] as String,
       debtId: json['debtId'] as String,
       amount: (json['amount'] as num).toDouble(),
-      paidAt: DateTime.parse(json['paidAt'] as String),
+      paidAt: parseDateTime(json['paidAt']),
       notes: json['notes'] as String?,
     );
   }

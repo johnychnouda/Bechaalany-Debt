@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/activity.dart';
 import '../models/category.dart';
 import '../models/currency_settings.dart';
@@ -14,11 +17,13 @@ import '../services/theme_service.dart';
 import '../services/whatsapp_automation_service.dart';
 import '../services/notification_service.dart';
 
+
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final ThemeService _themeService = ThemeService();
   final WhatsAppAutomationService _whatsappService = WhatsAppAutomationService();
   final NotificationService _notificationService = NotificationService();
+
   
 
   
@@ -36,6 +41,9 @@ class AppState extends ChangeNotifier {
   bool _isSyncing = false;
   bool _hasRunMigration = false; // Flag to prevent multiple migrations
   
+  // Firebase stream initialization flag
+  bool _streamsInitialized = false;
+  
   // Connectivity
   bool _isOnline = true;
   
@@ -52,13 +60,15 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
-
+    print('🚀 AppState constructor called');
     _loadSettingsSync();
+    
+    // Initialize Firebase streams immediately for all platforms
+    _initializeFirebaseStreams();
     
     // Migration will run during _loadData() - no need for separate startup call
     // This prevents infinite loops and startup deadlocks
-    
-
+    print('🚀 AppState constructor completed');
   }
   
   // Cached calculations
@@ -68,8 +78,15 @@ class AppState extends ChangeNotifier {
   List<Debt>? _cachedRecentDebts;
   List<Customer>? _cachedTopDebtors;
   
-  // Getters
-  List<Customer> get customers => _customers;
+        // Getters
+  List<Customer> get customers {
+    return List.from(_customers); // Return a copy to prevent external modification
+  }
+  
+  // Protected setter for customers to catch when it's being cleared
+  set customers(List<Customer> newCustomers) {
+    _customers = newCustomers;
+  }
   List<Debt> get debts => _debts;
   List<PartialPayment> get partialPayments {
     try {
@@ -106,6 +123,261 @@ class AppState extends ChangeNotifier {
   String get textSize => 'Medium'; // Default value
   bool get boldTextEnabled => false; // Default value
   
+  // Initialize Firebase streams
+  void _initializeFirebaseStreams() {
+    print('🚀 Initializing Firebase streams in AppState');
+    print('🚀 Platform: ${kIsWeb ? 'Web' : 'iOS'}');
+    print('🚀 Current user ID: ${_dataService.currentUserId}');
+    
+    // CRITICAL: Only initialize streams once to prevent duplicate listeners
+    if (_streamsInitialized) {
+      print('⚠️ Firebase streams already initialized, skipping');
+      return;
+    }
+    _streamsInitialized = true;
+    
+    print('🚀 Setting up Firebase stream listeners...');
+    
+    // Listen to customers stream FIRST (most important)
+    _dataService.customersFirebaseStream.listen(
+      (customers) {
+        print('📱 AppState received ${customers.length} customers from Firebase');
+        print('📱 Setting _customers to: ${customers.map((c) => c.name).toList()}');
+        
+        // CRITICAL FIX: Never overwrite existing customers with an empty list
+        // This prevents the issue where customers disappear after being loaded
+        if (customers.isNotEmpty) {
+          _customers = List.from(customers); // Create a new list to prevent reference issues
+          print('📱 _customers now contains: ${_customers.length} customers');
+        } else if (_customers.isEmpty) {
+          // Only set to empty if we didn't have any customers before
+          // This prevents overwriting existing customers with empty data
+          print('📱 No customers in Firebase and none locally, setting to empty');
+          _customers = [];
+        } else {
+          print('⚠️ Received empty customers list, keeping existing ${_customers.length} customers');
+          print('⚠️ Keeping customers: ${_customers.map((c) => c.name).toList()}');
+        }
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in customers stream: $error');
+      },
+    );
+    
+    // Listen to categories stream - FIXED for web app real-time updates
+    print('🚀 Setting up categories stream listener...');
+    _dataService.categoriesFirebaseStream.listen(
+      (categories) {
+        print('📱 AppState received ${categories.length} categories from Firebase');
+        print('📱 Setting _categories to: ${categories.map((c) => c.name).toList()}');
+        
+        // WEB APP FIX: Always update categories from Firebase stream for real-time updates
+        // This ensures web app shows/removes categories automatically like customers
+        if (categories.isNotEmpty) {
+          _categories = List.from(categories); // Create a new list to prevent reference issues
+          print('📱 _categories now contains: ${_categories.length} categories');
+        } else {
+          // If Firebase returns empty, set to empty (allows real-time removal)
+          print('📱 Firebase returned empty categories list, setting to empty');
+          _categories = [];
+        }
+        
+        // CRITICAL: Always notify listeners to ensure UI updates
+        print('📱 Notifying listeners of categories update');
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in categories stream: $error');
+        // CRITICAL: Don't clear categories on error - keep existing data
+        print('⚠️ Keeping existing ${_categories.length} categories due to stream error');
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    // Listen to debts stream
+    _dataService.debtsFirebaseStream.listen(
+      (debts) {
+        print('📱 AppState received ${debts.length} debts from Firebase');
+        print('📱 Setting _debts to: ${debts.map((d) => '${d.customerName}: ${d.amount}').toList()}');
+        
+        // WEB APP FIX: Always update debts from Firebase stream for real-time updates
+        if (debts.isNotEmpty) {
+          _debts = List.from(debts); // Create a new list to prevent reference issues
+          print('📱 _debts now contains: ${_debts.length} debts');
+        } else {
+          // If Firebase returns empty, set to empty (allows real-time removal)
+          print('📱 Firebase returned empty debts list, setting to empty');
+          _debts = [];
+        }
+        
+        _clearDebtCache(); // Clear debt calculation cache when debts change
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in debts stream: $error');
+        // CRITICAL: Don't clear debts on error - keep existing data
+        print('⚠️ Keeping existing ${_debts.length} debts due to stream error');
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    // Listen to partial payments stream
+    _dataService.partialPaymentsFirebaseStream.listen(
+      (partialPayments) {
+        print('📱 AppState received ${partialPayments.length} partial payments from Firebase');
+        print('📱 Setting _partialPayments to: ${partialPayments.map((p) => '${p.debtId}: ${p.amount}').toList()}');
+        
+        // WEB APP FIX: Always update partial payments from Firebase stream for real-time updates
+        if (partialPayments.isNotEmpty) {
+          _partialPayments = List.from(partialPayments); // Create a new list to prevent reference issues
+          print('📱 _partialPayments now contains: ${_partialPayments.length} partial payments');
+        } else {
+          // If Firebase returns empty, set to empty (allows real-time removal)
+          print('📱 Firebase returned empty partial payments list, setting to empty');
+          _partialPayments = [];
+        }
+        
+        _clearDebtCache(); // Clear debt calculation cache when payments change
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in partial payments stream: $error');
+        // CRITICAL: Don't clear partial payments on error - keep existing data
+        print('⚠️ Keeping existing ${_partialPayments.length} partial payments due to stream error');
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    // Listen to product purchases stream
+    _dataService.productPurchasesFirebaseStream.listen(
+      (productPurchases) {
+        print('📱 AppState received ${productPurchases.length} product purchases from Firebase');
+        print('📱 Setting _productPurchases to: ${productPurchases.map((p) => p.subcategoryName).toList()}');
+        
+        // WEB APP FIX: Always update product purchases from Firebase stream for real-time updates
+        if (productPurchases.isNotEmpty) {
+          _productPurchases = List.from(productPurchases); // Create a new list to prevent reference issues
+          print('📱 _productPurchases now contains: ${_productPurchases.length} product purchases');
+        } else {
+          // If Firebase returns empty, set to empty (allows real-time removal)
+          print('📱 Firebase returned empty product purchases list, setting to empty');
+          _productPurchases = [];
+        }
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in product purchases stream: $error');
+        // CRITICAL: Don't clear product purchases on error - keep existing data
+        print('⚠️ Keeping existing ${_productPurchases.length} product purchases due to stream error');
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    // Listen to activities stream
+    _dataService.activitiesFirebaseStream.listen(
+      (activities) {
+        print('📱 AppState received ${activities.length} activities from Firebase');
+        _activities = List.from(activities);
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in activities stream: $error');
+        // CRITICAL: Don't clear activities on error - keep existing data
+        if (_activities.isNotEmpty) {
+          print('⚠️ Keeping existing ${_activities.length} activities due to stream error');
+        }
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    // Listen to currency settings stream
+    _dataService.currencySettingsFirebaseStream.listen(
+      (currencySettings) {
+        print('📱 AppState received currency settings from Firebase: ${currencySettings?.exchangeRate}');
+        
+        // Only update if we received valid currency settings
+        if (currencySettings != null && currencySettings.exchangeRate != null) {
+          _currencySettings = currencySettings;
+          print('✅ AppState updated currency settings: ${_currencySettings!.exchangeRate}');
+        } else if (currencySettings == null && _currencySettings != null) {
+          print('⚠️ Firebase sent null currency settings, keeping existing: ${_currencySettings!.exchangeRate}');
+          // Don't update - keep existing settings
+        } else if (currencySettings != null && currencySettings.exchangeRate == null) {
+          print('⚠️ Firebase sent currency settings without exchange rate, keeping existing: ${_currencySettings?.exchangeRate}');
+          // Don't update - keep existing settings
+        } else {
+          print('📱 AppState received initial currency settings: ${currencySettings?.exchangeRate}');
+          _currencySettings = currencySettings;
+        }
+        
+        // Debug data consistency
+        debugDataConsistency();
+        
+        notifyListeners();
+      },
+      onError: (error) {
+        print('❌ Error in currency settings stream: $error');
+        // CRITICAL: Don't clear currency settings on error - keep existing data
+        if (_currencySettings != null) {
+          print('⚠️ Keeping existing currency settings due to stream error: ${_currencySettings!.exchangeRate}');
+        }
+        // Still notify listeners so UI can show error state if needed
+        notifyListeners();
+      },
+    );
+    
+    print('✅ All Firebase streams initialized successfully');
+  }
+  
+  // Clear debt calculation cache when debts change
+  void _clearDebtCache() {
+    _cachedTotalDebt = null;
+    _cachedTotalPaid = null;
+    _cachedPendingCount = null;
+    _cachedRecentDebts = null;
+    _cachedTopDebtors = null;
+  }
+  
+  // Debug method to check data consistency
+  void debugDataConsistency() {
+    // Only log in debug mode or when there are issues
+    if (kDebugMode) {
+      print('🔍 Data: ${_customers.length} customers, ${_categories.length} categories, ${_debts.length} debts');
+    }
+  }
+
+
+
   // Cached getters
   double get totalDebt {
     _cachedTotalDebt ??= _calculateTotalDebt();
@@ -156,6 +428,71 @@ class AppState extends ChangeNotifier {
     }
     
     return totalPaid;
+  }
+  
+  // Get comprehensive revenue summary for dashboard
+  Map<String, dynamic> getDashboardRevenueSummary() {
+    try {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final startOfYear = DateTime(now.year, 1, 1);
+      
+      // Calculate monthly revenue
+      double monthlyRevenue = 0.0;
+      for (final payment in _partialPayments) {
+        if (payment.paidAt.isAfter(startOfMonth)) {
+          monthlyRevenue += payment.amount;
+        }
+      }
+      
+      // Calculate yearly revenue
+      double yearlyRevenue = 0.0;
+      for (final payment in _partialPayments) {
+        if (payment.paidAt.isAfter(startOfYear)) {
+          yearlyRevenue += payment.amount;
+        }
+      }
+      
+      // Calculate pending revenue (total debt - total paid)
+      final pendingRevenue = totalDebt - totalPaid;
+      
+      // Calculate profit margin (if we have product cost data)
+      double totalProfit = 0.0;
+      for (final debt in _debts) {
+        if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+          totalProfit += (debt.originalSellingPrice! - debt.originalCostPrice!);
+        }
+      }
+      
+      return {
+        'totalRevenue': totalHistoricalRevenue,
+        'monthlyRevenue': monthlyRevenue,
+        'yearlyRevenue': yearlyRevenue,
+        'pendingRevenue': pendingRevenue,
+        'totalProfit': totalProfit,
+        'totalDebts': totalDebt,
+        'totalPaid': totalPaid,
+        'pendingDebtsCount': pendingDebtsCount,
+        'totalCustomersCount': totalCustomersCount,
+        'averageDebtAmount': averageDebtAmount,
+        'lastUpdated': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      return {
+        'error': e.toString(),
+        'totalRevenue': 0.0,
+        'monthlyRevenue': 0.0,
+        'yearlyRevenue': 0.0,
+        'pendingRevenue': 0.0,
+        'totalProfit': 0.0,
+        'totalDebts': 0.0,
+        'totalPaid': 0.0,
+        'pendingDebtsCount': 0,
+        'totalCustomersCount': 0,
+        'averageDebtAmount': 0.0,
+        'lastUpdated': DateTime.now().toIso8601String(),
+      };
+    }
   }
 
   // PROFESSIONAL REVENUE CALCULATION - Based on product profit margins
@@ -236,42 +573,7 @@ class AppState extends ChangeNotifier {
     };
   }
 
-  // Get comprehensive dashboard revenue summary
-  Map<String, dynamic> getDashboardRevenueSummary() {
-    final lbpSummary = RevenueCalculationService().getDashboardRevenueSummary(_debts, activities: _activities, appState: this);
-    
-    // If no currency settings exist, create default ones with 89,500 LBP per 1 USD
-    if (_currencySettings == null) {
-      _currencySettings = CurrencySettings(
-        baseCurrency: 'USD',
-        targetCurrency: 'LBP',
-        exchangeRate: 89500.0,
-        lastUpdated: DateTime.now(),
-        notes: 'Default exchange rate',
-      );
-      // Save the default settings
-      _dataService.saveCurrencySettings(_currencySettings!);
-    }
-    
-    // CRITICAL: Round all revenue values to exactly 2 decimal places to avoid floating-point precision errors
-    final totalRevenue = ((lbpSummary['totalRevenue'] ?? 0.0) * 100).round() / 100;
-    final totalPotentialRevenue = ((lbpSummary['totalPotentialRevenue'] ?? 0.0) * 100).round() / 100;
-    final averageRevenuePerCustomer = ((lbpSummary['averageRevenuePerCustomer'] ?? 0.0) * 100).round() / 100;
-    
-    // Revenue calculation service returns values in USD (same as debt amounts)
-    // No currency conversion needed for revenue values
-    // Note: debt and payment amounts are already in USD
-    return {
-      'totalRevenue': totalRevenue,  // Already in USD, properly rounded
-      'totalPotentialRevenue': totalPotentialRevenue,  // Already in USD, properly rounded
-      'totalPaidAmount': lbpSummary['totalPaidAmount'] ?? 0.0,  // Already in USD
-      'totalDebtAmount': lbpSummary['totalDebtAmount'] ?? 0.0,  // Already in USD
-      'totalCustomers': lbpSummary['totalCustomers'] ?? 0,
-      'averageRevenuePerCustomer': averageRevenuePerCustomer,  // Already in USD, properly rounded
-      'revenueToDebtRatio': lbpSummary['revenueToDebtRatio'] ?? 0.0,
-      'calculatedAt': lbpSummary['calculatedAt'] ?? DateTime.now(),
-    };
-  }
+
 
   // DATA MIGRATION METHODS - Critical for revenue calculation accuracy
   /// Run data migration to ensure all debts have cost price information
@@ -339,16 +641,16 @@ class AppState extends ChangeNotifier {
         double? newSellingPrice = debt.originalSellingPrice;
         
         // Check if cost price is corrupted (LBP values stored in USD fields)
-        if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
-          // Convert from LBP to USD (assuming 89,500 exchange rate)
-          newCostPrice = debt.originalCostPrice! / 89500;
+        if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000 && _currencySettings?.exchangeRate != null) {
+          // Convert from LBP to USD using current exchange rate
+          newCostPrice = (debt.originalCostPrice! / _currencySettings!.exchangeRate!).toDouble();
           needsUpdate = true;
         }
         
         // Check if selling price is corrupted (LBP values stored in USD fields)
-        if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
-          // Convert from LBP to USD (assuming 89,500 exchange rate)
-          newSellingPrice = debt.originalSellingPrice! / 89500;
+        if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000 && _currencySettings?.exchangeRate != null) {
+          // Convert from LBP to USD using current exchange rate
+          newSellingPrice = (debt.originalSellingPrice! / _currencySettings!.exchangeRate!).toDouble();
           needsUpdate = true;
         }
         
@@ -388,10 +690,10 @@ class AppState extends ChangeNotifier {
         for (final subcategory in category.subcategories) {
           if (subcategory.name.toLowerCase() == 'alfa ushare') {
             // Set the correct LBP values to keep exchange rate card visible
-            // Cost: $0.25 * 89,500 = 22,375 LBP
-            // Selling: $0.38 * 89,500 = 34,010 LBP
-            subcategory.costPrice = 0.25 * 89500; // 22,375 LBP
-            subcategory.sellingPrice = 0.38 * 89500; // 34,010 LBP
+            // Use current exchange rate if available, otherwise use default
+            final exchangeRate = _currencySettings?.exchangeRate ?? 89500.0;
+            subcategory.costPrice = 0.25 * exchangeRate; // Convert USD to LBP
+            subcategory.sellingPrice = 0.38 * exchangeRate; // Convert USD to LBP
             subcategory.costPriceCurrency = 'LBP'; // Keep as LBP
             subcategory.sellingPriceCurrency = 'LBP'; // Keep as LBP
             
@@ -664,16 +966,13 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
       
-      // Use getters instead of load methods
-      _customers = _dataService.customers;
-      _debts = _dataService.debts;
-      _categories = _dataService.categories;
-      _productPurchases = _dataService.productPurchases;
-      _activities = _dataService.activities;
-      _partialPayments = _dataService.partialPayments;
+      // CRITICAL FIX: Don't overwrite Firebase stream data with empty lists
+      // Firebase streams are the source of truth for customers, debts, etc.
+      // Only load currency settings and other non-stream data
       
-      // Load currency settings
-      _currencySettings = _dataService.currencySettings;
+      // Currency settings are loaded via Firebase stream, don't override them here
+      // _currencySettings = _dataService.currencySettings; // This returns null, causing the issue
+      print('📱 _loadData: Keeping existing currency settings: ${_currencySettings?.exchangeRate}');
       
       // Run currency data migration to fix any corrupted data
       if (_currencySettings?.exchangeRate != null && !_hasRunMigration) {
@@ -713,11 +1012,15 @@ class AppState extends ChangeNotifier {
     try {
       await _dataService.saveCurrencySettings(settings);
       _currencySettings = settings;
+      print('✅ AppState manually updated currency settings: ${_currencySettings!.exchangeRate}');
       notifyListeners();
     } catch (e) {
+      print('❌ Error updating currency settings: $e');
       rethrow;
     }
   }
+
+
 
   Future<void> _loadSettings() async {
     try {
@@ -1090,16 +1393,31 @@ class AppState extends ChangeNotifier {
   // Clear only debts, activities, and payment records (preserve customers and products)
   Future<void> clearDebtsAndActivities() async {
     try {
-      await _dataService.clearDebts();
+      print('🔄 AppState: Starting to clear debts and activities...');
+      
+      // Add overall timeout to prevent hanging
+      await Future.wait([
+        _dataService.clearDebts(),
+        _dataService.clearActivities(),
+        _dataService.clearPartialPayments(),
+      ]).timeout(const Duration(seconds: 90)); // 90 seconds total timeout
+      
+      print('🔄 AppState: Firebase operations completed, updating local state...');
+      
+      // Clear local lists
       _debts.clear();
       _partialPayments.clear();
-      
-      // Reload activities from data service to ensure UI stays in sync
-      _activities = _dataService.activities;
+      _activities.clear();
       
       _clearCache();
       notifyListeners();
+      
+      print('✅ AppState: Successfully cleared all debts, activities, and payments');
     } catch (e) {
+      print('❌ AppState: Error clearing debts and activities: $e');
+      if (e.toString().contains('timeout')) {
+        throw Exception('Operation timed out. Please try again.');
+      }
       rethrow;
     }
   }
@@ -1167,16 +1485,12 @@ class AppState extends ChangeNotifier {
 
   Future<void> updateCustomer(Customer customer) async {
     try {
-      
-      
       await _dataService.updateCustomer(customer);
       
-      // Refresh the customer list from the data service to ensure consistency
-      _customers = _dataService.customers;
-      
+      // Update the customer in the local list (don't overwrite from data service)
       final index = _customers.indexWhere((c) => c.id == customer.id);
       if (index != -1) {
-        // Update the local list with the fresh data from database
+        // Update the local list with the new customer data
         _customers[index] = customer;
         _clearCache();
         notifyListeners();
@@ -1732,7 +2046,11 @@ class AppState extends ChangeNotifier {
   /// This should be called once after app startup to ensure data integrity
   Future<void> runCurrencyDataMigration() async {
     try {
-      // TODO: Implement Firebase data migration
+      // Implement Firebase data migration
+      final validation = await _dataService.validateDataIntegrity();
+      if (validation['isValid'] == false) {
+        await _dataService.fixDataInconsistencies();
+      }
       
       // Auto-fix any Syria tel debts with incorrect currency
       await autoFixSyriaTelDebts();
@@ -1748,8 +2066,9 @@ class AppState extends ChangeNotifier {
   /// Validates that all currency data is correct
   Future<bool> validateCurrencyData() async {
     try {
-      // TODO: Implement Firebase data validation
-      return true;
+      // Implement Firebase data validation
+      final validation = await _dataService.validateDataIntegrity();
+      return validation['isValid'] ?? false;
     } catch (e) {
       return false;
     }
@@ -1758,10 +2077,12 @@ class AppState extends ChangeNotifier {
   /// Manually fix activities debtId linking for existing data
   Future<void> fixActivitiesLinking() async {
     try {
-      // TODO: Implement Firebase activities linking
-      
-      // Reload activities to ensure UI stays in sync
-      _activities = _dataService.activities;
+      // Implement Firebase activities linking
+      // Get activities from Firebase stream
+      final activitiesStream = _dataService.activitiesFirebaseStream;
+      await for (final activities in activitiesStream.take(1)) {
+        _activities = activities;
+      }
       
       _clearCache();
       notifyListeners();
@@ -1773,10 +2094,18 @@ class AppState extends ChangeNotifier {
   /// Manually clean up duplicate orphaned activities
   Future<void> cleanupDuplicateActivities() async {
     try {
-      // TODO: Implement Firebase activities cleanup
+      // Implement Firebase activities cleanup
+      // Validate and fix any data inconsistencies
+      final validation = await _dataService.validateDataIntegrity();
+      if (validation['isValid'] == false) {
+        await _dataService.fixDataInconsistencies();
+      }
       
-      // Reload activities to ensure UI stays in sync
-      _activities = _dataService.activities;
+      // Reload activities from Firebase
+      final activitiesStream = _dataService.activitiesFirebaseStream;
+      await for (final activities in activitiesStream.take(1)) {
+        _activities = activities;
+      }
       
       _clearCache();
       notifyListeners();
@@ -1805,9 +2134,10 @@ class AppState extends ChangeNotifier {
           if (subcategory.name.toLowerCase().contains('alfa')) {
             // Check if this is the LBP currency issue
             if (subcategory.costPriceCurrency == 'LBP' && subcategory.costPrice > 1000) {
-              // Convert the large LBP values to proper USD values
-              final costPriceUSD = subcategory.costPrice / 100000; // 90,000 LBP = 0.90 USD
-              final sellingPriceUSD = subcategory.sellingPrice / 100000; // 180,000 LBP = 1.80 USD
+              // Convert the large LBP values to proper USD values using current exchange rate
+              final exchangeRate = _currencySettings?.exchangeRate ?? 100000.0;
+              final costPriceUSD = subcategory.costPrice / exchangeRate;
+              final sellingPriceUSD = subcategory.sellingPrice / exchangeRate;
               
               // Update the subcategory with correct USD values and currency
               final updatedSubcategory = subcategory.copyWith(
@@ -1885,19 +2215,21 @@ class AppState extends ChangeNotifier {
           
           // If amounts are suspiciously high, they're likely in LBP
           if (debt.amount > 1000) {
-            // Convert from LBP to USD (assuming 1 USD = 1500 LBP as a reasonable rate)
-            final exchangeRate = 1500.0;
+            // Convert from LBP to USD using current exchange rate or reasonable default
+            final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
             newAmount = debt.amount / exchangeRate;
             print('  Converting debt amount from LBP to USD: ${debt.amount} LBP → ${newAmount.toStringAsFixed(2)} USD');
           }
           
           if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
-            newCostPrice = debt.originalCostPrice! / 1500.0;
+            final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
+            newCostPrice = debt.originalCostPrice! / exchangeRate;
             print('  Converting cost price from LBP to USD: ${debt.originalCostPrice} LBP → ${newCostPrice.toStringAsFixed(2)} USD');
           }
           
           if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
-            newSellingPrice = debt.originalSellingPrice! / 1500.0;
+            final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
+            newSellingPrice = debt.originalSellingPrice! / exchangeRate;
             print('  Converting selling price from LBP to USD: ${debt.originalSellingPrice} LBP → ${newSellingPrice.toStringAsFixed(2)} USD');
           }
           
@@ -2486,13 +2818,12 @@ class AppState extends ChangeNotifier {
   // Refresh all data from the data service
   Future<void> refreshDataFromService() async {
     try {
-      _customers = _dataService.customers;
-      _debts = _dataService.debts;
-      _categories = _dataService.categories;
-      _productPurchases = _dataService.productPurchases;
-      _partialPayments = _dataService.partialPayments;
-      _activities = _dataService.activities;
-      _currencySettings = _dataService.currencySettings;
+      // CRITICAL FIX: Don't overwrite Firebase stream data with empty lists
+      // Firebase streams are the source of truth for customers, debts, etc.
+      // Currency settings are also loaded via Firebase stream, don't override them here
+      
+      // _currencySettings = _dataService.currencySettings; // This returns null, causing the issue
+      print('📱 Another method: Keeping existing currency settings: ${_currencySettings?.exchangeRate}');
       
       _clearCache();
       notifyListeners();

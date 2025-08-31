@@ -96,6 +96,88 @@ class FirebaseAuthService {
 
   // Stream of user changes
   Stream<User?> get userChanges => _auth.userChanges();
+  
+  // Update user profile
+  Future<void> updateUserProfile(Map<String, dynamic> profile) async {
+    try {
+      await _auth.currentUser?.updateDisplayName(profile['displayName']);
+      if (profile.containsKey('photoURL')) {
+        await _auth.currentUser?.updatePhotoURL(profile['photoURL']);
+      }
+    } catch (e) {
+      print('Profile update failed: $e');
+      rethrow;
+    }
+  }
+  
+  // Get user settings
+  Future<Map<String, dynamic>> getUserSettings() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return {};
+      
+      return {
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': user.displayName,
+        'photoURL': user.photoURL,
+        'emailVerified': user.emailVerified,
+        'creationTime': user.metadata.creationTime?.toIso8601String(),
+        'lastSignInTime': user.metadata.lastSignInTime?.toIso8601String(),
+      };
+    } catch (e) {
+      print('Get user settings failed: $e');
+      return {};
+    }
+  }
+  
+  // Update user settings
+  Future<void> updateUserSettings(Map<String, dynamic> settings) async {
+    try {
+      if (settings.containsKey('displayName')) {
+        await _auth.currentUser?.updateDisplayName(settings['displayName']);
+      }
+      if (settings.containsKey('photoURL')) {
+        await _auth.currentUser?.updatePhotoURL(settings['photoURL']);
+      }
+    } catch (e) {
+      print('Update user settings failed: $e');
+      rethrow;
+    }
+  }
+  
+  // Get user preferences
+  Future<Map<String, dynamic>> getUserPreferences() async {
+    try {
+      // This would typically come from Firestore or SharedPreferences
+      // For now, return basic user info
+      final user = _auth.currentUser;
+      if (user == null) return {};
+      
+      return {
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': user.displayName,
+      };
+    } catch (e) {
+      print('Get user preferences failed: $e');
+      return {};
+    }
+  }
+  
+  // Update user preferences
+  Future<void> updateUserPreferences(Map<String, dynamic> preferences) async {
+    try {
+      // This would typically save to Firestore or SharedPreferences
+      // For now, just update basic profile info
+      if (preferences.containsKey('displayName')) {
+        await _auth.currentUser?.updateDisplayName(preferences['displayName']);
+      }
+    } catch (e) {
+      print('Update user preferences failed: $e');
+      rethrow;
+    }
+  }
 
   // Get auth error message
   String getAuthErrorMessage(String errorCode) {

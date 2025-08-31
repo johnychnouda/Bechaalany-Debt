@@ -36,9 +36,30 @@ class Activity {
   });
 
   factory Activity.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic dateTime) {
+      if (dateTime is String) {
+        return DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        return dateTime;
+      } else if (dateTime != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (dateTime.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              dateTime.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return Activity(
       id: json['id'] as String,
-      date: DateTime.parse(json['date'] as String),
+      date: parseDateTime(json['date']),
       type: ActivityType.values.firstWhere(
         (e) => e.toString() == 'ActivityType.${json['type']}',
       ),

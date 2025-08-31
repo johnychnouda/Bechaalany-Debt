@@ -78,6 +78,27 @@ class ProductPurchase {
   }
 
   factory ProductPurchase.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic dateTime) {
+      if (dateTime is String) {
+        return DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        return dateTime;
+      } else if (dateTime != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (dateTime.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              dateTime.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return ProductPurchase(
       id: json['id'],
       customerId: json['customerId'],
@@ -88,7 +109,7 @@ class ProductPurchase {
       costPrice: json['costPrice'].toDouble(),
       sellingPrice: json['sellingPrice'].toDouble(),
       totalAmount: json['totalAmount'].toDouble(),
-      purchaseDate: DateTime.parse(json['purchaseDate']),
+      purchaseDate: parseDateTime(json['purchaseDate']),
       isPaid: json['isPaid'] ?? false,
     );
   }

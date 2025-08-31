@@ -92,11 +92,32 @@ class CurrencySettings {
 
   // From JSON
   factory CurrencySettings.fromJson(Map<String, dynamic> json) {
+    DateTime parseLastUpdated(dynamic lastUpdated) {
+      if (lastUpdated is String) {
+        return DateTime.parse(lastUpdated);
+      } else if (lastUpdated is DateTime) {
+        return lastUpdated;
+      } else if (lastUpdated != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (lastUpdated.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              lastUpdated.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return CurrencySettings(
       baseCurrency: json['baseCurrency'] ?? 'USD',
       targetCurrency: json['targetCurrency'] ?? 'LBP',
       exchangeRate: json['exchangeRate'] != null ? json['exchangeRate'].toDouble() : null,
-      lastUpdated: DateTime.parse(json['lastUpdated'] ?? DateTime.now().toIso8601String()),
+      lastUpdated: parseLastUpdated(json['lastUpdated']),
       notes: json['notes'],
     );
   }

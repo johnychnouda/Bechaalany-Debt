@@ -16,6 +16,12 @@ class NotificationService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     
+    // Skip initialization for web platform
+    if (kIsWeb) {
+      _isInitialized = true;
+      return;
+    }
+    
     // Initialize notification settings for iOS only
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
@@ -40,6 +46,11 @@ class NotificationService {
   }
 
   Future<void> _requestPermissions() async {
+    // Skip platform-specific code for web
+    if (kIsWeb) {
+      return;
+    }
+    
     if (Platform.isIOS) {
       try {
         // iOS notification permissions are handled automatically by the initialization
@@ -182,6 +193,11 @@ class NotificationService {
     String? payload,
     required String type,
   }) async {
+    // Skip notifications for web platform
+    if (kIsWeb) {
+      return;
+    }
+    
     if (!_isInitialized) {
       await initialize();
     }
@@ -386,16 +402,22 @@ class NotificationService {
 
   // Cancel all notifications
   Future<void> cancelAllNotifications() async {
+    // Skip for web platform
+    if (kIsWeb) return;
     await _notifications.cancelAll();
   }
 
   // Cancel specific notification
   Future<void> cancelNotification(int id) async {
+    // Skip for web platform
+    if (kIsWeb) return;
     await _notifications.cancel(id);
   }
 
   // Get pending notifications
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    // Skip for web platform
+    if (kIsWeb) return [];
     return await _notifications.pendingNotificationRequests();
   }
 

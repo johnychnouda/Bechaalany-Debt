@@ -48,6 +48,27 @@ class Debt {
   });
 
   factory Debt.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic dateTime) {
+      if (dateTime is String) {
+        return DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        return dateTime;
+      } else if (dateTime != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (dateTime.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              dateTime.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return Debt(
       id: json['id'] as String,
       customerId: json['customerId'] as String,
@@ -60,9 +81,9 @@ class Debt {
       status: DebtStatus.values.firstWhere(
         (e) => e.toString() == 'DebtStatus.${json['status']}',
       ),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: parseDateTime(json['createdAt']),
       paidAt: json['paidAt'] != null 
-          ? DateTime.parse(json['paidAt'] as String) 
+          ? parseDateTime(json['paidAt']) 
           : null,
       notes: json['notes'] as String?,
       paidAmount: (json['paidAmount'] as num).toDouble(),

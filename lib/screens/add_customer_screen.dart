@@ -110,6 +110,30 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     );
   }
 
+  // Direct navigation method
+  void _navigateBack([dynamic result]) {
+    if (mounted) {
+      print('🚀 Navigating back with result: $result');
+      // Use a post-frame callback to ensure the UI is updated
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          try {
+            Navigator.of(context).pop(result);
+            print('✅ Navigation successful');
+          } catch (e) {
+            print('❌ Navigation failed: $e');
+            // Try alternative method
+            try {
+              Navigator.of(context).maybePop();
+            } catch (e2) {
+              print('❌ Alternative navigation also failed: $e2');
+            }
+          }
+        }
+      });
+    }
+  }
+
   // Validate phone number format
   bool _isValidPhoneNumber(String phone) {
     // Remove all non-digit characters
@@ -203,6 +227,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
 
       final appState = Provider.of<AppState>(context, listen: false);
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
       
       if (widget.customer != null) {
         // Ensure we're updating with the latest data and preserve the original ID
@@ -214,13 +239,53 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
         
         await appState.updateCustomer(updatedCustomer);
+        
+        // Show success message and navigate back immediately
         if (mounted) {
-          Navigator.pop(context, true); // Return true to indicate successful update
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Customer "${updatedCustomer.name}" updated successfully!'),
+              backgroundColor: Colors.blue,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          
+          // Try direct navigation first
+          try {
+            print('🚀 Attempting direct navigation for update');
+            Navigator.of(context).pop(true);
+            print('✅ Direct navigation successful for update');
+          } catch (e) {
+            print('❌ Direct navigation failed for update: $e');
+            // Fallback to our method
+            _navigateBack(true);
+          }
         }
       } else {
         await appState.addCustomer(customer);
+        print('✅ Customer added successfully: ${customer.name}');
+        
+        // Show success message and navigate back immediately
         if (mounted) {
-          Navigator.pop(context);
+          print('📱 Showing success message and navigating back');
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Customer "${customer.name}" added successfully!'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          
+          // Try direct navigation first
+          try {
+            print('🚀 Attempting direct navigation');
+            Navigator.of(context).pop();
+            print('✅ Direct navigation successful');
+          } catch (e) {
+            print('❌ Direct navigation failed: $e');
+            // Fallback to our method
+            _navigateBack();
+          }
         }
       }
     } catch (e) {
@@ -578,7 +643,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 ),
               ),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              
+
             ],
           ),
         ),

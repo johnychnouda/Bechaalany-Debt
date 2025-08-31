@@ -26,8 +26,66 @@ class FirebaseService {
   // Check if user is signed in
   bool get isSignedIn => _auth.currentUser != null;
 
+  // Sign in anonymously for data access
+  Future<UserCredential?> signInAnonymously() async {
+    try {
+      return await _auth.signInAnonymously();
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     await _auth.signOut();
+  }
+  
+  // Check Firebase connection
+  Future<bool> checkConnection() async {
+    try {
+      await _firestore.collection('_health').doc('ping').get();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  // Get Firebase app instance
+  FirebaseApp get app => Firebase.app();
+  
+  // Get Firestore instance
+  FirebaseFirestore get firestore => _firestore;
+  
+  // Get Auth instance
+  FirebaseAuth get auth => _auth;
+  
+  // Initialize with custom options
+  Future<void> initializeWithOptions(FirebaseOptions options) async {
+    try {
+      await Firebase.initializeApp(options: options);
+    } catch (e) {
+      rethrow;
+    }
+  }
+  
+  // Check if Firebase is initialized
+  bool get isInitialized => Firebase.apps.isNotEmpty;
+  
+  // Get Firebase configuration
+  Map<String, dynamic> getFirebaseConfig() {
+    try {
+      final app = Firebase.app();
+      return {
+        'name': app.name,
+        'options': {
+          'apiKey': app.options.apiKey,
+          'appId': app.options.appId,
+          'messagingSenderId': app.options.messagingSenderId,
+          'projectId': app.options.projectId,
+        },
+      };
+    } catch (e) {
+      return {};
+    }
   }
 }

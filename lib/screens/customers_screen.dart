@@ -27,10 +27,33 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     WidgetsBinding.instance.addObserver(this);
     _searchController.addListener(_filterCustomers);
     
-    // Initialize filtered customers with all customers
+    // Listen to AppState changes to refresh customers
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _filterCustomers();
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.addListener(_onAppStateChanged);
+      
+      // CRITICAL FIX: Initialize filtered customers immediately after adding listener
+      if (appState.customers.isNotEmpty) {
+        _filterCustomers();
+      }
     });
+  }
+  
+  void _onAppStateChanged() {
+    print('🔄 AppState changed, refreshing customers');
+    
+    // Ensure filtered customers are always in sync with app state
+    final appState = Provider.of<AppState>(context, listen: false);
+    if (_filteredCustomers.isEmpty && appState.customers.isNotEmpty) {
+      _filteredCustomers = List.from(appState.customers);
+    }
+    
+    // Refresh filtered customers when app state changes (e.g., new customer added)
+    if (_filteredCustomers.length != appState.customers.length && _searchController.text.isEmpty) {
+      _filteredCustomers = List.from(appState.customers);
+    }
+    
+    _filterCustomers();
   }
 
   @override
@@ -38,6 +61,15 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _scrollController.dispose();
+    
+    // Remove AppState listener
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      appState.removeListener(_onAppStateChanged);
+    } catch (e) {
+      // Context might be disposed already
+    }
+    
     super.dispose();
   }
 
@@ -52,6 +84,11 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     final appState = Provider.of<AppState>(context, listen: false);
     final customers = appState.customers;
     final query = _searchController.text.toLowerCase();
+    
+    // Safety check: don't filter if no customers available
+    if (customers.isEmpty) {
+      return;
+    }
     
     setState(() {
       if (query.isEmpty) {
@@ -128,16 +165,6 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, appState, child) {
-            // Ensure filtered customers are always in sync with app state
-            if (_filteredCustomers.isEmpty && appState.customers.isNotEmpty) {
-              _filteredCustomers = List.from(appState.customers);
-            }
-            
-            // Refresh filtered customers when app state changes (e.g., new customer added)
-            if (_filteredCustomers.length != appState.customers.length && _searchController.text.isEmpty) {
-              _filteredCustomers = List.from(appState.customers);
-            }
-            
             final groupedCustomers = _groupCustomersByFirstLetter();
             final totalCustomers = appState.customers.length;
 

@@ -677,13 +677,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final currentExchangeRate = appState.currencySettings?.exchangeRate;
     
-    // Check if exchange rate is set
-    if (currentExchangeRate == null) {
+    // Check if exchange rate is set (only required for LBP products)
+    if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
       showCupertinoDialog(
         context: context,
         builder: (context) => CupertinoAlertDialog(
           title: const Text('Exchange Rate Required'),
-          content: const Text('Please set an exchange rate in Currency Settings before editing products with LBP pricing.'),
+          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP pricing.'),
           actions: [
             CupertinoDialogAction(
               child: const Text('Cancel'),
@@ -715,10 +715,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
         sellingPriceController.text = NumberFormat('#,###').format(storedSellingPrice.toInt());
       } else {
         // Stored in USD, convert to LBP for display
-        final costPriceLBP = storedCostPrice * currentExchangeRate;
-        final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
-        costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
-        sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+        if (currentExchangeRate != null) {
+          final costPriceLBP = storedCostPrice * currentExchangeRate;
+          final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
+          costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
+          sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+        } else {
+          // Fallback to USD if no exchange rate
+          costPriceController.text = storedCostPrice.toStringAsFixed(2);
+          sellingPriceController.text = storedSellingPrice.toStringAsFixed(2);
+        }
       }
     } else {
       // If we want to display in USD, show the stored USD amounts
@@ -728,10 +734,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
         sellingPriceController.text = storedSellingPrice.toStringAsFixed(2);
       } else {
         // Stored in LBP, convert to USD for display
-        final costPriceUSD = storedCostPrice / currentExchangeRate;
-        final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
-        costPriceController.text = costPriceUSD.toStringAsFixed(2);
-        sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
+        if (currentExchangeRate != null) {
+          final costPriceUSD = storedCostPrice / currentExchangeRate;
+          final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
+          costPriceController.text = costPriceUSD.toStringAsFixed(2);
+          sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
+        } else {
+          // Fallback to LBP if no exchange rate
+          costPriceController.text = NumberFormat('#,###').format(storedCostPrice.toInt());
+          sellingPriceController.text = NumberFormat('#,###').format(storedSellingPrice.toInt());
+        }
       }
     }
     showDialog(
@@ -776,10 +788,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             // Convert to LBP for display
                             if (storedCurrency == 'USD') {
                               // Stored in USD, convert to LBP
-                              final costPriceLBP = storedCostPrice * currentExchangeRate;
-                              final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
-                              costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
-                              sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+                              if (currentExchangeRate != null) {
+                                final costPriceLBP = storedCostPrice * currentExchangeRate;
+                                final sellingPriceLBP = storedSellingPrice * currentExchangeRate;
+                                costPriceController.text = NumberFormat('#,###').format(costPriceLBP.toInt());
+                                sellingPriceController.text = NumberFormat('#,###').format(sellingPriceLBP.toInt());
+                              } else {
+                                // Fallback to USD if no exchange rate
+                                costPriceController.text = storedCostPrice.toStringAsFixed(2);
+                                sellingPriceController.text = storedSellingPrice.toStringAsFixed(2);
+                              }
                             } else {
                               // Already stored in LBP, show as is
                               costPriceController.text = NumberFormat('#,###').format(storedCostPrice.toInt());
@@ -789,10 +807,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             // Convert to USD for display
                             if (storedCurrency == 'LBP') {
                               // Stored in LBP, convert to USD
-                              final costPriceUSD = storedCostPrice / currentExchangeRate;
-                              final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
-                              costPriceController.text = costPriceUSD.toStringAsFixed(2);
-                              sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
+                              if (currentExchangeRate != null) {
+                                final costPriceUSD = storedCostPrice / currentExchangeRate;
+                                final sellingPriceUSD = storedSellingPrice / currentExchangeRate;
+                                costPriceController.text = costPriceUSD.toStringAsFixed(2);
+                                sellingPriceController.text = sellingPriceUSD.toStringAsFixed(2);
+                              } else {
+                                // Fallback to LBP if no exchange rate
+                                costPriceController.text = NumberFormat('#,###').format(storedCostPrice.toInt());
+                                sellingPriceController.text = NumberFormat('#,###').format(storedSellingPrice.toInt());
+                              }
                             } else {
                               // Already stored in USD, show as is
                               costPriceController.text = storedCostPrice.toStringAsFixed(2);
@@ -1143,8 +1167,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final currentExchangeRate = appState.currencySettings?.exchangeRate;
     
-    // Check if exchange rate is set
-    if (currentExchangeRate == null) {
+    // Check if exchange rate is set (only required for LBP products)
+    if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
       showCupertinoDialog(
         context: context,
         builder: (context) => CupertinoAlertDialog(
@@ -1216,12 +1240,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         setState(() {
                           selectedCurrency = value!;
                           if (selectedCurrency == 'LBP') {
-                            if (defaultCostPriceUSD > 0) {
+                            if (defaultCostPriceUSD > 0 && currentExchangeRate != null) {
                               costPriceController.text = NumberFormat('#,###').format((defaultCostPriceUSD * currentExchangeRate).toInt());
                             } else {
                               costPriceController.clear();
                             }
-                            if (defaultSellingPriceUSD > 0) {
+                            if (defaultSellingPriceUSD > 0 && currentExchangeRate != null) {
                               sellingPriceController.text = NumberFormat('#,###').format((defaultSellingPriceUSD * currentExchangeRate).toInt());
                             } else {
                               sellingPriceController.clear();
@@ -1258,7 +1282,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             // Remove commas for parsing
                             String cleanValue = value.replaceAll(',', '');
                             double price = double.parse(cleanValue);
-                            if (selectedCurrency == 'LBP') {
+                            if (selectedCurrency == 'LBP' && currentExchangeRate != null) {
                               defaultCostPriceUSD = price / currentExchangeRate;
                             } else {
                               defaultCostPriceUSD = price;
@@ -1286,7 +1310,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             // Remove commas for parsing
                             String cleanValue = value.replaceAll(',', '');
                             double price = double.parse(cleanValue);
-                            if (selectedCurrency == 'LBP') {
+                            if (selectedCurrency == 'LBP' && currentExchangeRate != null) {
                               defaultSellingPriceUSD = price / currentExchangeRate;
                             } else {
                               defaultSellingPriceUSD = price;
@@ -1996,11 +2020,22 @@ class _ProductCard extends StatelessWidget {
                           // Exchange Rate Display - Only show for LBP products
                           Consumer<AppState>(
                             builder: (context, appState, child) {
-                              if (appState.currencySettings != null && 
+                              // Debug: Print subcategory currency info
+                              print('🔍 ProductCard Debug - ${subcategory.name}:');
+                              print('  Cost Currency: ${subcategory.costPriceCurrency}');
+                              print('  Selling Currency: ${subcategory.sellingPriceCurrency}');
+                              print('  Has Currency Settings: ${appState.currencySettings != null}');
+                              print('  Exchange Rate: ${appState.currencySettings?.exchangeRate}');
+                              
+                              // Show exchange rate chip for LBP products when currency settings are available
+                              if (appState.currencySettings?.exchangeRate != null && 
                                   (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
+                                print('  ✅ Showing exchange rate chip for ${subcategory.name}');
                                 return _buildExchangeRateChip(context, appState.currencySettings!);
+                              } else {
+                                print('  ❌ Not showing exchange rate chip for ${subcategory.name}');
+                                return const SizedBox.shrink();
                               }
-                              return const SizedBox.shrink();
                             },
                           ),
                         ],
@@ -2032,13 +2067,65 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 12),
             Consumer<AppState>(
               builder: (context, appState, child) {
+                // Get actual ProductPurchase data for this subcategory
+                final productPurchases = appState.productPurchases
+                    .where((p) => p.subcategoryName == subcategory.name)
+                    .toList();
+                
+                // Debug: Print ProductPurchase data
+                print('🔍 ProductCard Data Debug - ${subcategory.name}:');
+                print('  ProductPurchases found: ${productPurchases.length}');
+                if (productPurchases.isNotEmpty) {
+                  for (final purchase in productPurchases) {
+                    print('    Purchase: Cost=${purchase.costPrice}, Price=${purchase.sellingPrice}');
+                  }
+                }
+                print('  Subcategory template: Cost=${subcategory.costPrice}, Price=${subcategory.sellingPrice}, Currency=${subcategory.costPriceCurrency}');
+                
+                // Calculate actual costs, prices, and revenue from purchase data
+                double totalCost = 0.0;
+                double totalPrice = 0.0;
+                double totalRevenue = 0.0;
+                
+                if (productPurchases.isNotEmpty) {
+                  for (final purchase in productPurchases) {
+                    totalCost += purchase.costPrice;
+                    totalPrice += purchase.sellingPrice;
+                    totalRevenue += (purchase.sellingPrice - purchase.costPrice);
+                  }
+                  print('  ✅ Using ProductPurchase data: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+                } else {
+                  // Fallback to subcategory template data if no purchases exist
+                  totalCost = subcategory.costPrice;
+                  totalPrice = subcategory.sellingPrice;
+                  totalRevenue = subcategory.profit;
+                  
+                  // Convert LBP values to USD if currency settings are available
+                  if (appState.currencySettings?.exchangeRate != null && 
+                      (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
+                    final exchangeRate = appState.currencySettings!.exchangeRate!;
+                    totalCost = totalCost / exchangeRate;
+                    totalPrice = totalPrice / exchangeRate;
+                    totalRevenue = totalRevenue / exchangeRate;
+                    print('  🔄 Converted LBP to USD using rate $exchangeRate: Cost=${totalCost.toStringAsFixed(2)}, Price=${totalPrice.toStringAsFixed(2)}, Revenue=${totalRevenue.toStringAsFixed(2)}');
+                  } else {
+                    print('  ⚠️ Using subcategory template data: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+                  }
+                }
+                
+                // Final debug: Show what values will be displayed
+                print('  🎯 FINAL VALUES for UI: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+                
                 return Row(
                   children: [
                     Expanded(
                       child: _buildInfoChip(
                         context,
                         'Cost',
-                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.costPrice, storedCurrency: subcategory.costPriceCurrency),
+                        // Pass original LBP values for LBP products, converted USD values for USD products
+                        subcategory.costPriceCurrency == 'LBP' 
+                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.costPrice, storedCurrency: 'LBP')
+                            : '${totalCost.toStringAsFixed(2)}\$',
                         Icons.shopping_cart,
                         AppColors.dynamicWarning(context),
                       ),
@@ -2048,7 +2135,10 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         'Price',
-                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.sellingPrice, storedCurrency: subcategory.sellingPriceCurrency),
+                        // Pass original LBP values for LBP products, converted USD values for USD products
+                        subcategory.sellingPriceCurrency == 'LBP'
+                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.sellingPrice, storedCurrency: 'LBP')
+                            : '${totalPrice.toStringAsFixed(2)}\$',
                         Icons.attach_money,
                         AppColors.dynamicPrimary(context),
                       ),
@@ -2057,10 +2147,13 @@ class _ProductCard extends StatelessWidget {
                     Expanded(
                       child: _buildInfoChip(
                         context,
-                        subcategory.profit >= 0 ? 'Revenue' : 'Loss',
-                        CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.profit, storedCurrency: subcategory.sellingPriceCurrency),
+                        totalRevenue >= 0 ? 'Revenue' : 'Loss',
+                        // Pass original LBP values for LBP products, converted USD values for USD products
+                        subcategory.sellingPriceCurrency == 'LBP'
+                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.profit, storedCurrency: 'LBP')
+                            : '${totalRevenue.toStringAsFixed(2)}\$',
                         Icons.trending_up,
-                        subcategory.profit >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
+                        totalRevenue >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
                       ),
                     ),
                   ],

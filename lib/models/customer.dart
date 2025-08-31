@@ -18,15 +18,36 @@ class Customer {
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic dateTime) {
+      if (dateTime is String) {
+        return DateTime.parse(dateTime);
+      } else if (dateTime is DateTime) {
+        return dateTime;
+      } else if (dateTime != null) {
+        // Handle Firebase Timestamp or other types
+        try {
+          if (dateTime.toString().contains('Timestamp')) {
+            // Firebase Timestamp - convert to DateTime
+            return DateTime.fromMillisecondsSinceEpoch(
+              dateTime.millisecondsSinceEpoch,
+            );
+          }
+        } catch (e) {
+          // Fallback to current time if parsing fails
+        }
+      }
+      return DateTime.now();
+    }
+
     return Customer(
       id: json['id'] as String,
       name: json['name'] as String,
       phone: json['phone'] as String,
       email: json['email'] as String?,
       address: json['address'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: parseDateTime(json['createdAt']),
       updatedAt: json['updatedAt'] != null 
-          ? DateTime.parse(json['updatedAt'] as String) 
+          ? parseDateTime(json['updatedAt']) 
           : null,
     );
   }

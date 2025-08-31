@@ -17,6 +17,28 @@ class ProductCategory {
     List<Subcategory>? subcategories,
   }) : subcategories = subcategories ?? [];
 
+  // Helper function to parse DateTime from various formats
+  static DateTime parseDateTime(dynamic dateTime) {
+    if (dateTime is String) {
+      return DateTime.parse(dateTime);
+    } else if (dateTime is DateTime) {
+      return dateTime;
+    } else if (dateTime != null) {
+      // Handle Firebase Timestamp or other types
+      try {
+        if (dateTime.toString().contains('Timestamp')) {
+          // Firebase Timestamp - convert to DateTime
+          return DateTime.fromMillisecondsSinceEpoch(
+            dateTime.millisecondsSinceEpoch,
+          );
+        }
+      } catch (e) {
+        // Fallback to current time if parsing fails
+      }
+    }
+    return DateTime.now();
+  }
+
   ProductCategory copyWith({
     String? id,
     String? name,
@@ -48,7 +70,7 @@ class ProductCategory {
       id: json['id'],
       name: json['name'],
       description: json['description'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       subcategories: (json['subcategories'] as List?)
           ?.map((s) => Subcategory.fromJson(s))
           .toList() ?? [],
@@ -86,6 +108,28 @@ class Subcategory {
     required this.costPriceCurrency,
     required this.sellingPriceCurrency,
   }) : priceHistory = priceHistory ?? [];
+
+  // Helper function to parse DateTime from various formats
+  static DateTime parseDateTime(dynamic dateTime) {
+    if (dateTime is String) {
+      return DateTime.parse(dateTime);
+    } else if (dateTime is DateTime) {
+      return dateTime;
+    } else if (dateTime != null) {
+      // Handle Firebase Timestamp or other types
+      try {
+        if (dateTime.toString().contains('Timestamp')) {
+          // Firebase Timestamp - convert to DateTime
+          return DateTime.fromMillisecondsSinceEpoch(
+            dateTime.millisecondsSinceEpoch,
+          );
+        }
+      } catch (e) {
+        // Fallback to current time if parsing fails
+      }
+    }
+    return DateTime.now();
+  }
 
   double get profit => sellingPrice - costPrice;
   double get profitPercentage => costPrice > 0 ? (profit / costPrice) * 100 : 0;
@@ -183,7 +227,7 @@ class Subcategory {
       description: json['description'],
       costPrice: json['costPrice'].toDouble(),
       sellingPrice: json['sellingPrice'].toDouble(),
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: parseDateTime(json['createdAt']),
       priceHistory: (json['priceHistory'] as List?)
           ?.map((p) => PriceHistory.fromJson(p))
           .toList() ?? [],
@@ -208,6 +252,28 @@ class PriceHistory {
     required this.sellingPrice,
     required this.changedAt,
   });
+
+  // Helper function to parse DateTime from various formats
+  static DateTime parseDateTime(dynamic dateTime) {
+    if (dateTime is String) {
+      return DateTime.parse(dateTime);
+    } else if (dateTime is DateTime) {
+      return dateTime;
+    } else if (dateTime != null) {
+      // Handle Firebase Timestamp or other types
+      try {
+        if (dateTime.toString().contains('Timestamp')) {
+          // Firebase Timestamp - convert to DateTime
+          return DateTime.fromMillisecondsSinceEpoch(
+            dateTime.millisecondsSinceEpoch,
+          );
+        }
+      } catch (e) {
+        // Fallback to current time if parsing fails
+      }
+    }
+    return DateTime.now();
+  }
 
   double get profit => sellingPrice - costPrice;
 
@@ -239,7 +305,7 @@ class PriceHistory {
       id: json['id'],
       costPrice: json['costPrice'].toDouble(),
       sellingPrice: json['sellingPrice'].toDouble(),
-      changedAt: DateTime.parse(json['changedAt']),
+      changedAt: parseDateTime(json['changedAt']),
     );
   }
 } 

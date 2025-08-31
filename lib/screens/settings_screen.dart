@@ -583,7 +583,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               
               try {
                 final appState = Provider.of<AppState>(context, listen: false);
-                await appState.clearDebtsAndActivities();
+                
+                // Add manual timeout to prevent hanging
+                await appState.clearDebtsAndActivities()
+                    .timeout(const Duration(seconds: 120)); // 2 minutes total timeout
                 
                 // Hide loading indicator
                 Navigator.pop(context);
