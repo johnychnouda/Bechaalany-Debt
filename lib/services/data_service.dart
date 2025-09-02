@@ -342,12 +342,16 @@ class DataService {
 
   // ===== BACKUP METHODS =====
   
-  Future<String> createBackup() async {
-    return await _firebaseService.createBackup();
+  Future<String> createBackup({bool isAutomatic = false}) async {
+    return await _firebaseService.createBackup(isAutomatic: isAutomatic);
   }
 
   Future<List<String>> getAvailableBackups() async {
     return await _firebaseService.getAvailableBackups();
+  }
+
+  Future<Map<String, dynamic>?> getBackupMetadata(String backupId) async {
+    return await _firebaseService.getBackupMetadata(backupId);
   }
 
   Future<bool> restoreFromBackup(String backupId) async {

@@ -19,6 +19,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final DataService _dataService = DataService();
   final BackupService _backupService = BackupService();
   List<String> _availableBackups = [];
+  Map<String, Map<String, dynamic>> _backupMetadata = {};
   bool _isLoading = false;
   bool _isAutomaticBackupEnabled = false;
   DateTime? _lastBackupTime;
@@ -151,11 +152,25 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
 
     try {
       print('📱 Loading available backups...');
-      final backups = await _dataService.getAvailableBackups();
+      final backups = await _backupService.getAvailableBackups();
       print('📱 Found ${backups.length} backups: $backups');
+      
+      // Load metadata for each backup
+      final metadata = <String, Map<String, dynamic>>{};
+      for (final backupId in backups) {
+        try {
+          final backupMeta = await _backupService.getBackupMetadata(backupId);
+          if (backupMeta != null) {
+            metadata[backupId] = backupMeta;
+          }
+        } catch (e) {
+          print('❌ Error loading metadata for backup $backupId: $e');
+        }
+      }
       
       setState(() {
         _availableBackups = backups;
+        _backupMetadata = metadata;
         _isLoading = false;
       });
     } catch (e) {
@@ -222,7 +237,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
-      final success = await _dataService.restoreFromBackup(backupPath);
+      final success = await _backupService.restoreFromBackup(backupPath);
       
       if (success) {
         // Reload app state
@@ -279,7 +294,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
-      final success = await _dataService.deleteBackup(backupPath);
+      final success = await _backupService.deleteBackup(backupPath);
       
       if (success) {
         await _loadBackups();
@@ -641,7 +656,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         final formattedHour = hour.toString().padLeft(2, '0');
         final minute = dateTime.minute.toString().padLeft(2, '0');
         
-        return '$month/$day/$year at $formattedHour:$minute $period';
+        return '$month/$day/$year $formattedHour:$minute $period';
       } catch (e) {
         // If parsing fails, return the original filename
         return fileName;
@@ -724,24 +739,27 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                 final backupPath = _availableBackups[index];
                 final fileName = backupPath.split('/').last;
                 final formattedDate = _formatBackupFileName(fileName);
+                final metadata = _backupMetadata[backupPath];
+                final isAutomatic = metadata?['isAutomatic'] ?? false;
+                final backupType = metadata?['backupType'] ?? 'manual';
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.dynamicSurface(context),
-                  ),
-                  child: Padding(
+                return Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.dynamicSuccess(context).withAlpha(26),
+                            color: isAutomatic 
+                                ? AppColors.dynamicPrimary(context).withAlpha(26)
+                                : AppColors.dynamicSuccess(context).withAlpha(26),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
-                            CupertinoIcons.doc_text,
-                            color: AppColors.dynamicSuccess(context),
+                            isAutomatic ? CupertinoIcons.clock : CupertinoIcons.doc_text,
+                            color: isAutomatic 
+                                ? AppColors.dynamicPrimary(context)
+                                : AppColors.dynamicSuccess(context),
                             size: 18,
                           ),
                         ),
@@ -752,18 +770,46 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                             children: [
                               Text(
                                 formattedDate,
-                                style: AppTheme.getDynamicBody(context).copyWith(
+                                style: AppTheme.getDynamicCaption1(context).copyWith(
                                   color: AppColors.dynamicTextPrimary(context),
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                'Backup file',
-                                style: AppTheme.getDynamicCaption1(context).copyWith(
-                                  color: AppColors.dynamicTextSecondary(context),
-                                  fontSize: 12,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    isAutomatic ? 'Automatic backup' : 'Manual backup',
+                                    style: AppTheme.getDynamicCaption1(context).copyWith(
+                                      color: isAutomatic 
+                                          ? AppColors.dynamicPrimary(context)
+                                          : AppColors.dynamicTextSecondary(context),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isAutomatic 
+                                          ? AppColors.dynamicPrimary(context).withAlpha(26)
+                                          : AppColors.dynamicTextSecondary(context).withAlpha(26),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      backupType.toUpperCase(),
+                                      style: AppTheme.getDynamicCaption1(context).copyWith(
+                                        color: isAutomatic 
+                                            ? AppColors.dynamicPrimary(context)
+                                            : AppColors.dynamicTextSecondary(context),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -819,8 +865,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                         ),
                       ],
                     ),
-                  ),
-                );
+                  );
               },
             ),
           ),

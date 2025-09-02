@@ -1043,12 +1043,8 @@ class _GroupedDebtCard extends StatelessWidget {
                                 child: Text('Close'),
                               ),
                               TextButton(
-                                onPressed: () {
-                                  Navigator.of(context).pop();
-                                  // Now try to open receipt
-                                  _openReceiptDirectly(group['customerId'] as String, (group['debts'] as List<Debt>).first);
-                                },
-                                child: Text('Try Receipt'),
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text('OK'),
                               ),
                             ],
                           );

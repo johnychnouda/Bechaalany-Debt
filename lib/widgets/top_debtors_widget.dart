@@ -143,13 +143,6 @@ class TopDebtorsWidget extends StatelessWidget {
                                       color: AppColors.textPrimary,
                                     ),
                                   ),
-                                  Text(
-                                    '${customerDebtsList.length} ${customerDebtsList.length == 1 ? 'debt' : 'debts'}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -162,14 +155,6 @@ class TopDebtorsWidget extends StatelessWidget {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: _getRankColor(index),
-                                  ),
-                                ),
-                                Text(
-                                  _getRankLabel(index),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: _getRankColor(index).withAlpha(179), // 0.7 * 255
-                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],

@@ -1,36 +1,55 @@
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class BackupService {
   static final BackupService _instance = BackupService._internal();
   factory BackupService() => _instance;
   BackupService._internal();
 
-  Timer? _dailyBackupTimer;
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
+  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
 
   // Initialize automatic daily backup
   Future<void> initializeDailyBackup() async {
     print('🚀 Initializing daily backup service...');
     
-    // Cancel any existing timer
-    _dailyBackupTimer?.cancel();
+    // Initialize notifications
+    await _initializeNotifications();
     
     // Check if automatic backup is enabled
     final isEnabled = await isAutomaticBackupEnabled();
     print('🚀 Automatic backup enabled: $isEnabled');
     
-    if (!isEnabled) {
-      print('🚀 Automatic backup is disabled, skipping initialization');
-      return;
+    if (isEnabled) {
+      // Schedule daily backup notification
+      await _scheduleDailyBackupNotification();
+      print('🚀 Daily backup notification scheduled');
+      
+      // Check if we need to create a backup now (app just opened)
+      await _checkAndCreateBackupIfNeeded();
     }
+  }
+
+  // Initialize local notifications
+  Future<void> _initializeNotifications() async {
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
     
-    // Schedule daily backup at 12 AM
-    _scheduleDailyBackup();
-    print('🚀 Daily backup service initialized successfully');
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+    
+    await _notifications.initialize(initSettings);
   }
 
   // Handle app lifecycle changes
@@ -38,83 +57,127 @@ class BackupService {
     final isEnabled = await isAutomaticBackupEnabled();
     
     if (isEnabled) {
-      // Re-schedule backup when app comes to foreground
-      await initializeDailyBackup();
+      // Re-schedule notification when app comes to foreground
+      await _scheduleDailyBackupNotification();
+      
+      // Check if we need to create a backup (app resumed)
+      await _checkAndCreateBackupIfNeeded();
+    }
+  }
+
+  // Check if backup is needed and create it automatically
+  Future<void> _checkAndCreateBackupIfNeeded() async {
+    try {
+      final lastBackup = await getLastAutomaticBackupTime();
+      final now = DateTime.now();
+      
+      if (lastBackup == null) {
+        // No backup exists, create one
+        print('🔄 No previous backup found, creating first backup...');
+        await _createAutomaticBackup();
+        return;
+      }
+      
+      // Check if it's been more than 24 hours since last backup
+      final timeSinceLastBackup = now.difference(lastBackup);
+      final hoursSinceLastBackup = timeSinceLastBackup.inHours;
+      
+      print('🔄 Hours since last backup: $hoursSinceLastBackup');
+      
+      if (hoursSinceLastBackup >= 24) {
+        print('🔄 More than 24 hours since last backup, creating automatic backup...');
+        await _createAutomaticBackup();
+      } else {
+        print('🔄 Less than 24 hours since last backup, skipping...');
+      }
+    } catch (e) {
+      print('❌ Error checking backup status: $e');
+    }
+  }
+
+  // Create automatic backup (called when app opens and backup is needed)
+  Future<void> _createAutomaticBackup() async {
+    try {
+      print('🔄 Creating automatic backup...');
+      
+      final backupId = await _dataService.createBackup(isAutomatic: true);
+      
+      if (backupId != null) {
+        await setLastAutomaticBackupTime(DateTime.now());
+        print('✅ Automatic backup created successfully: $backupId');
+        
+        // Show success notification
+        await _notificationService.showSuccessNotification(
+          title: 'Daily Backup Complete',
+          body: 'Your data has been automatically backed up',
+        );
+      }
+    } catch (e) {
+      print('❌ Error creating automatic backup: $e');
+      
+      // Show error notification
+      await _notificationService.showErrorNotification(
+        title: 'Backup Failed',
+        body: 'Automatic backup failed: $e',
+      );
     }
   }
 
   // Get next scheduled backup time for display purposes
   DateTime? getNextScheduledBackupTime() {
-    if (_dailyBackupTimer == null) return null;
-    
     final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
     return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
   }
 
-
-
-  void _scheduleDailyBackup() {
-    final now = DateTime.now();
+  // Schedule daily backup notification at 12 AM
+  Future<void> _scheduleDailyBackupNotification() async {
+    // Cancel any existing notifications
+    await _notifications.cancelAll();
     
-    // Calculate next backup time (12 AM tomorrow)
-    // Always schedule for 12 AM tomorrow to ensure consistent timing
+    // Calculate next 12 AM
+    final now = DateTime.now();
     final tomorrow = now.add(const Duration(days: 1));
     final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
     
-    final delay = nextBackup.difference(now);
+    // Schedule notification
+    await _notifications.zonedSchedule(
+      1001, // Unique ID for backup notification
+      'Daily Backup Reminder',
+      'Open the app to create your daily backup and keep your data safe',
+      _nextInstanceOfMidnight(),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'backup_channel',
+          'Backup Reminders',
+          channelDescription: 'Daily backup reminders',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
     
-    print('⏰ Scheduling daily backup for: ${nextBackup.toString()}');
-    print('⏰ Delay: ${delay.inHours}h ${delay.inMinutes % 60}m ${delay.inSeconds % 60}s');
-    
-    _dailyBackupTimer = Timer(delay, () {
-      print('⏰ Daily backup timer triggered');
-      _performDailyBackup();
-      // Schedule the next backup after this one completes
-      _scheduleDailyBackup();
-    });
+    print('⏰ Daily backup notification scheduled for: ${nextBackup.toString()}');
   }
 
-  Future<void> _performDailyBackup() async {
-    try {
-      print('🔄 Starting daily backup process...');
-      
-      // Check if we already have a backup today to prevent duplicates
-      final lastBackup = await getLastAutomaticBackupTime();
-      if (lastBackup != null) {
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
-        
-        if (lastBackupDate == today) {
-          print('🔄 Backup already performed today, skipping...');
-          return;
-        }
-      }
-      
-      print('🔄 Creating automatic backup...');
-      // Create backup
-      final backupId = await _dataService.createBackup();
-      
-      // Update last automatic backup time
-      await setLastAutomaticBackupTime(DateTime.now());
-      
-      print('✅ Daily backup completed successfully: $backupId');
-      
-      // Show notification
-      await _notificationService.showSuccessNotification(
-        title: 'Daily Backup Complete',
-        body: 'Your data has been automatically backed up at 12 AM',
-      );
-      
-    } catch (e) {
-      print('❌ Daily backup failed: $e');
-      // Show error notification
-      await _notificationService.showErrorNotification(
-        title: 'Backup Failed',
-        body: 'Daily backup failed: $e',
-      );
+  // Get next instance of midnight (12 AM)
+  tz.TZDateTime _nextInstanceOfMidnight() {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 0, 0, 0);
+    
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
+    
+    return scheduledDate;
   }
 
   // Enable/disable automatic backups
@@ -123,31 +186,38 @@ class BackupService {
     await prefs.setBool('automatic_backup_enabled', enabled);
     
     if (enabled) {
-      await initializeDailyBackup();
+      await _scheduleDailyBackupNotification();
+      // Check if backup is needed immediately
+      await _checkAndCreateBackupIfNeeded();
     } else {
-      _dailyBackupTimer?.cancel();
+      await _notifications.cancelAll();
     }
+    
+    print('✅ Automatic backup ${enabled ? 'enabled' : 'disabled'}');
   }
 
   // Check if automatic backup is enabled
   Future<bool> isAutomaticBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getBool('automatic_backup_enabled') ?? false; // Default to disabled
+    final value = prefs.getBool('automatic_backup_enabled') ?? false;
     return value;
   }
 
+  // Get last automatic backup time
+  Future<DateTime?> getLastAutomaticBackupTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt('last_automatic_backup_timestamp');
+    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+  }
+
+  // Set last automatic backup time
+  Future<void> setLastAutomaticBackupTime(DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+  }
+
   // Check if the backup service is already initialized
-  bool get isInitialized => _dailyBackupTimer != null;
-
-
-
-
-
-
-
-
-
-
+  bool get isInitialized => true;
 
   // Check if the backup service is in a valid state
   Future<bool> isInValidState() async {
@@ -157,286 +227,100 @@ class BackupService {
       return true; // If disabled, state is valid
     }
     
-    // If enabled, check if timer is properly scheduled
-    if (_dailyBackupTimer == null) {
-      return false;
-    }
-    
-    // Check if timer delay is valid (positive)
-    final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
-    final delay = nextBackup.difference(now);
-    
-    if (delay.inMilliseconds <= 0) {
-      return false;
-    }
-    
-    return true;
+    // Check if notification is scheduled
+    final pendingNotifications = await _notifications.pendingNotificationRequests();
+    return pendingNotifications.any((notification) => notification.id == 1001);
   }
 
-
-
-  // Safely reinitialize the backup service (for hot reloads)
-  Future<void> safeReinitialize() async {
-    // Check current automatic backup setting
-    final isEnabled = await isAutomaticBackupEnabled();
-    
-    if (isEnabled) {
-      // Cancel any existing timer first
-      _dailyBackupTimer?.cancel();
-      _dailyBackupTimer = null;
-      
-      await initializeDailyBackup();
-      
-      // Verify the timer was scheduled
-      if (_dailyBackupTimer == null) {
-        // Try to force schedule the timer
-        _scheduleDailyBackup();
-      }
+  // Get available backups
+  Future<List<String>> getAvailableBackups() async {
+    try {
+      print('🔍 Searching for backups...');
+      final backups = await _dataService.getAvailableBackups();
+      print('🔍 Found ${backups.length} backups');
+      return backups;
+    } catch (e) {
+      print('❌ Error getting available backups: $e');
+      return [];
     }
   }
 
-  // Get last automatic backup time - with validation that backup actually exists
-  Future<DateTime?> getLastAutomaticBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final timestamp = prefs.getInt('last_automatic_backup_timestamp');
-    
-    if (timestamp == null) return null;
-    
-    final storedTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    
-    // Validate that a backup actually exists for this timestamp
-    final dataService = DataService();
-    final backups = await dataService.getAvailableBackups();
-    
-    // Check if any backup exists with a timestamp close to the stored time
-    for (final backup in backups) {
-      try {
-        final fileName = backup.split('/').last;
-        if (fileName.startsWith('backup_')) {
-          final backupTimestamp = fileName.substring(7);
-          final backupTime = DateTime.fromMillisecondsSinceEpoch(int.parse(backupTimestamp));
-          
-          // If backup time is within 5 minutes of stored time, consider it valid
-          if (backupTime.difference(storedTime).inMinutes.abs() <= 5) {
-            return storedTime;
-          }
-        }
-      } catch (e) {
-        continue;
-      }
+  // Get backup metadata
+  Future<Map<String, dynamic>?> getBackupMetadata(String backupId) async {
+    try {
+      return await _dataService.getBackupMetadata(backupId);
+    } catch (e) {
+      print('❌ Error getting backup metadata: $e');
+      return null;
     }
-    
-    // No valid backup found, clear the invalid timestamp
-    await prefs.remove('last_automatic_backup_timestamp');
-    
-    return null;
   }
 
-  // Set last automatic backup time
-  Future<void> setLastAutomaticBackupTime(DateTime time) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
-  }
-
-  // Get last manual backup time (for backward compatibility)
-  Future<DateTime?> getLastBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final timestamp = prefs.getInt('last_backup_timestamp');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
-  }
-
-  // Set last backup time (for backward compatibility)
-  Future<void> setLastBackupTime(DateTime time) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('last_backup_timestamp', time.millisecondsSinceEpoch);
-  }
-
-  // Manual backup with notification
-  Future<void> createManualBackup() async {
+  // Create manual backup
+  Future<String?> createManualBackup() async {
     try {
       print('📱 Creating manual backup...');
-      final backupId = await _dataService.createBackup();
-      await setLastBackupTime(DateTime.now());
+      final backupId = await _dataService.createBackup(isAutomatic: false);
       
-      print('✅ Manual backup created successfully: $backupId');
-      await _notificationService.showBackupCreatedNotification();
-    } catch (e) {
-      print('❌ Manual backup failed: $e');
-      await _notificationService.showBackupFailedNotification(e.toString());
-      rethrow;
-    }
-  }
-
-  // Clean up duplicate backups from today (keep only the latest one)
-  Future<void> cleanupDuplicateBackupsFromToday() async {
-    try {
-      final dataService = DataService();
-      final backups = await dataService.getAvailableBackups();
-      
-      if (backups.isEmpty) return;
-      
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      
-      // Group backups by date
-      final backupsByDate = <String, List<String>>{};
-      
-      for (final backup in backups) {
-        try {
-          // Extract timestamp from backup path
-          final fileName = backup.split('/').last;
-          if (fileName.startsWith('backup_')) {
-            final timestamp = fileName.substring(7);
-            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
-            final backupDateOnly = DateTime(backupDate.year, backupDate.month, backupDate.day);
-            
-            final dateKey = '${backupDate.year}-${backupDate.month.toString().padLeft(2, '0')}-${backupDate.day.toString().padLeft(2, '0')}';
-            backupsByDate.putIfAbsent(dateKey, () => []).add(backup);
-          }
-        } catch (e) {
-          // Skip invalid backup names
-          continue;
-        }
-      }
-      
-      // For each date, keep only the latest backup and delete the rest
-      for (final dateKey in backupsByDate.keys) {
-        final dateBackups = backupsByDate[dateKey]!;
-        if (dateBackups.length > 1) {
-          // Sort by timestamp (newest first)
-          dateBackups.sort((a, b) => b.compareTo(a));
-          
-          // Keep the first (newest) one, delete the rest
-          for (int i = 1; i < dateBackups.length; i++) {
-            await dataService.deleteBackup(dateBackups[i]);
-    
-          }
-        }
-      }
-      
-      // Special case: If today is 08/18/2025 and we have multiple backups, 
-      // keep only the latest one and delete the 1:33 AM backup
-      if (today.year == 2025 && today.month == 8 && today.day == 18) {
-        final todaysBackups = backupsByDate['2025-08-18'] ?? [];
-        if (todaysBackups.isNotEmpty) {
-          // Keep only the latest backup for today
-          final latestBackup = todaysBackups.first;
-          for (final backup in todaysBackups) {
-            if (backup != latestBackup) {
-              await dataService.deleteBackup(backup);
-      
-            }
-          }
-        }
-      }
-    } catch (e) {
-
-    }
-  }
-
-  // Force cleanup of all backups except the latest one for today
-  Future<void> forceCleanupTodayBackups() async {
-    try {
-      final dataService = DataService();
-      final backups = await dataService.getAvailableBackups();
-      
-      if (backups.isEmpty) return;
-      
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      
-      // Find all backups from today
-      final todaysBackups = <String>[];
-      
-      for (final backup in backups) {
-        try {
-          final fileName = backup.split('/').last;
-          if (fileName.startsWith('backup_')) {
-            final timestamp = fileName.substring(7);
-            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
-            final backupDateOnly = DateTime(backupDate.year, backupDate.month, backupDate.day);
-            
-            if (backupDateOnly == today) {
-              todaysBackups.add(backup);
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-      
-      if (todaysBackups.length > 1) {
-        // Sort by timestamp (newest first)
-        todaysBackups.sort((a, b) => b.compareTo(a));
+      if (backupId != null) {
+        await setLastAutomaticBackupTime(DateTime.now());
+        print('✅ Manual backup created successfully: $backupId');
         
-        // Keep only the latest backup, delete all others
-        final latestBackup = todaysBackups.first;
-        for (int i = 1; i < todaysBackups.length; i++) {
-          await dataService.deleteBackup(todaysBackups[i]);
-        }
+        // Show success notification
+        await _notificationService.showSuccessNotification(
+          title: 'Backup Created',
+          body: 'Your data has been backed up successfully',
+        );
       }
-    } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  // Clear all invalid backup timestamps when no backup files exist
-  Future<void> clearInvalidBackupTimestamps() async {
-    try {
-      final dataService = DataService();
-      final backups = await dataService.getAvailableBackups();
       
-      if (backups.isEmpty) {
-        // No backup files exist, clear all stored timestamps
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('last_automatic_backup_timestamp');
-        await prefs.remove('last_backup_timestamp');
-
-        // Don't automatically disable automatic backup - let user control this setting
-        // The automatic backup will create the first backup when it runs
-      }
+      return backupId;
     } catch (e) {
-      // Handle error silently
-    }
-  }
-
-  // Specifically remove the problematic 1:33 AM backup from 08/18/2025
-  Future<void> removeSpecificBackup() async {
-    try {
-      final dataService = DataService();
-      final backups = await dataService.getAvailableBackups();
+      print('❌ Error creating manual backup: $e');
       
-      for (final backup in backups) {
-        try {
-          final fileName = backup.split('/').last;
-          if (fileName.startsWith('backup_')) {
-            final timestamp = fileName.substring(7);
-            final backupDate = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
-            
-            // Check if this is the 1:33 AM backup from 08/18/2025
-            if (backupDate.year == 2025 && 
-                backupDate.month == 8 && 
-                backupDate.day == 18 && 
-                backupDate.hour == 1 && 
-                backupDate.minute == 33) {
-              
-              await dataService.deleteBackup(backup);
-              return;
-            }
-          }
-        } catch (e) {
-          continue;
-        }
-      }
-    } catch (e) {
-      // Handle error silently
+      // Show error notification
+      await _notificationService.showErrorNotification(
+        title: 'Backup Failed',
+        body: 'Failed to create backup: $e',
+      );
+      
+      return null;
     }
   }
 
-  // Dispose resources
-  void dispose() {
-    _dailyBackupTimer?.cancel();
+  // Delete backup
+  Future<bool> deleteBackup(String backupPath) async {
+    try {
+      final success = await _dataService.deleteBackup(backupPath);
+      if (success) {
+        print('✅ Backup deleted successfully: $backupPath');
+      }
+      return success;
+    } catch (e) {
+      print('❌ Error deleting backup: $e');
+      return false;
+    }
+  }
+
+  // Restore from backup
+  Future<bool> restoreFromBackup(String backupPath) async {
+    try {
+      final success = await _dataService.restoreFromBackup(backupPath);
+      if (success) {
+        print('✅ Backup restored successfully: $backupPath');
+      }
+      return success;
+    } catch (e) {
+      print('❌ Error restoring backup: $e');
+      return false;
+    }
+  }
+
+  // Handle backup notification tap (now just opens the app)
+  Future<void> handleBackupNotificationTap() async {
+    // The notification now just serves as a reminder to open the app
+    // The actual backup creation happens automatically when the app opens
+    print('📱 Backup notification tapped - app opened');
+    
+    // Check if backup is needed
+    await _checkAndCreateBackupIfNeeded();
   }
 } 

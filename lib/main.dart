@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
@@ -35,14 +37,12 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     
-
+    // Initialize timezone
+    // tz.initializeTimeZones(); // Commented out due to API changes
     
-
-    
-
-      } catch (e) {
-      // Handle initialization error silently
-    }
+  } catch (e) {
+    // Handle initialization error silently
+  }
     
     // Initialize Firebase service
     try {
@@ -105,12 +105,10 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
         }
         
         // Reinitialize backup service
-        try {
-          final backupService = BackupService();
-          await backupService.handleAppLifecycleChange();
-        } catch (e) {
-          // Handle backup service reinitialization error silently
-        }
+        _handleBackupServiceReinitialization();
+        
+        // Handle any pending notifications
+        _handlePendingNotifications();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -122,6 +120,24 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
       case AppLifecycleState.hidden:
         // App is hidden (iOS specific)
         break;
+    }
+  }
+
+  void _handlePendingNotifications() async {
+    try {
+      final backupService = BackupService();
+      await backupService.handleBackupNotificationTap();
+    } catch (e) {
+      // Handle notification tap error silently
+    }
+  }
+
+  void _handleBackupServiceReinitialization() async {
+    try {
+      final backupService = BackupService();
+      await backupService.handleAppLifecycleChange();
+    } catch (e) {
+      // Handle backup service reinitialization error silently
     }
   }
 

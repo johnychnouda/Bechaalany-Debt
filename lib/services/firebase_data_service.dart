@@ -1115,7 +1115,7 @@ class FirebaseDataService {
   // ===== BACKUP & DATA MANAGEMENT =====
   
   // Create backup
-  Future<String> createBackup() async {
+  Future<String> createBackup({bool isAutomatic = false}) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
@@ -1127,6 +1127,8 @@ class FirebaseDataService {
         'userId': currentUserId,
         'createdAt': FieldValue.serverTimestamp(),
         'timestamp': DateTime.now().toIso8601String(),
+        'isAutomatic': isAutomatic,
+        'backupType': isAutomatic ? 'automatic' : 'manual',
       };
       
       print('💾 Collecting data for backup...');
@@ -1175,31 +1177,52 @@ class FirebaseDataService {
     try {
       print('🔍 Searching for backups for userId: $currentUserId');
       
-      // First try with user ID filter
+      // Get all backups and filter in memory to avoid composite index requirement
       var snapshot = await _firestore
           .collection('backups')
-          .where('userId', isEqualTo: currentUserId)
           .orderBy('createdAt', descending: true)
           .get();
       
-      print('🔍 Found ${snapshot.docs.length} backups with userId filter');
+      print('🔍 Found ${snapshot.docs.length} total backups');
       
-      // If no backups found with user ID filter, try without filter (for development)
-      if (snapshot.docs.isEmpty) {
-        print('🔍 No backups found with userId filter, trying without filter...');
-        snapshot = await _firestore
-            .collection('backups')
-            .orderBy('createdAt', descending: true)
-            .get();
-        print('🔍 Found ${snapshot.docs.length} backups without userId filter');
-      }
+      // Filter by userId in memory
+      final userBackups = snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['userId'] == currentUserId;
+      }).toList();
       
-      final backupIds = snapshot.docs.map((doc) => doc.id).toList();
+      print('🔍 Found ${userBackups.length} backups for current user');
+      
+      final backupIds = userBackups.map((doc) => doc.id).toList();
       print('🔍 Returning backup IDs: $backupIds');
       return backupIds;
     } catch (e) {
       print('❌ Error getting available backups: $e');
       return [];
+    }
+  }
+
+  // Get backup metadata
+  Future<Map<String, dynamic>?> getBackupMetadata(String backupId) async {
+    if (!isAuthenticated) return null;
+    
+    try {
+      final doc = await _firestore.collection('backups').doc(backupId).get();
+      if (!doc.exists || doc.data() == null) {
+        return null;
+      }
+      
+      final data = doc.data()!;
+      return {
+        'id': backupId,
+        'isAutomatic': data['isAutomatic'] ?? false,
+        'backupType': data['backupType'] ?? 'manual',
+        'timestamp': data['timestamp'],
+        'createdAt': data['createdAt'],
+      };
+    } catch (e) {
+      print('❌ Error getting backup metadata: $e');
+      return null;
     }
   }
   
