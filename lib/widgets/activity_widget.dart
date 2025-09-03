@@ -126,7 +126,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...topActivities.map((activity) => _buildActivityItem(activity)),
+        ...topActivities.map((activity) => _buildActivityItem(activity, appState)),
       ],
     );
   }
@@ -156,7 +156,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     return activities;
   }
 
-  Widget _buildActivityItem(Activity activity) {
+  Widget _buildActivityItem(Activity activity, AppState appState) {
     IconData icon;
     Color iconColor;
     Color backgroundColor;
@@ -177,36 +177,47 @@ class _ActivityWidgetState extends State<ActivityWidget> {
           statusText = 'Partial Payment';
         }
         break;
-      case ActivityType.newDebt:
-        // Check if this debt is still pending or has been paid
-        if (activity.debtId != null) {
-          // Try to find the current debt status
-          final appState = Provider.of<AppState>(context, listen: false);
-          final currentDebt = appState.debts.where(
-            (debt) => debt.id == activity.debtId,
-          ).firstOrNull;
-          
-          if (currentDebt != null && currentDebt.remainingAmount > 0) {
-            // Debt is still pending - show clock icon to indicate waiting
-            icon = Icons.schedule;
-            iconColor = Colors.red;
-            backgroundColor = Colors.red.withValues(alpha: 0.1);
-            statusText = 'Outstanding Debt';
+              case ActivityType.newDebt:
+          // Check if this debt is still pending or has been paid
+          if (activity.debtId != null) {
+            // Try to find the current debt status
+            final appState = Provider.of<AppState>(context, listen: false);
+            final currentDebt = appState.debts.where(
+              (debt) => debt.id == activity.debtId,
+            ).firstOrNull;
+            
+            if (currentDebt != null) {
+              // Use customer-level status to determine display
+              final isCustomerFullyPaid = appState.isCustomerFullyPaid(currentDebt.customerId);
+              
+              if (isCustomerFullyPaid) {
+                // Customer has settled ALL debts - show blue checkmark
+                icon = Icons.check_circle;
+                iconColor = Colors.blue;
+                backgroundColor = Colors.blue.withValues(alpha: 0.1);
+                statusText = 'Debt Paid';
+              } else {
+                // Customer still has outstanding debts - show clock icon to indicate waiting
+                icon = Icons.schedule;
+                iconColor = Colors.red;
+                backgroundColor = Colors.red.withValues(alpha: 0.1);
+                statusText = 'Outstanding Debt';
+              }
+            } else {
+              // Debt not found - show as outstanding
+              icon = Icons.schedule;
+              iconColor = Colors.red;
+              backgroundColor = Colors.red.withValues(alpha: 0.1);
+              statusText = 'Outstanding Debt';
+            }
           } else {
-            // Debt has been paid - show blue checkmark to distinguish from "Fully Paid"
-            icon = Icons.check_circle;
+            // Fallback to blue plus if no debt ID
+            icon = Icons.add_shopping_cart;
             iconColor = Colors.blue;
             backgroundColor = Colors.blue.withValues(alpha: 0.1);
-            statusText = 'Debt Paid';
+            statusText = 'New Debt';
           }
-        } else {
-          // Fallback to blue plus if no debt ID
-          icon = Icons.add_shopping_cart;
-          iconColor = Colors.blue;
-          backgroundColor = Colors.blue.withValues(alpha: 0.1);
-          statusText = 'New Debt';
-        }
-        break;
+          break;
       case ActivityType.debtCleared:
         icon = Icons.check_circle;
         iconColor = Colors.green;
@@ -243,7 +254,7 @@ class _ActivityWidgetState extends State<ActivityWidget> {
                   ),
                 ),
                 Text(
-                  activity.description,
+                  _getActivityDescription(activity, appState),
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey[700],
@@ -298,5 +309,17 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     final second = date.second.toString().padLeft(2, '0');
     
     return '$hour:$minute:$second $period';
+  }
+
+  String _getActivityDescription(Activity activity, AppState appState) {
+    // For fully paid activities, show only the payment amount instead of product name
+    if (activity.type == ActivityType.payment && 
+        activity.isPaymentCompleted && 
+        appState.isCustomerFullyPaid(activity.customerId)) {
+      return '${activity.paymentAmount?.toStringAsFixed(2)}\$';
+    }
+    
+    // For all other activities, show the original description
+    return activity.description;
   }
 } 

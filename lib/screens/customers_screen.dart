@@ -40,7 +40,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
   }
   
   void _onAppStateChanged() {
-    print('🔄 AppState changed, refreshing customers');
+
     
     // Ensure filtered customers are always in sync with app state
     final appState = Provider.of<AppState>(context, listen: false);

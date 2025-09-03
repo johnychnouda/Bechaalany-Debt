@@ -127,6 +127,21 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }).toList();
   }
   
+  // Helper method to get current debt cycle (show ONLY new products with remaining amounts)
+  List<Debt> _getCurrentDebtCycle(List<Debt> allCustomerDebts) {
+    if (allCustomerDebts.isEmpty) return [];
+    
+    // Sort debts by creation date (newest first)
+    final sortedDebts = List<Debt>.from(allCustomerDebts)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    
+    // VERY SIMPLE LOGIC: Show ONLY debts with remaining amount > 0
+    // This completely removes all old paid products
+    final currentCycle = sortedDebts.where((debt) => debt.remainingAmount > 0).toList();
+    
+    return currentCycle;
+  }
+
   // Helper method to format dates
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -420,8 +435,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   // Show PDF receipt popup for viewing and printing
   Future<void> _showPDFReceiptPopup(BuildContext context, AppState appState) async {
     try {
-      print('=== _showPDFReceiptPopup called ===');
-      print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
+
       
       // Get customer data
       final customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
@@ -432,9 +446,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       final customerActivities = appState.activities.where((a) => a.customerId == _currentCustomer.id).toList();
       
-      print('Customer debts count: ${customerDebts.length}');
-      print('Partial payments count: ${customerPartialPayments.length}');
-      print('Activities count: ${customerActivities.length}');
+
+
       
       // Check if customer has pending debts OR has made any payments
       final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
@@ -453,7 +466,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       if (kIsWeb) {
         // Web-specific handling - navigate directly to receipt screen
-        print('Web platform detected, navigating to receipt screen...');
+
         
         if (mounted) {
           Navigator.of(context).push(
@@ -471,7 +484,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
       } else {
         // Mobile-specific handling - use PDF viewer popup
-        print('Mobile platform detected, using PDF viewer...');
+
         
         // Generate PDF receipt
         final pdfFile = await ReceiptSharingService.generateReceiptPDF(
@@ -510,9 +523,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
       }
     } catch (e) {
-      print('=== ERROR in _showPDFReceiptPopup ===');
-      print('Error details: $e');
-      print('Error type: ${e.runtimeType}');
+
       
       if (mounted) {
         final notificationService = NotificationService();
@@ -900,9 +911,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // ANY partial payment (even $0.01) should disable delete functionality for ALL products
         final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
         
-        // Calculate total pending debt (current remaining amount)
-        final totalPendingDebt = allCustomerDebts.where((d) => d.remainingAmount > 0).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-        
         // Calculate total paid from payment activities (preserves payment history even when debts are cleared)
         final customerPaymentActivities = appState.activities.where((a) => 
           a.customerId == _currentCustomer.id && 
@@ -923,13 +931,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         
-        // Show only products that are NOT fully paid
-        // This ensures fully paid products are hidden while pending products remain visible
-        final customerActiveDebts = customerAllDebts.where((debt) {
-          // Show the product if it's NOT fully paid
-          // This is the most reliable way to ensure only pending products are visible
-          return !debt.isFullyPaid;
-        }).toList();
+        // Implement debt cycle logic: Show only current debt cycle, hide old paid products
+        // A debt cycle starts when customer makes new purchases after having no pending amount
+        final customerActiveDebts = _getCurrentDebtCycle(customerAllDebts);
+        
+        // Calculate total pending debt (current remaining amount) - only from active debts
+        final totalPendingDebt = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1185,8 +1192,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       ),
                       
                       // Product List - Show when there are products to display
+                      // Hide all products when customer has completely paid off all debts (totalPendingDebt = 0)
                       if (widget.showDebtsSection) ...[
-                        if (customerActiveDebts.isNotEmpty) ...[
+                        if (customerActiveDebts.isNotEmpty && totalPendingDebt > 0) ...[
                         // Section Title
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -1430,7 +1438,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Show consolidated payment dialog for all debts
   void _showConsolidatedPaymentDialog(BuildContext context, List<Debt> allDebts) {
-    final pendingDebts = allDebts.where((d) => !d.isFullyPaid).toList();
+    final pendingDebts = allDebts.where((d) => d.remainingAmount > 0).toList();
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     
     showDialog(
@@ -1540,9 +1548,57 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   void _applyConsolidatedPartialPayment(double paymentAmount, List<Debt> pendingDebts, BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
     
-    // Use the new even distribution method for better partial payment handling
-    // This ensures payments are split evenly across all pending debts
-    appState.applyPaymentEvenlyAcrossCustomerDebts(_currentCustomer.id, paymentAmount);
+    // Check if this is a "Pay Full Amount" scenario
+    final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    
+    if (paymentAmount >= totalRemaining) {
+      // This is "Pay Full Amount" - pay the exact remaining amount for each debt
+      _payFullAmountForAllDebts(pendingDebts, context);
+    } else {
+      // This is a partial payment - use even distribution
+      appState.applyPaymentEvenlyAcrossCustomerDebts(_currentCustomer.id, paymentAmount);
+    }
+  }
+  
+  // Pay the exact remaining amount for each debt to make them fully paid
+  Future<void> _payFullAmountForAllDebts(List<Debt> pendingDebts, BuildContext context) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    try {
+      for (final debt in pendingDebts) {
+        if (debt.remainingAmount > 0) {
+          // Pay the exact remaining amount for this debt
+          final updatedDebt = debt.copyWith(
+            paidAmount: debt.amount, // Set paid amount to full debt amount
+            status: DebtStatus.paid,
+            paidAt: DateTime.now(),
+          );
+          
+          // Update in storage
+          await appState.updateDebt(updatedDebt);
+        }
+      }
+      
+      // Create a single payment activity for the full amount
+      final totalPaid = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      if (totalPaid > 0) {
+        await appState.addCustomerFullyPaidActivity(
+          _currentCustomer.id,
+          _currentCustomer.name,
+          totalPaid,
+        );
+      }
+      
+    } catch (e) {
+      // Handle error
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Payment Error',
+          body: 'Failed to process full payment: $e',
+        );
+      }
+    }
   }
   
   // Show exact payment dialog to complete all debts

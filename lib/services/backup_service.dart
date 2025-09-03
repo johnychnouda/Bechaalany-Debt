@@ -16,19 +16,19 @@ class BackupService {
 
   // Initialize automatic daily backup
   Future<void> initializeDailyBackup() async {
-    print('🚀 Initializing daily backup service...');
+
     
     // Initialize notifications
     await _initializeNotifications();
     
     // Check if automatic backup is enabled
     final isEnabled = await isAutomaticBackupEnabled();
-    print('🚀 Automatic backup enabled: $isEnabled');
+
     
     if (isEnabled) {
       // Schedule daily backup notification
       await _scheduleDailyBackupNotification();
-      print('🚀 Daily backup notification scheduled');
+
       
       // Check if we need to create a backup now (app just opened)
       await _checkAndCreateBackupIfNeeded();
@@ -73,7 +73,7 @@ class BackupService {
       
       if (lastBackup == null) {
         // No backup exists, create one
-        print('🔄 No previous backup found, creating first backup...');
+
         await _createAutomaticBackup();
         return;
       }
@@ -82,29 +82,29 @@ class BackupService {
       final timeSinceLastBackup = now.difference(lastBackup);
       final hoursSinceLastBackup = timeSinceLastBackup.inHours;
       
-      print('🔄 Hours since last backup: $hoursSinceLastBackup');
+
       
       if (hoursSinceLastBackup >= 24) {
-        print('🔄 More than 24 hours since last backup, creating automatic backup...');
+
         await _createAutomaticBackup();
       } else {
-        print('🔄 Less than 24 hours since last backup, skipping...');
+
       }
     } catch (e) {
-      print('❌ Error checking backup status: $e');
+
     }
   }
 
   // Create automatic backup (called when app opens and backup is needed)
   Future<void> _createAutomaticBackup() async {
     try {
-      print('🔄 Creating automatic backup...');
+
       
       final backupId = await _dataService.createBackup(isAutomatic: true);
       
       if (backupId != null) {
         await setLastAutomaticBackupTime(DateTime.now());
-        print('✅ Automatic backup created successfully: $backupId');
+
         
         // Show success notification
         await _notificationService.showSuccessNotification(
@@ -113,7 +113,7 @@ class BackupService {
         );
       }
     } catch (e) {
-      print('❌ Error creating automatic backup: $e');
+
       
       // Show error notification
       await _notificationService.showErrorNotification(
@@ -165,7 +165,7 @@ class BackupService {
       matchDateTimeComponents: DateTimeComponents.time,
     );
     
-    print('⏰ Daily backup notification scheduled for: ${nextBackup.toString()}');
+
   }
 
   // Get next instance of midnight (12 AM)
@@ -193,7 +193,7 @@ class BackupService {
       await _notifications.cancelAll();
     }
     
-    print('✅ Automatic backup ${enabled ? 'enabled' : 'disabled'}');
+
   }
 
   // Check if automatic backup is enabled
@@ -235,12 +235,12 @@ class BackupService {
   // Get available backups
   Future<List<String>> getAvailableBackups() async {
     try {
-      print('🔍 Searching for backups...');
+
       final backups = await _dataService.getAvailableBackups();
-      print('🔍 Found ${backups.length} backups');
+
       return backups;
     } catch (e) {
-      print('❌ Error getting available backups: $e');
+
       return [];
     }
   }
@@ -250,7 +250,7 @@ class BackupService {
     try {
       return await _dataService.getBackupMetadata(backupId);
     } catch (e) {
-      print('❌ Error getting backup metadata: $e');
+
       return null;
     }
   }
@@ -258,12 +258,12 @@ class BackupService {
   // Create manual backup
   Future<String?> createManualBackup() async {
     try {
-      print('📱 Creating manual backup...');
+
       final backupId = await _dataService.createBackup(isAutomatic: false);
       
       if (backupId != null) {
         await setLastAutomaticBackupTime(DateTime.now());
-        print('✅ Manual backup created successfully: $backupId');
+
         
         // Show success notification
         await _notificationService.showSuccessNotification(
@@ -274,7 +274,7 @@ class BackupService {
       
       return backupId;
     } catch (e) {
-      print('❌ Error creating manual backup: $e');
+
       
       // Show error notification
       await _notificationService.showErrorNotification(
@@ -291,11 +291,11 @@ class BackupService {
     try {
       final success = await _dataService.deleteBackup(backupPath);
       if (success) {
-        print('✅ Backup deleted successfully: $backupPath');
+
       }
       return success;
     } catch (e) {
-      print('❌ Error deleting backup: $e');
+
       return false;
     }
   }
@@ -305,11 +305,11 @@ class BackupService {
     try {
       final success = await _dataService.restoreFromBackup(backupPath);
       if (success) {
-        print('✅ Backup restored successfully: $backupPath');
+
       }
       return success;
     } catch (e) {
-      print('❌ Error restoring backup: $e');
+
       return false;
     }
   }
@@ -318,7 +318,7 @@ class BackupService {
   Future<void> handleBackupNotificationTap() async {
     // The notification now just serves as a reminder to open the app
     // The actual backup creation happens automatically when the app opens
-    print('📱 Backup notification tapped - app opened');
+
     
     // Check if backup is needed
     await _checkAndCreateBackupIfNeeded();

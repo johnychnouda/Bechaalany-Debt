@@ -139,7 +139,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                          // Total Revenue Card
                          Expanded(
                            child: Container(
-                             padding: const EdgeInsets.all(10),
+                             padding: const EdgeInsets.all(6),
                              decoration: BoxDecoration(
                                color: AppColors.dynamicSuccess(context).withOpacity(0.1),
                                borderRadius: BorderRadius.circular(6),
@@ -149,12 +149,12 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                ),
                              ),
                              child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
+                               crossAxisAlignment: CrossAxisAlignment.center,
                                children: [
                                  Row(
                                    children: [
                                      Container(
-                                       padding: const EdgeInsets.all(6),
+                                       padding: const EdgeInsets.all(3),
                                        decoration: BoxDecoration(
                                          color: AppColors.dynamicSuccess(context).withOpacity(0.15),
                                          borderRadius: BorderRadius.circular(6),
@@ -165,19 +165,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                          size: 16,
                                        ),
                                      ),
-                                     const SizedBox(width: 8),
-                                     Expanded(
-                                       child: Text(
-                                         'Total Revenue: ${CurrencyFormatter.formatAmount(context, _calculateTotalRevenueForPeriod(appState, view))}',
-                                         style: TextStyle(
-                                           fontSize: 12,
-                                           fontWeight: FontWeight.w600,
-                                           color: AppColors.dynamicTextSecondary(context),
-                                         ),
-                                         overflow: TextOverflow.ellipsis,
+                                     const SizedBox(width: 6),
+                                     Text(
+                                       'Total Revenue',
+                                       style: TextStyle(
+                                         fontSize: 12,
+                                         fontWeight: FontWeight.w600,
+                                         color: AppColors.dynamicTextSecondary(context),
                                        ),
+                                       overflow: TextOverflow.ellipsis,
                                      ),
                                    ],
+                                 ),
+                                 const SizedBox(height: 1),
+                                 Center(
+                                   child: Text(
+                                     CurrencyFormatter.formatAmount(context, _calculateTotalRevenueForPeriod(appState, view)),
+                                     style: TextStyle(
+                                       fontSize: 14,
+                                       fontWeight: FontWeight.bold,
+                                       color: AppColors.dynamicTextPrimary(context),
+                                     ),
+                                     overflow: TextOverflow.ellipsis,
+                                   ),
                                  ),
                                ],
                              ),
@@ -187,7 +197,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                          // Total Paid Card
                          Expanded(
                            child: Container(
-                             padding: const EdgeInsets.all(10),
+                             padding: const EdgeInsets.all(6),
                              decoration: BoxDecoration(
                                color: AppColors.dynamicPrimary(context).withOpacity(0.1),
                                borderRadius: BorderRadius.circular(6),
@@ -197,12 +207,12 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                ),
                              ),
                              child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
+                               crossAxisAlignment: CrossAxisAlignment.center,
                                children: [
                                  Row(
                                    children: [
                                      Container(
-                                       padding: const EdgeInsets.all(6),
+                                       padding: const EdgeInsets.all(3),
                                        decoration: BoxDecoration(
                                          color: AppColors.dynamicPrimary(context).withOpacity(0.15),
                                          borderRadius: BorderRadius.circular(6),
@@ -213,19 +223,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                          size: 16,
                                        ),
                                      ),
-                                     const SizedBox(width: 8),
-                                     Expanded(
-                                       child: Text(
-                                         'Total Paid: ${CurrencyFormatter.formatAmount(context, _calculateTotalPaidForPeriod(appState, view))}',
-                                         style: TextStyle(
-                                           fontSize: 12,
-                                           fontWeight: FontWeight.w600,
-                                           color: AppColors.dynamicTextSecondary(context),
-                                         ),
-                                         overflow: TextOverflow.ellipsis,
+                                     const SizedBox(width: 6),
+                                     Text(
+                                       'Total Paid',
+                                       style: TextStyle(
+                                         fontSize: 12,
+                                         fontWeight: FontWeight.w600,
+                                         color: AppColors.dynamicTextSecondary(context),
                                        ),
+                                       overflow: TextOverflow.ellipsis,
                                      ),
                                    ],
+                                 ),
+                                 const SizedBox(height: 1),
+                                 Center(
+                                   child: Text(
+                                     CurrencyFormatter.formatAmount(context, _calculateTotalPaidForPeriod(appState, view)),
+                                     style: TextStyle(
+                                       fontSize: 14,
+                                       fontWeight: FontWeight.bold,
+                                       color: AppColors.dynamicTextPrimary(context),
+                                     ),
+                                     overflow: TextOverflow.ellipsis,
+                                   ),
                                  ),
                                ],
                              ),
@@ -340,18 +360,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             (debt) => debt.id == activity.debtId,
           ).firstOrNull;
           
-          if (currentDebt != null && currentDebt.remainingAmount > 0) {
-            // Debt is still pending - show clock icon to indicate waiting
+          if (currentDebt != null) {
+            // Use customer-level status to determine display
+            final isCustomerFullyPaid = appState.isCustomerFullyPaid(currentDebt.customerId);
+            
+            if (isCustomerFullyPaid) {
+              // Customer has settled ALL debts - show blue checkmark
+              icon = Icons.check_circle;
+              iconColor = AppColors.info;
+              backgroundColor = AppColors.info.withValues(alpha: 0.1);
+              statusText = 'Debt Paid';
+            } else {
+              // Customer still has outstanding debts - show clock icon to indicate waiting
+              icon = Icons.schedule;
+              iconColor = AppColors.error;
+              backgroundColor = AppColors.error.withValues(alpha: 0.1);
+              statusText = 'Outstanding Debt';
+            }
+          } else {
+            // Debt not found - show as outstanding
             icon = Icons.schedule;
             iconColor = AppColors.error;
             backgroundColor = AppColors.error.withValues(alpha: 0.1);
             statusText = 'Outstanding Debt';
-          } else {
-            // Debt has been paid - show blue checkmark to distinguish from "Fully Paid"
-            icon = Icons.check_circle;
-            iconColor = AppColors.info;
-            backgroundColor = AppColors.info.withValues(alpha: 0.1);
-            statusText = 'Debt Paid';
           }
         } else {
           // Fallback to blue plus if no debt ID

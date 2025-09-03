@@ -2021,19 +2021,15 @@ class _ProductCard extends StatelessWidget {
                           Consumer<AppState>(
                             builder: (context, appState, child) {
                               // Debug: Print subcategory currency info
-                              print('🔍 ProductCard Debug - ${subcategory.name}:');
-                              print('  Cost Currency: ${subcategory.costPriceCurrency}');
-                              print('  Selling Currency: ${subcategory.sellingPriceCurrency}');
-                              print('  Has Currency Settings: ${appState.currencySettings != null}');
-                              print('  Exchange Rate: ${appState.currencySettings?.exchangeRate}');
+
                               
                               // Show exchange rate chip for LBP products when currency settings are available
                               if (appState.currencySettings?.exchangeRate != null && 
                                   (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
-                                print('  ✅ Showing exchange rate chip for ${subcategory.name}');
+
                                 return _buildExchangeRateChip(context, appState.currencySettings!);
                               } else {
-                                print('  ❌ Not showing exchange rate chip for ${subcategory.name}');
+
                                 return const SizedBox.shrink();
                               }
                             },
@@ -2073,14 +2069,13 @@ class _ProductCard extends StatelessWidget {
                     .toList();
                 
                 // Debug: Print ProductPurchase data
-                print('🔍 ProductCard Data Debug - ${subcategory.name}:');
-                print('  ProductPurchases found: ${productPurchases.length}');
+
                 if (productPurchases.isNotEmpty) {
                   for (final purchase in productPurchases) {
-                    print('    Purchase: Cost=${purchase.costPrice}, Price=${purchase.sellingPrice}');
+
                   }
                 }
-                print('  Subcategory template: Cost=${subcategory.costPrice}, Price=${subcategory.sellingPrice}, Currency=${subcategory.costPriceCurrency}');
+
                 
                 // Calculate actual costs, prices, and revenue from purchase data
                 double totalCost = 0.0;
@@ -2093,7 +2088,7 @@ class _ProductCard extends StatelessWidget {
                     totalPrice += purchase.sellingPrice;
                     totalRevenue += (purchase.sellingPrice - purchase.costPrice);
                   }
-                  print('  ✅ Using ProductPurchase data: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+
                 } else {
                   // Fallback to subcategory template data if no purchases exist
                   totalCost = subcategory.costPrice;
@@ -2107,14 +2102,14 @@ class _ProductCard extends StatelessWidget {
                     totalCost = totalCost / exchangeRate;
                     totalPrice = totalPrice / exchangeRate;
                     totalRevenue = totalRevenue / exchangeRate;
-                    print('  🔄 Converted LBP to USD using rate $exchangeRate: Cost=${totalCost.toStringAsFixed(2)}, Price=${totalPrice.toStringAsFixed(2)}, Revenue=${totalRevenue.toStringAsFixed(2)}');
+
                   } else {
-                    print('  ⚠️ Using subcategory template data: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+
                   }
                 }
                 
                 // Final debug: Show what values will be displayed
-                print('  🎯 FINAL VALUES for UI: Cost=$totalCost, Price=$totalPrice, Revenue=$totalRevenue');
+
                 
                 return Row(
                   children: [

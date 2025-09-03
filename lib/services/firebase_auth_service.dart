@@ -18,7 +18,7 @@ class FirebaseAuthService {
     try {
       return await _auth.signInAnonymously();
     } catch (e) {
-      print('Anonymous sign in failed: $e');
+
       return null;
     }
   }
@@ -33,7 +33,7 @@ class FirebaseAuthService {
     try {
       return await _auth.signInWithEmailAndPassword(email: email, password: password);
     } catch (e) {
-      print('Email sign in failed: $e');
+
       return null;
     }
   }
@@ -43,7 +43,7 @@ class FirebaseAuthService {
     try {
       return await _auth.createUserWithEmailAndPassword(email: email, password: password);
     } catch (e) {
-      print('User creation failed: $e');
+
       return null;
     }
   }
@@ -53,7 +53,7 @@ class FirebaseAuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } catch (e) {
-      print('Password reset failed: $e');
+
       rethrow;
     }
   }
@@ -63,7 +63,7 @@ class FirebaseAuthService {
     try {
       await _auth.currentUser?.updatePassword(newPassword);
     } catch (e) {
-      print('Password update failed: $e');
+
       rethrow;
     }
   }
@@ -76,7 +76,7 @@ class FirebaseAuthService {
       // For now, we'll throw an error indicating this needs to be implemented
       throw UnimplementedError('updateEmail is deprecated in Firebase Auth 6.0.1. Use sendEmailVerification(beforeUpdatingEmail:) instead.');
     } catch (e) {
-      print('Email update failed: $e');
+
       rethrow;
     }
   }
@@ -86,7 +86,7 @@ class FirebaseAuthService {
     try {
       await _auth.currentUser?.delete();
     } catch (e) {
-      print('Account deletion failed: $e');
+
       rethrow;
     }
   }
@@ -105,7 +105,7 @@ class FirebaseAuthService {
         await _auth.currentUser?.updatePhotoURL(profile['photoURL']);
       }
     } catch (e) {
-      print('Profile update failed: $e');
+
       rethrow;
     }
   }
@@ -126,7 +126,7 @@ class FirebaseAuthService {
         'lastSignInTime': user.metadata.lastSignInTime?.toIso8601String(),
       };
     } catch (e) {
-      print('Get user settings failed: $e');
+
       return {};
     }
   }
@@ -141,7 +141,7 @@ class FirebaseAuthService {
         await _auth.currentUser?.updatePhotoURL(settings['photoURL']);
       }
     } catch (e) {
-      print('Update user settings failed: $e');
+
       rethrow;
     }
   }
@@ -160,7 +160,7 @@ class FirebaseAuthService {
         'displayName': user.displayName,
       };
     } catch (e) {
-      print('Get user preferences failed: $e');
+
       return {};
     }
   }
@@ -174,7 +174,7 @@ class FirebaseAuthService {
         await _auth.currentUser?.updateDisplayName(preferences['displayName']);
       }
     } catch (e) {
-      print('Update user preferences failed: $e');
+
       rethrow;
     }
   }

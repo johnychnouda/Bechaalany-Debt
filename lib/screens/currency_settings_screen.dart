@@ -80,10 +80,10 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
             // Format with thousands separators for better readability
             final formattedRate = NumberFormat('#,###').format(_currentSettings!.exchangeRate!.toInt());
             _exchangeRateController.text = formattedRate;
-            print('📱 Currency Settings: Updated input field with: ${_currentSettings!.exchangeRate} (formatted: $formattedRate)');
+
           } else {
             _exchangeRateController.text = '';
-            print('📱 Currency Settings: Cleared input field - no exchange rate');
+
           }
         });
       }
@@ -117,12 +117,12 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       
       // If AppState doesn't have it, try to fetch directly from Firebase
       if (_currentSettings?.exchangeRate == null) {
-        print('📱 Currency Settings: AppState has no exchange rate, trying direct fetch...');
+
         try {
           _currentSettings = await _dataService.getCurrencySettings();
-          print('📱 Currency Settings: Direct fetch result: ${_currentSettings?.exchangeRate}');
+
         } catch (e) {
-          print('❌ Currency Settings: Direct fetch failed: $e');
+
         }
       }
       
@@ -131,13 +131,13 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
         // Format with thousands separators for better readability
         final formattedRate = NumberFormat('#,###').format(_currentSettings!.exchangeRate!.toInt());
         _exchangeRateController.text = formattedRate;
-        print('📱 Currency Settings: Loaded exchange rate: ${_currentSettings!.exchangeRate} (formatted: $formattedRate)');
+
       } else {
         _exchangeRateController.text = '';
-        print('📱 Currency Settings: No exchange rate found');
+
       }
     } catch (e) {
-      print('❌ Currency Settings: Error loading settings: $e');
+
     } finally {
       setState(() {
         _isLoading = false;

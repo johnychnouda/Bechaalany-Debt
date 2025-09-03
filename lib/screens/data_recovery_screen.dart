@@ -151,9 +151,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
-      print('📱 Loading available backups...');
+
       final backups = await _backupService.getAvailableBackups();
-      print('📱 Found ${backups.length} backups: $backups');
+
       
       // Load metadata for each backup
       final metadata = <String, Map<String, dynamic>>{};
@@ -164,7 +164,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             metadata[backupId] = backupMeta;
           }
         } catch (e) {
-          print('❌ Error loading metadata for backup $backupId: $e');
+
         }
       }
       
@@ -174,7 +174,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading backups: $e');
+
       setState(() {
         _isLoading = false;
       });
@@ -194,12 +194,12 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     });
 
     try {
-      print('📱 User requested manual backup creation');
+
       await _backupService.createManualBackup();
-      print('📱 Manual backup completed, reloading backups...');
+
       await _loadBackups();
     } catch (e) {
-      print('❌ Manual backup failed: $e');
+
       // Error notification is handled by backup service
     } finally {
       setState(() {

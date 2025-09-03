@@ -60,7 +60,6 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
-    print('🚀 AppState constructor called');
     _loadSettingsSync();
     
     // Initialize Firebase streams immediately for all platforms
@@ -68,7 +67,6 @@ class AppState extends ChangeNotifier {
     
     // Migration will run during _loadData() - no need for separate startup call
     // This prevents infinite loops and startup deadlocks
-    print('🚀 AppState constructor completed');
   }
   
   // Cached calculations
@@ -125,38 +123,25 @@ class AppState extends ChangeNotifier {
   
   // Initialize Firebase streams
   void _initializeFirebaseStreams() {
-    print('🚀 Initializing Firebase streams in AppState');
-    print('🚀 Platform: ${kIsWeb ? 'Web' : 'iOS'}');
-    print('🚀 Current user ID: ${_dataService.currentUserId}');
     
     // CRITICAL: Only initialize streams once to prevent duplicate listeners
     if (_streamsInitialized) {
-      print('⚠️ Firebase streams already initialized, skipping');
       return;
     }
     _streamsInitialized = true;
     
-    print('🚀 Setting up Firebase stream listeners...');
-    
     // Listen to customers stream FIRST (most important)
     _dataService.customersFirebaseStream.listen(
       (customers) {
-        print('📱 AppState received ${customers.length} customers from Firebase');
-        print('📱 Setting _customers to: ${customers.map((c) => c.name).toList()}');
         
         // CRITICAL FIX: Never overwrite existing customers with an empty list
         // This prevents the issue where customers disappear after being loaded
         if (customers.isNotEmpty) {
           _customers = List.from(customers); // Create a new list to prevent reference issues
-          print('📱 _customers now contains: ${_customers.length} customers');
         } else if (_customers.isEmpty) {
           // Only set to empty if we didn't have any customers before
           // This prevents overwriting existing customers with empty data
-          print('📱 No customers in Firebase and none locally, setting to empty');
           _customers = [];
-        } else {
-          print('⚠️ Received empty customers list, keeping existing ${_customers.length} customers');
-          print('⚠️ Keeping customers: ${_customers.map((c) => c.name).toList()}');
         }
         
         // Debug data consistency
@@ -165,30 +150,24 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in customers stream: $error');
+        // Handle error silently
       },
     );
     
     // Listen to categories stream - FIXED for web app real-time updates
-    print('🚀 Setting up categories stream listener...');
     _dataService.categoriesFirebaseStream.listen(
       (categories) {
-        print('📱 AppState received ${categories.length} categories from Firebase');
-        print('📱 Setting _categories to: ${categories.map((c) => c.name).toList()}');
         
         // WEB APP FIX: Always update categories from Firebase stream for real-time updates
         // This ensures web app shows/removes categories automatically like customers
         if (categories.isNotEmpty) {
           _categories = List.from(categories); // Create a new list to prevent reference issues
-          print('📱 _categories now contains: ${_categories.length} categories');
         } else {
           // If Firebase returns empty, set to empty (allows real-time removal)
-          print('📱 Firebase returned empty categories list, setting to empty');
           _categories = [];
         }
         
         // CRITICAL: Always notify listeners to ensure UI updates
-        print('📱 Notifying listeners of categories update');
         
         // Debug data consistency
         debugDataConsistency();
@@ -196,9 +175,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in categories stream: $error');
         // CRITICAL: Don't clear categories on error - keep existing data
-        print('⚠️ Keeping existing ${_categories.length} categories due to stream error');
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -207,16 +184,12 @@ class AppState extends ChangeNotifier {
     // Listen to debts stream
     _dataService.debtsFirebaseStream.listen(
       (debts) {
-        print('📱 AppState received ${debts.length} debts from Firebase');
-        print('📱 Setting _debts to: ${debts.map((d) => '${d.customerName}: ${d.amount}').toList()}');
         
         // WEB APP FIX: Always update debts from Firebase stream for real-time updates
         if (debts.isNotEmpty) {
           _debts = List.from(debts); // Create a new list to prevent reference issues
-          print('📱 _debts now contains: ${_debts.length} debts');
         } else {
           // If Firebase returns empty, set to empty (allows real-time removal)
-          print('📱 Firebase returned empty debts list, setting to empty');
           _debts = [];
         }
         
@@ -228,9 +201,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in debts stream: $error');
         // CRITICAL: Don't clear debts on error - keep existing data
-        print('⚠️ Keeping existing ${_debts.length} debts due to stream error');
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -239,16 +210,12 @@ class AppState extends ChangeNotifier {
     // Listen to partial payments stream
     _dataService.partialPaymentsFirebaseStream.listen(
       (partialPayments) {
-        print('📱 AppState received ${partialPayments.length} partial payments from Firebase');
-        print('📱 Setting _partialPayments to: ${partialPayments.map((p) => '${p.debtId}: ${p.amount}').toList()}');
         
         // WEB APP FIX: Always update partial payments from Firebase stream for real-time updates
         if (partialPayments.isNotEmpty) {
           _partialPayments = List.from(partialPayments); // Create a new list to prevent reference issues
-          print('📱 _partialPayments now contains: ${_partialPayments.length} partial payments');
         } else {
           // If Firebase returns empty, set to empty (allows real-time removal)
-          print('📱 Firebase returned empty partial payments list, setting to empty');
           _partialPayments = [];
         }
         
@@ -260,9 +227,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in partial payments stream: $error');
         // CRITICAL: Don't clear partial payments on error - keep existing data
-        print('⚠️ Keeping existing ${_partialPayments.length} partial payments due to stream error');
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -271,16 +236,12 @@ class AppState extends ChangeNotifier {
     // Listen to product purchases stream
     _dataService.productPurchasesFirebaseStream.listen(
       (productPurchases) {
-        print('📱 AppState received ${productPurchases.length} product purchases from Firebase');
-        print('📱 Setting _productPurchases to: ${productPurchases.map((p) => p.subcategoryName).toList()}');
         
         // WEB APP FIX: Always update product purchases from Firebase stream for real-time updates
         if (productPurchases.isNotEmpty) {
           _productPurchases = List.from(productPurchases); // Create a new list to prevent reference issues
-          print('📱 _productPurchases now contains: ${_productPurchases.length} product purchases');
         } else {
           // If Firebase returns empty, set to empty (allows real-time removal)
-          print('📱 Firebase returned empty product purchases list, setting to empty');
           _productPurchases = [];
         }
         
@@ -290,9 +251,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in product purchases stream: $error');
         // CRITICAL: Don't clear product purchases on error - keep existing data
-        print('⚠️ Keeping existing ${_productPurchases.length} product purchases due to stream error');
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -301,7 +260,6 @@ class AppState extends ChangeNotifier {
     // Listen to activities stream
     _dataService.activitiesFirebaseStream.listen(
       (activities) {
-        print('📱 AppState received ${activities.length} activities from Firebase');
         _activities = List.from(activities);
         
         // Debug data consistency
@@ -310,11 +268,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in activities stream: $error');
         // CRITICAL: Don't clear activities on error - keep existing data
-        if (_activities.isNotEmpty) {
-          print('⚠️ Keeping existing ${_activities.length} activities due to stream error');
-        }
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -323,20 +277,15 @@ class AppState extends ChangeNotifier {
     // Listen to currency settings stream
     _dataService.currencySettingsFirebaseStream.listen(
       (currencySettings) {
-        print('📱 AppState received currency settings from Firebase: ${currencySettings?.exchangeRate}');
         
         // Only update if we received valid currency settings
         if (currencySettings != null && currencySettings.exchangeRate != null) {
           _currencySettings = currencySettings;
-          print('✅ AppState updated currency settings: ${_currencySettings!.exchangeRate}');
         } else if (currencySettings == null && _currencySettings != null) {
-          print('⚠️ Firebase sent null currency settings, keeping existing: ${_currencySettings!.exchangeRate}');
           // Don't update - keep existing settings
         } else if (currencySettings != null && currencySettings.exchangeRate == null) {
-          print('⚠️ Firebase sent currency settings without exchange rate, keeping existing: ${_currencySettings?.exchangeRate}');
           // Don't update - keep existing settings
         } else {
-          print('📱 AppState received initial currency settings: ${currencySettings?.exchangeRate}');
           _currencySettings = currencySettings;
         }
         
@@ -346,17 +295,11 @@ class AppState extends ChangeNotifier {
         notifyListeners();
       },
       onError: (error) {
-        print('❌ Error in currency settings stream: $error');
         // CRITICAL: Don't clear currency settings on error - keep existing data
-        if (_currencySettings != null) {
-          print('⚠️ Keeping existing currency settings due to stream error: ${_currencySettings!.exchangeRate}');
-        }
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
     );
-    
-    print('✅ All Firebase streams initialized successfully');
   }
   
   // Clear debt calculation cache when debts change
@@ -370,10 +313,7 @@ class AppState extends ChangeNotifier {
   
   // Debug method to check data consistency
   void debugDataConsistency() {
-    // Only log in debug mode or when there are issues
-    if (kDebugMode) {
-      print('🔍 Data: ${_customers.length} customers, ${_categories.length} categories, ${_debts.length} debts');
-    }
+    // Debug data consistency check
   }
 
 
@@ -427,7 +367,8 @@ class AppState extends ChangeNotifier {
       totalPaid += debt.paidAmount;
     }
     
-    return totalPaid;
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    return ((totalPaid * 100).round() / 100);
   }
   
   // Get comprehensive revenue summary for dashboard
@@ -456,6 +397,50 @@ class AppState extends ChangeNotifier {
       // Calculate pending revenue (total debt - total paid)
       final pendingRevenue = totalDebt - totalPaid;
       
+      // Calculate potential revenue from unpaid amounts
+      double totalPotentialRevenue = 0.0;
+      for (final debt in _debts) {
+        if (debt.remainingAmount > 0) {
+          // For pending debts, potential revenue is the full original revenue
+          // For partially paid debts, potential revenue is the remaining revenue
+          if (debt.paidAmount == 0) {
+            // If cost prices are available, use original revenue; otherwise use debt amount
+            if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+              // SAFETY CHECK: Prevent extremely high revenue calculations
+              final revenue = debt.originalRevenue;
+              if (revenue > debt.amount * 10) { // Revenue shouldn't be more than 10x the debt amount
+                // Use a reasonable fallback
+                totalPotentialRevenue += debt.amount * 0.3; // Assume 30% profit margin
+              } else {
+                totalPotentialRevenue += revenue;
+              }
+            } else {
+              // Fallback: use the debt amount as potential revenue when cost prices aren't set
+              totalPotentialRevenue += debt.amount;
+            }
+          } else {
+            if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+              // SAFETY CHECK: Prevent extremely high revenue calculations
+              final revenue = debt.remainingRevenue;
+              if (revenue > debt.remainingAmount * 10) { // Revenue shouldn't be more than 10x the remaining amount
+                // Use a reasonable fallback
+                totalPotentialRevenue += debt.remainingAmount * 0.3; // Assume 30% profit margin
+              } else {
+                totalPotentialRevenue += revenue;
+              }
+            } else {
+              // Fallback: use remaining debt amount as potential revenue
+              totalPotentialRevenue += debt.remainingAmount;
+            }
+          }
+        }
+      }
+      
+      // FINAL SAFETY CHECK: Cap potential revenue at reasonable levels
+      if (totalPotentialRevenue > totalDebt * 5) { // Revenue shouldn't be more than 5x total debt
+        totalPotentialRevenue = totalDebt * 0.5; // Cap at 50% of total debt amount
+      }
+      
       // Calculate profit margin (if we have product cost data)
       double totalProfit = 0.0;
       for (final debt in _debts) {
@@ -466,6 +451,7 @@ class AppState extends ChangeNotifier {
       
       return {
         'totalRevenue': totalHistoricalRevenue,
+        'totalPotentialRevenue': totalPotentialRevenue,
         'monthlyRevenue': monthlyRevenue,
         'yearlyRevenue': yearlyRevenue,
         'pendingRevenue': pendingRevenue,
@@ -481,6 +467,7 @@ class AppState extends ChangeNotifier {
       return {
         'error': e.toString(),
         'totalRevenue': 0.0,
+        'totalPotentialRevenue': 0.0,
         'monthlyRevenue': 0.0,
         'yearlyRevenue': 0.0,
         'pendingRevenue': 0.0,
@@ -743,6 +730,38 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
   
+  /// Fix floating-point precision issues in debt status calculations
+  /// This ensures debts are properly marked as fully paid when they should be
+  Future<void> fixDebtStatusPrecision() async {
+    try {
+      bool hasUpdates = false;
+      
+      for (int i = 0; i < _debts.length; i++) {
+        final debt = _debts[i];
+        final remainingAmount = debt.amount - debt.paidAmount;
+        
+        // If the remaining amount is very small (less than 1 cent), mark as fully paid
+        if (remainingAmount.abs() < 0.01 && debt.status != DebtStatus.paid) {
+          _debts[i] = debt.copyWith(
+            status: DebtStatus.paid,
+            paidAt: debt.paidAt ?? DateTime.now(),
+          );
+          
+          // Update in database
+          await _dataService.updateDebt(_debts[i]);
+          hasUpdates = true;
+        }
+      }
+      
+      if (hasUpdates) {
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      // Error fixing debt status precision
+    }
+  }
+  
   /// Fix the Syria tel debt currency and amount issue
   /// This debt is stored as 0.375 LBP but should be 0.38 USD
   /// Also automatically fixes any new Syria tel debts with incorrect currency
@@ -972,7 +991,7 @@ class AppState extends ChangeNotifier {
       
       // Currency settings are loaded via Firebase stream, don't override them here
       // _currencySettings = _dataService.currencySettings; // This returns null, causing the issue
-      print('📱 _loadData: Keeping existing currency settings: ${_currencySettings?.exchangeRate}');
+
       
       // Run currency data migration to fix any corrupted data
       if (_currencySettings?.exchangeRate != null && !_hasRunMigration) {
@@ -1012,10 +1031,10 @@ class AppState extends ChangeNotifier {
     try {
       await _dataService.saveCurrencySettings(settings);
       _currencySettings = settings;
-      print('✅ AppState manually updated currency settings: ${_currencySettings!.exchangeRate}');
+
       notifyListeners();
     } catch (e) {
-      print('❌ Error updating currency settings: $e');
+
       rethrow;
     }
   }
@@ -1206,9 +1225,10 @@ class AppState extends ChangeNotifier {
       final isThisDebtFullyPaid = newStatus == DebtStatus.paid;
       
       // Determine the correct description based on individual debt status
-      // If this payment completes the debt, show "Fully paid", otherwise "Partial payment"
+      // If this payment completes the debt, show "Debt Paid", otherwise "Partial payment"
+      // "Fully paid" should only be used when the entire customer balance is settled
       final description = isThisDebtFullyPaid
-          ? 'Fully paid: ${amount.toStringAsFixed(2)}\$'  // Clean: just payment status + amount
+          ? '${debt.description}: ${amount.toStringAsFixed(2)}\$'  // Show product name and amount
           : 'Partial payment: ${amount.toStringAsFixed(2)}\$';    // Clean: just payment status + amount
       
       final activity = Activity(
@@ -1223,6 +1243,29 @@ class AppState extends ChangeNotifier {
         newStatus: newStatus, // Use the actual new status of this debt
         date: DateTime.now(),
         debtId: debt.id,
+      );
+      
+      await _addActivity(activity);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Add customer-level "Fully paid" activity when entire customer balance is settled
+  Future<void> addCustomerFullyPaidActivity(String customerId, String customerName, double totalAmount) async {
+    try {
+      final activity = Activity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        customerId: customerId,
+        customerName: customerName,
+        type: ActivityType.payment,
+        description: 'Fully paid: ${totalAmount.toStringAsFixed(2)}\$',
+        paymentAmount: totalAmount,
+        amount: totalAmount,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.paid,
+        date: DateTime.now(),
+        debtId: null, // This is a customer-level activity, not tied to a specific debt
       );
       
       await _addActivity(activity);
@@ -1393,16 +1436,12 @@ class AppState extends ChangeNotifier {
   // Clear only debts, activities, and payment records (preserve customers and products)
   Future<void> clearDebtsAndActivities() async {
     try {
-      print('🔄 AppState: Starting to clear debts and activities...');
-      
       // Add overall timeout to prevent hanging
       await Future.wait([
         _dataService.clearDebts(),
         _dataService.clearActivities(),
         _dataService.clearPartialPayments(),
       ]).timeout(const Duration(seconds: 90)); // 90 seconds total timeout
-      
-      print('🔄 AppState: Firebase operations completed, updating local state...');
       
       // Clear local lists
       _debts.clear();
@@ -1411,14 +1450,56 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      
-      print('✅ AppState: Successfully cleared all debts, activities, and payments');
     } catch (e) {
-      print('❌ AppState: Error clearing debts and activities: $e');
+      // Always clear local data even if Firebase fails
+      _debts.clear();
+      _partialPayments.clear();
+      _activities.clear();
+      _clearCache();
+      notifyListeners();
+      
       if (e.toString().contains('timeout')) {
-        throw Exception('Operation timed out. Please try again.');
+        throw Exception('Operation timed out, but local data has been cleared. Please restart the app to ensure Firebase sync.');
+      } else {
+        throw Exception('Firebase operation failed, but local data has been cleared. Please restart the app to ensure Firebase sync.');
       }
+    }
+  }
+  
+  // Quick clear method that only clears local data (for testing)
+  Future<void> quickClearDebtsAndActivities() async {
+    try {
+      // Clear local lists immediately
+      _debts.clear();
+      _partialPayments.clear();
+      _activities.clear();
+      
+      _clearCache();
+      notifyListeners();
+      
+
+    } catch (e) {
+
       rethrow;
+    }
+  }
+  
+  // Clear only local data (synchronous, for instant UI response)
+  void clearLocalDataOnly() {
+    try {
+
+      
+      // Clear local lists immediately
+      _debts.clear();
+      _partialPayments.clear();
+      _activities.clear();
+      
+      _clearCache();
+      notifyListeners();
+      
+
+    } catch (e) {
+
     }
   }
 
@@ -1639,6 +1720,11 @@ class AppState extends ChangeNotifier {
       if (totalOutstanding == 0) {
         // All customer debts are now paid - trigger settlement confirmation
         await _triggerSettlementConfirmationAutomation(debt.customerId);
+        
+        // Add customer-level "Fully paid" activity
+        final customer = _customers.firstWhere((c) => c.id == debt.customerId);
+        final totalPaidAmount = customerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
+        await addCustomerFullyPaidActivity(debt.customerId, debt.customerName, totalPaidAmount);
       }
       
       // Show notification
@@ -1678,10 +1764,14 @@ class AppState extends ChangeNotifier {
       final tolerance = 0.01; // 1 cent tolerance
       final isThisDebtFullyPaid = (newTotalPaidAmount + tolerance) >= originalDebt.amount;
       
+      // Additional check: if the remaining amount is very small (less than 1 cent), consider it fully paid
+      final remainingAmount = originalDebt.amount - newTotalPaidAmount;
+      final isEffectivelyFullyPaid = remainingAmount.abs() < 0.01;
+      
       // Update the debt with the new total paid amount
       _debts[index] = originalDebt.copyWith(
         paidAmount: newTotalPaidAmount,
-        status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+        status: (isThisDebtFullyPaid || isEffectivelyFullyPaid) ? DebtStatus.paid : DebtStatus.pending,
         paidAt: DateTime.now(), // Update to latest payment time
       );
       
@@ -1698,7 +1788,7 @@ class AppState extends ChangeNotifier {
         await addPaymentActivity(originalDebt, paymentAmountToShow, oldStatus, newStatus);
         
         // If this payment completes the debt, also check for consolidation
-        if (isThisDebtFullyPaid) {
+        if (isThisDebtFullyPaid || isEffectivelyFullyPaid) {
           await _checkAndConsolidateMultipleDebtCompletions(originalDebt.customerId, originalDebt.customerName);
           
           // CRITICAL FIX: Never clear all customer debts during partial payments
@@ -1712,6 +1802,11 @@ class AppState extends ChangeNotifier {
           if (totalOutstanding == 0) {
             // All customer debts are now paid - trigger settlement confirmation
             await _triggerSettlementConfirmationAutomation(originalDebt.customerId);
+            
+            // Add customer-level "Fully paid" activity
+            final customer = _customers.firstWhere((c) => c.id == originalDebt.customerId);
+            final totalPaidAmount = customerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
+            await addCustomerFullyPaidActivity(originalDebt.customerId, originalDebt.customerName, totalPaidAmount);
           }
         }
       }
@@ -1783,9 +1878,13 @@ class AppState extends ChangeNotifier {
         final tolerance = 0.01; // 1 cent tolerance
         final isThisDebtFullyPaid = (newTotalPaidAmount + tolerance) >= currentDebt.amount;
         
+        // Additional check: if the remaining amount is very small (less than 1 cent), consider it fully paid
+        final remainingAmount = currentDebt.amount - newTotalPaidAmount;
+        final isEffectivelyFullyPaid = remainingAmount.abs() < 0.01;
+        
         _debts[debtIndex] = currentDebt.copyWith(
           paidAmount: newTotalPaidAmount,
-          status: isThisDebtFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+          status: (isThisDebtFullyPaid || isEffectivelyFullyPaid) ? DebtStatus.paid : DebtStatus.pending,
           paidAt: DateTime.now(),
         );
         
@@ -1798,7 +1897,7 @@ class AppState extends ChangeNotifier {
         }
         
         // Check if this debt is now fully paid and if it was the last one for the customer
-        if (isThisDebtFullyPaid) {
+        if (isThisDebtFullyPaid || isEffectivelyFullyPaid) {
           // Check if this was the last debt for the customer and trigger settlement confirmation
           final allCustomerDebts = _debts.where((d) => d.customerId == customerId).toList();
           final totalOutstanding = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
@@ -1806,6 +1905,11 @@ class AppState extends ChangeNotifier {
           if (totalOutstanding == 0) {
             // All customer debts are now paid - trigger settlement confirmation
             await _triggerSettlementConfirmationAutomation(customerId);
+            
+            // Add customer-level "Fully paid" activity
+            final customer = _customers.firstWhere((c) => c.id == customerId);
+            final totalPaidAmount = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
+            await addCustomerFullyPaidActivity(customerId, customer.name, totalPaidAmount);
           }
         }
         
@@ -2059,7 +2163,7 @@ class AppState extends ChangeNotifier {
       // The migration is already complete, just notify listeners
       notifyListeners();
     } catch (e) {
-      print('❌ Error during currency data migration: $e');
+
     }
   }
 
@@ -2159,8 +2263,7 @@ class AppState extends ChangeNotifier {
                 }
               }
               
-              print('✅ Fixed alfa product currency and pricing');
-              print('  New values - Cost: ${updatedSubcategory.costPrice} USD, Selling: ${updatedSubcategory.sellingPrice} USD');
+
             }
           }
         }
@@ -2168,9 +2271,9 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      print('✅ Alfa product currency fix completed');
+
     } catch (e) {
-      print('❌ Error during alfa product currency fix: $e');
+
       rethrow;
     }
   }
@@ -2178,7 +2281,7 @@ class AppState extends ChangeNotifier {
   /// Check and fix any debts with suspicious pricing (like 100000.0 instead of 1.00)
   Future<void> fixSuspiciousPricing() async {
     try {
-      print('🔍 Checking for debts with suspicious pricing...');
+
       int fixedCount = 0;
       
       for (final debt in _debts) {
@@ -2204,9 +2307,7 @@ class AppState extends ChangeNotifier {
         }
         
         if (needsFix) {
-          print('⚠️ Found debt with suspicious pricing: ${debt.description}');
-          print('  Reason: $reason');
-          print('  Current values - Amount: ${debt.amount}, Cost: ${debt.originalCostPrice}, Selling: ${debt.originalSellingPrice}');
+
           
           // Fix the pricing by converting from LBP to USD or setting reasonable defaults
           double newAmount = debt.amount;
@@ -2218,19 +2319,19 @@ class AppState extends ChangeNotifier {
             // Convert from LBP to USD using current exchange rate or reasonable default
             final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
             newAmount = debt.amount / exchangeRate;
-            print('  Converting debt amount from LBP to USD: ${debt.amount} LBP → ${newAmount.toStringAsFixed(2)} USD');
+
           }
           
           if (debt.originalCostPrice != null && debt.originalCostPrice! > 1000) {
             final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
             newCostPrice = debt.originalCostPrice! / exchangeRate;
-            print('  Converting cost price from LBP to USD: ${debt.originalCostPrice} LBP → ${newCostPrice.toStringAsFixed(2)} USD');
+
           }
           
           if (debt.originalSellingPrice != null && debt.originalSellingPrice! > 1000) {
             final exchangeRate = _currencySettings?.exchangeRate ?? 1500.0;
             newSellingPrice = debt.originalSellingPrice! / exchangeRate;
-            print('  Converting selling price from LBP to USD: ${debt.originalSellingPrice} LBP → ${newSellingPrice.toStringAsFixed(2)} USD');
+
           }
           
           // Ensure reasonable values
@@ -2254,20 +2355,16 @@ class AppState extends ChangeNotifier {
           }
           
           fixedCount++;
-          print('✅ Fixed debt: ${debt.description}');
-          print('  New values - Amount: ${updatedDebt.amount}, Cost: ${updatedDebt.originalCostPrice}, Selling: ${updatedDebt.originalSellingPrice}');
+
         }
       }
       
       if (fixedCount > 0) {
         _clearCache();
         notifyListeners();
-        print('🎯 Fixed $fixedCount debts with suspicious pricing');
-      } else {
-        print('✅ No debts with suspicious pricing found');
       }
     } catch (e) {
-      print('❌ Error fixing suspicious pricing: $e');
+
       rethrow;
     }
   }
@@ -2492,6 +2589,8 @@ class AppState extends ChangeNotifier {
       
       if (pendingDebts.isEmpty) return;
       
+
+      
       // Sort debts by creation date (oldest first) for fair distribution
       pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
@@ -2518,9 +2617,12 @@ class AppState extends ChangeNotifier {
         final actualPayment = remainingPayment < paymentForThisDebt ? remainingPayment : paymentForThisDebt;
         
         if (actualPayment > 0) {
+          final newPaidAmount = debt.paidAmount + actualPayment;
+          final isFullyPaid = newPaidAmount >= debt.amount;
+          
           final updatedDebt = debt.copyWith(
-            paidAmount: debt.paidAmount + actualPayment,
-            status: (debt.paidAmount + actualPayment) >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
+            paidAmount: newPaidAmount,
+            status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
             paidAt: DateTime.now(),
           );
           
@@ -2583,7 +2685,7 @@ class AppState extends ChangeNotifier {
       final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
       
       if (totalOutstanding == 0) {
-        print('🎉 AppState: All customer debts completed - triggering settlement automation!');
+
         // Pass only the debts that were just completed, not all customer debts
         await _triggerSettlementConfirmationAutomation(customerId, newlySettledDebts: pendingDebts);
       }
@@ -2823,7 +2925,7 @@ class AppState extends ChangeNotifier {
       // Currency settings are also loaded via Firebase stream, don't override them here
       
       // _currencySettings = _dataService.currencySettings; // This returns null, causing the issue
-      print('📱 Another method: Keeping existing currency settings: ${_currencySettings?.exchangeRate}');
+
       
       _clearCache();
       notifyListeners();
@@ -2884,14 +2986,14 @@ class AppState extends ChangeNotifier {
           // Show detailed debt information
           for (int i = 0; i < customerDebts.length; i++) {
             final debt = customerDebts[i];
-            print('  Debt ${i + 1}: ${debt.description} - Amount: \$${debt.amount} - Paid: \$${debt.paidAmount} - Remaining: \$${debt.remainingAmount} - Status: ${debt.status}');
+
           }
           
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-          print('💰 AppState: Customer outstanding balance: \$${totalAmount.toStringAsFixed(2)}');
+
           
           if (totalAmount == 0) {
-            print('🎉 AppState: Customer has ZERO outstanding balance - triggering settlement confirmation!');
+
             
             // Customer has no outstanding balance - send settlement confirmation
             // Use custom message if set, otherwise use default
@@ -2899,16 +3001,14 @@ class AppState extends ChangeNotifier {
                 ? _whatsappCustomMessage 
                 : 'Hello ${customer.name}, congratulations! You have successfully paid all your outstanding debts. Thank you for your business! 🎉';
             
-            print('📝 AppState: Settlement message content:');
-            print('  Custom message enabled: ${_whatsappCustomMessage.isNotEmpty}');
-            print('  Message: $customMessage');
+
             
             try {
-              print('📱 AppState: Calling WhatsAppAutomationService.sendSettlementMessage...');
+
               
               // Use newly settled debts if provided, otherwise fall back to all customer debts
               final debtsToShow = newlySettledDebts ?? customerDebts;
-              print('📋 AppState: Showing ${debtsToShow.length} newly settled debts in WhatsApp message');
+
               
               await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
@@ -2919,28 +3019,23 @@ class AppState extends ChangeNotifier {
                 customMessage: customMessage,
                 settlementDate: DateTime.now(),
               );
-              print('✅ AppState: Settlement confirmation WhatsApp automation completed successfully');
-              print('🎯 AppState: WhatsApp should now open with the settlement message');
+
             } catch (e) {
-              print('❌ AppState: Settlement confirmation WhatsApp automation failed: $e');
-              print('  Error details: ${e.toString()}');
+
               // Fallback: just log that automation was attempted
             }
           } else {
-            print('ℹ️ AppState: Customer still has outstanding balance, skipping settlement confirmation');
-            print('  Remaining debts: ${customerDebts.where((d) => d.remainingAmount > 0).length}');
+
           }
         } else {
-          print('ℹ️ AppState: Customer has no debts, skipping settlement confirmation');
+
         }
       } catch (e) {
-        print('❌ AppState: Error in settlement confirmation automation: $e');
-        print('  Error details: ${e.toString()}');
+
         // Silent fail for WhatsApp automation
       }
     } else {
-      print('ℹ️ AppState: WhatsApp automation is disabled, skipping settlement confirmation');
-      print('  To enable: Go to Settings → WhatsApp Automation → Enable Automated Messages');
+
     }
   }
 

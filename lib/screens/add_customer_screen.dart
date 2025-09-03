@@ -113,20 +113,20 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   // Direct navigation method
   void _navigateBack([dynamic result]) {
     if (mounted) {
-      print('🚀 Navigating back with result: $result');
+
       // Use a post-frame callback to ensure the UI is updated
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           try {
             Navigator.of(context).pop(result);
-            print('✅ Navigation successful');
+
           } catch (e) {
-            print('❌ Navigation failed: $e');
+
             // Try alternative method
             try {
               Navigator.of(context).maybePop();
             } catch (e2) {
-              print('❌ Alternative navigation also failed: $e2');
+
             }
           }
         }
@@ -252,22 +252,22 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           
           // Try direct navigation first
           try {
-            print('🚀 Attempting direct navigation for update');
+
             Navigator.of(context).pop(true);
-            print('✅ Direct navigation successful for update');
+
           } catch (e) {
-            print('❌ Direct navigation failed for update: $e');
+
             // Fallback to our method
             _navigateBack(true);
           }
         }
       } else {
         await appState.addCustomer(customer);
-        print('✅ Customer added successfully: ${customer.name}');
+
         
         // Show success message and navigate back immediately
         if (mounted) {
-          print('📱 Showing success message and navigating back');
+
           scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text('Customer "${customer.name}" added successfully!'),
@@ -278,11 +278,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           
           // Try direct navigation first
           try {
-            print('🚀 Attempting direct navigation');
+
             Navigator.of(context).pop();
-            print('✅ Direct navigation successful');
+
           } catch (e) {
-            print('❌ Direct navigation failed: $e');
+
             // Fallback to our method
             _navigateBack();
           }

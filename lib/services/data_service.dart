@@ -190,10 +190,10 @@ class DataService {
   // Fetch categories directly from Firebase
   Future<List<ProductCategory>> getCategoriesDirectly() async {
     try {
-      print('📱 DataService: Fetching categories directly from Firebase');
+
       return await _firebaseService.getCategoriesDirectly();
     } catch (e) {
-      print('❌ Error fetching categories directly: $e');
+
       return [];
     }
   }
@@ -201,10 +201,10 @@ class DataService {
   // Fetch debts directly from Firebase
   Future<List<Debt>> getDebtsDirectly() async {
     try {
-      print('📱 DataService: Fetching debts directly from Firebase');
+
       return await _firebaseService.getDebtsDirectly();
     } catch (e) {
-      print('❌ Error fetching debts directly: $e');
+
       return [];
     }
   }
@@ -212,10 +212,10 @@ class DataService {
   // Fetch partial payments directly from Firebase
   Future<List<PartialPayment>> getPartialPaymentsDirectly() async {
     try {
-      print('📱 DataService: Fetching partial payments directly from Firebase');
+
       return await _firebaseService.getPartialPaymentsDirectly();
     } catch (e) {
-      print('❌ Error fetching partial payments directly: $e');
+
       return [];
     }
   }
@@ -223,10 +223,10 @@ class DataService {
   // Fetch product purchases directly from Firebase
   Future<List<ProductPurchase>> getProductPurchasesDirectly() async {
     try {
-      print('📱 DataService: Fetching product purchases directly from Firebase');
+
       return await _firebaseService.getProductPurchasesDirectly();
     } catch (e) {
-      print('❌ Error fetching product purchases directly: $e');
+
       return [];
     }
   }

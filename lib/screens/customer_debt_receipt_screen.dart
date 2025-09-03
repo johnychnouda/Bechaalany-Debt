@@ -88,12 +88,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   Widget build(BuildContext context) {
     // Add debugging for web
     if (kIsWeb) {
-      print('CustomerDebtReceiptScreen build called');
-      print('Customer: ${widget.customer.name}');
-      print('Customer debts count: ${widget.customerDebts.length}');
-      print('Partial payments count: ${widget.partialPayments.length}');
-      print('Activities count: ${widget.activities.length}');
-      print('Specific debt ID: ${widget.specificDebtId}');
+
     }
     
     // Filter debts to only include those relevant to the payment being viewed

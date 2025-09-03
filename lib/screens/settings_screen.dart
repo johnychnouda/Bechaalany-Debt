@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -556,11 +557,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               
+              // Store the context to ensure we can dismiss the loading dialog
+              final currentContext = context;
+              
               // Show loading indicator
               showCupertinoDialog(
-                context: context,
+                context: currentContext,
                 barrierDismissible: false,
-                builder: (context) => CupertinoAlertDialog(
+                builder: (loadingContext) => CupertinoAlertDialog(
                   content: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -571,7 +575,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Text(
                           'Clearing debts and activities...',
                           style: TextStyle(
-                            color: AppColors.dynamicTextPrimary(context),
+                            color: AppColors.dynamicTextPrimary(loadingContext),
                             fontSize: 14,
                           ),
                         ),
@@ -581,88 +585,155 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               );
               
-              try {
-                final appState = Provider.of<AppState>(context, listen: false);
-                
-                // Add manual timeout to prevent hanging
-                await appState.clearDebtsAndActivities()
-                    .timeout(const Duration(seconds: 120)); // 2 minutes total timeout
-                
-                // Hide loading indicator
-                Navigator.pop(context);
-                
-                // Show success message
-                showCupertinoDialog(
-                  context: context,
-                  builder: (context) => CupertinoAlertDialog(
-                    title: Text(
-                      'Success',
-                      style: TextStyle(
-                        color: AppColors.dynamicTextPrimary(context),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    content: Text(
-                      'All debts, activities, and payment records have been cleared successfully. Products and customers have been preserved.',
-                      style: TextStyle(
-                        color: AppColors.dynamicTextSecondary(context),
-                        fontSize: 14,
-                      ),
-                    ),
-                    actions: [
-                      CupertinoDialogAction(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'OK',
+              // Add a safety timeout to automatically dismiss the loading dialog
+              Timer? safetyTimer;
+              safetyTimer = Timer(const Duration(seconds: 100), () {
+                if (currentContext.mounted) {
+                  try {
+                    Navigator.pop(currentContext);
+                    // Show timeout message
+                    showCupertinoDialog(
+                      context: currentContext,
+                      builder: (timeoutContext) => CupertinoAlertDialog(
+                        title: Text(
+                          'Operation Timeout',
                           style: TextStyle(
-                            color: AppColors.dynamicPrimary(context),
+                            color: AppColors.dynamicTextPrimary(timeoutContext),
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              } catch (e) {
-                // Hide loading indicator
-                Navigator.pop(context);
-                
-                // Show error message
-                showCupertinoDialog(
-                  context: context,
-                  builder: (context) => CupertinoAlertDialog(
-                    title: Text(
-                      'Error',
-                      style: TextStyle(
-                        color: AppColors.dynamicTextPrimary(context),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    content: Text(
-                      'Failed to clear debts and activities: $e',
-                      style: TextStyle(
-                        color: AppColors.dynamicTextSecondary(context),
-                        fontSize: 14,
-                      ),
-                    ),
-                    actions: [
-                      CupertinoDialogAction(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'OK',
+                        content: Text(
+                          'The operation took longer than expected. Local data has been cleared. Please restart the app to ensure Firebase sync.',
                           style: TextStyle(
-                            color: AppColors.dynamicTextPrimary(context),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            color: AppColors.dynamicTextSecondary(timeoutContext),
+                            fontSize: 14,
                           ),
                         ),
+                        actions: [
+                          CupertinoDialogAction(
+                            onPressed: () => Navigator.pop(timeoutContext),
+                            child: Text(
+                              'OK',
+                              style: TextStyle(
+                                color: AppColors.dynamicPrimary(timeoutContext),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
+                    );
+                  } catch (e) {
+                    // Silently handle timeout dismissal errors
+                  }
+                }
+              });
+              
+              // Add a final safety net to force dismiss if operation takes too long
+              Timer(const Duration(seconds: 95), () {
+                if (currentContext.mounted) {
+                  try {
+                    Navigator.pop(currentContext);
+                  } catch (e) {
+                    // Silently handle timeout dismissal errors
+                  }
+                }
+              });
+              
+              try {
+                final appState = Provider.of<AppState>(currentContext, listen: false);
+                
+                // Wait for Firebase clearing to complete (with timeout)
+                await appState.clearDebtsAndActivities()
+                    .timeout(const Duration(seconds: 90)); // Match app state timeout
+                
+                // Cancel safety timer and hide loading indicator
+                safetyTimer?.cancel();
+                if (currentContext.mounted) {
+                  Navigator.pop(currentContext);
+                }
+                
+                // Show success message
+                if (currentContext.mounted) {
+                  showCupertinoDialog(
+                    context: currentContext,
+                    builder: (successContext) => CupertinoAlertDialog(
+                      title: Text(
+                        'Success',
+                        style: TextStyle(
+                          color: AppColors.dynamicTextPrimary(successContext),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      content: Text(
+                        'All debts, activities, and payment records have been cleared successfully. Products and customers have been preserved.',
+                        style: TextStyle(
+                          color: AppColors.dynamicTextSecondary(successContext),
+                          fontSize: 14,
+                        ),
+                      ),
+                      actions: [
+                        CupertinoDialogAction(
+                          onPressed: () => Navigator.pop(successContext),
+                          child: Text(
+                            'OK',
+                            style: TextStyle(
+                              color: AppColors.dynamicPrimary(successContext),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              } catch (e) {
+                // Cancel safety timer and hide loading indicator
+                safetyTimer?.cancel();
+                if (currentContext.mounted) {
+                  Navigator.pop(currentContext);
+                }
+                
+                // Show error message
+                if (currentContext.mounted) {
+                  showCupertinoDialog(
+                    context: currentContext,
+                    builder: (errorContext) => CupertinoAlertDialog(
+                      title: Text(
+                        'Error',
+                        style: TextStyle(
+                          color: AppColors.dynamicTextPrimary(errorContext),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      content: Text(
+                        'Firebase operation failed, but local data has been cleared. Please restart the app to ensure Firebase sync.',
+                        style: TextStyle(
+                          color: AppColors.dynamicTextSecondary(errorContext),
+                          fontSize: 14,
+                        ),
+                      ),
+                      actions: [
+                        CupertinoDialogAction(
+                          onPressed: () => Navigator.pop(errorContext),
+                          child: Text(
+                            'OK',
+                            style: TextStyle(
+                              color: AppColors.dynamicTextPrimary(errorContext),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
               }
             },
             child: Text(

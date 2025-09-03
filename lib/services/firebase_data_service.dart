@@ -32,14 +32,14 @@ class FirebaseDataService {
     customerData['lastUpdated'] = FieldValue.serverTimestamp();
     customerData['userId'] = currentUserId;
     
-    print('➕ Creating customer with userId: $currentUserId');
+
     
     await _firestore
         .collection('customers')
         .doc(customer.id)
         .set(customerData, SetOptions(merge: true));
         
-    print('✅ Customer created successfully');
+
   }
 
   // Get all customers for current user
@@ -85,7 +85,7 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      print('🌐 FirebaseDataService: Fetching categories directly for userId: $currentUserId');
+
       
       // First try with user ID filter
       var querySnapshot = await _firestore
@@ -94,7 +94,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        print('🌐 No categories found with userId filter, trying without filter...');
+
         // If no categories found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('categories')
@@ -105,10 +105,10 @@ class FirebaseDataService {
           .map((doc) => ProductCategory.fromJson(doc.data()))
           .toList();
       
-      print('🌐 FirebaseDataService: Found ${categories.length} categories directly');
+
       return categories;
     } catch (e) {
-      print('❌ Error fetching categories directly: $e');
+
       return [];
     }
   }
@@ -172,7 +172,7 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      print('🌐 FirebaseDataService: Fetching product purchases directly for userId: $currentUserId');
+
       
       // First try with user ID filter
       var querySnapshot = await _firestore
@@ -181,7 +181,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        print('🌐 No product purchases found with userId filter, trying without filter...');
+
         // If no product purchases found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('product_purchases')
@@ -192,10 +192,10 @@ class FirebaseDataService {
           .map((doc) => ProductPurchase.fromJson(doc.data()))
           .toList();
       
-      print('🌐 FirebaseDataService: Found ${productPurchases.length} product purchases directly');
+
       return productPurchases;
     } catch (e) {
-      print('❌ Error fetching product purchases directly: $e');
+
       return [];
     }
   }
@@ -243,7 +243,7 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      print('🌐 FirebaseDataService: Fetching debts directly for userId: $currentUserId');
+
       
       // First try with user ID filter
       var querySnapshot = await _firestore
@@ -252,7 +252,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        print('🌐 No debts found with userId filter, trying without filter...');
+
         // If no debts found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('debts')
@@ -263,10 +263,10 @@ class FirebaseDataService {
           .map((doc) => Debt.fromJson(doc.data()))
           .toList();
       
-      print('🌐 FirebaseDataService: Found ${debts.length} debts directly');
+
       return debts;
     } catch (e) {
-      print('❌ Error fetching debts directly: $e');
+
       return [];
     }
   }
@@ -314,7 +314,7 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      print('🌐 FirebaseDataService: Fetching partial payments directly for userId: $currentUserId');
+
       
       // First try with user ID filter
       var querySnapshot = await _firestore
@@ -323,7 +323,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        print('🌐 No partial payments found with userId filter, trying without filter...');
+
         // If no partial payments found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('partial_payments')
@@ -334,10 +334,10 @@ class FirebaseDataService {
           .map((doc) => PartialPayment.fromJson(doc.data()))
           .toList();
       
-      print('🌐 FirebaseDataService: Found ${partialPayments.length} partial payments directly');
+
       return partialPayments;
     } catch (e) {
-      print('❌ Error fetching partial payments directly: $e');
+
       return [];
     }
   }
@@ -378,10 +378,10 @@ class FirebaseDataService {
         .snapshots()
         .map((doc) {
           if (doc.exists && doc.data() != null) {
-            print('📱 Firebase: Currency settings found: ${doc.data()}');
+
             return CurrencySettings.fromJson(doc.data()!);
           }
-          print('📱 Firebase: No currency settings document found');
+
           return null;
         });
   }
@@ -397,13 +397,13 @@ class FirebaseDataService {
           .get();
       
       if (doc.exists && doc.data() != null) {
-        print('📱 Firebase: Direct currency settings fetch: ${doc.data()}');
+
         return CurrencySettings.fromJson(doc.data()!);
       }
-      print('📱 Firebase: Direct fetch - no currency settings found');
+
       return null;
     } catch (e) {
-      print('❌ Firebase: Error fetching currency settings: $e');
+
       return null;
     }
   }
@@ -473,9 +473,9 @@ class FirebaseDataService {
     try {
       // This will be called from the migration service
       // For now, just ensure we're authenticated
-      print('Firebase migration service ready');
+
     } catch (e) {
-      print('Firebase migration failed: $e');
+
       rethrow;
     }
   }
@@ -1119,7 +1119,7 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      print('💾 Starting backup creation for userId: $currentUserId');
+
       
       final backupId = 'backup_${DateTime.now().millisecondsSinceEpoch}';
       final backupData = <String, dynamic>{
@@ -1131,7 +1131,7 @@ class FirebaseDataService {
         'backupType': isAutomatic ? 'automatic' : 'manual',
       };
       
-      print('💾 Collecting data for backup...');
+
       
       // Get all data for backup
       final customersSnapshot = await _firestore.collection('customers').get();
@@ -1142,14 +1142,7 @@ class FirebaseDataService {
       final activitiesSnapshot = await _firestore.collection('activities').get();
       final settingsSnapshot = await _firestore.collection('currency_settings').get();
       
-      print('💾 Data collected:');
-      print('   - Customers: ${customersSnapshot.docs.length}');
-      print('   - Debts: ${debtsSnapshot.docs.length}');
-      print('   - Categories: ${categoriesSnapshot.docs.length}');
-      print('   - Product Purchases: ${purchasesSnapshot.docs.length}');
-      print('   - Partial Payments: ${paymentsSnapshot.docs.length}');
-      print('   - Activities: ${activitiesSnapshot.docs.length}');
-      print('   - Currency Settings: ${settingsSnapshot.docs.length}');
+
       
       backupData['customers'] = customersSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['debts'] = debtsSnapshot.docs.map((doc) => doc.data()).toList();
@@ -1159,13 +1152,13 @@ class FirebaseDataService {
       backupData['activities'] = activitiesSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['currency_settings'] = settingsSnapshot.docs.map((doc) => doc.data()).toList();
       
-      print('💾 Saving backup to Firestore with ID: $backupId');
+
       await _firestore.collection('backups').doc(backupId).set(backupData);
       
-      print('✅ Backup created successfully: $backupId');
+
       return backupId;
     } catch (e) {
-      print('❌ Error creating backup: $e');
+
       rethrow;
     }
   }
@@ -1175,7 +1168,7 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      print('🔍 Searching for backups for userId: $currentUserId');
+
       
       // Get all backups and filter in memory to avoid composite index requirement
       var snapshot = await _firestore
@@ -1183,7 +1176,7 @@ class FirebaseDataService {
           .orderBy('createdAt', descending: true)
           .get();
       
-      print('🔍 Found ${snapshot.docs.length} total backups');
+
       
       // Filter by userId in memory
       final userBackups = snapshot.docs.where((doc) {
@@ -1191,13 +1184,13 @@ class FirebaseDataService {
         return data['userId'] == currentUserId;
       }).toList();
       
-      print('🔍 Found ${userBackups.length} backups for current user');
+
       
       final backupIds = userBackups.map((doc) => doc.id).toList();
-      print('🔍 Returning backup IDs: $backupIds');
+
       return backupIds;
     } catch (e) {
-      print('❌ Error getting available backups: $e');
+
       return [];
     }
   }
@@ -1221,7 +1214,7 @@ class FirebaseDataService {
         'createdAt': data['createdAt'],
       };
     } catch (e) {
-      print('❌ Error getting backup metadata: $e');
+
       return null;
     }
   }
@@ -1708,8 +1701,6 @@ class FirebaseDataService {
   // Clear all debts for current user
   Future<void> clearDebts() async {
     try {
-      print('🔄 Starting to clear debts...');
-      
       // Get all debts (no userId filter since app is running without authentication)
       final debtsSnapshot = await _firestore
           .collection('debts')
@@ -1717,11 +1708,8 @@ class FirebaseDataService {
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
       if (debtsSnapshot.docs.isEmpty) {
-        print('✅ No debts found to clear');
         return;
       }
-      
-      print('🔄 Found ${debtsSnapshot.docs.length} debts to clear');
       
       // Delete each debt document
       final batch = _firestore.batch();
@@ -1731,10 +1719,7 @@ class FirebaseDataService {
       
       // Commit the batch deletion with timeout
       await batch.commit().timeout(const Duration(seconds: 30));
-      
-      print('✅ Successfully cleared ${debtsSnapshot.docs.length} debts from Firebase');
     } catch (e) {
-      print('❌ Error clearing debts: $e');
       if (e.toString().contains('timeout')) {
         throw Exception('Timeout while clearing debts. Please try again.');
       }
@@ -1745,8 +1730,6 @@ class FirebaseDataService {
   // Clear all partial payments for current user
   Future<void> clearPartialPayments() async {
     try {
-      print('🔄 Starting to clear partial payments...');
-      
       // Get all partial payments (no userId filter since app is running without authentication)
       final paymentsSnapshot = await _firestore
           .collection('partial_payments')
@@ -1754,11 +1737,8 @@ class FirebaseDataService {
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
       if (paymentsSnapshot.docs.isEmpty) {
-        print('✅ No partial payments found to clear');
         return;
       }
-      
-      print('🔄 Found ${paymentsSnapshot.docs.length} partial payments to clear');
       
       // Delete each payment document
       final batch = _firestore.batch();
@@ -1768,10 +1748,7 @@ class FirebaseDataService {
       
       // Commit the batch deletion with timeout
       await batch.commit().timeout(const Duration(seconds: 30));
-      
-      print('✅ Successfully cleared ${paymentsSnapshot.docs.length} partial payments from Firebase');
     } catch (e) {
-      print('❌ Error clearing partial payments: $e');
       if (e.toString().contains('timeout')) {
         throw Exception('Timeout while clearing partial payments. Please try again.');
       }
@@ -1782,8 +1759,6 @@ class FirebaseDataService {
   // Clear all activities for current user
   Future<void> clearActivities() async {
     try {
-      print('🔄 Starting to clear activities...');
-      
       // Get all activities (no userId filter since app is running without authentication)
       final activitiesSnapshot = await _firestore
           .collection('activities')
@@ -1791,11 +1766,8 @@ class FirebaseDataService {
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
       if (activitiesSnapshot.docs.isEmpty) {
-        print('✅ No activities found to clear');
         return;
       }
-      
-      print('🔄 Found ${activitiesSnapshot.docs.length} activities to clear');
       
       // Delete each activity document
       final batch = _firestore.batch();
@@ -1805,10 +1777,7 @@ class FirebaseDataService {
       
       // Commit the batch deletion with timeout
       await batch.commit().timeout(const Duration(seconds: 30));
-      
-      print('✅ Successfully cleared ${activitiesSnapshot.docs.length} activities from Firebase');
     } catch (e) {
-      print('❌ Error clearing activities: $e');
       if (e.toString().contains('timeout')) {
         throw Exception('Timeout while clearing activities. Please try again.');
       }
@@ -1819,8 +1788,6 @@ class FirebaseDataService {
   // Clear all data for current user (customers, debts, products, activities, payments)
   Future<void> clearAllData() async {
     try {
-      print('🔄 Starting to clear all data...');
-      
       // Clear all collections (no userId filter since app is running without authentication)
       await clearDebts();
       await clearPartialPayments();
@@ -1838,7 +1805,6 @@ class FirebaseDataService {
           customersBatch.delete(doc.reference);
         }
         await customersBatch.commit().timeout(const Duration(seconds: 30));
-        print('✅ Cleared ${customersSnapshot.docs.length} customers');
       }
       
       // Clear categories
@@ -1853,7 +1819,6 @@ class FirebaseDataService {
           categoriesBatch.delete(doc.reference);
         }
         await categoriesBatch.commit().timeout(const Duration(seconds: 30));
-        print('✅ Cleared ${categoriesSnapshot.docs.length} categories');
       }
       
       // Clear product purchases
@@ -1868,12 +1833,8 @@ class FirebaseDataService {
           purchasesBatch.delete(doc.reference);
         }
         await purchasesBatch.commit().timeout(const Duration(seconds: 30));
-        print('✅ Cleared ${purchasesSnapshot.docs.length} product purchases');
       }
-      
-      print('✅ Successfully cleared all data from Firebase');
     } catch (e) {
-      print('❌ Error clearing all data: $e');
       if (e.toString().contains('timeout')) {
         throw Exception('Timeout while clearing all data. Please try again.');
       }

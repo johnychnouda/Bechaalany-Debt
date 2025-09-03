@@ -102,16 +102,26 @@ class RecentActivityWidget extends StatelessWidget {
                               (debt) => debt.id == activity.debtId,
                             ).firstOrNull;
                             
-                            if (currentDebt != null && currentDebt.remainingAmount > 0) {
-                              // Debt is still pending - show red X
+                            if (currentDebt != null) {
+                              // Use customer-level status to determine display
+                              final isCustomerFullyPaid = appState.isCustomerFullyPaid(currentDebt.customerId);
+                              
+                              if (isCustomerFullyPaid) {
+                                // Customer has settled ALL debts - show green checkmark
+                                icon = Icons.check_circle;
+                                iconColor = AppColors.success;
+                                backgroundColor = AppColors.success.withValues(alpha: 0.1);
+                              } else {
+                                // Customer still has outstanding debts - show red X
+                                icon = Icons.close;
+                                iconColor = AppColors.error;
+                                backgroundColor = AppColors.error.withValues(alpha: 0.1);
+                              }
+                            } else {
+                              // Debt not found - show as outstanding
                               icon = Icons.close;
                               iconColor = AppColors.error;
                               backgroundColor = AppColors.error.withValues(alpha: 0.1);
-                            } else {
-                              // Debt has been paid - show green checkmark
-                              icon = Icons.check_circle;
-                              iconColor = AppColors.success;
-                              backgroundColor = AppColors.success.withValues(alpha: 0.1);
                             }
                           } else {
                             // Fallback to blue plus if no debt ID
@@ -174,6 +184,17 @@ class RecentActivityWidget extends StatelessWidget {
                                   if (activity.type == ActivityType.newDebt)
                                     Text(
                                       DebtDescriptionUtils.cleanDescription(activity.description),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  // For fully paid activities, show only the payment amount
+                                  if (activity.type == ActivityType.payment && isFullPayment && appState.isCustomerFullyPaid(activity.customerId))
+                                    Text(
+                                      '${activity.paymentAmount?.toStringAsFixed(2)}\$',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary,

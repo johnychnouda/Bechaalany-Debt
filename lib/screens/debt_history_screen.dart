@@ -598,9 +598,8 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
   // Simple direct function for web testing
   void _openReceiptDirectly(String customerId, Debt specificDebt) async {
     try {
-      print('=== _openReceiptDirectly called ===');
-      print('Customer ID: $customerId');
-      print('Debt ID: ${specificDebt.id}');
+
+
       
       // First, just try to show a simple message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -615,22 +614,14 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       await Future.delayed(Duration(milliseconds: 1000));
       
       // Now try to get the app state
-      print('Getting app state...');
       final appState = Provider.of<AppState>(context, listen: false);
-      print('App state obtained successfully');
       
       // Try to find customer
-      print('Looking for customer...');
       final customer = appState.customers.firstWhere((c) => c.id == customerId);
-      print('Customer found: ${customer.name}');
       
       // Get basic data
       final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
       final customerPartialPayments = appState.partialPayments.where((p) => p.debtId == specificDebt.id).toList();
-      
-      print('Customer debts count: ${allCustomerDebts.length}');
-      print('Partial payments count: ${customerPartialPayments.length}');
-      print('Activities count: ${appState.activities.length}');
       
       // Show success message for data retrieval
       ScaffoldMessenger.of(context).showSnackBar(
@@ -643,8 +634,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       
       // Wait a moment
       await Future.delayed(Duration(milliseconds: 1000));
-      
-      print('Attempting to navigate to receipt screen...');
       
       // Try to open the receipt screen with minimal navigation
       final result = await Navigator.of(context).push(
@@ -659,8 +648,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         ),
       );
       
-      print('Navigation successful! Result: $result');
-      
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -671,10 +658,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       );
       
     } catch (e) {
-      print('=== ERROR in _openReceiptDirectly ===');
-      print('Error details: $e');
-      print('Error type: ${e.runtimeType}');
-      print('Stack trace: ${StackTrace.current}');
       
       // Show detailed error message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -781,12 +764,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         );
         
         // Also show in console for debugging
-        print('Navigation error: $e');
-        print('Customer: ${customer.name}');
-        print('Debt ID: ${specificDebt.id}');
-        print('Customer debts count: ${allCustomerDebts.length}');
-        print('Partial payments count: ${customerPartialPayments.length}');
-        print('Activities count: ${appState.activities.length}');
       }
       
       // Force refresh of debt history when returning from receipt
@@ -1027,8 +1004,6 @@ class _GroupedDebtCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       // Super simple test - just show a basic dialog
-                      print('=== View Receipt button clicked! ===');
-                      print('Platform: ${kIsWeb ? "Web" : "Mobile"}');
                       
                       // Show a simple test dialog first
                       showDialog(
