@@ -629,75 +629,161 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       text: 'Hello ${widget.customer.name}, you have an outstanding balance. Please contact us to arrange payment.',
     );
 
-    showCupertinoDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(
-          'Send Payment Reminder',
-          style: TextStyle(
-            color: AppColors.dynamicTextPrimary(context),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppColors.dynamicSurface(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle bar
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              Text(
+                'Send Payment Reminder',
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // Subtitle
+              Text(
+                'Customize your message for ${widget.customer.name}',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'This message will be sent via WhatsApp to ${widget.customer.phone}',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Text input field
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicSurface(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.dynamicBorder(context),
+                    width: 1,
+                  ),
+                ),
+                child: CupertinoTextField(
+                  controller: messageController,
+                  placeholder: 'Enter your custom message...',
+                  placeholderStyle: TextStyle(
+                    color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.6),
+                    fontSize: 16,
+                  ),
+                  style: TextStyle(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontSize: 16,
+                  ),
+                  maxLines: 4,
+                  minLines: 3,
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Action buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: CupertinoButton(
+                      onPressed: () => Navigator.pop(context),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.dynamicSurface(context),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.dynamicBorder(context),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              color: AppColors.dynamicTextPrimary(context),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CupertinoButton(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await _sendWhatsAppPaymentReminder(context, appState);
+                      },
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.systemBlue,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Send',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Customize your message for ${widget.customer.name}:',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            CupertinoTextField(
-              controller: messageController,
-              placeholder: 'Enter your custom message...',
-              maxLines: 4,
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.dynamicBorder(context)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'This message will be sent via WhatsApp to ${widget.customer.phone}',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppColors.dynamicTextPrimary(context),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _sendWhatsAppPaymentReminder(context, appState);
-            },
-            child: Text(
-              'Send',
-              style: TextStyle(
-                color: CupertinoColors.systemBlue,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -994,6 +1080,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   color: AppColors.dynamicPrimary(context),
                 ),
               ),
+
             ],
           ),
           body: SafeArea(
@@ -1567,15 +1654,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     try {
       for (final debt in pendingDebts) {
         if (debt.remainingAmount > 0) {
-          // Pay the exact remaining amount for this debt
-          final updatedDebt = debt.copyWith(
-            paidAmount: debt.amount, // Set paid amount to full debt amount
-            status: DebtStatus.paid,
-            paidAt: DateTime.now(),
-          );
-          
-          // Update in storage
-          await appState.updateDebt(updatedDebt);
+          // Use markDebtAsPaid to trigger settlement automation
+          await appState.markDebtAsPaid(debt.id);
         }
       }
       

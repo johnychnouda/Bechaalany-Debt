@@ -13,9 +13,63 @@ class WhatsAppAutomationService {
       
       // Try to launch WhatsApp URL
       final canLaunch = await canLaunchUrl(Uri.parse(whatsappUrl));
-      return canLaunch;
+      
+      // If canLaunchUrl returns false, we'll still try to send the message
+      // because the check might not be reliable on all platforms
+      return true; // Always return true to attempt sending
     } catch (e) {
-      return false;
+      // Even if the check fails, we'll still try to send the message
+      return true;
+    }
+  }
+
+  /// Send automated WhatsApp message for payment reminders
+  static Future<bool> sendPaymentReminderMessage({
+    required Customer customer,
+    required List<Debt> outstandingDebts,
+    required String customMessage,
+  }) async {
+    try {
+      // Build the complete message
+      final message = _buildPaymentReminderMessage(
+        customer: customer,
+        outstandingDebts: outstandingDebts,
+        customMessage: customMessage,
+      );
+
+      // Format phone number for WhatsApp
+      final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+      
+      // Create WhatsApp URL with pre-filled message
+      final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+      
+      // Launch WhatsApp
+      final launched = await launchUrl(
+        Uri.parse(whatsappUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      
+      return launched;
+    } catch (e) {
+      // If launching fails, try alternative approach
+      try {
+        // Format phone number for WhatsApp
+        final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+        
+        // Build the complete message
+        final message = _buildPaymentReminderMessage(
+          customer: customer,
+          outstandingDebts: outstandingDebts,
+          customMessage: customMessage,
+        );
+        
+        // Try launching without external application mode
+        final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+        final launched = await launchUrl(Uri.parse(whatsappUrl));
+        return launched;
+      } catch (e2) {
+        return false;
+      }
     }
   }
 
@@ -28,11 +82,6 @@ class WhatsAppAutomationService {
     required DateTime settlementDate,
   }) async {
     try {
-      // Check if customer has WhatsApp
-      if (!await hasWhatsApp(customer.phone)) {
-        throw Exception('Customer does not have WhatsApp available');
-      }
-
       // Build the complete message
       final message = _buildSettlementMessage(
         customer: customer,
@@ -56,8 +105,59 @@ class WhatsAppAutomationService {
       
       return launched;
     } catch (e) {
-      return false;
+      // If launching fails, try alternative approach
+      try {
+        // Format phone number for WhatsApp
+        final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+        
+        // Build the complete message
+        final message = _buildSettlementMessage(
+          customer: customer,
+          settledDebts: settledDebts,
+          partialPayments: partialPayments,
+          customMessage: customMessage,
+          settlementDate: settlementDate,
+        );
+        
+        // Try launching without external application mode
+        final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+        final launched = await launchUrl(Uri.parse(whatsappUrl));
+        return launched;
+      } catch (e2) {
+        return false;
+      }
     }
+  }
+
+  /// Build the complete payment reminder message
+  static String _buildPaymentReminderMessage({
+    required Customer customer,
+    required List<Debt> outstandingDebts,
+    required String customMessage,
+  }) {
+    // Calculate total outstanding amount
+    final totalAmount = outstandingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+    
+    // Build outstanding debts list
+    final debtsList = outstandingDebts.map((debt) {
+      final cleanedDescription = debt.description.replaceAll('\n', ' ').trim();
+      return '• $cleanedDescription: \$${debt.remainingAmount.toStringAsFixed(2)}';
+    }).join('\n');
+    
+    // Build debt information section
+    final debtInfoSection = '''
+Outstanding Items:
+$debtsList
+
+Total Outstanding: \$${totalAmount.toStringAsFixed(2)}''';
+    
+    // Always append debt information to custom message
+    return '''
+$customMessage
+
+$debtInfoSection
+
+Bechaalany Connect''';
   }
 
   /// Build the complete settlement message
@@ -78,19 +178,24 @@ class WhatsAppAutomationService {
     // Build products list
     final productsList = settledDebts.map((debt) {
       final cleanedDescription = debt.description.replaceAll('\n', ' ').trim();
-      return '• $cleanedDescription: \$${debt.amount.toStringAsFixed(2)} ✅';
+      return '• $cleanedDescription: \$${debt.amount.toStringAsFixed(2)}';
     }).join('\n');
     
-    // Build the complete message
+    // Build receipt-style message
     final message = '''
-${customMessage.isNotEmpty ? customMessage : '🎉 Thank you for your business! 🎉'}
+📋 PAYMENT RECEIPT
 
----
-Products Settled:
+Customer: ${customer.name}
+Date: $dateStr
+Time: $timeStr
+
+Items Paid:
 $productsList
 
-Settled on: $dateStr at $timeStr
 Total Amount: \$${totalAmount.toStringAsFixed(2)}
+Status: ✅ FULLY PAID
+
+Thank you for settling all your payments!
 
 Bechaalany Connect''';
     

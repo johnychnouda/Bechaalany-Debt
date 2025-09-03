@@ -91,13 +91,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     (value) => Provider.of<AppState>(context, listen: false).setWhatsappAutomationEnabled(value),
                   ),
                   if (Provider.of<AppState>(context).whatsappAutomationEnabled) ...[
-                    _buildMessageButtonRow(
-                      'Custom Settlement Message',
-                      'Personalize your debt settlement message',
-                      CupertinoIcons.text_bubble,
-                      Provider.of<AppState>(context).whatsappCustomMessage,
-                      () => _showCustomMessageDialog(context),
-                    ),
                     _buildNavigationRow(
                       'Send Payment Reminders',
                       'Manually send WhatsApp reminders to customers with remaining debts',
@@ -328,49 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildMessageButtonRow(String title, String subtitle, IconData icon, String currentMessage, VoidCallback onTap) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.dynamicBorder(context),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: AppColors.dynamicTextPrimary(context),
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.dynamicTextSecondary(context),
-          ),
-        ),
-        trailing: Icon(
-          CupertinoIcons.chevron_right,
-          color: AppColors.dynamicTextSecondary(context),
-          size: 16,
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
+
 
   void _showCurrencySettings() {
     Navigator.of(context).push(
@@ -448,79 +399,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showCustomMessageDialog(BuildContext context) {
-    final messageController = TextEditingController(
-      text: Provider.of<AppState>(context, listen: false).whatsappCustomMessage,
-    );
 
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(
-          'Custom WhatsApp Message',
-          style: TextStyle(
-            color: AppColors.dynamicTextPrimary(context),
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Personalize the message sent when a debt is fully settled:',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            CupertinoTextField(
-              controller: messageController,
-              placeholder: 'Enter your custom message...',
-              maxLines: 3,
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.dynamicBorder(context)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          CupertinoDialogAction(
-            onPressed: () {
-              final appState = Provider.of<AppState>(context, listen: false);
-              appState.setWhatsappCustomMessage(messageController.text.trim());
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: AppColors.dynamicPrimary(context),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showClearDebtsDialog() {
     showCupertinoDialog(

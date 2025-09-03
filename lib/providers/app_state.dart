@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/activity.dart';
 import '../models/category.dart';
 import '../models/currency_settings.dart';
@@ -1693,8 +1694,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> markDebtAsPaid(String debtId) async {
     try {
-
-      
       final debt = _debts.firstWhere((d) => d.id == debtId);
 
       
@@ -1715,7 +1714,10 @@ class AppState extends ChangeNotifier {
       
       // Check if this was the last debt for the customer and trigger settlement confirmation
       final customerDebts = _debts.where((d) => d.customerId == debt.customerId).toList();
-      final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+      
+      // CRITICAL FIX: Use the updated debt in our calculation instead of the old one
+      final updatedCustomerDebts = customerDebts.map((d) => d.id == debtId ? updatedDebt : d).toList();
+      final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
       
       if (totalOutstanding == 0) {
         // All customer debts are now paid - trigger settlement confirmation
@@ -1723,7 +1725,7 @@ class AppState extends ChangeNotifier {
         
         // Add customer-level "Fully paid" activity
         final customer = _customers.firstWhere((c) => c.id == debt.customerId);
-        final totalPaidAmount = customerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
+        final totalPaidAmount = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
         await addCustomerFullyPaidActivity(debt.customerId, debt.customerName, totalPaidAmount);
       }
       
@@ -1797,7 +1799,10 @@ class AppState extends ChangeNotifier {
           
           // Check if this was the last debt for the customer and trigger settlement confirmation
           final customerDebts = _debts.where((d) => d.customerId == originalDebt.customerId).toList();
-          final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+          
+          // CRITICAL FIX: Use the updated debt in our calculation instead of the old one
+          final updatedCustomerDebts = customerDebts.map((d) => d.id == debtId ? _debts[index] : d).toList();
+          final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
           
           if (totalOutstanding == 0) {
             // All customer debts are now paid - trigger settlement confirmation
@@ -1805,7 +1810,7 @@ class AppState extends ChangeNotifier {
             
             // Add customer-level "Fully paid" activity
             final customer = _customers.firstWhere((c) => c.id == originalDebt.customerId);
-            final totalPaidAmount = customerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
+            final totalPaidAmount = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
             await addCustomerFullyPaidActivity(originalDebt.customerId, originalDebt.customerName, totalPaidAmount);
           }
         }
@@ -2945,7 +2950,7 @@ class AppState extends ChangeNotifier {
         if (customerDebts.isNotEmpty) {
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
           
-          // Use custom message if provided, otherwise use custom settlement message, otherwise use default
+          // Use custom message if provided, otherwise use custom settlement message
           String message;
           if (customMessage?.isNotEmpty == true) {
             message = customMessage!;
@@ -2953,16 +2958,15 @@ class AppState extends ChangeNotifier {
             // Use the custom settlement message for payment reminders too
             message = _whatsappCustomMessage;
           } else {
-            message = 'Hello ${customer.name}, this is a friendly reminder that you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
+            // This should never happen since custom messages are always required
+            throw Exception('Custom message is required for payment reminders');
           }
           
           try {
-            await WhatsAppAutomationService.sendSettlementMessage(
+            await WhatsAppAutomationService.sendPaymentReminderMessage(
               customer: customer,
-              settledDebts: [],
-              partialPayments: [],
+              outstandingDebts: customerDebts,
               customMessage: message,
-              settlementDate: DateTime.now(),
             );
           } catch (e) {
             // Fallback: just log that automation was attempted
@@ -2983,34 +2987,18 @@ class AppState extends ChangeNotifier {
         final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
         
         if (customerDebts.isNotEmpty) {
-          // Show detailed debt information
-          for (int i = 0; i < customerDebts.length; i++) {
-            final debt = customerDebts[i];
-
-          }
-          
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-
           
           if (totalAmount == 0) {
-
-            
             // Customer has no outstanding balance - send settlement confirmation
-            // Use custom message if set, otherwise use default
-            final customMessage = _whatsappCustomMessage.isNotEmpty 
-                ? _whatsappCustomMessage 
-                : 'Hello ${customer.name}, congratulations! You have successfully paid all your outstanding debts. Thank you for your business! 🎉';
-            
-
+            // Use receipt-style message (no custom message needed)
+            final customMessage = '';
             
             try {
-
-              
               // Use newly settled debts if provided, otherwise fall back to all customer debts
               final debtsToShow = newlySettledDebts ?? customerDebts;
 
-              
-              await WhatsAppAutomationService.sendSettlementMessage(
+              final success = await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
                 settledDebts: debtsToShow, // Only show newly settled debts
                 partialPayments: _partialPayments.where((p) => 
@@ -3020,23 +3008,38 @@ class AppState extends ChangeNotifier {
                 settlementDate: DateTime.now(),
               );
 
+              if (!success) {
+                // WhatsApp automation failed - this is expected in some cases
+                // The user can manually send the message if needed
+              }
             } catch (e) {
-
-              // Fallback: just log that automation was attempted
+              // WhatsApp automation failed - this is expected in some cases
+              // The user can manually send the message if needed
             }
-          } else {
-
           }
-        } else {
-
         }
       } catch (e) {
-
         // Silent fail for WhatsApp automation
       }
-    } else {
-
     }
+  }
+
+  // Helper method to format phone number for WhatsApp
+  String _formatPhoneForWhatsApp(String phone) {
+    // Remove all non-digit characters
+    String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // If it starts with 00, replace with +
+    if (cleaned.startsWith('00')) {
+      cleaned = '+' + cleaned.substring(2);
+    }
+    
+    // If it doesn't start with +, add it
+    if (!cleaned.startsWith('+')) {
+      cleaned = '+$cleaned';
+    }
+    
+    return cleaned;
   }
 
   // Note: Debt creation automation has been removed as requested
@@ -3059,6 +3062,8 @@ class AppState extends ChangeNotifier {
       throw Exception('WhatsApp automation is not enabled. Please enable it in settings.');
     }
   }
+
+
 
   // Method for settlement confirmation automation (when debts are fully paid)
 }
