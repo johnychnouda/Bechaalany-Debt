@@ -86,6 +86,12 @@
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>This app uses notifications to remind you about pending debt payments, due dates, and daily summaries.</string>
 	
+	<!-- Background Processing Settings -->
+	<key>NSBackgroundProcessingUsageDescription</key>
+	<string>This app performs automatic data backups in the background to ensure your financial data is always protected and up-to-date.</string>
+	<key>NSBackgroundFetchUsageDescription</key>
+	<string>This app fetches and syncs your data in the background to keep your debt information current and secure.</string>
+	
 	<!-- Accessibility Settings -->
 	<key>UIAccessibilityIsVoiceOverRunning</key>
 	<true/>
@@ -124,6 +130,9 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
+		<string>background-processing</string>
+		<string>background-fetch</string>
+		<string>background-app-refresh</string>
 		<string>location</string>
 		<string>bluetooth-central</string>
 		<string>bluetooth-peripheral</string>

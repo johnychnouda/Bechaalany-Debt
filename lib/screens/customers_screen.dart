@@ -393,6 +393,7 @@ class _CustomerListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
+        // Simple calculation: Sum up remaining amounts from debt records
         final customerDebts = appState.debts.where((d) => d.customerId == customer.id).toList();
         final totalRemainingDebt = customerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         

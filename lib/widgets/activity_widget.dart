@@ -187,17 +187,15 @@ class _ActivityWidgetState extends State<ActivityWidget> {
             ).firstOrNull;
             
             if (currentDebt != null) {
-              // Use customer-level status to determine display
-              final isCustomerFullyPaid = appState.isCustomerFullyPaid(currentDebt.customerId);
-              
-              if (isCustomerFullyPaid) {
-                // Customer has settled ALL debts - show blue checkmark
+              // Check if this specific debt is paid or outstanding
+              if (currentDebt.isFullyPaid) {
+                // This specific debt is fully paid
                 icon = Icons.check_circle;
-                iconColor = Colors.blue;
-                backgroundColor = Colors.blue.withValues(alpha: 0.1);
+                iconColor = Colors.green;
+                backgroundColor = Colors.green.withValues(alpha: 0.1);
                 statusText = 'Debt Paid';
               } else {
-                // Customer still has outstanding debts - show clock icon to indicate waiting
+                // This specific debt is outstanding (not fully paid)
                 icon = Icons.schedule;
                 iconColor = Colors.red;
                 backgroundColor = Colors.red.withValues(alpha: 0.1);

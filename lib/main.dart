@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'firebase_options.dart';
@@ -11,6 +12,8 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
 import 'services/backup_service.dart';
+import 'services/background_backup_service.dart';
+import 'services/background_app_refresh_service.dart';
 
 // Global service instances
 NotificationService? _globalNotificationService;
@@ -36,6 +39,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Sign in anonymously for development
+    await FirebaseAuth.instance.signInAnonymously();
     
     // Initialize timezone
     // tz.initializeTimeZones(); // Commented out due to API changes
@@ -67,6 +73,24 @@ void main() async {
       await backupService.initializeDailyBackup();
     } catch (e) {
       // Handle backup service initialization error silently
+    }
+    
+    // Initialize background backup service
+    try {
+      final backgroundBackupService = BackgroundBackupService();
+      await backgroundBackupService.initialize();
+      await backgroundBackupService.start();
+    } catch (e) {
+      // Handle background backup service initialization error silently
+    }
+    
+    // Initialize Background App Refresh service (more reliable)
+    try {
+      final backgroundAppRefreshService = BackgroundAppRefreshService();
+      await backgroundAppRefreshService.initialize();
+      await backgroundAppRefreshService.start();
+    } catch (e) {
+      // Handle Background App Refresh service initialization error silently
     }
     
     runApp(const BechaalanyDebtApp());
@@ -136,6 +160,10 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     try {
       final backupService = BackupService();
       await backupService.handleAppLifecycleChange();
+      
+      // Also reinitialize Background App Refresh
+      final backgroundAppRefreshService = BackgroundAppRefreshService();
+      await backgroundAppRefreshService.initialize();
     } catch (e) {
       // Handle backup service reinitialization error silently
     }

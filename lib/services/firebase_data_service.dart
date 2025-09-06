@@ -32,13 +32,10 @@ class FirebaseDataService {
     customerData['lastUpdated'] = FieldValue.serverTimestamp();
     customerData['userId'] = currentUserId;
     
-
-    
     await _firestore
         .collection('customers')
         .doc(customer.id)
         .set(customerData, SetOptions(merge: true));
-        
 
   }
 
@@ -85,8 +82,6 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-
-      
       // First try with user ID filter
       var querySnapshot = await _firestore
           .collection('categories')
@@ -94,7 +89,6 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-
         // If no categories found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('categories')
@@ -105,10 +99,8 @@ class FirebaseDataService {
           .map((doc) => ProductCategory.fromJson(doc.data()))
           .toList();
       
-
       return categories;
     } catch (e) {
-
       return [];
     }
   }
@@ -172,8 +164,6 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-
-      
       // First try with user ID filter
       var querySnapshot = await _firestore
           .collection('product_purchases')
@@ -181,7 +171,6 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-
         // If no product purchases found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('product_purchases')
@@ -192,10 +181,8 @@ class FirebaseDataService {
           .map((doc) => ProductPurchase.fromJson(doc.data()))
           .toList();
       
-
       return productPurchases;
     } catch (e) {
-
       return [];
     }
   }
@@ -243,8 +230,6 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-
-      
       // First try with user ID filter
       var querySnapshot = await _firestore
           .collection('debts')
@@ -252,7 +237,6 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-
         // If no debts found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('debts')
@@ -263,10 +247,8 @@ class FirebaseDataService {
           .map((doc) => Debt.fromJson(doc.data()))
           .toList();
       
-
       return debts;
     } catch (e) {
-
       return [];
     }
   }
@@ -314,8 +296,6 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-
-      
       // First try with user ID filter
       var querySnapshot = await _firestore
           .collection('partial_payments')
@@ -323,7 +303,6 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-
         // If no partial payments found with user ID, try without filter (for web app)
         querySnapshot = await _firestore
             .collection('partial_payments')
@@ -334,10 +313,8 @@ class FirebaseDataService {
           .map((doc) => PartialPayment.fromJson(doc.data()))
           .toList();
       
-
       return partialPayments;
     } catch (e) {
-
       return [];
     }
   }
@@ -378,10 +355,8 @@ class FirebaseDataService {
         .snapshots()
         .map((doc) {
           if (doc.exists && doc.data() != null) {
-
             return CurrencySettings.fromJson(doc.data()!);
           }
-
           return null;
         });
   }
@@ -397,13 +372,10 @@ class FirebaseDataService {
           .get();
       
       if (doc.exists && doc.data() != null) {
-
         return CurrencySettings.fromJson(doc.data()!);
       }
-
       return null;
     } catch (e) {
-
       return null;
     }
   }
@@ -473,9 +445,7 @@ class FirebaseDataService {
     try {
       // This will be called from the migration service
       // For now, just ensure we're authenticated
-
     } catch (e) {
-
       rethrow;
     }
   }
@@ -1000,6 +970,7 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
+    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('activities')
         .orderBy('date', descending: true)
@@ -1119,8 +1090,6 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-
-      
       final backupId = 'backup_${DateTime.now().millisecondsSinceEpoch}';
       final backupData = <String, dynamic>{
         'id': backupId,
@@ -1131,8 +1100,6 @@ class FirebaseDataService {
         'backupType': isAutomatic ? 'automatic' : 'manual',
       };
       
-
-      
       // Get all data for backup
       final customersSnapshot = await _firestore.collection('customers').get();
       final debtsSnapshot = await _firestore.collection('debts').get();
@@ -1142,8 +1109,6 @@ class FirebaseDataService {
       final activitiesSnapshot = await _firestore.collection('activities').get();
       final settingsSnapshot = await _firestore.collection('currency_settings').get();
       
-
-      
       backupData['customers'] = customersSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['debts'] = debtsSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['categories'] = categoriesSnapshot.docs.map((doc) => doc.data()).toList();
@@ -1152,13 +1117,10 @@ class FirebaseDataService {
       backupData['activities'] = activitiesSnapshot.docs.map((doc) => doc.data()).toList();
       backupData['currency_settings'] = settingsSnapshot.docs.map((doc) => doc.data()).toList();
       
-
       await _firestore.collection('backups').doc(backupId).set(backupData);
       
-
       return backupId;
     } catch (e) {
-
       rethrow;
     }
   }
@@ -1168,15 +1130,11 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-
-      
       // Get all backups and filter in memory to avoid composite index requirement
       var snapshot = await _firestore
           .collection('backups')
           .orderBy('createdAt', descending: true)
           .get();
-      
-
       
       // Filter by userId in memory
       final userBackups = snapshot.docs.where((doc) {
@@ -1184,13 +1142,9 @@ class FirebaseDataService {
         return data['userId'] == currentUserId;
       }).toList();
       
-
-      
       final backupIds = userBackups.map((doc) => doc.id).toList();
-
       return backupIds;
     } catch (e) {
-
       return [];
     }
   }
@@ -1214,7 +1168,6 @@ class FirebaseDataService {
         'createdAt': data['createdAt'],
       };
     } catch (e) {
-
       return null;
     }
   }
@@ -1783,6 +1736,11 @@ class FirebaseDataService {
       }
       rethrow;
     }
+  }
+
+  // Remove phantom activities (same as clearActivities for now)
+  Future<void> removePhantomActivities() async {
+    await clearActivities();
   }
   
   // Clear all data for current user (customers, debts, products, activities, payments)

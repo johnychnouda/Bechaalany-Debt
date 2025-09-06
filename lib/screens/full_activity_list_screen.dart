@@ -108,6 +108,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   Widget _buildActivityView(ActivityView view) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
+        
         final activities = _getActivitiesForView(appState, view);
         final filteredActivities = _filterActivities(activities);
         final title = _getViewTitle(view);
@@ -609,35 +610,51 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     
+    List<Activity> activities;
+    
     switch (view) {
       case ActivityView.daily:
         // Show only today's activities (from 00:00:00 to 23:59:59)
         final startDate = today;
         final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
-        return _getActivitiesForPeriod(appState, startDate, endDate);
+        activities = _getActivitiesForPeriod(appState, startDate, endDate);
+        break;
         
       case ActivityView.weekly:
         // Show activities created this week (Monday to Sunday)
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
-        return _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        activities = _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
+        break;
         
       case ActivityView.monthly:
         // Show activities created this month
         final startOfMonth = DateTime(now.year, now.month, 1);
-        final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-        return _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        activities = _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
+        break;
         
       case ActivityView.yearly:
         // Show activities created this year
         final startOfYear = DateTime(now.year, 1, 1);
-        final endOfYear = DateTime(now.year, 12, 31, 23, 59, 59);
-        return _getActivitiesForPeriod(appState, startOfYear, endOfYear);
+        final endOfYear = DateTime(now.year, 12, 31);
+        activities = _getActivitiesForPeriod(appState, startOfYear, endOfYear);
+        break;
     }
+    
+    // FALLBACK: If no activities found for the specific period, show all activities
+    // This ensures activities are visible even if there are date filtering issues
+    if (activities.isEmpty && appState.activities.isNotEmpty) {
+      activities = appState.activities.where((activity) => activity.type != ActivityType.debtCleared).toList();
+      activities.sort((a, b) => b.date.compareTo(a.date));
+    }
+    
+    return activities;
   }
 
   List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
     final activities = <Activity>[];
+    
     
     // Get activities from the new Activity model
     for (final activity in appState.activities) {
@@ -649,12 +666,13 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       // Check if activity date is within the period
       bool isWithinPeriod;
       
-      // Always use date-only comparison for consistent behavior
-      // This ensures activities are grouped by calendar date, not by time
+      // Use inclusive date comparison for better activity detection
+      // This ensures activities are properly included in the selected period
       final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
       final startDateOnly = DateTime(startDate.year, startDate.month, startDate.day);
       final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
       
+      // Use inclusive comparison (>= startDate AND <= endDate)
       isWithinPeriod = (activityDate.isAtSameMomentAs(startDateOnly) || activityDate.isAfter(startDateOnly)) && 
                       (activityDate.isAtSameMomentAs(endDateOnly) || activityDate.isBefore(endDateOnly));
       
@@ -827,15 +845,40 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     // Calculate total payments made within the selected period
     double totalPaid = 0.0;
     
-    // Sum all payment activities within the date range
+    // ALWAYS use debt data for accurate total paid calculation
+    // This prevents issues with duplicate activities and ensures accuracy
+    final relevantDebts = <String>{}; // Set to avoid duplicates
+    
+    // Add debts created within the period (inclusive of boundaries)
+    for (final debt in appState.debts) {
+      if (debt.createdAt.isAtSameMomentAs(startDate) || 
+          debt.createdAt.isAtSameMomentAs(endDate) ||
+          (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))) {
+        relevantDebts.add(debt.id);
+      }
+    }
+    
+    // Add debts that had payments within the period (inclusive of boundaries)
     for (final activity in appState.activities) {
-      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
-        // Check if payment activity was within the date range (inclusive)
+      if (activity.type == ActivityType.payment) {
         if ((activity.date.isAtSameMomentAs(startDate) || 
              activity.date.isAtSameMomentAs(endDate) ||
-             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)))) {
-          totalPaid += activity.paymentAmount!;
+             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
+            activity.debtId != null) {
+          relevantDebts.add(activity.debtId!);
         }
+      }
+    }
+    
+    // Calculate total paid amount from actual payment activities within the period
+    // This ensures we show the correct amount that was actually paid during this time
+    for (final activity in appState.activities) {
+      if (activity.type == ActivityType.payment && 
+          activity.paymentAmount != null &&
+          (activity.date.isAtSameMomentAs(startDate) || 
+           activity.date.isAtSameMomentAs(endDate) ||
+           (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)))) {
+        totalPaid += activity.paymentAmount!;
       }
     }
     

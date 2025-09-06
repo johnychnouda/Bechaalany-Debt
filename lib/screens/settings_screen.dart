@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -436,108 +435,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               
-              // Store the context to ensure we can dismiss the loading dialog
-              final currentContext = context;
-              
-              // Show loading indicator
-              showCupertinoDialog(
-                context: currentContext,
-                barrierDismissible: false,
-                builder: (loadingContext) => CupertinoAlertDialog(
-                  content: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CupertinoActivityIndicator(),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Clearing debts and activities...',
-                          style: TextStyle(
-                            color: AppColors.dynamicTextPrimary(loadingContext),
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-              
-              // Add a safety timeout to automatically dismiss the loading dialog
-              Timer? safetyTimer;
-              safetyTimer = Timer(const Duration(seconds: 100), () {
-                if (currentContext.mounted) {
-                  try {
-                    Navigator.pop(currentContext);
-                    // Show timeout message
-                    showCupertinoDialog(
-                      context: currentContext,
-                      builder: (timeoutContext) => CupertinoAlertDialog(
-                        title: Text(
-                          'Operation Timeout',
-                          style: TextStyle(
-                            color: AppColors.dynamicTextPrimary(timeoutContext),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        content: Text(
-                          'The operation took longer than expected. Local data has been cleared. Please restart the app to ensure Firebase sync.',
-                          style: TextStyle(
-                            color: AppColors.dynamicTextSecondary(timeoutContext),
-                            fontSize: 14,
-                          ),
-                        ),
-                        actions: [
-                          CupertinoDialogAction(
-                            onPressed: () => Navigator.pop(timeoutContext),
-                            child: Text(
-                              'OK',
-                              style: TextStyle(
-                                color: AppColors.dynamicPrimary(timeoutContext),
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  } catch (e) {
-                    // Silently handle timeout dismissal errors
-                  }
-                }
-              });
-              
-              // Add a final safety net to force dismiss if operation takes too long
-              Timer(const Duration(seconds: 95), () {
-                if (currentContext.mounted) {
-                  try {
-                    Navigator.pop(currentContext);
-                  } catch (e) {
-                    // Silently handle timeout dismissal errors
-                  }
-                }
-              });
-              
               try {
-                final appState = Provider.of<AppState>(currentContext, listen: false);
+                final appState = Provider.of<AppState>(context, listen: false);
                 
-                // Wait for Firebase clearing to complete (with timeout)
-                await appState.clearDebtsAndActivities()
-                    .timeout(const Duration(seconds: 90)); // Match app state timeout
-                
-                // Cancel safety timer and hide loading indicator
-                safetyTimer?.cancel();
-                if (currentContext.mounted) {
-                  Navigator.pop(currentContext);
-                }
+                // Clear debts and activities immediately without any loading indicators
+                await appState.quickClearDebtsAndActivities();
                 
                 // Show success message
-                if (currentContext.mounted) {
+                if (context.mounted) {
                   showCupertinoDialog(
-                    context: currentContext,
+                    context: context,
                     builder: (successContext) => CupertinoAlertDialog(
                       title: Text(
                         'Success',
@@ -571,16 +478,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                 }
               } catch (e) {
-                // Cancel safety timer and hide loading indicator
-                safetyTimer?.cancel();
-                if (currentContext.mounted) {
-                  Navigator.pop(currentContext);
-                }
-                
                 // Show error message
-                if (currentContext.mounted) {
+                if (context.mounted) {
                   showCupertinoDialog(
-                    context: currentContext,
+                    context: context,
                     builder: (errorContext) => CupertinoAlertDialog(
                       title: Text(
                         'Error',
@@ -591,7 +492,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       content: Text(
-                        'Firebase operation failed, but local data has been cleared. Please restart the app to ensure Firebase sync.',
+                        e.toString().replaceAll('Exception: ', ''),
                         style: TextStyle(
                           color: AppColors.dynamicTextSecondary(errorContext),
                           fontSize: 14,

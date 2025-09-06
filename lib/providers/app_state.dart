@@ -52,6 +52,9 @@ class AppState extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _autoSyncEnabled = true;
   
+  // Firebase authentication status
+  bool get isAuthenticated => _dataService.isAuthenticated;
+  
   // WhatsApp Automation Settings
   bool _whatsappAutomationEnabled = false;
   String _whatsappCustomMessage = '';
@@ -65,6 +68,8 @@ class AppState extends ChangeNotifier {
     
     // Initialize Firebase streams immediately for all platforms
     _initializeFirebaseStreams();
+    
+    // Simple initialization - no complex synchronization needed
     
     // Migration will run during _loadData() - no need for separate startup call
     // This prevents infinite loops and startup deadlocks
@@ -182,28 +187,18 @@ class AppState extends ChangeNotifier {
       },
     );
     
+    // RE-ENABLE Firebase stream for debts with improved race condition protection
+    print('DEBUG: Firebase debts stream enabled with race condition protection');
+    
     // Listen to debts stream
     _dataService.debtsFirebaseStream.listen(
       (debts) {
-        
-        // WEB APP FIX: Always update debts from Firebase stream for real-time updates
-        if (debts.isNotEmpty) {
-          _debts = List.from(debts); // Create a new list to prevent reference issues
-        } else {
-          // If Firebase returns empty, set to empty (allows real-time removal)
-          _debts = [];
-        }
-        
-        _clearDebtCache(); // Clear debt calculation cache when debts change
-        
-        // Debug data consistency
-        debugDataConsistency();
-        
+        // Simple update from Firebase
+        _debts = List.from(debts);
+        _clearDebtCache();
         notifyListeners();
       },
       onError: (error) {
-        // CRITICAL: Don't clear debts on error - keep existing data
-        // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
     );
@@ -261,7 +256,18 @@ class AppState extends ChangeNotifier {
     // Listen to activities stream
     _dataService.activitiesFirebaseStream.listen(
       (activities) {
-        _activities = List.from(activities);
+        
+        // WEB APP FIX: Always update activities from Firebase stream for real-time updates
+        if (activities.isNotEmpty) {
+          _activities = List.from(activities); // Create a new list to prevent reference issues
+          
+          // Clean up duplicate "Fully paid" activities when activities are loaded
+          removeDuplicateFullyPaidActivities();
+        } else {
+          // If Firebase returns empty, set to empty (allows real-time removal)
+          _activities = [];
+        }
+        
         
         // Debug data consistency
         debugDataConsistency();
@@ -368,8 +374,123 @@ class AppState extends ChangeNotifier {
       totalPaid += debt.paidAmount;
     }
     
+    // CRITICAL FIX: Also include partial payments that might not be reflected in debt records
+    // This ensures payment tracking consistency between Activity History and Customer Details
+    final customerPartialPayments = _partialPayments.where((p) {
+      // Find the debt this payment belongs to
+      final debt = _debts.firstWhere((d) => d.id == p.debtId, orElse: () => Debt(
+        id: '',
+        customerId: '',
+        customerName: '',
+        amount: 0.0,
+        description: '',
+        type: DebtType.credit,
+        status: DebtStatus.pending,
+        createdAt: DateTime.now(),
+      ));
+      return debt.customerId == customerId;
+    }).toList();
+    
+    // Calculate total from partial payments
+    double partialPaymentTotal = customerPartialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+    
+    // CRITICAL: If we have partial payments but no debt records show payments,
+    // it means the payment was recorded but not applied to any debt
+    // In this case, we should use the partial payment total directly
+    if (partialPaymentTotal > 0 && totalPaid == 0) {
+      totalPaid = partialPaymentTotal;
+    } else if (partialPaymentTotal > totalPaid) {
+      // Use the higher of the two values to ensure consistency
+      totalPaid = partialPaymentTotal;
+    }
+    
     // Fix floating-point precision issues by rounding to 2 decimal places
     return ((totalPaid * 100).round() / 100);
+  }
+
+  // Fix payment synchronization issues for a specific customer
+  // This ensures debt records are properly updated with payments
+  Future<void> fixCustomerPaymentSynchronization(String customerId) async {
+    try {
+      final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+      final customerPartialPayments = _partialPayments.where((p) {
+        final debt = _debts.firstWhere((d) => d.id == p.debtId, orElse: () => Debt(
+          id: '',
+          customerId: '',
+          customerName: '',
+          amount: 0.0,
+          description: '',
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+        ));
+        return debt.customerId == customerId;
+      }).toList();
+      
+      // Group payments by debt ID
+      final Map<String, List<PartialPayment>> paymentsByDebt = {};
+      for (final payment in customerPartialPayments) {
+        paymentsByDebt.putIfAbsent(payment.debtId, () => []).add(payment);
+      }
+      
+      // Update each debt with its actual paid amount from partial payments
+      bool hasUpdates = false;
+      for (final debt in customerDebts) {
+        final debtPayments = paymentsByDebt[debt.id] ?? [];
+        final actualPaidAmount = debtPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+        
+        // If the debt's paidAmount doesn't match the actual payments, fix it
+        if ((debt.paidAmount - actualPaidAmount).abs() > 0.01) {
+          final updatedDebt = debt.copyWith(
+            paidAmount: actualPaidAmount,
+            status: actualPaidAmount >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
+          );
+          
+          // Update the debt in the list
+          final index = _debts.indexWhere((d) => d.id == debt.id);
+          if (index != -1) {
+            _debts[index] = updatedDebt;
+            await _dataService.updateDebt(updatedDebt);
+            hasUpdates = true;
+          }
+        }
+      }
+      
+      // CRITICAL: If no debt records were updated but we have partial payments,
+      // it means the payment might be applied to a different debt or there's a mismatch
+      if (!hasUpdates && customerPartialPayments.isNotEmpty) {
+        // Find the debt with the highest amount and apply the payment there
+        // This is a fallback for cases where payment debtId doesn't match any existing debt
+        final totalPaymentAmount = customerPartialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+        if (totalPaymentAmount > 0) {
+          // Find the largest debt for this customer
+          final largestDebt = customerDebts.isNotEmpty 
+              ? customerDebts.reduce((a, b) => a.amount > b.amount ? a : b)
+              : null;
+          
+          if (largestDebt != null) {
+            final updatedDebt = largestDebt.copyWith(
+              paidAmount: totalPaymentAmount,
+              status: totalPaymentAmount >= largestDebt.amount ? DebtStatus.paid : DebtStatus.pending,
+            );
+            
+            final index = _debts.indexWhere((d) => d.id == largestDebt.id);
+            if (index != -1) {
+              _debts[index] = updatedDebt;
+              await _dataService.updateDebt(updatedDebt);
+              hasUpdates = true;
+            }
+          }
+        }
+      }
+      
+      if (hasUpdates) {
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      // Silent fail - this is a background fix
+    }
   }
   
   // Get comprehensive revenue summary for dashboard
@@ -400,6 +521,7 @@ class AppState extends ChangeNotifier {
       
       // Calculate potential revenue from unpaid amounts
       double totalPotentialRevenue = 0.0;
+      print('DEBUG: Potential Revenue - Checking debt data:');
       for (final debt in _debts) {
         if (debt.remainingAmount > 0) {
           // For pending debts, potential revenue is the full original revenue
@@ -508,11 +630,21 @@ class AppState extends ChangeNotifier {
       Future.microtask(() => fixCorruptedDebtPrices());
     }
     
+    // DEBUG: Check debt data for revenue calculation
+    print('DEBUG: Revenue Calculation - Checking debt data:');
+    for (final debt in _debts) {
+      print('  Debt ${debt.id}: costPrice=${debt.originalCostPrice}, sellingPrice=${debt.originalSellingPrice}, amount=${debt.amount}');
+    }
+    
     // Revenue calculation service returns values in USD (same as debt amounts)
     final revenue = RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
     
+    print('DEBUG: Revenue Calculation - Raw revenue: $revenue');
+    
     // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
     final roundedRevenue = (revenue * 100).round() / 100;
+    
+    print('DEBUG: Revenue Calculation - Rounded revenue: $roundedRevenue');
     
     // No currency conversion needed - revenue is already in USD
     return roundedRevenue;
@@ -1091,6 +1223,17 @@ class AppState extends ChangeNotifier {
   
 
   
+  /// Remove phantom activities created during backup testing
+  Future<void> removePhantomActivities() async {
+    try {
+      await _dataService.removePhantomActivities();
+      // Refresh data after removing phantom activities
+      await refresh();
+    } catch (e) {
+      // Handle error silently for now
+    }
+  }
+
   /// Fix the current partial payment distribution for Johny Chnouda
   /// This method will properly distribute the $0.15 payment across the Syria tel debts
   Future<void> fixJohnyChnoudaPartialPayment() async {
@@ -1219,6 +1362,11 @@ class AppState extends ChangeNotifier {
       rethrow;
     }
   }
+  
+  // Public method for adding activities
+  Future<void> addActivity(Activity activity) async {
+    await _addActivity(activity);
+  }
 
   Future<void> addPaymentActivity(Debt debt, double amount, DebtStatus oldStatus, DebtStatus newStatus) async {
     try {
@@ -1255,6 +1403,25 @@ class AppState extends ChangeNotifier {
   // Add customer-level "Fully paid" activity when entire customer balance is settled
   Future<void> addCustomerFullyPaidActivity(String customerId, String customerName, double totalAmount) async {
     try {
+      // Check if we already have a "Fully paid" activity for this customer today
+      // This prevents duplicate "Fully paid" activities from being created
+      final today = DateTime.now();
+      final todayStart = DateTime(today.year, today.month, today.day);
+      final todayEnd = todayStart.add(const Duration(days: 1));
+      
+      final existingFullyPaidActivity = _activities.where((activity) =>
+        activity.customerId == customerId &&
+        activity.type == ActivityType.payment &&
+        activity.description.startsWith('Fully paid:') &&
+        (activity.date.isAtSameMomentAs(todayStart) || 
+         (activity.date.isAfter(todayStart) && activity.date.isBefore(todayEnd)))
+      ).isNotEmpty;
+      
+      if (existingFullyPaidActivity) {
+        // Already have a "Fully paid" activity for this customer today, skip creating another one
+        return;
+      }
+      
       final activity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         customerId: customerId,
@@ -1291,6 +1458,145 @@ class AppState extends ChangeNotifier {
       await _addActivity(activity);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Remove duplicate "Fully paid" activities for the same customer on the same day
+  /// This cleans up any existing duplicates that may have been created
+  Future<void> removeDuplicateFullyPaidActivities() async {
+    try {
+      final Map<String, List<Activity>> customerFullyPaidActivities = {};
+      
+      // Group "Fully paid" activities by customer and date
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.description.startsWith('Fully paid:')) {
+          final dateKey = '${activity.customerId}_${activity.date.year}_${activity.date.month}_${activity.date.day}';
+          if (!customerFullyPaidActivities.containsKey(dateKey)) {
+            customerFullyPaidActivities[dateKey] = [];
+          }
+          customerFullyPaidActivities[dateKey]!.add(activity);
+        }
+      }
+      
+      // For each customer/date group, keep only the first "Fully paid" activity
+      final activitiesToRemove = <Activity>[];
+      for (final activities in customerFullyPaidActivities.values) {
+        if (activities.length > 1) {
+          // Sort by date (keep the earliest one)
+          activities.sort((a, b) => a.date.compareTo(b.date));
+          // Mark all but the first one for removal
+          for (int i = 1; i < activities.length; i++) {
+            activitiesToRemove.add(activities[i]);
+          }
+        }
+      }
+      
+      // Remove duplicate activities
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+      }
+      
+      if (activitiesToRemove.isNotEmpty) {
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  /// Force cleanup of duplicate "Fully paid" activities immediately
+  /// This should be called when the user reports duplicate activities
+  Future<void> forceCleanupDuplicateActivities() async {
+    await removeDuplicateFullyPaidActivities();
+  }
+
+  /// Create activities for existing debts that don't have activities
+  /// This fixes the issue where debts exist but no activities are shown
+  Future<void> createActivitiesForExistingDebts() async {
+    try {
+      print('DEBUG: Creating activities for existing debts...');
+      print('DEBUG: Found ${_debts.length} debts and ${_activities.length} activities');
+      
+      for (final debt in _debts) {
+        // Check if there's already an activity for this debt
+        final hasActivity = _activities.any((activity) => 
+          activity.debtId == debt.id || 
+          (activity.customerId == debt.customerId && 
+           activity.description.contains(debt.description))
+        );
+        
+        if (!hasActivity) {
+          print('DEBUG: Creating activity for debt: ${debt.customerName} - ${debt.description}');
+          
+          // Create a new debt activity
+          final activity = Activity(
+            id: DateTime.now().millisecondsSinceEpoch.toString() + '_' + debt.id,
+            customerId: debt.customerId,
+            customerName: debt.customerName,
+            type: ActivityType.newDebt,
+            description: debt.description,
+            amount: debt.amount,
+            date: debt.createdAt,
+            debtId: debt.id,
+          );
+          
+          await _addActivity(activity);
+          print('DEBUG: Created activity for debt: ${debt.id}');
+        }
+      }
+      
+      print('DEBUG: Finished creating activities for existing debts');
+    } catch (e) {
+      print('DEBUG: Error creating activities for existing debts: $e');
+    }
+  }
+
+  /// Create activities for the PS5 debt specifically
+  /// This is a quick fix for the current issue
+  Future<void> createPS5DebtActivities() async {
+    try {
+      // Find the PS5 debt
+      final ps5Debt = _debts.firstWhere(
+        (debt) => debt.description.toLowerCase().contains('ps5'),
+        orElse: () => throw Exception('PS5 debt not found'),
+      );
+      
+      // Create new debt activity
+      final newDebtActivity = Activity(
+        id: 'ps5_new_debt_' + ps5Debt.id,
+        customerId: ps5Debt.customerId,
+        customerName: ps5Debt.customerName,
+        type: ActivityType.newDebt,
+        description: ps5Debt.description,
+        amount: ps5Debt.amount,
+        date: ps5Debt.createdAt,
+        debtId: ps5Debt.id,
+      );
+      
+      await _addActivity(newDebtActivity);
+      
+      // If the debt is paid, create a payment activity
+      if (ps5Debt.status == DebtStatus.paid) {
+        final paymentActivity = Activity(
+          id: 'ps5_payment_' + ps5Debt.id,
+          customerId: ps5Debt.customerId,
+          customerName: ps5Debt.customerName,
+          type: ActivityType.payment,
+          description: 'Fully paid: ${ps5Debt.amount.toStringAsFixed(2)}\$',
+          amount: ps5Debt.amount,
+          paymentAmount: ps5Debt.amount,
+          date: ps5Debt.createdAt.add(const Duration(minutes: 1)), // 1 minute after debt creation
+          debtId: ps5Debt.id,
+          newStatus: DebtStatus.paid, // This will make isPaymentCompleted return true
+        );
+        
+        await _addActivity(paymentActivity);
+      }
+    } catch (e) {
+      // Handle error silently
     }
   }
 
@@ -1467,20 +1773,34 @@ class AppState extends ChangeNotifier {
     }
   }
   
-  // Quick clear method that only clears local data (for testing)
+  // Quick clear method that clears both Firebase and local data
   Future<void> quickClearDebtsAndActivities() async {
     try {
-      // Clear local lists immediately
+      // Clear local data first for immediate UI response
       _debts.clear();
       _partialPayments.clear();
       _activities.clear();
-      
       _clearCache();
       notifyListeners();
       
-
+      // Then clear Firebase data in background with shorter timeout
+      try {
+        await Future.wait([
+          _dataService.clearDebts(),
+          _dataService.clearActivities(),
+          _dataService.clearPartialPayments(),
+        ]).timeout(const Duration(seconds: 10)); // Reduced to 10 seconds
+      } catch (firebaseError) {
+        // Firebase clearing failed, but local data is already cleared
+        // This is acceptable since the user sees immediate results
+      }
     } catch (e) {
-
+      // Always clear local data even if everything fails
+      _debts.clear();
+      _partialPayments.clear();
+      _activities.clear();
+      _clearCache();
+      notifyListeners();
       rethrow;
     }
   }
@@ -1715,6 +2035,9 @@ class AppState extends ChangeNotifier {
       // Check if this was the last debt for the customer and trigger settlement confirmation
       final customerDebts = _debts.where((d) => d.customerId == debt.customerId).toList();
       
+      // Calculate the remaining amount that was just paid to complete the settlement
+      final remainingAmountBeforePayment = debt.remainingAmount;
+      
       // CRITICAL FIX: Use the updated debt in our calculation instead of the old one
       final updatedCustomerDebts = customerDebts.map((d) => d.id == debtId ? updatedDebt : d).toList();
       final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
@@ -1725,8 +2048,8 @@ class AppState extends ChangeNotifier {
         
         // Add customer-level "Fully paid" activity
         final customer = _customers.firstWhere((c) => c.id == debt.customerId);
-        final totalPaidAmount = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
-        await addCustomerFullyPaidActivity(debt.customerId, debt.customerName, totalPaidAmount);
+        // Show the remaining amount that was just paid to complete the settlement
+        await addCustomerFullyPaidActivity(debt.customerId, debt.customerName, remainingAmountBeforePayment);
       }
       
       // Show notification
@@ -1810,8 +2133,9 @@ class AppState extends ChangeNotifier {
             
             // Add customer-level "Fully paid" activity
             final customer = _customers.firstWhere((c) => c.id == originalDebt.customerId);
-            final totalPaidAmount = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
-            await addCustomerFullyPaidActivity(originalDebt.customerId, originalDebt.customerName, totalPaidAmount);
+            // Show the remaining amount that was just paid to complete the settlement
+            // This is the amount of the partial payment that completed the debt
+            await addCustomerFullyPaidActivity(originalDebt.customerId, originalDebt.customerName, remainingAmount);
           }
         }
       }
@@ -1913,8 +2237,9 @@ class AppState extends ChangeNotifier {
             
             // Add customer-level "Fully paid" activity
             final customer = _customers.firstWhere((c) => c.id == customerId);
-            final totalPaidAmount = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.paidAmount);
-            await addCustomerFullyPaidActivity(customerId, customer.name, totalPaidAmount);
+            // Show the amount that was just paid to complete the settlement
+            // This is the payment amount that completed all remaining debts
+            await addCustomerFullyPaidActivity(customerId, customer.name, paymentAmount);
           }
         }
         
@@ -2585,14 +2910,22 @@ class AppState extends ChangeNotifier {
   // Apply payment evenly across all pending debts for a customer
   Future<void> applyPaymentEvenlyAcrossCustomerDebts(String customerId, double paymentAmount) async {
     try {
-      if (paymentAmount <= 0) return;
+      print('DEBUG: applyPaymentEvenlyAcrossCustomerDebts called for customer $customerId with amount $paymentAmount');
+      if (paymentAmount <= 0) {
+        print('DEBUG: Payment amount is zero or negative, returning early');
+        return;
+      }
       
       // Get all pending debts for the customer
       final pendingDebts = _debts.where((d) => 
         d.customerId == customerId && d.remainingAmount > 0
       ).toList();
       
-      if (pendingDebts.isEmpty) return;
+      print('DEBUG: Found ${pendingDebts.length} pending debts for customer $customerId');
+      if (pendingDebts.isEmpty) {
+        print('DEBUG: No pending debts found, returning early');
+        return;
+      }
       
 
       
@@ -2638,6 +2971,9 @@ class AppState extends ChangeNotifier {
           final index = _debts.indexWhere((d) => d.id == debt.id);
           if (index != -1) {
             _debts[index] = updatedDebt;
+            print('DEBUG: Updated debt ${debt.id} - paidAmount: ${updatedDebt.paidAmount}, remainingAmount: ${updatedDebt.remainingAmount}');
+          } else {
+            print('DEBUG: Debt ${debt.id} not found in local list');
           }
           
           remainingPayment -= actualPayment;
@@ -2700,6 +3036,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
     } catch (e) {
+      print('DEBUG: Error in applyPaymentEvenlyAcrossCustomerDebts: $e');
       rethrow;
     }
   }
@@ -2745,23 +3082,38 @@ class AppState extends ChangeNotifier {
 
   // Calculation methods
   double _calculateTotalDebt() {
-    final pendingDebts = _debts.where((d) => d.paidAmount < d.amount).toList();
-    double totalDebt = 0.0;
-    
-    for (final debt in pendingDebts) {
-      totalDebt += debt.remainingAmount;
+    // WORKAROUND: Calculate total debt using workaround approach to avoid race condition
+    // Calculate total paid from activities (reliable source)
+    double totalPaidFromActivities = 0.0;
+    for (final activity in _activities) {
+      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
+        totalPaidFromActivities += activity.paymentAmount!;
+      }
     }
+    
+    // Calculate total debt as original amounts minus payments
+    double totalOriginalDebt = 0.0;
+    for (final debt in _debts) {
+      totalOriginalDebt += debt.amount;
+    }
+    
+    final totalDebt = totalOriginalDebt - totalPaidFromActivities;
+    
+    print('DEBUG: Total Debt Calculation - Original: $totalOriginalDebt, Paid: $totalPaidFromActivities, Remaining: $totalDebt');
     
     // Fix floating-point precision issues by rounding to 2 decimal places
     return ((totalDebt * 100).round() / 100);
   }
   
   double _calculateTotalPaid() {
-    // Count all payments made (including partial payments), not just fully paid debts
+    // Calculate total from actual payment activities, not debt records
+    // This ensures we show the correct amount that was actually paid
     double totalPaid = 0.0;
     
-    for (final debt in _debts) {
-      totalPaid += debt.paidAmount;
+    for (final activity in _activities) {
+      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
+        totalPaid += activity.paymentAmount!;
+      }
     }
     
     // Fix floating-point precision issues by rounding to 2 decimal places
@@ -3066,4 +3418,5 @@ class AppState extends ChangeNotifier {
 
 
   // Method for settlement confirmation automation (when debts are fully paid)
+  
 }

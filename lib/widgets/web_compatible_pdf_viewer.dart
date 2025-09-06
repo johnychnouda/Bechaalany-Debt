@@ -43,19 +43,28 @@ class _WebCompatiblePDFViewerState extends State<WebCompatiblePDFViewer> {
   Future<void> _loadPDF() async {
     try {
       if (widget.pdfBytes.isEmpty) {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
         return;
       }
       
-      setState(() {
-        _isLoading = false;
-      });
+      // Add a small delay to ensure proper layout
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -69,6 +78,132 @@ class _WebCompatiblePDFViewerState extends State<WebCompatiblePDFViewer> {
       anchor.click();
       html_utils.HTMLUtils.revokeObjectUrl(url);
     }
+  }
+
+  Widget _buildStablePdfViewer() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      child: SfPdfViewer.memory(
+        widget.pdfBytes,
+        controller: _pdfViewerController,
+        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+          if (mounted) {
+            setState(() {
+              _totalPages = details.document.pages.count;
+            });
+          }
+        },
+        onPageChanged: (PdfPageChangedDetails details) {
+          if (mounted) {
+            setState(() {
+              _currentPage = details.newPageNumber;
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildFallbackInterface() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description,
+              color: AppColors.dynamicPrimary(context),
+              size: 80,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Receipt Ready',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'PDF receipt has been generated successfully.\nDue to technical limitations, the PDF viewer is temporarily unavailable.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.dynamicSurface(context),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.dynamicBorder(context)),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'File Information',
+                    style: TextStyle(
+                      color: AppColors.dynamicTextPrimary(context),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Customer: ${widget.customerName}',
+                    style: TextStyle(
+                      color: AppColors.dynamicTextSecondary(context),
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'File Size: ${widget.pdfBytes.length ~/ 1024} KB',
+                    style: TextStyle(
+                      color: AppColors.dynamicTextSecondary(context),
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _downloadPDF,
+                  icon: const Icon(Icons.download),
+                  label: const Text('Download PDF'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _openInNewTab,
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('Open in New Tab'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {
+                if (widget.onClose != null) {
+                  widget.onClose!();
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _openInNewTab() {
@@ -188,20 +323,8 @@ class _WebCompatiblePDFViewerState extends State<WebCompatiblePDFViewer> {
       );
     }
 
-    return SfPdfViewer.memory(
-      widget.pdfBytes,
-      controller: _pdfViewerController,
-      onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-        setState(() {
-          _totalPages = details.document.pages.count;
-        });
-      },
-      onPageChanged: (PdfPageChangedDetails details) {
-        setState(() {
-          _currentPage = details.newPageNumber;
-        });
-      },
-    );
+    // Try to display the PDF with a more stable approach
+    return _buildStablePdfViewer();
   }
 
 

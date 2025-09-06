@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class BackupService {
   static final BackupService _instance = BackupService._internal();
@@ -13,10 +14,20 @@ class BackupService {
   final DataService _dataService = DataService();
   final NotificationService _notificationService = NotificationService();
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  bool _timezoneInitialized = false;
+
+  // Ensure timezone is initialized
+  void _ensureTimezoneInitialized() {
+    if (!_timezoneInitialized) {
+      tz.initializeTimeZones();
+      _timezoneInitialized = true;
+    }
+  }
 
   // Initialize automatic daily backup
   Future<void> initializeDailyBackup() async {
-
+    // Ensure timezone is initialized
+    _ensureTimezoneInitialized();
     
     // Initialize notifications
     await _initializeNotifications();
@@ -78,13 +89,12 @@ class BackupService {
         return;
       }
       
-      // Check if it's been more than 24 hours since last backup
-      final timeSinceLastBackup = now.difference(lastBackup);
-      final hoursSinceLastBackup = timeSinceLastBackup.inHours;
+      // Check if it's time for the next scheduled backup (12 AM)
+      final today = DateTime(now.year, now.month, now.day);
+      final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
       
-
-      
-      if (hoursSinceLastBackup >= 24) {
+      // If we haven't backed up today and it's past midnight, create backup
+      if (lastBackupDate.isBefore(today)) {
 
         await _createAutomaticBackup();
       } else {
@@ -132,6 +142,9 @@ class BackupService {
 
   // Schedule daily backup notification at 12 AM
   Future<void> _scheduleDailyBackupNotification() async {
+    // Ensure timezone is initialized
+    _ensureTimezoneInitialized();
+    
     // Cancel any existing notifications
     await _notifications.cancelAll();
     
@@ -170,6 +183,9 @@ class BackupService {
 
   // Get next instance of midnight (12 AM)
   tz.TZDateTime _nextInstanceOfMidnight() {
+    // Ensure timezone is initialized
+    _ensureTimezoneInitialized();
+    
     final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 0, 0, 0);
     
@@ -214,6 +230,19 @@ class BackupService {
   Future<void> setLastAutomaticBackupTime(DateTime time) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+  }
+
+  // Get last manual backup time
+  Future<DateTime?> getLastManualBackupTime() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timestamp = prefs.getInt('last_manual_backup_timestamp');
+    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+  }
+
+  // Set last manual backup time
+  Future<void> setLastManualBackupTime(DateTime time) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('last_manual_backup_timestamp', time.millisecondsSinceEpoch);
   }
 
   // Check if the backup service is already initialized
@@ -262,8 +291,8 @@ class BackupService {
       final backupId = await _dataService.createBackup(isAutomatic: false);
       
       if (backupId != null) {
-        await setLastAutomaticBackupTime(DateTime.now());
-
+        // Track manual backup time separately
+        await setLastManualBackupTime(DateTime.now());
         
         // Show success notification
         await _notificationService.showSuccessNotification(

@@ -191,17 +191,17 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
   Widget _buildHeader(AppState appState) {
     return Container(
-      padding: const EdgeInsets.all(12), // Further reduced from 16
+      padding: const EdgeInsets.all(16), // Increased padding for larger elements
       child: Row(
         children: [
           // Original clean logo design - matching iOS app
           LogoUtils.buildLogo(
             context: context,
-            width: 40, // Back to original size
-            height: 40, // Back to original size
+            width: 56, // Increased from 40
+            height: 56, // Increased from 40
             // Removed placeholder to let actual logo show
           ),
-          const SizedBox(width: 8), // Reduced from 12
+          const SizedBox(width: 12), // Increased spacing
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +210,8 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                   'Bechaalany Connect',
                   style: AppTheme.getDynamicTitle3(context).copyWith(
                     color: AppColors.dynamicTextPrimary(context),
-                    fontSize: 16, // Reduced font size
+                    fontSize: 22, // Increased from 16
+                    fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -218,7 +219,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                   'Welcome back',
                   style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
-                    fontSize: 12, // Reduced from 14
+                    fontSize: 16, // Increased from 12
                     fontWeight: FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -228,16 +229,16 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
           ),
           if (appState.isSyncing)
             Container(
-              padding: const EdgeInsets.all(4), // Further reduced from 6
+              padding: const EdgeInsets.all(6), // Increased padding
               decoration: BoxDecoration(
                 color: AppColors.primary.withAlpha(26),
-                borderRadius: BorderRadius.circular(6), // Reduced from 8
+                borderRadius: BorderRadius.circular(8), // Increased border radius
               ),
               child: const SizedBox(
-                width: 12, // Further reduced from 14
-                height: 12, // Further reduced from 14
+                width: 16, // Increased from 12
+                height: 16, // Increased from 12
                 child: CircularProgressIndicator(
-                  strokeWidth: 1.5, // Reduced from 2
+                  strokeWidth: 2, // Increased from 1.5
                   valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
               ),
@@ -254,12 +255,12 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
             icon: const Icon(
               Icons.settings_outlined,
               color: AppColors.textSecondary,
-              size: 18, // Further reduced from 20
+              size: 26, // Increased from 18
             ),
-            padding: const EdgeInsets.all(4), // Further reduced padding
+            padding: const EdgeInsets.all(8), // Increased padding
             constraints: const BoxConstraints(
-              minWidth: 32, // Further reduced minimum width
-              minHeight: 32, // Further reduced minimum height
+              minWidth: 44, // Increased from 32
+              minHeight: 44, // Increased from 32
             ),
           ),
         ],

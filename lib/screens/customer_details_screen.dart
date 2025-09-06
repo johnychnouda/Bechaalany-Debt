@@ -135,11 +135,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final sortedDebts = List<Debt>.from(allCustomerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    // VERY SIMPLE LOGIC: Show ONLY debts with remaining amount > 0
-    // This completely removes all old paid products
-    final currentCycle = sortedDebts.where((debt) => debt.remainingAmount > 0).toList();
-    
-    return currentCycle;
+    // Show ALL debts until customer pays ALL their total pending debt
+    // Products should remain in the list until customer is fully settled
+    return sortedDebts;
   }
 
   // Helper method to format dates
@@ -997,20 +995,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // ANY partial payment (even $0.01) should disable delete functionality for ALL products
         final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
         
-        // Calculate total paid from payment activities (preserves payment history even when debts are cleared)
-        final customerPaymentActivities = appState.activities.where((a) => 
-          a.customerId == _currentCustomer.id && 
-          a.type == ActivityType.payment
-        ).toList();
-        
-        double totalPaid = customerPaymentActivities.fold(0.0, (sum, activity) => 
-          sum + (activity.paymentAmount ?? 0)
-        );
-        
-        // Use the comprehensive method that includes both activities and partial payments
-        // This ensures consistency between Financial Summary and Activity History
-        totalPaid = appState.getCustomerTotalHistoricalPayments(_currentCustomer.id);
-        
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
             .where((d) => d.customerId == _currentCustomer.id)
@@ -1021,8 +1005,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // A debt cycle starts when customer makes new purchases after having no pending amount
         final customerActiveDebts = _getCurrentDebtCycle(customerAllDebts);
         
-        // Calculate total pending debt (current remaining amount) - only from active debts
+        // Simple calculation: Sum up remaining amounts from debt records
         final totalPendingDebt = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        
+        // Simple calculation: Sum up paid amounts from debt records
+        final totalPaid = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1642,9 +1629,150 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // This is "Pay Full Amount" - pay the exact remaining amount for each debt
       _payFullAmountForAllDebts(pendingDebts, context);
     } else {
-      // This is a partial payment - use even distribution
-      appState.applyPaymentEvenlyAcrossCustomerDebts(_currentCustomer.id, paymentAmount);
+      // This is a partial payment - apply to total debt amount (not individual debts)
+      print('DEBUG: Applying partial payment of $paymentAmount to total debt amount');
+      _applyPaymentToTotalDebt(pendingDebts, paymentAmount, context);
     }
+  }
+  
+  // Apply payment to total debt amount (not individual debts)
+  Future<void> _applyPaymentToTotalDebt(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    if (pendingDebts.isEmpty) return;
+    
+    print('DEBUG: Applying $paymentAmount to total debt amount for customer ${_currentCustomer.id}');
+    
+    // Calculate the total remaining debt
+    final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    print('DEBUG: Total remaining debt: $totalRemaining');
+    
+    // Calculate how much to reduce each debt proportionally
+    final reductionRatio = paymentAmount / totalRemaining;
+    print('DEBUG: Reduction ratio: $reductionRatio');
+    
+    // Apply proportional reduction to each debt
+    for (final debt in pendingDebts) {
+      final reductionAmount = debt.remainingAmount * reductionRatio;
+      final newPaidAmount = debt.paidAmount + reductionAmount;
+      final isFullyPaid = newPaidAmount >= debt.amount;
+      
+      print('DEBUG: Debt ${debt.id} - reducing by $reductionAmount, new paidAmount: $newPaidAmount');
+      
+      // Update the debt
+      final updatedDebt = debt.copyWith(
+        paidAmount: newPaidAmount,
+        status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+        paidAt: DateTime.now(),
+      );
+      
+      // Update in storage
+      await appState.updateDebt(updatedDebt);
+      
+      // Update local debt list
+      final index = appState.debts.indexWhere((d) => d.id == debt.id);
+      if (index != -1) {
+        appState.debts[index] = updatedDebt;
+      }
+    }
+    
+    // Create activity for the total payment
+    final activity = Activity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      customerId: _currentCustomer.id,
+      customerName: _currentCustomer.name,
+      type: ActivityType.payment,
+      description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
+      paymentAmount: paymentAmount,
+      amount: totalRemaining,
+      oldStatus: DebtStatus.pending,
+      newStatus: DebtStatus.pending,
+      date: DateTime.now(),
+      debtId: null, // No specific debt ID since this is a total debt payment
+    );
+    
+    await appState.addActivity(activity);
+    
+    // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
+    appState.notifyListeners();
+    
+    // Force immediate UI update with a small delay
+    await Future.delayed(Duration(milliseconds: 100));
+    appState.notifyListeners();
+    
+    // Force another update after slightly longer delay
+    await Future.delayed(Duration(milliseconds: 500));
+    appState.notifyListeners();
+    
+    print('DEBUG: Successfully applied $paymentAmount to total debt amount with forced updates');
+  }
+  
+  // Apply payment sequentially to debts (oldest first)
+  Future<void> _applyPaymentSequentially(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    if (pendingDebts.isEmpty) return;
+    
+    // Sort debts by date (oldest first)
+    pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    
+    double remainingPayment = paymentAmount;
+    
+    for (final debt in pendingDebts) {
+      if (remainingPayment <= 0) break;
+      
+      final debtRemaining = debt.remainingAmount;
+      final paymentToThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
+      
+      print('DEBUG: Applying $paymentToThisDebt to debt ${debt.id} (${debt.description})');
+      
+      // Calculate new paid amount
+      final newPaidAmount = debt.paidAmount + paymentToThisDebt;
+      final isFullyPaid = newPaidAmount >= debt.amount;
+      
+      // Update the debt
+      final updatedDebt = debt.copyWith(
+        paidAmount: newPaidAmount,
+        status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
+        paidAt: DateTime.now(),
+      );
+      
+      // Update in storage
+      await appState.updateDebt(updatedDebt);
+      
+      // Update local debt list
+      final index = appState.debts.indexWhere((d) => d.id == debt.id);
+      if (index != -1) {
+        appState.debts[index] = updatedDebt;
+      }
+      
+      // Reduce remaining payment
+      remainingPayment -= paymentToThisDebt;
+      
+      print('DEBUG: Debt ${debt.id} updated - paidAmount: $newPaidAmount, remainingAmount: ${updatedDebt.remainingAmount}');
+    }
+    
+    // Create activity for the total payment
+    final activity = Activity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      customerId: pendingDebts.first.customerId,
+      customerName: pendingDebts.first.customerName,
+      type: ActivityType.payment,
+      description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
+      paymentAmount: paymentAmount,
+      amount: pendingDebts.first.amount,
+      oldStatus: pendingDebts.first.status,
+      newStatus: DebtStatus.pending, // Will be updated based on individual debt status
+      date: DateTime.now(),
+      debtId: null, // No specific debt ID since this is a consolidated payment
+    );
+    
+    await appState.addActivity(activity);
+    
+    // Notify listeners
+    appState.notifyListeners();
+    
+    print('DEBUG: Successfully applied $paymentAmount sequentially to debts');
   }
   
   // Pay the exact remaining amount for each debt to make them fully paid
@@ -1659,13 +1787,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
       }
       
-      // Create a single payment activity for the full amount
-      final totalPaid = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-      if (totalPaid > 0) {
+      // Create a single payment activity for the remaining amount that was just paid
+      final remainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      if (remainingAmount > 0) {
         await appState.addCustomerFullyPaidActivity(
           _currentCustomer.id,
           _currentCustomer.name,
-          totalPaid,
+          remainingAmount, // This should be the remaining amount that was just paid
         );
       }
       

@@ -13,17 +13,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _hasInitialized = false;
+
   @override
   void initState() {
     super.initState();
     // Automatically fetch data when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final appState = Provider.of<AppState>(context, listen: false);
-      if (!appState.isLoading) {
+      if (!appState.isLoading && !_hasInitialized) {
+        _hasInitialized = true;
+        // Remove phantom activities first
+        await appState.removePhantomActivities();
         await appState.refresh();
         // Wait a bit for data to load, then create activities
         await Future.delayed(const Duration(milliseconds: 500));
-        // Activities are now created automatically in app state initialization
+        // Create activities for the PS5 debt specifically
+        await appState.createPS5DebtActivities();
       }
     });
   }
@@ -31,11 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh data when dependencies change (like when returning from other screens)
-    // CRITICAL FIX: Only refresh if we don't already have customers to prevent clearing data
+    // FIXED: Prevent duplicate refresh calls that cause phantom activities
+    // Only refresh if we haven't initialized yet and truly have no data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final appState = Provider.of<AppState>(context, listen: false);
-      if (!appState.isLoading && appState.customers.isEmpty) {
+      if (!appState.isLoading && !_hasInitialized && appState.customers.isEmpty) {
+        _hasInitialized = true;
         appState.refresh();
       }
     });

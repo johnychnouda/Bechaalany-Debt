@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/data_service.dart';
 import '../services/backup_service.dart';
+import '../services/background_backup_service.dart';
+import '../services/background_app_refresh_service.dart';
 import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -18,10 +20,13 @@ class DataRecoveryScreen extends StatefulWidget {
 class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final DataService _dataService = DataService();
   final BackupService _backupService = BackupService();
+  final BackgroundBackupService _backgroundBackupService = BackgroundBackupService();
+  final BackgroundAppRefreshService _backgroundAppRefreshService = BackgroundAppRefreshService();
   List<String> _availableBackups = [];
   Map<String, Map<String, dynamic>> _backupMetadata = {};
-  bool _isLoading = false;
   bool _isAutomaticBackupEnabled = false;
+  bool _isBackgroundBackupAvailable = false;
+  bool _isBackgroundAppRefreshAvailable = false;
   DateTime? _lastBackupTime;
   String _nextBackupTime = '';
   
@@ -31,6 +36,11 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   @override
   void initState() {
     super.initState();
+    _initializeScreen();
+  }
+
+  Future<void> _initializeScreen() async {
+    // Load everything without showing any loader
     _loadBackups();
     // Delay loading backup settings to ensure backup service is ready
     Future.delayed(const Duration(milliseconds: 500), () {
@@ -56,9 +66,28 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   Future<void> _loadBackupSettings() async {
     try {
       final isEnabled = await _backupService.isAutomaticBackupEnabled();
+      final lastAutomaticBackupTime = await _backupService.getLastAutomaticBackupTime();
+      final lastManualBackupTime = await _backupService.getLastManualBackupTime();
+      final isBackgroundAvailable = await _backgroundBackupService.isAvailable();
+      final isBackgroundAppRefreshAvailable = await _backgroundAppRefreshService.isAvailable();
+      
+      // Show the most recent backup time (either manual or automatic)
+      DateTime? mostRecentBackup;
+      if (lastAutomaticBackupTime != null && lastManualBackupTime != null) {
+        mostRecentBackup = lastAutomaticBackupTime.isAfter(lastManualBackupTime) 
+            ? lastAutomaticBackupTime 
+            : lastManualBackupTime;
+      } else if (lastAutomaticBackupTime != null) {
+        mostRecentBackup = lastAutomaticBackupTime;
+      } else if (lastManualBackupTime != null) {
+        mostRecentBackup = lastManualBackupTime;
+      }
       
       setState(() {
         _isAutomaticBackupEnabled = isEnabled;
+        _isBackgroundBackupAvailable = isBackgroundAvailable;
+        _isBackgroundAppRefreshAvailable = isBackgroundAppRefreshAvailable;
+        _lastBackupTime = mostRecentBackup;
       });
       
       // If automatic backup is enabled, calculate the next backup time
@@ -77,8 +106,13 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
 
   void _calculateNextBackupTime() {
     final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
+    final today = DateTime(now.year, now.month, now.day);
+    final midnightToday = DateTime(today.year, today.month, today.day, 0, 0, 0);
+    final midnightTomorrow = midnightToday.add(const Duration(days: 1));
+    
+    // If it's past midnight today, next backup is tomorrow at midnight
+    // If it's before midnight today, next backup is today at midnight
+    final nextBackup = now.isAfter(midnightToday) ? midnightTomorrow : midnightToday;
     final timeRemaining = nextBackup.difference(now);
     
     final hours = timeRemaining.inHours;
@@ -146,14 +180,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
 
 
   Future<void> _loadBackups() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    // Load backups without showing any loader
     try {
-
       final backups = await _backupService.getAvailableBackups();
-
       
       // Load metadata for each backup
       final metadata = <String, Map<String, dynamic>>{};
@@ -164,47 +193,31 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             metadata[backupId] = backupMeta;
           }
         } catch (e) {
-
+          // Handle error silently
         }
       }
       
       setState(() {
         _availableBackups = backups;
         _backupMetadata = metadata;
-        _isLoading = false;
       });
     } catch (e) {
-
+      // Handle error silently - no loader, no notification
       setState(() {
-        _isLoading = false;
+        _availableBackups = [];
+        _backupMetadata = {};
       });
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Backup Error',
-          body: 'Error loading backups: $e',
-        );
-      }
     }
   }
 
   Future<void> _createBackup() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
-
       await _backupService.createManualBackup();
-
       await _loadBackups();
+      // Refresh backup settings to update last backup time
+      await _loadBackupSettings();
     } catch (e) {
-
       // Error notification is handled by backup service
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -232,10 +245,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
 
     if (confirmed != true) return;
 
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final success = await _backupService.restoreFromBackup(backupPath);
       
@@ -243,6 +252,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         // Reload app state
         final appState = Provider.of<AppState>(context, listen: false);
         await appState.initialize();
+        
+        // Refresh backup settings
+        await _loadBackupSettings();
         
         if (mounted) {
           final notificationService = NotificationService();
@@ -258,10 +270,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
           body: 'Failed to restore data: $e',
         );
       }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -289,10 +297,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
 
     if (confirmed != true) return;
 
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final success = await _backupService.deleteBackup(backupPath);
       
@@ -315,10 +319,6 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
           body: 'Failed to delete backup: $e',
         );
       }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -342,23 +342,19 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         ),
       ),
       child: SafeArea(
-        child: _isLoading
-            ? const Center(
-                child: CupertinoActivityIndicator(),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildBackupSection(),
-                    const SizedBox(height: 20),
-                    _buildAutomaticBackupSection(),
-                    const SizedBox(height: 20),
-                    _buildAvailableBackupsSection(),
-                  ],
-                ),
-              ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildBackupSection(),
+              const SizedBox(height: 20),
+              _buildAutomaticBackupSection(),
+              const SizedBox(height: 20),
+              _buildAvailableBackupsSection(),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -493,15 +489,19 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  'Daily Backup at 12 AM',
-                                  style: AppTheme.getDynamicTitle3(context).copyWith(
-                                    color: AppColors.dynamicTextPrimary(context),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
+                                child:                                                   Text(
+                          _isBackgroundAppRefreshAvailable 
+                              ? 'Daily Background App Refresh at 12 AM'
+                              : _isBackgroundBackupAvailable 
+                                  ? 'Daily Background Backup at 12 AM'
+                                  : 'Daily Backup at 12 AM',
+                          style: AppTheme.getDynamicTitle3(context).copyWith(
+                            color: AppColors.dynamicTextPrimary(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                               ),
                             ],
                           ),
@@ -706,7 +706,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'No backups available. Create your first backup to get started.',
+                      Provider.of<AppState>(context, listen: false).isAuthenticated
+                          ? 'No backups available. Create your first backup to get started.'
+                          : 'Please sign in to view and manage your backups.',
                       style: AppTheme.getDynamicFootnote(context).copyWith(
                         color: AppColors.dynamicTextSecondary(context),
                         fontSize: 15,
@@ -718,145 +720,107 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
             ),
           )
         else
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.dynamicSurface(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.dynamicBorder(context),
-                width: 0.5,
-              ),
-            ),
-            child: ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _availableBackups.length,
-              separatorBuilder: (context, index) => Container(
-                height: 0.5,
-                color: AppColors.dynamicBorder(context),
-              ),
-              itemBuilder: (context, index) {
-                final backupPath = _availableBackups[index];
-                final fileName = backupPath.split('/').last;
-                final formattedDate = _formatBackupFileName(fileName);
-                final metadata = _backupMetadata[backupPath];
-                final isAutomatic = metadata?['isAutomatic'] ?? false;
-                final backupType = metadata?['backupType'] ?? 'manual';
+          Column(
+            children: _availableBackups.asMap().entries.map((entry) {
+              final index = entry.key;
+              final backupPath = entry.value;
+              final fileName = backupPath.split('/').last;
+              final formattedDate = _formatBackupFileName(fileName);
+              final metadata = _backupMetadata[backupPath];
+              final isAutomatic = metadata?['isAutomatic'] ?? false;
+              final backupType = metadata?['backupType'] ?? 'manual';
 
-                return Padding(
-                    padding: const EdgeInsets.all(16),
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicSurface(context),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: AppColors.dynamicBorder(context),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isAutomatic 
-                                ? AppColors.dynamicPrimary(context).withAlpha(26)
-                                : AppColors.dynamicSuccess(context).withAlpha(26),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            isAutomatic ? CupertinoIcons.clock : CupertinoIcons.doc_text,
-                            color: isAutomatic 
-                                ? AppColors.dynamicPrimary(context)
-                                : AppColors.dynamicSuccess(context),
-                            size: 18,
-                          ),
+                        Icon(
+                          isAutomatic ? CupertinoIcons.clock : CupertinoIcons.doc_text,
+                          color: isAutomatic 
+                              ? AppColors.dynamicPrimary(context)
+                              : AppColors.dynamicSuccess(context),
+                          size: 16,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 formattedDate,
                                 style: AppTheme.getDynamicCaption1(context).copyWith(
                                   color: AppColors.dynamicTextPrimary(context),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(
-                                    isAutomatic ? 'Automatic backup' : 'Manual backup',
-                                    style: AppTheme.getDynamicCaption1(context).copyWith(
-                                      color: isAutomatic 
-                                          ? AppColors.dynamicPrimary(context)
-                                          : AppColors.dynamicTextSecondary(context),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isAutomatic 
-                                          ? AppColors.dynamicPrimary(context).withAlpha(26)
-                                          : AppColors.dynamicTextSecondary(context).withAlpha(26),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      backupType.toUpperCase(),
-                                      style: AppTheme.getDynamicCaption1(context).copyWith(
-                                        color: isAutomatic 
-                                            ? AppColors.dynamicPrimary(context)
-                                            : AppColors.dynamicTextSecondary(context),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              const SizedBox(height: 1),
+                              Text(
+                                isAutomatic ? 'Automatic backup' : 'Manual backup',
+                                style: AppTheme.getDynamicCaption1(context).copyWith(
+                                  color: AppColors.dynamicTextSecondary(context),
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             CupertinoButton(
                               onPressed: () => _restoreFromBackup(backupPath),
                               padding: EdgeInsets.zero,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.dynamicPrimary(context),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   'Restore',
                                   style: AppTheme.getDynamicCaption1(context).copyWith(
                                     color: AppColors.dynamicSurface(context),
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 12,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             CupertinoButton(
                               onPressed: () => _deleteBackup(backupPath),
                               padding: EdgeInsets.zero,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
+                                  horizontal: 8,
+                                  vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
                                   color: AppColors.dynamicError(context),
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   'Delete',
                                   style: AppTheme.getDynamicCaption1(context).copyWith(
                                     color: AppColors.dynamicSurface(context),
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 12,
+                                    fontSize: 11,
                                   ),
                                 ),
                               ),
@@ -865,9 +829,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                         ),
                       ],
                     ),
-                  );
-              },
-            ),
+                  ),
+                );
+            }).toList(),
           ),
       ],
     );

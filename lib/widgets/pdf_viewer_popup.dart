@@ -33,6 +33,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
   int _currentPage = 1;
   int _totalPages = 0;
   Uint8List? _pdfBytes;
+  bool _hasRenderingError = false;
 
   @override
   void initState() {
@@ -63,16 +64,20 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
       // Read PDF bytes
       final bytes = await widget.pdfFile.readAsBytes();
       
-      setState(() {
-        _pdfBytes = bytes;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _pdfBytes = bytes;
+          _isLoading = false;
+        });
+      }
       
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load PDF: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load PDF: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -329,6 +334,15 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading state: $_isLoading\nPDF bytes: ${_pdfBytes?.length ?? 'null'}',
+              style: TextStyle(
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 32),
             CupertinoButton.filled(
               onPressed: () => _retryLoadPDF(),
@@ -339,32 +353,135 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
       );
     }
 
-    // Full screen PDF viewer with no margins or padding
-    return SfPdfViewer.memory(
-      _pdfBytes!,
-      enableDoubleTapZooming: true,
-      enableTextSelection: false,
-      canShowScrollHead: false,
-      canShowScrollStatus: false,
-      pageSpacing: 0,
-      enableDocumentLinkAnnotation: false,
-      enableHyperlinkNavigation: false,
-      canShowPaginationDialog: false,
-      onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-        setState(() {
-          _totalPages = details.document.pages.count;
-        });
-      },
-      onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-        setState(() {
-          _errorMessage = details.error.toString();
-        });
-      },
-      onPageChanged: (PdfPageChangedDetails details) {
-        setState(() {
-          _currentPage = details.newPageNumber;
-        });
-      },
+    // Try to display the PDF with a more stable approach
+    return _buildStablePdfViewer();
+  }
+
+  Widget _buildStablePdfViewer() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      child: SfPdfViewer.memory(
+        _pdfBytes!,
+        enableDoubleTapZooming: true,
+        enableTextSelection: false,
+        canShowScrollHead: false,
+        canShowScrollStatus: false,
+        pageSpacing: 0,
+        enableDocumentLinkAnnotation: false,
+        enableHyperlinkNavigation: false,
+        canShowPaginationDialog: false,
+        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+          if (mounted) {
+            setState(() {
+              _totalPages = details.document.pages.count;
+            });
+          }
+        },
+        onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+          if (mounted) {
+            setState(() {
+              _errorMessage = details.error.toString();
+            });
+          }
+        },
+        onPageChanged: (PdfPageChangedDetails details) {
+          if (mounted) {
+            setState(() {
+              _currentPage = details.newPageNumber;
+            });
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildFallbackInterface() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              CupertinoIcons.doc_text,
+              color: CupertinoColors.activeBlue,
+              size: 80,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Receipt Ready',
+              style: TextStyle(
+                color: CupertinoColors.label.resolveFrom(context),
+                fontSize: 28,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'PDF receipt has been generated successfully.\nDue to technical limitations, the PDF viewer is temporarily unavailable.',
+              style: TextStyle(
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemGrey6.resolveFrom(context),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'File Information',
+                    style: TextStyle(
+                      color: CupertinoColors.label.resolveFrom(context),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Customer: ${widget.customerName}',
+                    style: TextStyle(
+                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'File Size: ${(_pdfBytes?.length ?? 0) ~/ 1024} KB',
+                    style: TextStyle(
+                      color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            CupertinoButton.filled(
+              onPressed: () => _sharePDF(),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(CupertinoIcons.share, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Share PDF'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            CupertinoButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -16,30 +16,16 @@ class RevenueCalculationService {
   double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     
-    // Calculate revenue from all debts based on their payment status
+    // Calculate revenue as profit from payments received
+    // Revenue = profit margin on the amount actually paid by customers
     for (final debt in debts) {
-      // NEW LOGIC: Revenue is only recognized when customer is fully settled
-      // Individual debt status is determined by customer's overall debt status
-      if (appState != null) {
-        final customerId = debt.customerId;
-        final isCustomerFullyPaid = appState.isCustomerFullyPaid(customerId);
-        final isCustomerPartiallyPaid = appState.isCustomerPartiallyPaid(customerId);
+      if (debt.paidAmount > 0 && debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+        // Calculate profit margin on the paid amount
+        final profitMargin = (debt.originalSellingPrice! - debt.originalCostPrice!) / debt.originalSellingPrice!;
+        final profitFromPaidAmount = debt.paidAmount * profitMargin;
+        totalRevenue += profitFromPaidAmount;
         
-        if (isCustomerFullyPaid) {
-          // Customer has settled ALL debts - recognize full revenue for this debt
-          totalRevenue += debt.originalRevenue;
-        } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
-          // Customer has made some payments but not settled all debts - recognize proportional revenue
-          totalRevenue += debt.earnedRevenue;
-        }
-        // If customer is pending, no revenue is recognized
-      } else {
-        // Fallback to old logic if AppState not provided
-        if (debt.isFullyPaid) {
-          totalRevenue += debt.originalRevenue;
-        } else if (debt.paidAmount > 0) {
-          totalRevenue += debt.earnedRevenue;
-        }
+        print('DEBUG: Revenue Service - Debt ${debt.id}: paidAmount=${debt.paidAmount}, profitMargin=${profitMargin.toStringAsFixed(3)}, profitFromPaid=${profitFromPaidAmount.toStringAsFixed(2)}');
       }
     }
     

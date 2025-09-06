@@ -179,6 +179,10 @@ class DataService {
   Stream<CurrencySettings?> get currencySettingsFirebaseStream {
     return _firebaseService.getCurrencySettingsStream();
   }
+  
+  Stream<List<Activity>> get activitiesFirebaseStream {
+    return _firebaseService.getActivitiesStream();
+  }
 
   // Get currency settings directly
   Future<CurrencySettings?> getCurrencySettings() async {
@@ -327,13 +331,13 @@ class DataService {
     return await _firebaseService.searchActivities(query);
   }
   
-  // Get activities stream
-  Stream<List<Activity>> get activitiesFirebaseStream {
-    return _firebaseService.getActivitiesStream();
-  }
 
   Future<void> clearActivities() async {
     await _firebaseService.clearActivities();
+  }
+
+  Future<void> removePhantomActivities() async {
+    await _firebaseService.removePhantomActivities();
   }
 
   Future<void> clearPartialPayments() async {
