@@ -1645,9 +1645,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply payment to total debt amount (not individual debts)
   Future<void> _applyPaymentToTotalDebt(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
-    print('🚨🚨🚨 PAYMENT METHOD CALLED: _applyPaymentToTotalDebt 🚨🚨🚨');
-    print('🚨 Payment amount: $paymentAmount');
-    print('🚨 Pending debts count: ${pendingDebts.length}');
     
     final appState = Provider.of<AppState>(context, listen: false);
     
@@ -1735,16 +1732,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
     final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
     
-    print('🔍 Payment applied - checking settlement automation');
-    print('🔍 Customer ID: $customerId');
-    print('🔍 Total outstanding after payment: $totalOutstanding');
     
     if (totalOutstanding == 0) {
-      print('🔍 All debts paid - triggering settlement automation');
       // Pass only the debts that were just completed, not all customer debts
       await appState.sendWhatsAppSettlementNotification(customerId);
     } else {
-      print('🔍 Customer still has outstanding debts: $totalOutstanding');
     }
     
     // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
@@ -1762,9 +1754,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply payment sequentially to debts (oldest first)
   Future<void> _applyPaymentSequentially(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
-    print('🚨🚨🚨 PAYMENT METHOD CALLED: _applyPaymentSequentially 🚨🚨🚨');
-    print('🚨 Payment amount: $paymentAmount');
-    print('🚨 Pending debts count: ${pendingDebts.length}');
     
     final appState = Provider.of<AppState>(context, listen: false);
     
@@ -1838,16 +1827,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
     final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
     
-    print('🔍 Payment applied sequentially - checking settlement automation');
-    print('🔍 Customer ID: $customerId');
-    print('🔍 Total outstanding after payment: $totalOutstanding');
     
     if (totalOutstanding == 0) {
-      print('🔍 All debts paid - triggering settlement automation');
       // Pass only the debts that were just completed, not all customer debts
       await appState.sendWhatsAppSettlementNotification(customerId);
     } else {
-      print('🔍 Customer still has outstanding debts: $totalOutstanding');
     }
     
     // Show success notification only if all customer debts are fully paid
@@ -1873,8 +1857,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Pay the exact remaining amount for each debt to make them fully paid
   Future<void> _payFullAmountForAllDebts(List<Debt> pendingDebts, BuildContext context) async {
-    print('🚨🚨🚨 PAYMENT METHOD CALLED: _payFullAmountForAllDebts 🚨🚨🚨');
-    print('🚨 Pending debts count: ${pendingDebts.length}');
     
     final appState = Provider.of<AppState>(context, listen: false);
     bool paymentSuccess = false;
@@ -1885,7 +1867,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // Process each debt payment
       for (final debt in pendingDebts) {
         if (debt.remainingAmount > 0) {
-          print('🚨 Marking debt as paid: ${debt.id}');
           totalPaidAmount += debt.remainingAmount;
           // Use markDebtAsPaid to trigger settlement automation
           await appState.markDebtAsPaid(debt.id);
@@ -1909,13 +1890,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
       } catch (activityError) {
         // Activity logging failed - this is non-critical
-        print('⚠️ Activity logging failed (non-critical): $activityError');
       }
       
     } catch (e) {
       // Only show error notification for critical payment failures
       errorMessage = e.toString();
-      print('❌ Critical payment error: $e');
     }
     
     // Show appropriate notification based on result

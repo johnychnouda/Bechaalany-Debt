@@ -33,17 +33,14 @@ class BackgroundBackupService {
 
       // Check if background fetch is available
       final status = await BackgroundFetch.status;
-      print('Background fetch status: $status');
 
       _isInitialized = true;
     } catch (e) {
-      print('Error initializing background backup: $e');
     }
   }
 
   // Background fetch callback
   static Future<void> _onBackgroundFetch(String taskId) async {
-    print('Background fetch started: $taskId');
     
     try {
       final service = BackgroundBackupService();
@@ -52,14 +49,12 @@ class BackgroundBackupService {
       // Mark task as completed
       BackgroundFetch.finish(taskId);
     } catch (e) {
-      print('Background backup error: $e');
       BackgroundFetch.finish(taskId);
     }
   }
 
   // Background fetch timeout callback
   static Future<void> _onBackgroundFetchTimeout(String taskId) async {
-    print('Background fetch timeout: $taskId');
     BackgroundFetch.finish(taskId);
   }
 
@@ -69,18 +64,15 @@ class BackgroundBackupService {
       // Check if automatic backup is enabled
       final isEnabled = await _isAutomaticBackupEnabled();
       if (!isEnabled) {
-        print('Automatic backup is disabled');
         return;
       }
 
       // Check if backup is needed
       final needsBackup = await _checkIfBackupNeeded();
       if (!needsBackup) {
-        print('Backup not needed at this time');
         return;
       }
 
-      print('Starting background backup...');
       
       // Create backup
       final backupId = await _dataService.createBackup(isAutomatic: true);
@@ -89,7 +81,6 @@ class BackgroundBackupService {
         // Update last backup time
         await _setLastAutomaticBackupTime(DateTime.now());
         
-        print('Background backup completed: $backupId');
         
         // Send success notification
         await _notificationService.showSuccessNotification(
@@ -97,7 +88,6 @@ class BackgroundBackupService {
           body: 'Your data has been automatically backed up',
         );
       } else {
-        print('Background backup failed');
         
         // Send error notification
         await _notificationService.showErrorNotification(
@@ -106,7 +96,6 @@ class BackgroundBackupService {
         );
       }
     } catch (e) {
-      print('Background backup error: $e');
       
       // Send error notification
       await _notificationService.showErrorNotification(
@@ -122,7 +111,6 @@ class BackgroundBackupService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('automatic_backup_enabled') ?? false;
     } catch (e) {
-      print('Error checking backup setting: $e');
       return false;
     }
   }
@@ -145,7 +133,6 @@ class BackgroundBackupService {
       // If we haven't backed up today and it's past midnight, create backup
       return lastBackupDate.isBefore(today);
     } catch (e) {
-      print('Error checking backup need: $e');
       return false;
     }
   }
@@ -157,7 +144,6 @@ class BackgroundBackupService {
       final timestamp = prefs.getInt('last_automatic_backup_timestamp');
       return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
     } catch (e) {
-      print('Error getting last backup time: $e');
       return null;
     }
   }
@@ -168,7 +154,6 @@ class BackgroundBackupService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
     } catch (e) {
-      print('Error setting last backup time: $e');
     }
   }
 
@@ -176,9 +161,7 @@ class BackgroundBackupService {
   Future<void> start() async {
     try {
       await BackgroundFetch.start();
-      print('Background fetch started');
     } catch (e) {
-      print('Error starting background fetch: $e');
     }
   }
 
@@ -186,9 +169,7 @@ class BackgroundBackupService {
   Future<void> stop() async {
     try {
       await BackgroundFetch.stop();
-      print('Background fetch stopped');
     } catch (e) {
-      print('Error stopping background fetch: $e');
     }
   }
 
@@ -198,7 +179,6 @@ class BackgroundBackupService {
       final status = await BackgroundFetch.status;
       return status == 1; // 1 = available, 0 = denied
     } catch (e) {
-      print('Error checking background fetch availability: $e');
       return false;
     }
   }
@@ -208,7 +188,6 @@ class BackgroundBackupService {
     try {
       return await BackgroundFetch.status;
     } catch (e) {
-      print('Error getting background fetch status: $e');
       return 0; // 0 = denied
     }
   }

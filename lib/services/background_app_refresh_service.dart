@@ -35,20 +35,17 @@ class BackgroundAppRefreshService {
 
       // Check if background app refresh is available
       final status = await BackgroundFetch.status;
-      print('Background App Refresh status: $status');
 
       // Schedule midnight backup check
       await _scheduleMidnightBackup();
 
       _isInitialized = true;
     } catch (e) {
-      print('Error initializing Background App Refresh: $e');
     }
   }
 
   // Background fetch callback - called by iOS when Background App Refresh runs
   static Future<void> _onBackgroundFetch(String taskId) async {
-    print('Background App Refresh started: $taskId');
     
     try {
       final service = BackgroundAppRefreshService();
@@ -57,14 +54,12 @@ class BackgroundAppRefreshService {
       // Mark task as completed
       BackgroundFetch.finish(taskId);
     } catch (e) {
-      print('Background App Refresh error: $e');
       BackgroundFetch.finish(taskId);
     }
   }
 
   // Background fetch timeout callback
   static Future<void> _onBackgroundFetchTimeout(String taskId) async {
-    print('Background App Refresh timeout: $taskId');
     BackgroundFetch.finish(taskId);
   }
 
@@ -82,8 +77,6 @@ class BackgroundAppRefreshService {
       // Calculate duration until next midnight
       final duration = nextMidnight.difference(now);
       
-      print('Scheduling next backup check at: $nextMidnight');
-      print('Time until next check: ${duration.inHours}h ${duration.inMinutes % 60}m');
 
       // Schedule timer for next midnight
       _midnightTimer = Timer(duration, () async {
@@ -92,30 +85,25 @@ class BackgroundAppRefreshService {
         await _scheduleMidnightBackup();
       });
     } catch (e) {
-      print('Error scheduling midnight backup: $e');
     }
   }
 
   // Check and create backup at midnight
   Future<void> _checkAndCreateMidnightBackup() async {
     try {
-      print('Midnight backup check triggered');
       
       // Check if automatic backup is enabled
       final isEnabled = await _isAutomaticBackupEnabled();
       if (!isEnabled) {
-        print('Automatic backup is disabled');
         return;
       }
 
       // Check if backup is needed
       final needsBackup = await _checkIfBackupNeeded();
       if (!needsBackup) {
-        print('Backup not needed at midnight');
         return;
       }
 
-      print('Creating midnight backup...');
       
       // Create backup
       final backupId = await _dataService.createBackup(isAutomatic: true);
@@ -124,7 +112,6 @@ class BackgroundAppRefreshService {
         // Update last backup time
         await _setLastAutomaticBackupTime(DateTime.now());
         
-        print('Midnight backup completed: $backupId');
         
         // Send success notification
         await _notificationService.showSuccessNotification(
@@ -132,7 +119,6 @@ class BackgroundAppRefreshService {
           body: 'Your data has been automatically backed up at midnight',
         );
       } else {
-        print('Midnight backup failed');
         
         // Send error notification
         await _notificationService.showErrorNotification(
@@ -141,7 +127,6 @@ class BackgroundAppRefreshService {
         );
       }
     } catch (e) {
-      print('Midnight backup error: $e');
       
       // Send error notification
       await _notificationService.showErrorNotification(
@@ -157,18 +142,15 @@ class BackgroundAppRefreshService {
       // Check if automatic backup is enabled
       final isEnabled = await _isAutomaticBackupEnabled();
       if (!isEnabled) {
-        print('Automatic backup is disabled');
         return;
       }
 
       // Check if backup is needed
       final needsBackup = await _checkIfBackupNeeded();
       if (!needsBackup) {
-        print('Backup not needed at this time');
         return;
       }
 
-      print('Starting Background App Refresh backup...');
       
       // Create backup
       final backupId = await _dataService.createBackup(isAutomatic: true);
@@ -177,7 +159,6 @@ class BackgroundAppRefreshService {
         // Update last backup time
         await _setLastAutomaticBackupTime(DateTime.now());
         
-        print('Background App Refresh backup completed: $backupId');
         
         // Send success notification
         await _notificationService.showSuccessNotification(
@@ -185,7 +166,6 @@ class BackgroundAppRefreshService {
           body: 'Your data has been automatically backed up',
         );
       } else {
-        print('Background App Refresh backup failed');
         
         // Send error notification
         await _notificationService.showErrorNotification(
@@ -194,7 +174,6 @@ class BackgroundAppRefreshService {
         );
       }
     } catch (e) {
-      print('Background App Refresh backup error: $e');
       
       // Send error notification
       await _notificationService.showErrorNotification(
@@ -210,7 +189,6 @@ class BackgroundAppRefreshService {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('automatic_backup_enabled') ?? false;
     } catch (e) {
-      print('Error checking backup setting: $e');
       return false;
     }
   }
@@ -233,7 +211,6 @@ class BackgroundAppRefreshService {
       // If we haven't backed up today and it's past midnight, create backup
       return lastBackupDate.isBefore(today);
     } catch (e) {
-      print('Error checking backup need: $e');
       return false;
     }
   }
@@ -245,7 +222,6 @@ class BackgroundAppRefreshService {
       final timestamp = prefs.getInt('last_automatic_backup_timestamp');
       return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
     } catch (e) {
-      print('Error getting last backup time: $e');
       return null;
     }
   }
@@ -256,7 +232,6 @@ class BackgroundAppRefreshService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
     } catch (e) {
-      print('Error setting last backup time: $e');
     }
   }
 
@@ -264,9 +239,7 @@ class BackgroundAppRefreshService {
   Future<void> start() async {
     try {
       await BackgroundFetch.start();
-      print('Background App Refresh started');
     } catch (e) {
-      print('Error starting Background App Refresh: $e');
     }
   }
 
@@ -275,9 +248,7 @@ class BackgroundAppRefreshService {
     try {
       await BackgroundFetch.stop();
       _midnightTimer?.cancel();
-      print('Background App Refresh stopped');
     } catch (e) {
-      print('Error stopping Background App Refresh: $e');
     }
   }
 
@@ -287,7 +258,6 @@ class BackgroundAppRefreshService {
       final status = await BackgroundFetch.status;
       return status == 1; // 1 = available, 0 = denied
     } catch (e) {
-      print('Error checking Background App Refresh availability: $e');
       return false;
     }
   }
@@ -297,7 +267,6 @@ class BackgroundAppRefreshService {
     try {
       return await BackgroundFetch.status;
     } catch (e) {
-      print('Error getting Background App Refresh status: $e');
       return 0; // 0 = denied
     }
   }

@@ -923,7 +923,6 @@ class FirebaseDataService {
   // Add activity
   Future<void> addActivity(Activity activity) async {
     if (!isAuthenticated) {
-      print('❌ Firebase authentication failed - user not authenticated');
       return;
     }
     
@@ -931,9 +930,6 @@ class FirebaseDataService {
     activityData['lastUpdated'] = FieldValue.serverTimestamp();
     activityData['userId'] = currentUserId;
     
-    print('🔍 Attempting to save activity: ${activity.id}');
-    print('🔍 User ID: $currentUserId');
-    print('🔍 Activity data keys: ${activityData.keys.toList()}');
     
     // Rate limiting: Add delay between activity saves to prevent throttling
     await Future.delayed(Duration(milliseconds: 500));
@@ -942,7 +938,6 @@ class FirebaseDataService {
     try {
       final docRef = _firestore.collection('activities').doc(activity.id);
       await docRef.set(activityData, SetOptions(merge: true));
-      print('✅ Activity saved to Firebase: ${activity.id}');
       
       // Simple verification with multiple attempts to handle eventual consistency
       bool verified = false;
@@ -951,23 +946,17 @@ class FirebaseDataService {
         try {
           final savedDoc = await docRef.get();
           if (savedDoc.exists) {
-            print('✅ Activity verified in Firebase: ${activity.id}');
             verified = true;
             break;
           }
         } catch (verifyError) {
-          print('⚠️ Verification attempt ${i + 1} failed: $verifyError');
         }
       }
       
       if (!verified) {
-        print('⚠️ Activity verification failed after 3 attempts, but document was saved: ${activity.id}');
-        print('ℹ️ This is normal Firebase behavior - document exists but may take time to be readable');
       }
       
     } catch (e) {
-      print('❌ Activity save failed for ${activity.id}: $e');
-      print('❌ This is non-critical - payment processing continues normally');
     }
   }
   
