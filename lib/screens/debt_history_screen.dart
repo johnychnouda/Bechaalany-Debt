@@ -115,14 +115,17 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           (_selectedStatus == 'Pending' || _selectedStatus == 'All')) {
         final totalAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.amount);
         final totalRemainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalAmount = ((totalAmount * 100).round() / 100);
+        final roundedTotalRemainingAmount = ((totalRemainingAmount * 100).round() / 100);
         
         _groupedDebts.add({
           'customerId': pendingDebts.first.customerId,
           'customerName': pendingDebts.first.customerName,
           'debts': pendingDebts,
-          'totalAmount': totalAmount,
+          'totalAmount': roundedTotalAmount,
           'totalPaidAmount': 0.0,
-          'totalRemainingAmount': totalRemainingAmount,
+          'totalRemainingAmount': roundedTotalRemainingAmount,
           'totalDebts': pendingDebts.length,
           'pendingDebts': pendingDebts.length,
           'paidDebts': 0,
@@ -144,14 +147,18 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         final totalAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.amount);
         final totalPaidAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
         final totalRemainingAmount = allActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalAmount = ((totalAmount * 100).round() / 100);
+        final roundedTotalPaidAmount = ((totalPaidAmount * 100).round() / 100);
+        final roundedTotalRemainingAmount = ((totalRemainingAmount * 100).round() / 100);
         
         _groupedDebts.add({
           'customerId': allActiveDebts.first.customerId,
           'customerName': allActiveDebts.first.customerName,
           'debts': allActiveDebts,
-          'totalAmount': totalAmount,
-          'totalPaidAmount': totalPaidAmount,
-          'totalRemainingAmount': totalRemainingAmount,
+          'totalAmount': roundedTotalAmount,
+          'totalPaidAmount': roundedTotalPaidAmount,
+          'totalRemainingAmount': roundedTotalRemainingAmount,
           'totalDebts': allActiveDebts.length,
           'pendingDebts': allActiveDebts.where((d) => d.paidAmount == 0).length,
           'paidDebts': 0,
@@ -172,14 +179,18 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           final totalAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.amount);
           final totalPaidAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
           final totalRemainingAmount = fullyPaidDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+          // Fix floating-point precision issues by rounding to 2 decimal places
+          final roundedTotalAmount = ((totalAmount * 100).round() / 100);
+          final roundedTotalPaidAmount = ((totalPaidAmount * 100).round() / 100);
+          final roundedTotalRemainingAmount = ((totalRemainingAmount * 100).round() / 100);
           
           _groupedDebts.add({
             'customerId': fullyPaidDebts.first.customerId,
             'customerName': fullyPaidDebts.first.customerName,
             'debts': fullyPaidDebts,
-            'totalAmount': totalAmount,
-            'totalPaidAmount': totalPaidAmount,
-            'totalRemainingAmount': totalRemainingAmount,
+            'totalAmount': roundedTotalAmount,
+            'totalPaidAmount': roundedTotalPaidAmount,
+            'totalRemainingAmount': roundedTotalRemainingAmount,
             'totalDebts': fullyPaidDebts.length,
             'pendingDebts': 0,
             'paidDebts': fullyPaidDebts.length,
@@ -1076,7 +1087,9 @@ class _GroupedDebtCard extends StatelessWidget {
       } else {
         // For partially paid grouped debts, show remaining amount
         final totalRemainingAmount = debts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-        return 'Remaining: ${CurrencyFormatter.formatAmount(context, totalRemainingAmount)}';
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalRemainingAmount = ((totalRemainingAmount * 100).round() / 100);
+        return 'Remaining: ${CurrencyFormatter.formatAmount(context, roundedTotalRemainingAmount)}';
       }
     } else {
       // Show individual debt amount
@@ -1187,6 +1200,8 @@ class _GroupedDebtCard extends StatelessWidget {
   void _showPartialPaymentDialog(BuildContext context, List<Debt> unpaidDebts) {
     final TextEditingController amountController = TextEditingController();
     final totalRemaining = unpaidDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
     
     showDialog(
       context: context,
@@ -1196,7 +1211,7 @@ class _GroupedDebtCard extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, roundedTotalRemaining)}'),
               const SizedBox(height: 8),
               TextField(
                 controller: amountController,
@@ -1216,7 +1231,7 @@ class _GroupedDebtCard extends StatelessWidget {
             ElevatedButton(
               onPressed: () async {
                 final amount = double.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
-                if (amount > 0 && amount <= totalRemaining) {
+                if (amount > 0 && amount <= roundedTotalRemaining) {
                   Navigator.of(dialogContext).pop();
                   await _applyPartialPayment(context, unpaidDebts, amount);
                 }

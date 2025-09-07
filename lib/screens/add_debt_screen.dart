@@ -43,12 +43,15 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
       try {
         final appState = Provider.of<AppState>(context, listen: false);
         
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedAmount = ((_selectedSubcategory!.sellingPrice * 100).round() / 100);
+        
         final debt = Debt(
           id: appState.generateDebtId(),
           customerId: _selectedCustomer!.id,
           customerName: _selectedCustomer!.name,
           description: _selectedSubcategory!.name,
-          amount: _selectedSubcategory!.sellingPrice, // Use selling price (what customer owes)
+          amount: roundedAmount, // Use selling price (what customer owes)
           type: DebtType.credit,
           status: DebtStatus.pending,
           createdAt: DateTime.now(),

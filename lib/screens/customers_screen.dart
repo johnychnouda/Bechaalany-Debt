@@ -396,6 +396,8 @@ class _CustomerListTile extends StatelessWidget {
         // Simple calculation: Sum up remaining amounts from debt records
         final customerDebts = appState.debts.where((d) => d.customerId == customer.id).toList();
         final totalRemainingDebt = customerDebts.where((d) => !d.isFullyPaid).fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalRemainingDebt = ((totalRemainingDebt * 100).round() / 100);
         
         return Container(
           margin: const EdgeInsets.only(bottom: 4),
@@ -487,7 +489,7 @@ class _CustomerListTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (totalRemainingDebt > 0) ...[
+                    if (roundedTotalRemainingDebt > 0) ...[
                       const SizedBox(height: 8),
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -499,7 +501,7 @@ class _CustomerListTile extends StatelessWidget {
                           ),
                           const SizedBox(width: 1),
                           Text(
-                            CurrencyFormatter.formatAmount(context, totalRemainingDebt),
+                            CurrencyFormatter.formatAmount(context, roundedTotalRemainingDebt),
                             style: TextStyle(
                               color: AppColors.error,
                               fontSize: 12,

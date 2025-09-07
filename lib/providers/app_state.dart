@@ -85,6 +85,11 @@ class AppState extends ChangeNotifier {
     Future.delayed(const Duration(seconds: 2), () {
       removeDuplicatePaymentActivities();
     });
+    
+    // Fix floating-point precision issues in existing debt amounts
+    Future.delayed(const Duration(seconds: 3), () {
+      fixDebtAmountPrecision();
+    });
   }
   
   // Cached calculations
@@ -352,12 +357,14 @@ class AppState extends ChangeNotifier {
 
   // Cached getters
   double get totalDebt {
-    _cachedTotalDebt ??= _calculateTotalDebt();
+    // Always recalculate to ensure floating-point precision is correct
+    _cachedTotalDebt = _calculateTotalDebt();
     return _cachedTotalDebt!;
   }
   
   double get totalPaid {
-    _cachedTotalPaid ??= _calculateTotalPaid();
+    // Always recalculate to ensure floating-point precision is correct
+    _cachedTotalPaid = _calculateTotalPaid();
     return _cachedTotalPaid!;
   }
   
@@ -398,6 +405,8 @@ class AppState extends ChangeNotifier {
     for (final debt in customerDebts) {
       totalPaid += debt.paidAmount;
     }
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    totalPaid = ((totalPaid * 100).round() / 100);
     
     // CRITICAL FIX: Also include partial payments that might not be reflected in debt records
     // This ensures payment tracking consistency between Activity History and Customer Details
@@ -418,6 +427,8 @@ class AppState extends ChangeNotifier {
     
     // Calculate total from partial payments
     double partialPaymentTotal = customerPartialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    partialPaymentTotal = ((partialPaymentTotal * 100).round() / 100);
     
     // CRITICAL: If we have partial payments but no debt records show payments,
     // it means the payment was recorded but not applied to any debt
@@ -1398,6 +1409,54 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Fix floating-point precision issues in existing debt amounts
+  Future<void> fixDebtAmountPrecision() async {
+    try {
+      bool hasUpdates = false;
+      final updatedDebts = <Debt>[];
+      
+      for (final debt in _debts) {
+        // Round the amount to 2 decimal places
+        final roundedAmount = ((debt.amount * 100).round() / 100);
+        final roundedPaidAmount = ((debt.paidAmount * 100).round() / 100);
+        
+        // Only update if there's a difference
+        if ((debt.amount - roundedAmount).abs() > 0.001 || (debt.paidAmount - roundedPaidAmount).abs() > 0.001) {
+          final updatedDebt = debt.copyWith(
+            amount: roundedAmount,
+            paidAmount: roundedPaidAmount,
+          );
+          updatedDebts.add(updatedDebt);
+          hasUpdates = true;
+        }
+      }
+      
+      if (hasUpdates) {
+        // Update debts in Firebase
+        for (final debt in updatedDebts) {
+          await _dataService.updateDebt(debt);
+        }
+        
+        // Update local list
+        for (int i = 0; i < _debts.length; i++) {
+          final updatedDebt = updatedDebts.firstWhere(
+            (d) => d.id == _debts[i].id,
+            orElse: () => _debts[i],
+          );
+          if (updatedDebt.id != _debts[i].id) {
+            _debts[i] = updatedDebt;
+          }
+        }
+        
+        // Clear cache and notify listeners
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
   /// Backfill activities for existing debts
   /// This method creates activities for all existing debts that don't have corresponding activities
   Future<void> backfillActivitiesForExistingDebts() async {
@@ -1632,25 +1691,6 @@ class AppState extends ChangeNotifier {
   // Add customer-level "Fully paid" activity when entire customer balance is settled
   Future<void> addCustomerFullyPaidActivity(String customerId, String customerName, double totalAmount) async {
     try {
-      // Check if we already have a "Fully paid" activity for this customer today
-      // This prevents duplicate "Fully paid" activities from being created
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final todayEnd = todayStart.add(const Duration(days: 1));
-      
-      final existingFullyPaidActivity = _activities.where((activity) =>
-        activity.customerId == customerId &&
-        activity.type == ActivityType.payment &&
-        activity.description.startsWith('Fully paid:') &&
-        (activity.date.isAtSameMomentAs(todayStart) || 
-         (activity.date.isAfter(todayStart) && activity.date.isBefore(todayEnd)))
-      ).isNotEmpty;
-      
-      if (existingFullyPaidActivity) {
-        // Already have a "Fully paid" activity for this customer today, skip creating another one
-        return;
-      }
-      
       final activity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         customerId: customerId,
@@ -1674,6 +1714,36 @@ class AppState extends ChangeNotifier {
       // Clear cache and notify listeners
       _clearCache();
       notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Handle customer settlement - creates only one "Fully paid" activity per settlement
+  Future<void> _handleCustomerSettlement(String customerId, String customerName, double settlementAmount) async {
+    try {
+      // Check if we already have a "Fully paid" activity for this customer in the last 5 minutes
+      // This prevents duplicate "Fully paid" activities from the same settlement
+      final now = DateTime.now();
+      final fiveMinutesAgo = now.subtract(const Duration(minutes: 5));
+      
+      final recentFullyPaidActivity = _activities.where((activity) =>
+        activity.customerId == customerId &&
+        activity.type == ActivityType.payment &&
+        activity.description.startsWith('Fully paid:') &&
+        activity.date.isAfter(fiveMinutesAgo)
+      ).isNotEmpty;
+      
+      if (recentFullyPaidActivity) {
+        // Already have a recent "Fully paid" activity for this customer, skip creating another one
+        return;
+      }
+      
+      // Trigger settlement confirmation
+      await _triggerSettlementConfirmationAutomation(customerId);
+      
+      // Create the "Fully paid" activity
+      await addCustomerFullyPaidActivity(customerId, customerName, settlementAmount);
     } catch (e) {
       rethrow;
     }
@@ -2261,13 +2331,8 @@ class AppState extends ChangeNotifier {
       final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
       
       if (totalOutstanding == 0) {
-        // All customer debts are now paid - trigger settlement confirmation
-        await _triggerSettlementConfirmationAutomation(debt.customerId);
-        
-        // Add customer-level "Fully paid" activity
-        final customer = _customers.firstWhere((c) => c.id == debt.customerId);
-        // Show the remaining amount that was just paid to complete the settlement
-        await addCustomerFullyPaidActivity(debt.customerId, debt.customerName, remainingAmountBeforePayment);
+        // All customer debts are now paid - handle settlement
+        await _handleCustomerSettlement(debt.customerId, debt.customerName, remainingAmountBeforePayment);
       }
       
       // Show notification
@@ -2346,14 +2411,8 @@ class AppState extends ChangeNotifier {
           final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
           
           if (totalOutstanding == 0) {
-            // All customer debts are now paid - trigger settlement confirmation
-            await _triggerSettlementConfirmationAutomation(originalDebt.customerId);
-            
-            // Add customer-level "Fully paid" activity
-            final customer = _customers.firstWhere((c) => c.id == originalDebt.customerId);
-            // Show the remaining amount that was just paid to complete the settlement
-            // This is the amount of the partial payment that completed the debt
-            await addCustomerFullyPaidActivity(originalDebt.customerId, originalDebt.customerName, remainingAmount);
+            // All customer debts are now paid - handle settlement
+            await _handleCustomerSettlement(originalDebt.customerId, originalDebt.customerName, remainingAmount);
           }
         }
       }
@@ -2450,14 +2509,9 @@ class AppState extends ChangeNotifier {
           final totalOutstanding = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
           
           if (totalOutstanding == 0) {
-            // All customer debts are now paid - trigger settlement confirmation
-            await _triggerSettlementConfirmationAutomation(customerId);
-            
-            // Add customer-level "Fully paid" activity
+            // All customer debts are now paid - handle settlement
             final customer = _customers.firstWhere((c) => c.id == customerId);
-            // Show the amount that was just paid to complete the settlement
-            // This is the payment amount that completed all remaining debts
-            await addCustomerFullyPaidActivity(customerId, customer.name, paymentAmount);
+            await _handleCustomerSettlement(customerId, customer.name, paymentAmount);
           }
         }
         
@@ -3286,7 +3340,6 @@ class AppState extends ChangeNotifier {
     for (final debt in _debts) {
       totalDebt += debt.remainingAmount;
     }
-    
     // Fix floating-point precision issues by rounding to 2 decimal places
     return ((totalDebt * 100).round() / 100);
   }
@@ -3299,7 +3352,6 @@ class AppState extends ChangeNotifier {
     for (final debt in _debts) {
       totalPaid += debt.paidAmount;
     }
-    
     // Fix floating-point precision issues by rounding to 2 decimal places
     return ((totalPaid * 100).round() / 100);
   }
@@ -3325,7 +3377,6 @@ class AppState extends ChangeNotifier {
       for (final debt in customerDebtsList) {
         totalDebt += debt.remainingAmount;
       }
-      
       // Fix floating-point precision issues by rounding to 2 decimal places
       totalDebt = ((totalDebt * 100).round() / 100);
       

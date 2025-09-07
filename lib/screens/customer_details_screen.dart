@@ -1006,9 +1006,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         
         // Simple calculation: Sum up remaining amounts from debt records (only active debts)
         final totalPendingDebt = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalPendingDebt = ((totalPendingDebt * 100).round() / 100);
         
         // Simple calculation: Sum up paid amounts from ALL debt records (including fully paid ones)
         final totalPaid = customerAllDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalPaid = ((totalPaid * 100).round() / 100);
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1459,7 +1463,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   ),
                                   const Spacer(),
                                   Text(
-                                    CurrencyFormatter.formatAmount(context, totalPendingDebt),
+                                    CurrencyFormatter.formatAmount(context, roundedTotalPendingDebt),
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -1482,7 +1486,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                 ),
                                 const Spacer(),
                                 Text(
-                                  CurrencyFormatter.formatAmount(context, totalPaid),
+                                  CurrencyFormatter.formatAmount(context, roundedTotalPaid),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -1513,6 +1517,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   void _showConsolidatedPaymentDialog(BuildContext context, List<Debt> allDebts) {
     final pendingDebts = allDebts.where((d) => d.remainingAmount > 0).toList();
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
     
     showDialog(
       context: context,
@@ -1523,12 +1529,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, roundedTotalRemaining)}'),
               const SizedBox(height: 16),
               const Text('Payment Options:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               // Only show "Pay Full Amount" button when there's actually no remaining balance
-              if (totalRemaining <= 0) ...[
+              if (roundedTotalRemaining <= 0) ...[
                 _PaymentOption(
                   title: 'All Debts Paid',
                   subtitle: 'Customer has no outstanding balance',
@@ -1543,7 +1549,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                   subtitle: 'Enter exact amount to complete all debts',
                   onTap: () {
                     Navigator.of(dialogContext).pop();
-                    _showExactPaymentDialog(context, pendingDebts, totalRemaining);
+                    _showExactPaymentDialog(context, pendingDebts, roundedTotalRemaining);
                   },
                 ),
               ],
@@ -1572,6 +1578,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   // Show consolidated partial payment dialog
   void _showConsolidatedPartialPaymentDialog(BuildContext context, List<Debt> pendingDebts) {
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
     final TextEditingController amountController = TextEditingController();
     
     showDialog(
@@ -1582,7 +1590,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, totalRemaining)}'),
+              Text('Total Remaining: ${CurrencyFormatter.formatAmount(context, roundedTotalRemaining)}'),
               const SizedBox(height: 8),
               TextField(
                 controller: amountController,
@@ -1623,8 +1631,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Check if this is a "Pay Full Amount" scenario
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
     
-    if (paymentAmount >= totalRemaining) {
+    if (paymentAmount >= roundedTotalRemaining) {
       // This is "Pay Full Amount" - pay the exact remaining amount for each debt
       _payFullAmountForAllDebts(pendingDebts, context);
     } else {
@@ -1641,16 +1651,41 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Calculate the total remaining debt
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+    // Fix floating-point precision issues by rounding to 2 decimal places
+    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
     
-    // Calculate how much to reduce each debt proportionally
-    final reductionRatio = paymentAmount / totalRemaining;
+    // Use integer arithmetic to avoid floating-point errors
+    // Convert to cents (multiply by 100) for precise calculations
+    final totalPaymentCents = (paymentAmount * 100).round();
+    final totalRemainingCents = (roundedTotalRemaining * 100).round();
     
-    // Apply proportional reduction to each debt
-    for (final debt in pendingDebts) {
-      final reductionAmount = debt.remainingAmount * reductionRatio;
-      final newPaidAmount = debt.paidAmount + reductionAmount;
-      final isFullyPaid = newPaidAmount >= debt.amount;
+    int remainingPaymentCents = totalPaymentCents;
+    final updatedDebts = <Debt>[];
+    
+    // Apply payment proportionally, but ensure exact total
+    for (int i = 0; i < pendingDebts.length; i++) {
+      final debt = pendingDebts[i];
+      int reductionCents;
       
+      if (i == pendingDebts.length - 1) {
+        // For the last debt, use remaining payment to ensure exact total
+        reductionCents = remainingPaymentCents;
+      } else {
+        // Calculate proportional reduction using integer arithmetic
+        final debtRemainingCents = (debt.remainingAmount * 100).round();
+        reductionCents = (totalPaymentCents * debtRemainingCents) ~/ totalRemainingCents;
+        remainingPaymentCents -= reductionCents;
+      }
+      
+      // Convert back to dollars
+      final reductionAmount = reductionCents / 100.0;
+      
+      // Ensure the reduction amount doesn't exceed the debt's remaining amount
+      final maxReduction = debt.remainingAmount;
+      final finalReductionAmount = reductionAmount > maxReduction ? maxReduction : reductionAmount;
+      
+      final newPaidAmount = debt.paidAmount + finalReductionAmount;
+      final isFullyPaid = newPaidAmount >= debt.amount;
       
       // Update the debt
       final updatedDebt = debt.copyWith(
@@ -1658,6 +1693,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
         paidAt: DateTime.now(),
       );
+      
+      updatedDebts.add(updatedDebt);
       
       // Update in storage
       await appState.updateDebt(updatedDebt);
@@ -1781,11 +1818,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       // Create a single payment activity for the remaining amount that was just paid
       final remainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-      if (remainingAmount > 0) {
+      // Fix floating-point precision issues by rounding to 2 decimal places
+      final roundedRemainingAmount = ((remainingAmount * 100).round() / 100);
+      if (roundedRemainingAmount > 0) {
         await appState.addCustomerFullyPaidActivity(
           _currentCustomer.id,
           _currentCustomer.name,
-          remainingAmount, // This should be the remaining amount that was just paid
+          roundedRemainingAmount, // This should be the remaining amount that was just paid
         );
       }
       
@@ -2000,17 +2039,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final debts = entry.value;
       
       if (currency == 'USD') {
-        totalUSD += debts.fold(0.0, (sum, debt) => sum + debt.amount);
+        final usdTotal = debts.fold(0.0, (sum, debt) => sum + debt.amount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        totalUSD += ((usdTotal * 100).round() / 100);
       } else if (currency == 'LBP') {
         // Convert LBP to USD using current exchange rate
         final appState = Provider.of<AppState>(context, listen: false);
         final settings = appState.currencySettings;
         if (settings?.exchangeRate != null) {
           final lbpTotal = debts.fold(0.0, (sum, debt) => sum + debt.amount);
-          totalUSD += lbpTotal / settings!.exchangeRate!;
+          // Fix floating-point precision issues by rounding to 2 decimal places
+          final roundedLbpTotal = ((lbpTotal * 100).round() / 100);
+          final convertedAmount = roundedLbpTotal / settings!.exchangeRate!;
+          totalUSD += ((convertedAmount * 100).round() / 100);
         } else {
           // If no exchange rate, just add the LBP amount as-is
-          totalUSD += debts.fold(0.0, (sum, debt) => sum + debt.amount);
+          final lbpTotal = debts.fold(0.0, (sum, debt) => sum + debt.amount);
+          // Fix floating-point precision issues by rounding to 2 decimal places
+          totalUSD += ((lbpTotal * 100).round() / 100);
         }
       }
     }

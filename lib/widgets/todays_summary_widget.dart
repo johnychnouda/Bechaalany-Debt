@@ -14,6 +14,8 @@ class TodaysSummaryWidget extends StatelessWidget {
       builder: (context, appState, child) {
         final pendingDebts = appState.debts.where((debt) => debt.paidAmount == 0).toList();
         final totalPending = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedTotalPending = ((totalPending * 100).round() / 100);
 
         return Card(
           child: Padding(
@@ -72,7 +74,7 @@ class TodaysSummaryWidget extends StatelessWidget {
                 else
                   _SummaryRow(
                     title: 'Pending',
-                    amount: totalPending,
+                    amount: roundedTotalPending,
                     count: pendingDebts.length,
                     color: AppColors.warning,
                     icon: Icons.pending,

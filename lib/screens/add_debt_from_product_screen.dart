@@ -512,7 +512,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   Widget _buildTotalAmount() {
     final quantity = int.tryParse(_quantityController.text) ?? 1;
     final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
-    final totalAmount = quantity * unitPrice;
+    final totalAmount = quantity * unitPrice; // This is just for display purposes
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -547,7 +547,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   Widget _buildAddDebtButton() {
     final quantity = int.tryParse(_quantityController.text) ?? 1;
     final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
-    final totalAmount = quantity * unitPrice;
+    final totalAmount = quantity * unitPrice; // This is just for display purposes
     final isValid = _selectedCustomer != null && _selectedSubcategory != null && totalAmount > 0;
 
     return SizedBox(
@@ -665,37 +665,32 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         storedCurrency = 'USD';
       }
       
-      // Calculate total amount using the selling price (what customer owes)
-      totalAmount = actualSellingPrice * quantity;
-      
-      // Create description with quantity if > 1
-      String description = _selectedSubcategory!.name;
-      if (quantity > 1) {
-        // Format quantity to show decimals only if needed
-        final quantityText = quantity == quantity.toInt() 
-            ? quantity.toInt().toString() 
-            : quantity.toStringAsFixed(2);
-        description = '${_selectedSubcategory!.name} (Qty: $quantityText)';
+      // Create separate debt entries for each quantity (no multiplication)
+      for (int i = 0; i < quantity; i++) {
+        String description = _selectedSubcategory!.name;
+        if (quantity > 1) {
+          description = '${_selectedSubcategory!.name} (${i + 1}/$quantity)';
+        }
+        
+        final debt = Debt(
+          id: appState.generateDebtId(),
+          customerId: _selectedCustomer!.id,
+          customerName: _selectedCustomer!.name,
+          amount: actualSellingPrice, // Use selling price directly
+          description: description,
+          type: DebtType.credit,
+          status: DebtStatus.pending,
+          createdAt: DateTime.now(),
+          subcategoryId: _selectedSubcategory!.id,
+          subcategoryName: _selectedSubcategory!.name,
+          originalSellingPrice: actualSellingPrice,
+          originalCostPrice: actualCostPrice,
+          categoryName: _selectedCategory!.name,
+          storedCurrency: storedCurrency, // Store the original currency (LBP or USD)
+        );
+        
+        await appState.addDebt(debt);
       }
-      
-      final debt = Debt(
-        id: appState.generateDebtId(),
-        customerId: _selectedCustomer!.id,
-        customerName: _selectedCustomer!.name,
-        amount: totalAmount,
-        description: description,
-        type: DebtType.credit,
-        status: DebtStatus.pending,
-        createdAt: DateTime.now(),
-        subcategoryId: _selectedSubcategory!.id,
-        subcategoryName: _selectedSubcategory!.name,
-        originalSellingPrice: actualSellingPrice,
-        originalCostPrice: actualCostPrice,
-        categoryName: _selectedCategory!.name,
-        storedCurrency: storedCurrency, // Store the original currency (LBP or USD)
-      );
-      
-      await appState.addDebt(debt);
         
         if (mounted) {
         Navigator.of(context).pop();
