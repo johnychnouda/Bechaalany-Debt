@@ -886,31 +886,21 @@ class FirebaseDataService {
   Future<void> addActivity(Activity activity) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    print('DEBUG: FirebaseDataService.addActivity - Starting to save activity: ${activity.id}');
-    print('DEBUG: Activity type: ${activity.type}, description: ${activity.description}');
-    
     final activityData = activity.toJson();
     activityData['lastUpdated'] = FieldValue.serverTimestamp();
     activityData['userId'] = currentUserId;
     
-    print('DEBUG: Activity data to save: $activityData');
-    
     try {
       final docRef = _firestore.collection('activities').doc(activity.id);
-      print('DEBUG: About to save to document: ${docRef.path}');
       
       await docRef.set(activityData, SetOptions(merge: true));
       
       // Verify the document was actually saved
       final savedDoc = await docRef.get();
-      if (savedDoc.exists) {
-        print('DEBUG: Activity ${activity.id} successfully saved to Firebase and verified');
-        print('DEBUG: Saved document data: ${savedDoc.data()}');
-      } else {
-        print('DEBUG: ERROR - Activity ${activity.id} was not saved to Firebase');
+      if (!savedDoc.exists) {
+        throw Exception('Activity was not saved to Firebase');
       }
     } catch (e) {
-      print('DEBUG: Error saving activity to Firebase: $e');
       rethrow;
     }
   }
@@ -1787,9 +1777,50 @@ class FirebaseDataService {
     }
   }
 
-  // Remove phantom activities (same as clearActivities for now)
+  // Remove phantom activities - activities that don't have corresponding debts
   Future<void> removePhantomActivities() async {
-    await clearActivities();
+    try {
+      // Get all activities
+      final activitiesSnapshot = await _firestore
+          .collection('activities')
+          .get()
+          .timeout(const Duration(seconds: 30));
+      
+      if (activitiesSnapshot.docs.isEmpty) {
+        return;
+      }
+      
+      // Get all debt IDs
+      final debtsSnapshot = await _firestore
+          .collection('debts')
+          .get()
+          .timeout(const Duration(seconds: 30));
+      
+      final debtIds = debtsSnapshot.docs.map((doc) => doc.id).toSet();
+      
+      // Find phantom activities (activities with debtId that no longer exists)
+      final phantomActivities = <String>[];
+      for (final doc in activitiesSnapshot.docs) {
+        final data = doc.data();
+        final debtId = data['debtId'] as String?;
+        
+        // If activity has a debtId but that debt no longer exists, it's a phantom
+        if (debtId != null && !debtIds.contains(debtId)) {
+          phantomActivities.add(doc.id);
+        }
+      }
+      
+      // Remove phantom activities
+      if (phantomActivities.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final activityId in phantomActivities) {
+          batch.delete(_firestore.collection('activities').doc(activityId));
+        }
+        await batch.commit().timeout(const Duration(seconds: 30));
+      }
+    } catch (e) {
+      // Handle error silently - don't break the app
+    }
   }
   
   // Clear all data for current user (customers, debts, products, activities, payments)

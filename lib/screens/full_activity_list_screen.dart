@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
-import '../models/debt.dart';
 import '../utils/currency_formatter.dart';
-import '../utils/debt_description_utils.dart';
 
 enum ActivityView { daily, weekly, monthly, yearly }
 
@@ -117,6 +114,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             ? 'No activities found for "$_searchQuery"'
             : _getEmptyMessage(view);
 
+        // Get period-specific financial data from AppState
+        final periodData = appState.getPeriodFinancialData(_getPeriodString(view));
+
         return Column(
           children: [
             Container(
@@ -134,127 +134,127 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     maxLines: 1,
                     textAlign: TextAlign.center,
                   ),
-                                    const SizedBox(height: 8),
-                                    // Revenue Summary Cards - Compact Design
+                  const SizedBox(height: 8),
+                  // Revenue Summary Cards - Using AppState data
                   Row(
                     children: [
-                         // Total Revenue Card
-                         Expanded(
-                           child: Container(
-                             padding: const EdgeInsets.all(6),
-                             decoration: BoxDecoration(
-                               color: AppColors.dynamicSuccess(context).withOpacity(0.1),
-                               borderRadius: BorderRadius.circular(6),
-                               border: Border.all(
-                                 color: AppColors.dynamicSuccess(context).withOpacity(0.3),
-                                 width: 1,
-                               ),
-                             ),
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.center,
-                               children: [
-                                 Row(
-                                   children: [
-                                     Container(
-                                       padding: const EdgeInsets.all(3),
-                                       decoration: BoxDecoration(
-                                         color: AppColors.dynamicSuccess(context).withOpacity(0.15),
-                                         borderRadius: BorderRadius.circular(6),
-                                       ),
-                                       child: Icon(
-                                         Icons.trending_up_rounded,
-                                         color: AppColors.dynamicSuccess(context),
-                                         size: 16,
-                                       ),
-                                     ),
-                                     const SizedBox(width: 6),
-                                     Text(
-                                       'Total Revenue',
-                                       style: TextStyle(
-                                         fontSize: 12,
-                                         fontWeight: FontWeight.w600,
-                                         color: AppColors.dynamicTextSecondary(context),
-                                       ),
-                                       overflow: TextOverflow.ellipsis,
-                                     ),
-                                   ],
-                                 ),
-                                 const SizedBox(height: 1),
-                                 Center(
-                                   child: Text(
-                                     CurrencyFormatter.formatAmount(context, _calculateTotalRevenueForPeriod(appState, view)),
-                                     style: TextStyle(
-                                       fontSize: 14,
-                                       fontWeight: FontWeight.bold,
-                                       color: AppColors.dynamicTextPrimary(context),
-                                     ),
-                                     overflow: TextOverflow.ellipsis,
-                                   ),
-                                 ),
-                               ],
-                             ),
-                           ),
-                         ),
-                         const SizedBox(width: 12),
-                         // Total Paid Card
-                         Expanded(
-                           child: Container(
-                             padding: const EdgeInsets.all(6),
-                             decoration: BoxDecoration(
-                               color: AppColors.dynamicPrimary(context).withOpacity(0.1),
-                               borderRadius: BorderRadius.circular(6),
-                               border: Border.all(
-                                 color: AppColors.dynamicPrimary(context).withOpacity(0.3),
-                                 width: 1,
-                               ),
-                             ),
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.center,
-                               children: [
-                                 Row(
-                                   children: [
-                                     Container(
-                                       padding: const EdgeInsets.all(3),
-                                       decoration: BoxDecoration(
-                                         color: AppColors.dynamicPrimary(context).withOpacity(0.15),
-                                         borderRadius: BorderRadius.circular(6),
-                                       ),
-                                       child: Icon(
-                                         Icons.payment_rounded,
-                                         color: AppColors.dynamicPrimary(context),
-                                         size: 16,
-                                       ),
-                                     ),
-                                     const SizedBox(width: 6),
-                                     Text(
-                                       'Total Paid',
-                                       style: TextStyle(
-                                         fontSize: 12,
-                                         fontWeight: FontWeight.w600,
-                                         color: AppColors.dynamicTextSecondary(context),
-                                       ),
-                                       overflow: TextOverflow.ellipsis,
-                                     ),
-                                   ],
-                                 ),
-                                 const SizedBox(height: 1),
-                                 Center(
-                                   child: Text(
-                                     CurrencyFormatter.formatAmount(context, _calculateTotalPaidForPeriod(appState, view)),
-                                     style: TextStyle(
-                                       fontSize: 14,
-                                       fontWeight: FontWeight.bold,
-                                       color: AppColors.dynamicTextPrimary(context),
-                                     ),
-                                     overflow: TextOverflow.ellipsis,
-                                   ),
-                                 ),
-                               ],
-                             ),
-                           ),
-                         ),
-                       ],
-                     ),
+                      // Total Revenue Card
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.dynamicSuccess(context).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppColors.dynamicSuccess(context).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.dynamicSuccess(context).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Icon(
+                                      Icons.trending_up_rounded,
+                                      color: AppColors.dynamicSuccess(context),
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Total Revenue',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dynamicTextSecondary(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
+                              Center(
+                                child: Text(
+                                  CurrencyFormatter.formatAmount(context, periodData['totalRevenue'] ?? 0.0),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.dynamicTextPrimary(context),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Total Paid Card
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.dynamicPrimary(context).withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Icon(
+                                      Icons.payment_rounded,
+                                      color: AppColors.dynamicPrimary(context),
+                                      size: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Total Paid',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dynamicTextSecondary(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 1),
+                              Center(
+                                child: Text(
+                                  CurrencyFormatter.formatAmount(context, periodData['totalPaid'] ?? 0.0),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.dynamicTextPrimary(context),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -299,7 +299,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: filteredActivities.length,
                       itemBuilder: (context, index) {
-                        return _buildActivityItem(filteredActivities[index]);
+                        return _buildActivityItem(context, filteredActivities[index], appState);
                       },
                     ),
             ),
@@ -332,7 +332,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     );
   }
 
-  Widget _buildActivityItem(Activity activity) {
+  Widget _buildActivityItem(BuildContext context, Activity activity, AppState appState) {
     IconData icon;
     Color iconColor;
     Color backgroundColor;
@@ -363,45 +363,54 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         }
         break;
       case ActivityType.newDebt:
-        // Check if this debt is still pending or has been paid
+        // Check the specific debt's payment status
         if (activity.debtId != null) {
-          // Try to find the current debt status
-          final appState = Provider.of<AppState>(context, listen: false);
           final currentDebt = appState.debts.where(
             (debt) => debt.id == activity.debtId,
           ).firstOrNull;
           
           if (currentDebt != null) {
-            // Use customer-level status to determine display
-            final isCustomerFullyPaid = appState.isCustomerFullyPaid(currentDebt.customerId);
             
-            if (isCustomerFullyPaid) {
-              // Customer has settled ALL debts - show blue checkmark
+            // Check the specific debt's payment status
+            if (currentDebt.paidAmount >= currentDebt.amount) {
+              // This specific debt is fully paid - show blue checkmark
               icon = Icons.check_circle;
-              iconColor = AppColors.info;
-              backgroundColor = AppColors.info.withValues(alpha: 0.1);
+              iconColor = AppColors.primary;
+              backgroundColor = AppColors.primary.withValues(alpha: 0.1);
               statusText = 'Debt Paid';
-            } else {
-              // Customer still has outstanding debts - show clock icon to indicate waiting
-              icon = Icons.schedule;
+            } else if (currentDebt.paidAmount > 0.1) {
+              // This specific debt has partial payments - show red for outstanding debt
+              icon = Icons.payment;
               iconColor = AppColors.error;
               backgroundColor = AppColors.error.withValues(alpha: 0.1);
               statusText = 'Outstanding Debt';
+            } else {
+              // This specific debt has no payments - show blue plus
+              icon = Icons.add_circle;
+              iconColor = AppColors.primary;
+              backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+              statusText = 'New Debt';
             }
           } else {
-            // Debt not found - show as outstanding
-            icon = Icons.schedule;
-            iconColor = AppColors.error;
-            backgroundColor = AppColors.error.withValues(alpha: 0.1);
-            statusText = 'Outstanding Debt';
+            // Debt not found - show as "New Debt" with blue plus
+            icon = Icons.add_circle;
+            iconColor = AppColors.primary;
+            backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+            statusText = 'New Debt';
           }
         } else {
-          // Fallback to blue plus if no debt ID
-          icon = Icons.add_shopping_cart;
+          // No debt ID - show as "New Debt" with blue plus
+          icon = Icons.add_circle;
           iconColor = AppColors.primary;
           backgroundColor = AppColors.primary.withValues(alpha: 0.1);
           statusText = 'New Debt';
         }
+        break;
+      case ActivityType.debtCleared:
+        icon = Icons.check_circle;
+        iconColor = AppColors.primary;
+        backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+        statusText = 'Debt Paid';
         break;
       default:
         icon = Icons.info;
@@ -612,6 +621,19 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }
   }
 
+  String _getPeriodString(ActivityView view) {
+    switch (view) {
+      case ActivityView.daily:
+        return 'daily';
+      case ActivityView.weekly:
+        return 'weekly';
+      case ActivityView.monthly:
+        return 'monthly';
+      case ActivityView.yearly:
+        return 'yearly';
+    }
+  }
+
   List<Activity> _getActivitiesForView(AppState appState, ActivityView view) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -677,7 +699,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       // Simple inclusive comparison using timestamps
       final isWithinPeriod = activityTimestamp >= startTimestamp && activityTimestamp <= endTimestamp;
       
-      
       if (isWithinPeriod) {
         // Show all activities within the period - no additional filtering
         activities.add(activity);
@@ -714,180 +735,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }).toList();
   }
 
-  /// Calculate total revenue for a specific time period view using the same logic as main dashboard
-  double _calculateTotalRevenueForPeriod(AppState appState, ActivityView view) {
-    // Get the date range for the selected view
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    
-    DateTime startDate;
-    DateTime endDate;
-    
-    switch (view) {
-      case ActivityView.daily:
-        // Today only (not last 24 hours)
-        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0); // Start of today
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59); // End of today
-        break;
-      case ActivityView.weekly:
-        // This week (Monday to Sunday) - inclusive
-        // weekday returns 1=Monday, 2=Tuesday, ..., 7=Sunday
-        // If today is Sunday (weekday=7), we want to go back 6 days to Monday
-        // If today is Monday (weekday=1), we want to go back 0 days
-        final daysFromMonday = today.weekday - 1;
-        startDate = DateTime(today.year, today.month, today.day - daysFromMonday);
-        endDate = DateTime(today.year, today.month, today.day, 23, 59, 59); // End of today
-        break;
-      case ActivityView.monthly:
-        // This month - inclusive
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-        break;
-      case ActivityView.yearly:
-        // This year - inclusive
-        startDate = DateTime(now.year, 1, 1);
-        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
-        break;
-    }
-    
-
-    
-    // Filter debts that were created or had payments within the selected period
-    final relevantDebts = <String>{}; // Set to avoid duplicates
-    
-    // Add debts created within the period (inclusive of boundaries)
-    for (final debt in appState.debts) {
-      // Check if debt was created within the date range (inclusive)
-      if (debt.createdAt.isAtSameMomentAs(startDate) || 
-          debt.createdAt.isAtSameMomentAs(endDate) ||
-          (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))) {
-        relevantDebts.add(debt.id);
-      }
-    }
-    
-    // Add debts that had payments within the period (inclusive of boundaries)
-    for (final activity in appState.activities) {
-      if (activity.type == ActivityType.payment) {
-        // Check if payment activity was within the date range (inclusive)
-        if ((activity.date.isAtSameMomentAs(startDate) || 
-             activity.date.isAtSameMomentAs(endDate) ||
-             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
-            activity.debtId != null) {
-          relevantDebts.add(activity.debtId!);
-        }
-      }
-    }
-    
-    // Calculate revenue using the same logic as main dashboard
-    double totalRevenue = 0.0;
-    
-    for (final debtId in relevantDebts) {
-      final associatedDebts = appState.debts.where((d) => d.id == debtId).toList();
-      if (associatedDebts.isEmpty) continue;
-      
-      final debt = associatedDebts.first;
-      
-      if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-        final debtRevenue = debt.originalSellingPrice! - debt.originalCostPrice!;
-        
-        // Check if customer is fully paid (same logic as main dashboard)
-        final isCustomerFullyPaid = appState.isCustomerFullyPaid(debt.customerId);
-        final isCustomerPartiallyPaid = appState.isCustomerPartiallyPaid(debt.customerId);
-        
-        if (isCustomerFullyPaid) {
-          // Customer has settled ALL debts - recognize full revenue for this debt
-          totalRevenue += debtRevenue;
-        } else if (isCustomerPartiallyPaid && debt.paidAmount > 0) {
-          // Customer has made some payments but not settled all debts - recognize proportional revenue
-          totalRevenue += debt.earnedRevenue;
-        }
-        // If customer is pending (no payments), no revenue is recognized
-      }
-    }
-    
-    // Revenue calculation is already in USD (same as debt amounts)
-    // No currency conversion needed - return the calculated revenue directly
-    return totalRevenue;
-  }
-
-  /// Calculate total payments made by customers for a specific time period view
-  double _calculateTotalPaidForPeriod(AppState appState, ActivityView view) {
-    // Get the date range for the selected view
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    
-    DateTime startDate;
-    DateTime endDate;
-    
-    switch (view) {
-      case ActivityView.daily:
-        // Today only (not last 24 hours)
-        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0); // Start of today
-        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59); // End of today
-        break;
-      case ActivityView.weekly:
-        // This week (Monday to Sunday) - inclusive
-        // weekday returns 1=Monday, 2=Tuesday, ..., 7=Sunday
-        // If today is Sunday (weekday=7), we want to go back 6 days to Monday
-        // If today is Monday (weekday=1), we want to go back 0 days
-        final daysFromMonday = today.weekday - 1;
-        startDate = DateTime(today.year, today.month, today.day - daysFromMonday);
-        endDate = DateTime(today.year, today.month, today.day, 23, 59, 59); // End of today
-        break;
-      case ActivityView.monthly:
-        // This month - inclusive
-        startDate = DateTime(now.year, now.month, 1);
-        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-        break;
-      case ActivityView.yearly:
-        // This year - inclusive
-        startDate = DateTime(now.year, 1, 1);
-        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
-        break;
-    }
-    
-    // Calculate total payments made within the selected period
-    double totalPaid = 0.0;
-    
-    // ALWAYS use debt data for accurate total paid calculation
-    // This prevents issues with duplicate activities and ensures accuracy
-    final relevantDebts = <String>{}; // Set to avoid duplicates
-    
-    // Add debts created within the period (inclusive of boundaries)
-    for (final debt in appState.debts) {
-      if (debt.createdAt.isAtSameMomentAs(startDate) || 
-          debt.createdAt.isAtSameMomentAs(endDate) ||
-          (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))) {
-        relevantDebts.add(debt.id);
-      }
-    }
-    
-    // Add debts that had payments within the period (inclusive of boundaries)
-    for (final activity in appState.activities) {
-      if (activity.type == ActivityType.payment) {
-        if ((activity.date.isAtSameMomentAs(startDate) || 
-             activity.date.isAtSameMomentAs(endDate) ||
-             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
-            activity.debtId != null) {
-          relevantDebts.add(activity.debtId!);
-        }
-      }
-    }
-    
-    // Calculate total paid amount from debt records' paidAmount field
-    // This is the most reliable source since paidAmount is directly maintained
-    for (final debtId in relevantDebts) {
-      final associatedDebts = appState.debts.where((d) => d.id == debtId).toList();
-      if (associatedDebts.isEmpty) continue;
-      
-      final debt = associatedDebts.first;
-      totalPaid += debt.paidAmount;
-    }
-    
-    // Payment amounts are already in USD (same as debt amounts)
-    // No currency conversion needed - return the calculated total directly
-    return totalPaid;
-  }
 
   /// Get a user-friendly label for the current time period
   String _getPeriodLabel(ActivityView view) {

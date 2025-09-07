@@ -8,7 +8,6 @@ import '../utils/logo_utils.dart';
 
 import '../screens/settings_screen.dart';
 
-import 'activity_widget.dart';
 import 'top_debtors_widget.dart';
 import 'profit_loss_widget.dart';
 import 'total_debtors_widget.dart';
@@ -44,18 +43,6 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
   void _initializeWidgets() {
     _availableWidgets = [
       DashboardWidget(
-        id: 'weekly_activity',
-        title: 'Activity Widget',
-        icon: Icons.trending_up,
-        color: AppColors.success,
-        widget: Consumer<AppState>(
-          builder: (context, appState, child) => ActivityWidget(
-            activities: appState.activities,
-          ),
-        ),
-        isEnabled: true,
-      ),
-      DashboardWidget(
         id: 'top_debtors',
         title: 'Top Debtors',
         icon: Icons.people,
@@ -88,8 +75,8 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
   // Method to get the default widget order for first-time installations
   List<DashboardWidget> _getDefaultWidgetOrder() {
-    // Default order: 1- Revenue/Debts Analysis, 2- Activity Widget, 3- Total Customers and Debtors, 4- Top Debtors
-    final defaultOrder = ['profit_loss', 'weekly_activity', 'total_debtors', 'top_debtors'];
+    // Default order: 1- Revenue/Debts Analysis, 2- Total Customers and Debtors, 3- Top Debtors
+    final defaultOrder = ['profit_loss', 'total_debtors', 'top_debtors'];
     
     final orderedWidgets = <DashboardWidget>[];
     
@@ -106,21 +93,28 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
     SharedPreferences.getInstance().then((prefs) {
       final enabledWidgetIds = prefs.getStringList('dashboard_widget_order') ?? [];
       
-      if (enabledWidgetIds.isNotEmpty) {
+      // Force remove the activity widget from preferences if it exists
+      final filteredWidgetIds = enabledWidgetIds.where((id) => id != 'weekly_activity').toList();
+      if (filteredWidgetIds.length != enabledWidgetIds.length) {
+        // Save the filtered preferences to remove the activity widget
+        prefs.setStringList('dashboard_widget_order', filteredWidgetIds);
+      }
+      
+      if (filteredWidgetIds.isNotEmpty) {
         // User has custom preferences - load them
         final orderedWidgets = <DashboardWidget>[];
         final availableWidgetIds = _availableWidgets.map((w) => w.id).toSet();
         
-        for (final widgetId in enabledWidgetIds) {
-          if (availableWidgetIds.contains(widgetId)) {
+        for (final widgetId in filteredWidgetIds) {
+          if (availableWidgetIds.contains(widgetId) && widgetId != 'weekly_activity') {
             final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
             orderedWidgets.add(widget);
           }
         }
         
-        // Add any remaining widgets that weren't in the saved order
+        // Add any remaining widgets that weren't in the saved order (except activity widget)
         for (final widget in _availableWidgets) {
-          if (!orderedWidgets.any((w) => w.id == widget.id)) {
+          if (!orderedWidgets.any((w) => w.id == widget.id) && widget.id != 'weekly_activity') {
             orderedWidgets.add(widget);
           }
         }

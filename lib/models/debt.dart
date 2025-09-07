@@ -215,7 +215,6 @@ class Debt {
     // Round to 2 decimal places to avoid floating-point precision errors
     final result = ((remaining * 100).round() / 100);
     
-    print('DEBUG: Debt $id remainingRevenue calculation: revenuePerDollar=$revenuePerDollar, remainingAmount=$remainingAmount, result=$result');
     
     return result;
   }

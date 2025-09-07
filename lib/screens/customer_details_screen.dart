@@ -127,7 +127,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     }).toList();
   }
   
-  // Helper method to get current debt cycle (show ONLY new products with remaining amounts)
+  // Helper method to get current debt cycle (show ONLY products with remaining amounts)
   List<Debt> _getCurrentDebtCycle(List<Debt> allCustomerDebts) {
     if (allCustomerDebts.isEmpty) return [];
     
@@ -135,9 +135,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final sortedDebts = List<Debt>.from(allCustomerDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     
-    // Show ALL debts until customer pays ALL their total pending debt
-    // Products should remain in the list until customer is fully settled
-    return sortedDebts;
+    // Filter out fully paid debts - only show debts with remaining amounts
+    return sortedDebts.where((debt) => debt.remainingAmount > 0).toList();
   }
 
   // Helper method to format dates
@@ -1005,11 +1004,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // A debt cycle starts when customer makes new purchases after having no pending amount
         final customerActiveDebts = _getCurrentDebtCycle(customerAllDebts);
         
-        // Simple calculation: Sum up remaining amounts from debt records
+        // Simple calculation: Sum up remaining amounts from debt records (only active debts)
         final totalPendingDebt = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
         
-        // Simple calculation: Sum up paid amounts from debt records
-        final totalPaid = customerActiveDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+        // Simple calculation: Sum up paid amounts from ALL debt records (including fully paid ones)
+        final totalPaid = customerAllDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
 
         return Scaffold(
           backgroundColor: AppColors.dynamicBackground(context),
@@ -1630,7 +1629,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       _payFullAmountForAllDebts(pendingDebts, context);
     } else {
       // This is a partial payment - apply to total debt amount (not individual debts)
-      print('DEBUG: Applying partial payment of $paymentAmount to total debt amount');
       _applyPaymentToTotalDebt(pendingDebts, paymentAmount, context);
     }
   }
@@ -1641,15 +1639,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     if (pendingDebts.isEmpty) return;
     
-    print('DEBUG: Applying $paymentAmount to total debt amount for customer ${_currentCustomer.id}');
-    
     // Calculate the total remaining debt
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-    print('DEBUG: Total remaining debt: $totalRemaining');
     
     // Calculate how much to reduce each debt proportionally
     final reductionRatio = paymentAmount / totalRemaining;
-    print('DEBUG: Reduction ratio: $reductionRatio');
     
     // Apply proportional reduction to each debt
     for (final debt in pendingDebts) {
@@ -1657,7 +1651,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final newPaidAmount = debt.paidAmount + reductionAmount;
       final isFullyPaid = newPaidAmount >= debt.amount;
       
-      print('DEBUG: Debt ${debt.id} - reducing by $reductionAmount, new paidAmount: $newPaidAmount');
       
       // Update the debt
       final updatedDebt = debt.copyWith(
@@ -1676,20 +1669,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       }
     }
     
-    // Create payment activity for each debt that was affected
-    for (final debt in pendingDebts) {
-      final reductionAmount = debt.remainingAmount * reductionRatio;
-      if (reductionAmount > 0) {
-        final updatedDebt = appState.debts.firstWhere((d) => d.id == debt.id);
-        final isFullyPaid = updatedDebt.status == DebtStatus.paid;
-        
-        await appState.addPaymentActivity(
-          updatedDebt, 
-          reductionAmount, 
-          DebtStatus.pending, 
-          updatedDebt.status
-        );
-      }
+    // Create ONE consolidated payment activity for the entire payment amount
+    if (paymentAmount > 0) {
+      final firstDebt = pendingDebts.first;
+      final consolidatedActivity = Activity(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        customerId: firstDebt.customerId,
+        customerName: firstDebt.customerName,
+        type: ActivityType.payment,
+        description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
+        paymentAmount: paymentAmount,
+        amount: paymentAmount,
+        oldStatus: DebtStatus.pending,
+        newStatus: DebtStatus.pending,
+        date: DateTime.now(),
+        debtId: null, // No specific debt ID for consolidated payments
+      );
+      
+      await appState.addActivity(consolidatedActivity);
     }
     
     // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
@@ -1703,7 +1700,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     await Future.delayed(Duration(milliseconds: 500));
     appState.notifyListeners();
     
-    print('DEBUG: Successfully applied $paymentAmount to total debt amount with forced updates');
   }
   
   // Apply payment sequentially to debts (oldest first)
@@ -1723,7 +1719,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final debtRemaining = debt.remainingAmount;
       final paymentToThisDebt = remainingPayment > debtRemaining ? debtRemaining : remainingPayment;
       
-      print('DEBUG: Applying $paymentToThisDebt to debt ${debt.id} (${debt.description})');
       
       // Calculate new paid amount
       final newPaidAmount = debt.paidAmount + paymentToThisDebt;
@@ -1748,7 +1743,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // Reduce remaining payment
       remainingPayment -= paymentToThisDebt;
       
-      print('DEBUG: Debt ${debt.id} updated - paidAmount: $newPaidAmount, remainingAmount: ${updatedDebt.remainingAmount}');
     }
     
     // Create activity for the total payment
@@ -1771,7 +1765,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     // Notify listeners
     appState.notifyListeners();
     
-    print('DEBUG: Successfully applied $paymentAmount sequentially to debts');
   }
   
   // Pay the exact remaining amount for each debt to make them fully paid

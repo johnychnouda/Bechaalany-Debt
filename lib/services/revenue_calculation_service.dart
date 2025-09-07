@@ -25,7 +25,6 @@ class RevenueCalculationService {
         final profitFromPaidAmount = debt.paidAmount * profitMargin;
         totalRevenue += profitFromPaidAmount;
         
-        print('DEBUG: Revenue Service - Debt ${debt.id}: paidAmount=${debt.paidAmount}, profitMargin=${profitMargin.toStringAsFixed(3)}, profitFromPaid=${profitFromPaidAmount.toStringAsFixed(2)}');
       }
     }
     
@@ -210,7 +209,6 @@ class RevenueCalculationService {
   /// Provides aggregated revenue data for the main dashboard
   /// Now considers customer-level debt status for accurate revenue recognition
   Map<String, dynamic> getDashboardRevenueSummary(List<Debt> allDebts, {List<Activity>? activities, AppState? appState}) {
-    print('DEBUG: getDashboardRevenueSummary called with ${allDebts.length} debts');
     double totalRevenue = 0.0;
     double totalPotentialRevenue = 0.0;
     double totalPaidAmount = 0.0;
@@ -254,14 +252,10 @@ class RevenueCalculationService {
           final remainingRevenue = debt.remainingRevenue;
           totalPotentialRevenue += remainingRevenue;
           
-          print('DEBUG: Potential Revenue - Debt ${debt.id}: amount=${debt.amount}, paidAmount=${debt.paidAmount}, remainingAmount=${debt.remainingAmount}, originalRevenue=${debt.originalRevenue}, remainingRevenue=$remainingRevenue');
         } else {
           // Fallback: use remaining debt amount as potential revenue when cost prices aren't set
           totalPotentialRevenue += debt.remainingAmount;
-          print('DEBUG: Potential Revenue - Debt ${debt.id}: No cost prices, using remainingAmount=${debt.remainingAmount}');
         }
-      } else {
-        print('DEBUG: Potential Revenue - Debt ${debt.id}: SKIPPED (fully paid: remainingAmount=${debt.remainingAmount})');
       }
       
       totalPaidAmount += debt.paidAmount;
@@ -295,19 +289,11 @@ class RevenueCalculationService {
     
     totalCustomers = customerIds.length;
     
-    print('DEBUG: BEFORE rounding - totalRevenue=$totalRevenue, totalPotentialRevenue=$totalPotentialRevenue, totalPaidAmount=$totalPaidAmount, totalDebtAmount=$totalDebtAmount');
-    print('DEBUG: Individual debt paid amounts:');
-    for (final debt in allDebts) {
-      print('  Debt ${debt.id}: paidAmount=${debt.paidAmount}');
-    }
-    
     // CRITICAL: Round all financial values to exactly 2 decimal places to avoid floating-point precision errors
     totalRevenue = (totalRevenue * 100).round() / 100;
     totalPotentialRevenue = (totalPotentialRevenue * 100).round() / 100;
     totalPaidAmount = (totalPaidAmount * 100).round() / 100;
     totalDebtAmount = (totalDebtAmount * 100).round() / 100;
-    
-    print('DEBUG: AFTER rounding - totalRevenue=$totalRevenue, totalPotentialRevenue=$totalPotentialRevenue, totalPaidAmount=$totalPaidAmount, totalDebtAmount=$totalDebtAmount');
     
     return {
       'totalRevenue': totalRevenue,

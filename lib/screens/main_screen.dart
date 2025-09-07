@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
-
 import 'products_screen.dart';
+import 'full_activity_list_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -72,6 +72,44 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget _buildActivitiesNavigationItem() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => const FullActivityListScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.transparent,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.history_rounded,
+              size: 24,
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Activities',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.normal,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,6 +154,7 @@ class _MainScreenState extends State<MainScreen> {
                   label: 'Products',
                   isSelected: _currentIndex == 2,
                 ),
+                _buildActivitiesNavigationItem(),
               ],
             ),
           ),

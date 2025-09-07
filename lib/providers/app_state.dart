@@ -41,6 +41,7 @@ class AppState extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSyncing = false;
   bool _hasRunMigration = false; // Flag to prevent multiple migrations
+  bool _hasLoadedActivities = false; // Flag to track if activities have been loaded
   
   // Firebase stream initialization flag
   bool _streamsInitialized = false;
@@ -68,6 +69,9 @@ class AppState extends ChangeNotifier {
   // Constructor to load settings immediately for theme persistence
   AppState() {
     _loadSettingsSync();
+    
+    // Reset flags on app initialization
+    _hasLoadedActivities = false;
     
     // Initialize Firebase streams immediately for all platforms
     _initializeFirebaseStreams();
@@ -196,7 +200,6 @@ class AppState extends ChangeNotifier {
     );
     
     // RE-ENABLE Firebase stream for debts with improved race condition protection
-    print('DEBUG: Firebase debts stream enabled with race condition protection');
     
     // Listen to debts stream
     _dataService.debtsFirebaseStream.listen(
@@ -264,10 +267,6 @@ class AppState extends ChangeNotifier {
     // Listen to activities stream
     _dataService.activitiesFirebaseStream.listen(
       (activities) {
-        print('DEBUG: Firebase activities stream received ${activities.length} activities');
-        for (final activity in activities) {
-          print('DEBUG: Loaded activity - id: ${activity.id}, type: ${activity.type}, description: ${activity.description}');
-        }
         
         // WEB APP FIX: Always update activities from Firebase stream for real-time updates
         if (activities.isNotEmpty) {
@@ -275,9 +274,19 @@ class AppState extends ChangeNotifier {
           
           // Clean up duplicate "Fully paid" activities when activities are loaded
           removeDuplicateFullyPaidActivities();
+          
+          _hasLoadedActivities = true; // Mark that we've loaded activities
         } else {
-          // If Firebase returns empty, set to empty (allows real-time removal)
-          _activities = [];
+          // CRITICAL FIX: Never clear activities when Firebase returns empty
+          // This prevents activities from disappearing due to temporary Firebase issues
+          // Only clear activities if this is the very first load and we have no local activities
+          if (_activities.isEmpty && !_hasLoadedActivities) {
+            _activities = [];
+          }
+          // Otherwise, keep existing activities to prevent UI flickering
+          
+          // Don't set _hasLoadedActivities to true when Firebase returns empty
+          // This ensures we can still load fresh data on subsequent restarts
         }
         
         // Always run duplicate cleanup after any activity update
@@ -613,21 +622,11 @@ class AppState extends ChangeNotifier {
       Future.microtask(() => fixCorruptedDebtPrices());
     }
     
-    // DEBUG: Check debt data for revenue calculation
-    print('DEBUG: Revenue Calculation - Checking debt data:');
-    for (final debt in _debts) {
-      print('  Debt ${debt.id}: costPrice=${debt.originalCostPrice}, sellingPrice=${debt.originalSellingPrice}, amount=${debt.amount}');
-    }
-    
     // Revenue calculation service returns values in USD (same as debt amounts)
     final revenue = RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
     
-    print('DEBUG: Revenue Calculation - Raw revenue: $revenue');
-    
     // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
     final roundedRevenue = (revenue * 100).round() / 100;
-    
-    print('DEBUG: Revenue Calculation - Rounded revenue: $roundedRevenue');
     
     // No currency conversion needed - revenue is already in USD
     return roundedRevenue;
@@ -676,7 +675,100 @@ class AppState extends ChangeNotifier {
     };
   }
 
-
+  // Period-specific financial data for Activity History
+  Map<String, dynamic> getPeriodFinancialData(String period) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    DateTime startDate;
+    DateTime endDate;
+    
+    switch (period.toLowerCase()) {
+      case 'daily':
+        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        break;
+      case 'weekly':
+        final daysFromMonday = today.weekday - 1;
+        startDate = DateTime(today.year, today.month, today.day - daysFromMonday);
+        endDate = DateTime(today.year, today.month, today.day, 23, 59, 59);
+        break;
+      case 'monthly':
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        break;
+      case 'yearly':
+        startDate = DateTime(now.year, 1, 1);
+        endDate = DateTime(now.year, 12, 31, 23, 59, 59);
+        break;
+      default:
+        // Default to daily
+        startDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    }
+    
+    // Get relevant debts for the period
+    final relevantDebts = <String>{};
+    
+    // Add debts created within the period
+    for (final debt in _debts) {
+      if (debt.createdAt.isAtSameMomentAs(startDate) || 
+          debt.createdAt.isAtSameMomentAs(endDate) ||
+          (debt.createdAt.isAfter(startDate) && debt.createdAt.isBefore(endDate))) {
+        relevantDebts.add(debt.id);
+      }
+    }
+    
+    // Add debts that had payments within the period
+    for (final activity in _activities) {
+      if (activity.type == ActivityType.payment) {
+        if ((activity.date.isAtSameMomentAs(startDate) || 
+             activity.date.isAtSameMomentAs(endDate) ||
+             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
+            activity.debtId != null) {
+          relevantDebts.add(activity.debtId!);
+        }
+      }
+    }
+    
+    // Filter debts for the period and use the same calculation logic as dashboard
+    final periodDebts = _debts.where((debt) => relevantDebts.contains(debt.id)).toList();
+    final periodActivities = _activities.where((activity) {
+      if (activity.type == ActivityType.payment) {
+        return (activity.date.isAtSameMomentAs(startDate) || 
+                activity.date.isAtSameMomentAs(endDate) ||
+                (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)));
+      }
+      return false;
+    }).toList();
+    
+    // Use the same RevenueCalculationService as the dashboard for consistency
+    final revenue = RevenueCalculationService().calculateTotalRevenue(
+      periodDebts, 
+      _partialPayments, 
+      activities: periodActivities, 
+      appState: this
+    );
+    
+    // Calculate total paid amount from debt records' paidAmount field
+    double periodPaid = 0.0;
+    for (final debt in periodDebts) {
+      periodPaid += debt.paidAmount;
+    }
+    
+    // Round to 2 decimal places (same as dashboard)
+    final periodRevenue = (revenue * 100).round() / 100;
+    periodPaid = (periodPaid * 100).round() / 100;
+    
+    return {
+      'totalRevenue': periodRevenue,
+      'totalPaid': periodPaid,
+      'period': period,
+      'startDate': startDate,
+      'endDate': endDate,
+      'calculatedAt': DateTime.now(),
+    };
+  }
 
   // DATA MIGRATION METHODS - Critical for revenue calculation accuracy
   /// Run data migration to ensure all debts have cost price information
@@ -1211,7 +1303,6 @@ class AppState extends ChangeNotifier {
   
   /// Debug method to print all payment activities
   void debugPrintPaymentActivities() {
-    print('DEBUG: All Payment Activities:');
     double total = 0.0;
     for (final activity in _activities) {
       if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
@@ -1219,21 +1310,12 @@ class AppState extends ChangeNotifier {
         total += activity.paymentAmount!;
       }
     }
-    print('DEBUG: Total Payment Activities: \$${total.toStringAsFixed(2)}');
   }
   
 
   
   /// Remove phantom activities created during backup testing
-  Future<void> removePhantomActivities() async {
-    try {
-      await _dataService.removePhantomActivities();
-      // Refresh data after removing phantom activities
-      await refresh();
-    } catch (e) {
-      // Handle error silently for now
-    }
-  }
+  // Phantom activities are handled by duplicate removal logic
 
   /// Remove duplicate payment activities that might be causing incorrect totals
   Future<void> removeDuplicatePaymentActivities() async {
@@ -1285,8 +1367,7 @@ class AppState extends ChangeNotifier {
       // First, remove duplicate payment activities
       await removeDuplicatePaymentActivities();
       
-      // Then, remove phantom activities
-      await removePhantomActivities();
+      // Phantom activities are handled by duplicate removal logic
       
       // Clear cache and refresh
       _clearCache();
@@ -1312,12 +1393,8 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Debug: Print debt data
-      print('DEBUG: Force refresh completed. Current debts:');
-      for (final debt in _debts) {
-        print('  Debt ${debt.id}: amount=${debt.amount}, paidAmount=${debt.paidAmount}, remainingAmount=${debt.remainingAmount}');
-      }
     } catch (e) {
-      print('DEBUG: Error in forceRefreshDebtData: $e');
+      // Handle error silently
     }
   }
 
@@ -1481,24 +1558,23 @@ class AppState extends ChangeNotifier {
 
   Future<void> _addActivity(Activity activity) async {
     try {
-      print('DEBUG: _addActivity called - id: ${activity.id}, type: ${activity.type}, description: ${activity.description}');
-      
       // Check if activity already exists to prevent duplicates
       final existingActivity = _activities.any((a) => a.id == activity.id);
       if (existingActivity) {
-        print('DEBUG: Activity ${activity.id} already exists, skipping duplicate');
         return;
       }
       
+      // Save to Firebase first and wait for confirmation
       await _dataService.addActivity(activity);
-      print('DEBUG: Activity saved to Firebase via dataService');
+      
+      // Only add to local list after successful Firebase save
       _activities.add(activity);
-      print('DEBUG: Activity added to local _activities list, count: ${_activities.length}');
+      
+      // Clear cache and notify listeners
       _clearCache();
       notifyListeners();
-      print('DEBUG: Cache cleared and listeners notified');
     } catch (e) {
-      print('DEBUG: Error in _addActivity: $e');
+      // Don't add to local list if Firebase save failed
       rethrow;
     }
   }
@@ -1524,7 +1600,6 @@ class AppState extends ChangeNotifier {
         description = 'Partial payment: ${amount.toStringAsFixed(2)}\$';
       }
       
-      print('DEBUG: Creating payment activity - debt: ${debt.id}, amount: $amount, description: $description');
       
       final activity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1540,13 +1615,16 @@ class AppState extends ChangeNotifier {
         debtId: debt.id,
       );
       
-      print('DEBUG: Activity created - id: ${activity.id}, type: ${activity.type}, description: ${activity.description}');
+      // Save to Firebase immediately and wait for confirmation
+      await _dataService.addActivity(activity);
       
-      await _addActivity(activity);
+      // Only add to local list after successful Firebase save
+      _activities.add(activity);
       
-      print('DEBUG: Activity saved to Firebase successfully');
+      // Clear cache and notify listeners
+      _clearCache();
+      notifyListeners();
     } catch (e) {
-      print('DEBUG: Error creating payment activity: $e');
       rethrow;
     }
   }
@@ -1570,11 +1648,8 @@ class AppState extends ChangeNotifier {
       
       if (existingFullyPaidActivity) {
         // Already have a "Fully paid" activity for this customer today, skip creating another one
-        print('DEBUG: Skipping duplicate fully paid activity for customer $customerId today');
         return;
       }
-      
-      print('DEBUG: Creating fully paid activity for customer $customerId, amount: $totalAmount');
       
       final activity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -1590,7 +1665,15 @@ class AppState extends ChangeNotifier {
         debtId: null, // This is a customer-level activity, not tied to a specific debt
       );
       
-      await _addActivity(activity);
+      // Save to Firebase immediately and wait for confirmation
+      await _dataService.addActivity(activity);
+      
+      // Only add to local list after successful Firebase save
+      _activities.add(activity);
+      
+      // Clear cache and notify listeners
+      _clearCache();
+      notifyListeners();
     } catch (e) {
       rethrow;
     }
@@ -1619,7 +1702,6 @@ class AppState extends ChangeNotifier {
   /// This cleans up any existing duplicates that may have been created
   Future<void> removeDuplicateFullyPaidActivities() async {
     try {
-      print('DEBUG: removeDuplicateFullyPaidActivities - Starting with ${_activities.length} activities');
       
       final Map<String, List<Activity>> customerFullyPaidActivities = {};
       
@@ -1629,7 +1711,6 @@ class AppState extends ChangeNotifier {
             activity.description.startsWith('Fully paid:')) {
           // Use customer, date, and amount to create a more specific key
           final dateKey = '${activity.customerId}_${activity.date.year}_${activity.date.month}_${activity.date.day}_${activity.paymentAmount}';
-          print('DEBUG: Found fully paid activity - id: ${activity.id}, customerId: ${activity.customerId}, amount: ${activity.paymentAmount}, dateKey: $dateKey');
           if (!customerFullyPaidActivities.containsKey(dateKey)) {
             customerFullyPaidActivities[dateKey] = [];
           }
@@ -1637,39 +1718,31 @@ class AppState extends ChangeNotifier {
         }
       }
       
-      print('DEBUG: Grouped fully paid activities: ${customerFullyPaidActivities.length} groups');
-      
       // For each customer/date group, keep only the first "Fully paid" activity
       final activitiesToRemove = <Activity>[];
       for (final activities in customerFullyPaidActivities.values) {
         if (activities.length > 1) {
-          print('DEBUG: Found ${activities.length} duplicate fully paid activities for same customer/date');
           // Sort by date (keep the earliest one)
           activities.sort((a, b) => a.date.compareTo(b.date));
           // Mark all but the first one for removal
           for (int i = 1; i < activities.length; i++) {
-            print('DEBUG: Marking for removal - id: ${activities[i].id}, date: ${activities[i].date}');
             activitiesToRemove.add(activities[i]);
           }
         }
       }
       
-      print('DEBUG: Activities to remove: ${activitiesToRemove.length}');
-      
       // Remove duplicate activities
       for (final activity in activitiesToRemove) {
-        print('DEBUG: Removing duplicate activity - id: ${activity.id}');
         await _dataService.deleteActivity(activity.id);
         _activities.removeWhere((a) => a.id == activity.id);
       }
       
       if (activitiesToRemove.isNotEmpty) {
-        print('DEBUG: Removed ${activitiesToRemove.length} duplicate activities');
         _clearCache();
         notifyListeners();
       }
     } catch (e) {
-      print('DEBUG: Error in removeDuplicateFullyPaidActivities: $e');
+      // Handle error silently
     }
   }
 
@@ -1682,35 +1755,24 @@ class AppState extends ChangeNotifier {
   /// Remove all duplicate activities based on ID
   void removeAllDuplicates() {
     try {
-      print('DEBUG: removeAllDuplicates - Starting with ${_activities.length} activities');
-      
       final seenIds = <String>{};
       final activitiesToKeep = <Activity>[];
       
       for (int i = 0; i < _activities.length; i++) {
         final activity = _activities[i];
-        print('DEBUG: Processing activity $i - id: ${activity.id}');
         
         if (!seenIds.contains(activity.id)) {
           seenIds.add(activity.id);
           activitiesToKeep.add(activity);
-          print('DEBUG: Keeping activity - id: ${activity.id}');
-        } else {
-          print('DEBUG: Removing duplicate activity - id: ${activity.id}, type: ${activity.type}');
         }
       }
       
-      print('DEBUG: Original count: ${_activities.length}, New count: ${activitiesToKeep.length}');
-      
       if (activitiesToKeep.length != _activities.length) {
-        print('DEBUG: Removed ${_activities.length - activitiesToKeep.length} duplicate activities');
         _activities = activitiesToKeep;
         notifyListeners();
-      } else {
-        print('DEBUG: No duplicates found to remove');
       }
     } catch (e) {
-      print('DEBUG: Error in removeAllDuplicates: $e');
+      // Handle error silently
     }
   }
 
@@ -1718,8 +1780,6 @@ class AppState extends ChangeNotifier {
   /// This fixes the issue where debts exist but no activities are shown
   Future<void> createActivitiesForExistingDebts() async {
     try {
-      print('DEBUG: Creating activities for existing debts...');
-      print('DEBUG: Found ${_debts.length} debts and ${_activities.length} activities');
       
       for (final debt in _debts) {
         // Check if there's already an activity for this debt
@@ -1730,7 +1790,6 @@ class AppState extends ChangeNotifier {
         );
         
         if (!hasActivity) {
-          print('DEBUG: Creating activity for debt: ${debt.customerName} - ${debt.description}');
           
           // Create a new debt activity
           final activity = Activity(
@@ -1745,13 +1804,11 @@ class AppState extends ChangeNotifier {
           );
           
           await _addActivity(activity);
-          print('DEBUG: Created activity for debt: ${debt.id}');
         }
       }
       
-      print('DEBUG: Finished creating activities for existing debts');
     } catch (e) {
-      print('DEBUG: Error creating activities for existing debts: $e');
+      // Handle error silently
     }
   }
 
@@ -2156,8 +2213,12 @@ class AppState extends ChangeNotifier {
       _debts.removeWhere((d) => d.id == debtId);
       _partialPayments.removeWhere((p) => p.debtId == debtId);
       
-      // Reload activities from data service to ensure UI stays in sync
-      _activities = _dataService.activities;
+      // Remove all activities associated with this debt
+      final activitiesToDelete = _activities.where((activity) => activity.debtId == debtId).toList();
+      for (final activity in activitiesToDelete) {
+        await _dataService.deleteActivity(activity.id);
+      }
+      _activities.removeWhere((activity) => activity.debtId == debtId);
       
       _clearCache();
       notifyListeners();
@@ -2987,8 +3048,6 @@ class AppState extends ChangeNotifier {
       
       if (totalRemaining <= 0) return;
       
-      // Individual payment activities are created for each debt below
-      
       // Distribute payment proportionally across all debts
       double remainingPayment = paymentAmount;
       
@@ -3019,16 +3078,29 @@ class AppState extends ChangeNotifier {
             _debts[index] = updatedDebt;
           }
           
-          // CRITICAL FIX: Create individual payment activity for each debt
-          await addPaymentActivity(debt, actualPayment, oldStatus, updatedDebt.status);
-          
           remainingPayment -= actualPayment;
         }
       }
       
-      // REMOVED: Consolidated payment activity creation
-      // Individual payment activities are now created for each debt above
-      // This prevents duplicate "Debt Paid" entries
+      // Create ONE consolidated payment activity for the entire payment amount
+      if (paymentAmount > 0) {
+        final firstDebt = pendingDebts.first;
+        final consolidatedActivity = Activity(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          customerId: firstDebt.customerId,
+          customerName: firstDebt.customerName,
+          type: ActivityType.payment,
+          description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
+          paymentAmount: paymentAmount,
+          amount: paymentAmount,
+          oldStatus: DebtStatus.pending,
+          newStatus: DebtStatus.pending,
+          date: DateTime.now(),
+          debtId: null, // No specific debt ID for consolidated payments
+        );
+        
+        await _addActivity(consolidatedActivity);
+      }
       
       // Clear cache and notify listeners to refresh UI
       _clearCache();
@@ -3042,9 +3114,7 @@ class AppState extends ChangeNotifier {
   // Apply payment evenly across all pending debts for a customer
   Future<void> applyPaymentEvenlyAcrossCustomerDebts(String customerId, double paymentAmount) async {
     try {
-      print('DEBUG: applyPaymentEvenlyAcrossCustomerDebts called for customer $customerId with amount $paymentAmount');
       if (paymentAmount <= 0) {
-        print('DEBUG: Payment amount is zero or negative, returning early');
         return;
       }
       
@@ -3053,9 +3123,7 @@ class AppState extends ChangeNotifier {
         d.customerId == customerId && d.remainingAmount > 0
       ).toList();
       
-      print('DEBUG: Found ${pendingDebts.length} pending debts for customer $customerId');
       if (pendingDebts.isEmpty) {
-        print('DEBUG: No pending debts found, returning early');
         return;
       }
       
@@ -3103,9 +3171,8 @@ class AppState extends ChangeNotifier {
           final index = _debts.indexWhere((d) => d.id == debt.id);
           if (index != -1) {
             _debts[index] = updatedDebt;
-            print('DEBUG: Updated debt ${debt.id} - paidAmount: ${updatedDebt.paidAmount}, remainingAmount: ${updatedDebt.remainingAmount}');
           } else {
-            print('DEBUG: Debt ${debt.id} not found in local list');
+            // Debt not found in local list
           }
           
           remainingPayment -= actualPayment;
@@ -3168,7 +3235,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
     } catch (e) {
-      print('DEBUG: Error in applyPaymentEvenlyAcrossCustomerDebts: $e');
+      // Handle error silently
       rethrow;
     }
   }

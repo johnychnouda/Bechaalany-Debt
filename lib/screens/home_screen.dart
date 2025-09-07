@@ -23,8 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final appState = Provider.of<AppState>(context, listen: false);
       if (!appState.isLoading && !_hasInitialized) {
         _hasInitialized = true;
-        // Remove phantom activities first
-        await appState.removePhantomActivities();
+        // Phantom activities are handled by duplicate removal logic
         await appState.refresh();
         
       }
