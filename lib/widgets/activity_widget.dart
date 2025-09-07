@@ -139,11 +139,10 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     final startDate = now.subtract(const Duration(hours: 24));
     final endDate = now;
 
-    for (final activity in appState.activities) {
-      // Filter out debtCleared activities - only show new debts and payments
-      if (activity.type == ActivityType.debtCleared) {
-        continue;
-      }
+    // Get activities without duplicates (without modifying state)
+    final activitiesWithoutDuplicates = _removeDuplicatesFromList(appState.activities);
+
+    for (final activity in activitiesWithoutDuplicates) {
       
       // Check if activity date is within the last 24 hours
       if (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)) {
@@ -166,10 +165,19 @@ class _ActivityWidgetState extends State<ActivityWidget> {
       case ActivityType.payment:
         // Check if this is a full payment or partial payment
         if (activity.isPaymentCompleted) {
-          icon = Icons.check_circle;
-          iconColor = Colors.green;
-          backgroundColor = Colors.green.withValues(alpha: 0.1);
-          statusText = 'Fully Paid';
+          // Check if this is a customer-level "Fully paid" activity or individual debt payment
+          if (activity.description.startsWith('Fully paid:')) {
+            icon = Icons.check_circle;
+            iconColor = Colors.green;
+            backgroundColor = Colors.green.withValues(alpha: 0.1);
+            statusText = 'Fully Paid';
+          } else {
+            // Individual debt payment
+            icon = Icons.check_circle;
+            iconColor = Colors.blue;
+            backgroundColor = Colors.blue.withValues(alpha: 0.1);
+            statusText = 'Debt Paid';
+          }
         } else {
           icon = Icons.payment;
           iconColor = Colors.orange;
@@ -216,12 +224,6 @@ class _ActivityWidgetState extends State<ActivityWidget> {
             statusText = 'New Debt';
           }
           break;
-      case ActivityType.debtCleared:
-        icon = Icons.check_circle;
-        iconColor = Colors.green;
-        backgroundColor = Colors.green.withValues(alpha: 0.1);
-        statusText = 'Debt Cleared';
-        break;
       default:
         icon = Icons.info;
         iconColor = Colors.grey;
@@ -319,5 +321,24 @@ class _ActivityWidgetState extends State<ActivityWidget> {
     
     // For all other activities, show the original description
     return activity.description;
+  }
+
+  /// Helper method to remove duplicates from a list without modifying state
+  List<Activity> _removeDuplicatesFromList(List<Activity> activities) {
+    try {
+      final activitiesToKeep = <Activity>[];
+      final seenIds = <String>{};
+      
+      for (final activity in activities) {
+        if (!seenIds.contains(activity.id)) {
+          activitiesToKeep.add(activity);
+          seenIds.add(activity.id);
+        }
+      }
+      
+      return activitiesToKeep;
+    } catch (e) {
+      return activities; // Return original list if error occurs
+    }
   }
 } 

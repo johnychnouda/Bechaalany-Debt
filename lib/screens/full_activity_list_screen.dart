@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
+import '../models/debt.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 
@@ -341,10 +342,19 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       case ActivityType.payment:
         // Check if this is a full payment or partial payment
         if (activity.isPaymentCompleted) {
-          icon = Icons.check_circle;
-          iconColor = AppColors.success;
-          backgroundColor = AppColors.success.withValues(alpha: 0.1);
-          statusText = 'Fully Paid';
+          // Check if this is a customer-level "Fully paid" activity or individual debt payment
+          if (activity.description.startsWith('Fully paid:')) {
+            icon = Icons.check_circle;
+            iconColor = AppColors.success;
+            backgroundColor = AppColors.success.withValues(alpha: 0.1);
+            statusText = 'Fully Paid';
+          } else {
+            // Individual debt payment
+            icon = Icons.check_circle;
+            iconColor = AppColors.primary;
+            backgroundColor = AppColors.primary.withValues(alpha: 0.1);
+            statusText = 'Debt Paid';
+          }
         } else {
           icon = Icons.payment;
           iconColor = AppColors.warning;
@@ -393,12 +403,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           statusText = 'New Debt';
         }
         break;
-      case ActivityType.debtCleared:
-        icon = Icons.check_circle;
-        iconColor = AppColors.success;
-        backgroundColor = AppColors.success.withValues(alpha: 0.1);
-        statusText = 'Debt Cleared';
-        break;
       default:
         icon = Icons.info;
         iconColor = Colors.grey;
@@ -428,7 +432,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                     fontSize: 12,
                   ),
                 ),
-                if (activity.type != ActivityType.payment || activity.isPaymentCompleted)
+                if (activity.type != ActivityType.payment || (activity.isPaymentCompleted && !activity.description.startsWith('Fully paid:')))
                   Text(
                     activity.description,
                     style: TextStyle(
@@ -447,7 +451,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
               Text(
                 activity.type == ActivityType.payment && !activity.isPaymentCompleted
                     ? 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0)}'
-                    : statusText,
+                    : activity.type == ActivityType.payment && activity.isPaymentCompleted && activity.description.startsWith('Fully paid:')
+                        ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0)}'
+                        : statusText,
                 style: TextStyle(
                   fontSize: 10,
                   color: iconColor,
@@ -612,6 +618,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     
     List<Activity> activities;
     
+    
     switch (view) {
       case ActivityView.daily:
         // Show only today's activities (from 00:00:00 to 23:59:59)
@@ -645,7 +652,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     // FALLBACK: If no activities found for the specific period, show all activities
     // This ensures activities are visible even if there are date filtering issues
     if (activities.isEmpty && appState.activities.isNotEmpty) {
-      activities = appState.activities.where((activity) => activity.type != ActivityType.debtCleared).toList();
+      activities = List.from(appState.activities);
       activities.sort((a, b) => b.date.compareTo(a.date));
     }
     
@@ -655,32 +662,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
   List<Activity> _getActivitiesForPeriod(AppState appState, DateTime startDate, DateTime endDate) {
     final activities = <Activity>[];
     
+    // Get activities without duplicates (without modifying state)
+    final activitiesWithoutDuplicates = _removeDuplicatesFromList(appState.activities);
     
     // Get activities from the new Activity model
-    for (final activity in appState.activities) {
-      // Filter out debtCleared activities - only show new debts and payments
-      if (activity.type == ActivityType.debtCleared) {
-        continue; // Skip cleared activities
-      }
+    for (final activity in activitiesWithoutDuplicates) {
       
       // Check if activity date is within the period
-      bool isWithinPeriod;
+      // Simplified date comparison using timestamps
+      final activityTimestamp = activity.date.millisecondsSinceEpoch;
+      final startTimestamp = startDate.millisecondsSinceEpoch;
+      final endTimestamp = endDate.millisecondsSinceEpoch;
       
-      // Use inclusive date comparison for better activity detection
-      // This ensures activities are properly included in the selected period
-      final activityDate = DateTime(activity.date.year, activity.date.month, activity.date.day);
-      final startDateOnly = DateTime(startDate.year, startDate.month, startDate.day);
-      final endDateOnly = DateTime(endDate.year, endDate.month, endDate.day);
+      // Simple inclusive comparison using timestamps
+      final isWithinPeriod = activityTimestamp >= startTimestamp && activityTimestamp <= endTimestamp;
       
-      // Use inclusive comparison (>= startDate AND <= endDate)
-      isWithinPeriod = (activityDate.isAtSameMomentAs(startDateOnly) || activityDate.isAfter(startDateOnly)) && 
-                      (activityDate.isAtSameMomentAs(endDateOnly) || activityDate.isBefore(endDateOnly));
       
       if (isWithinPeriod) {
         // Show all activities within the period - no additional filtering
         activities.add(activity);
       }
     }
+    
+    
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));
@@ -870,16 +874,14 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       }
     }
     
-    // Calculate total paid amount from actual payment activities within the period
-    // This ensures we show the correct amount that was actually paid during this time
-    for (final activity in appState.activities) {
-      if (activity.type == ActivityType.payment && 
-          activity.paymentAmount != null &&
-          (activity.date.isAtSameMomentAs(startDate) || 
-           activity.date.isAtSameMomentAs(endDate) ||
-           (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)))) {
-        totalPaid += activity.paymentAmount!;
-      }
+    // Calculate total paid amount from debt records' paidAmount field
+    // This is the most reliable source since paidAmount is directly maintained
+    for (final debtId in relevantDebts) {
+      final associatedDebts = appState.debts.where((d) => d.id == debtId).toList();
+      if (associatedDebts.isEmpty) continue;
+      
+      final debt = associatedDebts.first;
+      totalPaid += debt.paidAmount;
     }
     
     // Payment amounts are already in USD (same as debt amounts)
@@ -901,6 +903,23 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }
   }
 
-
+  /// Helper method to remove duplicates from a list without modifying state
+  List<Activity> _removeDuplicatesFromList(List<Activity> activities) {
+    try {
+      final activitiesToKeep = <Activity>[];
+      final seenIds = <String>{};
+      
+      for (final activity in activities) {
+        if (!seenIds.contains(activity.id)) {
+          activitiesToKeep.add(activity);
+          seenIds.add(activity.id);
+        }
+      }
+      
+      return activitiesToKeep;
+    } catch (e) {
+      return activities; // Return original list if error occurs
+    }
+  }
 
 } 

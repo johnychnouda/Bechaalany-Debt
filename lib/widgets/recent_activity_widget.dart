@@ -22,7 +22,7 @@ class RecentActivityWidget extends StatelessWidget {
         final activities = _getActivitiesForPeriod(appState, ActivityPeriod.daily);
         
         // Take the top 3 activities and filter out cleared activities
-        final topActivities = activities.where((activity) => activity.type != ActivityType.debtCleared).take(3).toList();
+        final topActivities = activities.take(3).toList();
         
         return Card(
           child: Padding(
@@ -305,11 +305,10 @@ class RecentActivityWidget extends StatelessWidget {
   List<Activity> _getActivitiesForDateRange(AppState appState, DateTime startDate, DateTime endDate) {
     final activities = <Activity>[];
 
-    for (final activity in appState.activities) {
-      // Filter out debtCleared activities - only show new debts and payments
-      if (activity.type == ActivityType.debtCleared) {
-        continue; // Skip cleared activities
-      }
+    // Get activities without duplicates (without modifying state)
+    final activitiesWithoutDuplicates = _removeDuplicatesFromList(appState.activities);
+
+    for (final activity in activitiesWithoutDuplicates) {
       
       // Check if activity date is within the period
       if (startDate.hour == 0 && startDate.minute == 0 && startDate.second == 0) {
@@ -338,8 +337,6 @@ class RecentActivityWidget extends StatelessWidget {
         return isFullPayment ? 'Payment completed' : 'Partial payment';
       case ActivityType.newDebt:
         return 'New debt added';
-      case ActivityType.debtCleared:
-        return 'Debt cleared'; // This case should not be reached since we filter out debtCleared
     }
   }
 
@@ -374,6 +371,25 @@ class RecentActivityWidget extends StatelessWidget {
       String year = dateTime.year.toString();
       
       return '$month $day, $year at $timeString';
+    }
+  }
+
+  /// Helper method to remove duplicates from a list without modifying state
+  List<Activity> _removeDuplicatesFromList(List<Activity> activities) {
+    try {
+      final activitiesToKeep = <Activity>[];
+      final seenIds = <String>{};
+      
+      for (final activity in activities) {
+        if (!seenIds.contains(activity.id)) {
+          activitiesToKeep.add(activity);
+          seenIds.add(activity.id);
+        }
+      }
+      
+      return activitiesToKeep;
+    } catch (e) {
+      return activities; // Return original list if error occurs
     }
   }
 } 

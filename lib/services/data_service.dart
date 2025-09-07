@@ -137,8 +137,8 @@ class DataService {
   // ===== PARTIAL PAYMENTS =====
   
   List<PartialPayment> get partialPayments {
-    // Return empty list - will be populated by Firebase streams
-    return [];
+    // Return partial payments from Firebase service
+    return _firebaseService.partialPayments;
   }
   
   Future<void> addPartialPayment(PartialPayment payment) async {

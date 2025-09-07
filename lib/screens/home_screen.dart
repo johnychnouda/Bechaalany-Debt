@@ -26,10 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // Remove phantom activities first
         await appState.removePhantomActivities();
         await appState.refresh();
-        // Wait a bit for data to load, then create activities
-        await Future.delayed(const Duration(milliseconds: 500));
-        // Create activities for the PS5 debt specifically
-        await appState.createPS5DebtActivities();
+        
       }
     });
   }

@@ -32,7 +32,7 @@ class RevenueCalculationService {
     // CRITICAL: Also calculate revenue from cleared/deleted debts via activities
     if (activities != null) {
       for (final activity in activities) {
-        if (activity.type == ActivityType.debtCleared && activity.paymentAmount != null && activity.paymentAmount! > 0) {
+        if (false) { // debtCleared activities removed
           // Try to extract revenue information from notes
           if (activity.notes != null && activity.notes!.contains('Revenue:')) {
             final revenueMatch = RegExp(r'Revenue: \$([\d.]+)').firstMatch(activity.notes!);
@@ -79,7 +79,8 @@ class RevenueCalculationService {
     
     double potentialRevenue = 0.0;
     for (final debt in customerDebts) {
-      if (!debt.isFullyPaid) {
+      // Only include debts with remaining amounts > 0.01 (account for floating-point precision)
+      if (debt.remainingAmount > 0.01) {
         potentialRevenue += debt.remainingRevenue;
       }
     }
@@ -97,7 +98,7 @@ class RevenueCalculationService {
     double totalDebtAmount = 0.0;
     
     for (final debt in customerDebts) {
-      if (!debt.isFullyPaid) {
+      if (debt.remainingAmount > 0.01) {
         totalAvailableRevenue += debt.remainingRevenue;
         totalDebtAmount += debt.remainingAmount;
       }
@@ -122,7 +123,7 @@ class RevenueCalculationService {
     double totalDebtAmount = 0.0;
     
     for (final debt in customerDebts) {
-      if (!debt.isFullyPaid) {
+      if (debt.remainingAmount > 0.01) {
         totalAvailableRevenue += debt.remainingRevenue;
         totalDebtAmount += debt.remainingAmount;
       }
@@ -209,6 +210,7 @@ class RevenueCalculationService {
   /// Provides aggregated revenue data for the main dashboard
   /// Now considers customer-level debt status for accurate revenue recognition
   Map<String, dynamic> getDashboardRevenueSummary(List<Debt> allDebts, {List<Activity>? activities, AppState? appState}) {
+    print('DEBUG: getDashboardRevenueSummary called with ${allDebts.length} debts');
     double totalRevenue = 0.0;
     double totalPotentialRevenue = 0.0;
     double totalPaidAmount = 0.0;
@@ -245,40 +247,21 @@ class RevenueCalculationService {
       }
       
       // Calculate potential revenue from unpaid amounts
-      // Use remaining amount as the primary indicator of unpaid debt
-      if (debt.remainingAmount > 0) {
-        // For pending debts, potential revenue is the full original revenue
-        // For partially paid debts, potential revenue is the remaining revenue
-        if (debt.paidAmount == 0) {
-          // If cost prices are available, use original revenue; otherwise use debt amount
-          if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-            // SAFETY CHECK: Prevent extremely high revenue calculations
-            final revenue = debt.originalRevenue;
-            if (revenue > debt.amount * 10) { // Revenue shouldn't be more than 10x the debt amount
-              // Use a reasonable fallback
-              totalPotentialRevenue += debt.amount * 0.3; // Assume 30% profit margin
-            } else {
-              totalPotentialRevenue += revenue;
-            }
-          } else {
-            // Fallback: use the debt amount as potential revenue when cost prices aren't set
-            totalPotentialRevenue += debt.amount;
-          }
+      // SIMPLIFIED LOGIC: Only process debts with remaining amounts > 0.01 (account for floating-point precision)
+      if (debt.remainingAmount > 0.01) {
+        if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+          // Use the proper remainingRevenue calculation which automatically reduces with payments
+          final remainingRevenue = debt.remainingRevenue;
+          totalPotentialRevenue += remainingRevenue;
+          
+          print('DEBUG: Potential Revenue - Debt ${debt.id}: amount=${debt.amount}, paidAmount=${debt.paidAmount}, remainingAmount=${debt.remainingAmount}, originalRevenue=${debt.originalRevenue}, remainingRevenue=$remainingRevenue');
         } else {
-          if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-            // SAFETY CHECK: Prevent extremely high revenue calculations
-            final revenue = debt.remainingRevenue;
-            if (revenue > debt.remainingAmount * 10) { // Revenue shouldn't be more than 10x the remaining amount
-              // Use a reasonable fallback
-              totalPotentialRevenue += debt.remainingAmount * 0.3; // Assume 30% profit margin
-            } else {
-              totalPotentialRevenue += revenue;
-            }
-          } else {
-            // Fallback: use remaining debt amount as potential revenue
-            totalPotentialRevenue += debt.remainingAmount;
-          }
+          // Fallback: use remaining debt amount as potential revenue when cost prices aren't set
+          totalPotentialRevenue += debt.remainingAmount;
+          print('DEBUG: Potential Revenue - Debt ${debt.id}: No cost prices, using remainingAmount=${debt.remainingAmount}');
         }
+      } else {
+        print('DEBUG: Potential Revenue - Debt ${debt.id}: SKIPPED (fully paid: remainingAmount=${debt.remainingAmount})');
       }
       
       totalPaidAmount += debt.paidAmount;
@@ -288,17 +271,12 @@ class RevenueCalculationService {
 
 
     
-    // FINAL SAFETY CHECK: Cap potential revenue at reasonable levels
-    if (totalPotentialRevenue > totalDebtAmount * 5) { // Revenue shouldn't be more than 5x total debt
-      totalPotentialRevenue = totalDebtAmount * 0.5; // Cap at 50% of total debt amount
-    }
-    
 
     
     // CRITICAL: Also include revenue from cleared/deleted debts via activities
     if (activities != null) {
       for (final activity in activities) {
-        if (activity.type == ActivityType.debtCleared && activity.paymentAmount != null && activity.paymentAmount! > 0) {
+        if (false) { // debtCleared activities removed
           // Try to extract revenue information from notes
           if (activity.notes != null && activity.notes!.contains('Revenue:')) {
             final revenueMatch = RegExp(r'Revenue: \$([\d.]+)').firstMatch(activity.notes!);
@@ -317,14 +295,28 @@ class RevenueCalculationService {
     
     totalCustomers = customerIds.length;
     
+    print('DEBUG: BEFORE rounding - totalRevenue=$totalRevenue, totalPotentialRevenue=$totalPotentialRevenue, totalPaidAmount=$totalPaidAmount, totalDebtAmount=$totalDebtAmount');
+    print('DEBUG: Individual debt paid amounts:');
+    for (final debt in allDebts) {
+      print('  Debt ${debt.id}: paidAmount=${debt.paidAmount}');
+    }
+    
+    // CRITICAL: Round all financial values to exactly 2 decimal places to avoid floating-point precision errors
+    totalRevenue = (totalRevenue * 100).round() / 100;
+    totalPotentialRevenue = (totalPotentialRevenue * 100).round() / 100;
+    totalPaidAmount = (totalPaidAmount * 100).round() / 100;
+    totalDebtAmount = (totalDebtAmount * 100).round() / 100;
+    
+    print('DEBUG: AFTER rounding - totalRevenue=$totalRevenue, totalPotentialRevenue=$totalPotentialRevenue, totalPaidAmount=$totalPaidAmount, totalDebtAmount=$totalDebtAmount');
+    
     return {
       'totalRevenue': totalRevenue,
       'totalPotentialRevenue': totalPotentialRevenue,
       'totalPaidAmount': totalPaidAmount,
       'totalDebtAmount': totalDebtAmount,
       'totalCustomers': totalCustomers,
-      'averageRevenuePerCustomer': totalCustomers > 0 ? totalRevenue / totalCustomers : 0.0,
-      'revenueToDebtRatio': totalDebtAmount > 0 ? totalRevenue / totalDebtAmount : 0.0,
+      'averageRevenuePerCustomer': totalCustomers > 0 ? (totalRevenue / totalCustomers * 100).round() / 100 : 0.0,
+      'revenueToDebtRatio': totalDebtAmount > 0 ? (totalRevenue / totalDebtAmount * 100).round() / 100 : 0.0,
       'calculatedAt': DateTime.now(),
     };
   }

@@ -398,8 +398,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-
-
   void _showClearDebtsDialog() {
     showCupertinoDialog(
       context: context,

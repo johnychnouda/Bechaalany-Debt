@@ -48,7 +48,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           customerId: _selectedCustomer!.id,
           customerName: _selectedCustomer!.name,
           description: _selectedSubcategory!.name,
-          amount: _selectedSubcategory!.sellingPrice,
+          amount: _selectedSubcategory!.sellingPrice, // Use selling price (what customer owes)
           type: DebtType.credit,
           status: DebtStatus.pending,
           createdAt: DateTime.now(),

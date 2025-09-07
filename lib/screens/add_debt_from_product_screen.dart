@@ -665,7 +665,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         storedCurrency = 'USD';
       }
       
-      // Calculate total amount using the determined selling price
+      // Calculate total amount using the selling price (what customer owes)
       totalAmount = actualSellingPrice * quantity;
       
       // Create description with quantity if > 1

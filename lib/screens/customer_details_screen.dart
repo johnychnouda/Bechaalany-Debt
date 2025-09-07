@@ -1676,22 +1676,21 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       }
     }
     
-    // Create activity for the total payment
-    final activity = Activity(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      customerId: _currentCustomer.id,
-      customerName: _currentCustomer.name,
-      type: ActivityType.payment,
-      description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
-      paymentAmount: paymentAmount,
-      amount: totalRemaining,
-      oldStatus: DebtStatus.pending,
-      newStatus: DebtStatus.pending,
-      date: DateTime.now(),
-      debtId: null, // No specific debt ID since this is a total debt payment
-    );
-    
-    await appState.addActivity(activity);
+    // Create payment activity for each debt that was affected
+    for (final debt in pendingDebts) {
+      final reductionAmount = debt.remainingAmount * reductionRatio;
+      if (reductionAmount > 0) {
+        final updatedDebt = appState.debts.firstWhere((d) => d.id == debt.id);
+        final isFullyPaid = updatedDebt.status == DebtStatus.paid;
+        
+        await appState.addPaymentActivity(
+          updatedDebt, 
+          reductionAmount, 
+          DebtStatus.pending, 
+          updatedDebt.status
+        );
+      }
+    }
     
     // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
     appState.notifyListeners();

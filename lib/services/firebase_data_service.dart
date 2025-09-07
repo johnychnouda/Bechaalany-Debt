@@ -22,6 +22,12 @@ class FirebaseDataService {
   // Check if user is authenticated
   bool get isAuthenticated => _auth.currentUser != null;
 
+  // Local storage for partial payments
+  List<PartialPayment> _partialPayments = [];
+
+  // Getter for partial payments
+  List<PartialPayment> get partialPayments => _partialPayments;
+
   // ===== CUSTOMERS =====
   
   // Add/Update customer
@@ -274,6 +280,14 @@ class FirebaseDataService {
         .collection('partial_payments')
         .doc(payment.id)
         .set(paymentData, SetOptions(merge: true));
+    
+    // Update local list
+    final index = _partialPayments.indexWhere((p) => p.id == payment.id);
+    if (index >= 0) {
+      _partialPayments[index] = payment;
+    } else {
+      _partialPayments.add(payment);
+    }
   }
 
   // Get all partial payments for current user
@@ -286,9 +300,16 @@ class FirebaseDataService {
     return _firestore
         .collection('partial_payments')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-            .toList());
+        .map((snapshot) {
+          final payments = snapshot.docs
+              .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
+              .toList();
+          
+          // Update local list
+          _partialPayments = payments;
+          
+          return payments;
+        });
   }
   
   // Get partial payments directly (for web app)
@@ -313,6 +334,9 @@ class FirebaseDataService {
           .map((doc) => PartialPayment.fromJson(doc.data()))
           .toList();
       
+      // Update local list
+      _partialPayments = partialPayments;
+      
       return partialPayments;
     } catch (e) {
       return [];
@@ -324,6 +348,9 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     await _firestore.collection('partial_payments').doc(paymentId).delete();
+    
+    // Remove from local list
+    _partialPayments.removeWhere((p) => p.id == paymentId);
   }
 
   // ===== CURRENCY SETTINGS =====
@@ -859,14 +886,33 @@ class FirebaseDataService {
   Future<void> addActivity(Activity activity) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
+    print('DEBUG: FirebaseDataService.addActivity - Starting to save activity: ${activity.id}');
+    print('DEBUG: Activity type: ${activity.type}, description: ${activity.description}');
+    
     final activityData = activity.toJson();
     activityData['lastUpdated'] = FieldValue.serverTimestamp();
     activityData['userId'] = currentUserId;
     
-    await _firestore
-        .collection('activities')
-        .doc(activity.id)
-        .set(activityData, SetOptions(merge: true));
+    print('DEBUG: Activity data to save: $activityData');
+    
+    try {
+      final docRef = _firestore.collection('activities').doc(activity.id);
+      print('DEBUG: About to save to document: ${docRef.path}');
+      
+      await docRef.set(activityData, SetOptions(merge: true));
+      
+      // Verify the document was actually saved
+      final savedDoc = await docRef.get();
+      if (savedDoc.exists) {
+        print('DEBUG: Activity ${activity.id} successfully saved to Firebase and verified');
+        print('DEBUG: Saved document data: ${savedDoc.data()}');
+      } else {
+        print('DEBUG: ERROR - Activity ${activity.id} was not saved to Firebase');
+      }
+    } catch (e) {
+      print('DEBUG: Error saving activity to Firebase: $e');
+      rethrow;
+    }
   }
   
   // Update activity
@@ -1701,6 +1747,9 @@ class FirebaseDataService {
       
       // Commit the batch deletion with timeout
       await batch.commit().timeout(const Duration(seconds: 30));
+      
+      // Clear local list
+      _partialPayments.clear();
     } catch (e) {
       if (e.toString().contains('timeout')) {
         throw Exception('Timeout while clearing partial payments. Please try again.');

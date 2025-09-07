@@ -198,8 +198,8 @@ class Debt {
   double get revenuePerDollar {
     if (amount <= 0) return 0.0;
     final revenuePerDollar = originalRevenue / amount;
-    // Round to 2 decimal places to avoid floating-point precision errors
-    return ((revenuePerDollar * 100).round() / 100);
+    // Round to 4 decimal places to avoid floating-point precision errors in subsequent calculations
+    return ((revenuePerDollar * 10000).round() / 10000);
   }
 
   /// Revenue earned from paid amount (proportional)
@@ -213,6 +213,10 @@ class Debt {
   double get remainingRevenue {
     final remaining = revenuePerDollar * remainingAmount;
     // Round to 2 decimal places to avoid floating-point precision errors
-    return ((remaining * 100).round() / 100);
+    final result = ((remaining * 100).round() / 100);
+    
+    print('DEBUG: Debt $id remainingRevenue calculation: revenuePerDollar=$revenuePerDollar, remainingAmount=$remainingAmount, result=$result');
+    
+    return result;
   }
 } 

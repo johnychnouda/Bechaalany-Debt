@@ -3,7 +3,6 @@ import 'debt.dart';
 enum ActivityType {
   newDebt,
   payment,
-  debtCleared,
 }
 
 class Activity {
