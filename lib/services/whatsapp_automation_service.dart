@@ -148,26 +148,13 @@ class WhatsAppAutomationService {
     // Calculate total outstanding amount
     final totalAmount = outstandingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
-    // Build outstanding debts list
-    final debtsList = outstandingDebts.map((debt) {
-      final cleanedDescription = debt.description.replaceAll('\n', ' ').trim();
-      return '• $cleanedDescription: \$${debt.remainingAmount.toStringAsFixed(2)}';
-    }).join('\n');
-    
-    // Build debt information section
-    final debtInfoSection = '''
-Outstanding Items:
-$debtsList
-
-Total Outstanding: \$${totalAmount.toStringAsFixed(2)}''';
-    
-    // Always append debt information to custom message
+    // Build simplified message with only custom message and total remaining amount
     return '''
 $customMessage
 
-$debtInfoSection
+Total Remaining Amount: \$${totalAmount.toStringAsFixed(2)} Bechaalany
 
-Bechaalany Connect''';
+Connect''';
   }
 
   /// Build the complete settlement message
