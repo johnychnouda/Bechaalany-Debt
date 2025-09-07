@@ -82,6 +82,9 @@ class WhatsAppAutomationService {
     required DateTime settlementDate,
   }) async {
     try {
+      print('🔍 WhatsApp: Building settlement message for ${customer.name}');
+      print('🔍 WhatsApp: Settled debts count: ${settledDebts.length}');
+      
       // Build the complete message
       final message = _buildSettlementMessage(
         customer: customer,
@@ -91,18 +94,25 @@ class WhatsAppAutomationService {
         settlementDate: settlementDate,
       );
 
+      print('🔍 WhatsApp: Message built successfully');
+      print('🔍 WhatsApp: Message preview: ${message.substring(0, 100)}...');
+
       // Format phone number for WhatsApp
       final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+      print('🔍 WhatsApp: Formatted phone: $formattedPhone');
       
       // Create WhatsApp URL with pre-filled message
       final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+      print('🔍 WhatsApp: URL created: ${whatsappUrl.substring(0, 100)}...');
       
       // Launch WhatsApp
+      print('🔍 WhatsApp: Attempting to launch WhatsApp');
       final launched = await launchUrl(
         Uri.parse(whatsappUrl),
         mode: LaunchMode.externalApplication,
       );
       
+      print('🔍 WhatsApp: Launch result: $launched');
       return launched;
     } catch (e) {
       // If launching fails, try alternative approach

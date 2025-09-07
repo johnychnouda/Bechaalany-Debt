@@ -1645,6 +1645,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply payment to total debt amount (not individual debts)
   Future<void> _applyPaymentToTotalDebt(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
+    print('🚨🚨🚨 PAYMENT METHOD CALLED: _applyPaymentToTotalDebt 🚨🚨🚨');
+    print('🚨 Payment amount: $paymentAmount');
+    print('🚨 Pending debts count: ${pendingDebts.length}');
+    
     final appState = Provider.of<AppState>(context, listen: false);
     
     if (pendingDebts.isEmpty) return;
@@ -1726,6 +1730,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       await appState.addActivity(consolidatedActivity);
     }
     
+    // Check if all customer debts are now paid and trigger settlement automation
+    final customerId = pendingDebts.first.customerId;
+    final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+    final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+    
+    print('🔍 Payment applied - checking settlement automation');
+    print('🔍 Customer ID: $customerId');
+    print('🔍 Total outstanding after payment: $totalOutstanding');
+    
+    if (totalOutstanding == 0) {
+      print('🔍 All debts paid - triggering settlement automation');
+      // Pass only the debts that were just completed, not all customer debts
+      await appState.sendWhatsAppSettlementNotification(customerId);
+    } else {
+      print('🔍 Customer still has outstanding debts: $totalOutstanding');
+    }
+    
     // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
     appState.notifyListeners();
     
@@ -1741,6 +1762,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply payment sequentially to debts (oldest first)
   Future<void> _applyPaymentSequentially(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
+    print('🚨🚨🚨 PAYMENT METHOD CALLED: _applyPaymentSequentially 🚨🚨🚨');
+    print('🚨 Payment amount: $paymentAmount');
+    print('🚨 Pending debts count: ${pendingDebts.length}');
+    
     final appState = Provider.of<AppState>(context, listen: false);
     
     if (pendingDebts.isEmpty) return;
@@ -1749,6 +1774,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     
     double remainingPayment = paymentAmount;
+    int debtsPaid = 0;
+    int debtsPartiallyPaid = 0;
     
     for (final debt in pendingDebts) {
       if (remainingPayment <= 0) break;
@@ -1777,6 +1804,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         appState.debts[index] = updatedDebt;
       }
       
+      // Track payment results
+      if (isFullyPaid) {
+        debtsPaid++;
+      } else if (paymentToThisDebt > 0) {
+        debtsPartiallyPaid++;
+      }
+      
       // Reduce remaining payment
       remainingPayment -= paymentToThisDebt;
       
@@ -1799,6 +1833,39 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     await appState.addActivity(activity);
     
+    // Check if all customer debts are now paid and trigger settlement automation
+    final customerId = pendingDebts.first.customerId;
+    final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+    final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+    
+    print('🔍 Payment applied sequentially - checking settlement automation');
+    print('🔍 Customer ID: $customerId');
+    print('🔍 Total outstanding after payment: $totalOutstanding');
+    
+    if (totalOutstanding == 0) {
+      print('🔍 All debts paid - triggering settlement automation');
+      // Pass only the debts that were just completed, not all customer debts
+      await appState.sendWhatsAppSettlementNotification(customerId);
+    } else {
+      print('🔍 Customer still has outstanding debts: $totalOutstanding');
+    }
+    
+    // Show success notification only if all customer debts are fully paid
+    if (mounted) {
+      final customerId = pendingDebts.first.customerId;
+      final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
+      final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+      
+      // Only show notification if all debts are fully paid (no outstanding amount)
+      if (totalOutstanding == 0) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'Payment Successful',
+          body: '${_currentCustomer.name} has fully paid all their debts',
+        );
+      }
+    }
+    
     // Notify listeners
     appState.notifyListeners();
     
@@ -1806,35 +1873,66 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Pay the exact remaining amount for each debt to make them fully paid
   Future<void> _payFullAmountForAllDebts(List<Debt> pendingDebts, BuildContext context) async {
+    print('🚨🚨🚨 PAYMENT METHOD CALLED: _payFullAmountForAllDebts 🚨🚨🚨');
+    print('🚨 Pending debts count: ${pendingDebts.length}');
+    
     final appState = Provider.of<AppState>(context, listen: false);
+    bool paymentSuccess = false;
+    String? errorMessage;
+    double totalPaidAmount = 0.0;
     
     try {
+      // Process each debt payment
       for (final debt in pendingDebts) {
         if (debt.remainingAmount > 0) {
+          print('🚨 Marking debt as paid: ${debt.id}');
+          totalPaidAmount += debt.remainingAmount;
           // Use markDebtAsPaid to trigger settlement automation
           await appState.markDebtAsPaid(debt.id);
         }
       }
       
+      paymentSuccess = true;
+      
       // Create a single payment activity for the remaining amount that was just paid
-      final remainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-      // Fix floating-point precision issues by rounding to 2 decimal places
-      final roundedRemainingAmount = ((remainingAmount * 100).round() / 100);
-      if (roundedRemainingAmount > 0) {
-        await appState.addCustomerFullyPaidActivity(
-          _currentCustomer.id,
-          _currentCustomer.name,
-          roundedRemainingAmount, // This should be the remaining amount that was just paid
-        );
+      // This is non-critical - if it fails, payment still succeeded
+      try {
+        final remainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+        // Fix floating-point precision issues by rounding to 2 decimal places
+        final roundedRemainingAmount = ((remainingAmount * 100).round() / 100);
+        if (roundedRemainingAmount > 0) {
+          await appState.addCustomerFullyPaidActivity(
+            _currentCustomer.id,
+            _currentCustomer.name,
+            roundedRemainingAmount, // This should be the remaining amount that was just paid
+          );
+        }
+      } catch (activityError) {
+        // Activity logging failed - this is non-critical
+        print('⚠️ Activity logging failed (non-critical): $activityError');
       }
       
     } catch (e) {
-      // Handle error
-      if (mounted) {
-        final notificationService = NotificationService();
+      // Only show error notification for critical payment failures
+      errorMessage = e.toString();
+      print('❌ Critical payment error: $e');
+    }
+    
+    // Show appropriate notification based on result
+    if (mounted) {
+      final notificationService = NotificationService();
+      
+      if (paymentSuccess) {
+        // Show success notification
+        await notificationService.showSuccessNotification(
+          title: 'Payment Successful',
+          body: '${_currentCustomer.name} has fully paid all their debts',
+        );
+      } else if (errorMessage != null) {
+        // Show error notification only for critical failures
         await notificationService.showErrorNotification(
           title: 'Payment Error',
-          body: 'Failed to process full payment: $e',
+          body: 'Failed to process payment: $errorMessage',
         );
       }
     }

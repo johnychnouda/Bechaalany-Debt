@@ -303,6 +303,11 @@ class DataService {
     await _firebaseService.addActivity(activity);
   }
 
+  // Check Firebase connection health
+  Future<Map<String, dynamic>> checkFirebaseHealth() async {
+    return await _firebaseService.checkFirebaseHealth();
+  }
+
   Future<void> updateActivity(Activity activity) async {
     await _firebaseService.updateActivity(activity);
   }
