@@ -14,6 +14,7 @@ import 'services/firebase_service.dart';
 import 'services/backup_service.dart';
 import 'services/background_backup_service.dart';
 import 'services/background_app_refresh_service.dart';
+import 'services/app_update_service.dart';
 
 // Global service instances
 NotificationService? _globalNotificationService;
@@ -91,6 +92,14 @@ void main() async {
       await backgroundAppRefreshService.start();
     } catch (e) {
       // Handle Background App Refresh service initialization error silently
+    }
+    
+    // Check for app updates
+    try {
+      final appUpdateService = AppUpdateService();
+      await appUpdateService.checkForUpdates();
+    } catch (e) {
+      // Handle app update check error silently
     }
     
     runApp(const BechaalanyDebtApp());

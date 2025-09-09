@@ -10,16 +10,16 @@ import ActivityKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     
-    // Setup method channel for iOS 18.6+ notifications
-    let controller : FlutterViewController = window?.rootViewController as! FlutterViewController
+    GeneratedPluginRegistrant.register(with: self)
+    
+    // Setup method channel for iOS 18.6+ notifications using FlutterPluginRegistry
     let notificationChannel = FlutterMethodChannel(name: "ios18_notifications",
-                                                  binaryMessenger: controller.binaryMessenger)
+                                                  binaryMessenger: self.registrar(forPlugin: "AppDelegate")!.messenger())
     
     notificationChannel.setMethodCallHandler { [weak self] (call: FlutterMethodCall, result: @escaping FlutterResult) in
       self?.handleNotificationMethodCall(call: call, result: result)
     }
     
-    GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   

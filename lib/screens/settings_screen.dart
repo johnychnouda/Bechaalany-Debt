@@ -76,6 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               
+              
               const SizedBox(height: 20),
               
               // WhatsApp Automation Settings

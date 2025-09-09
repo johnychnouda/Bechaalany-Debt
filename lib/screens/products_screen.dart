@@ -956,7 +956,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       if (mounted) {
                                         Navigator.of(context).pop();
                                       }
-                                      await notificationService.showProductUpdatedNotification(subcategory.name);
                                       _filterProducts();
                                     } catch (e) {
                                       await notificationService.showErrorNotification(
@@ -1118,7 +1117,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             if (mounted) {
                               Navigator.of(context).pop();
                             }
-                            await notificationService.showProductDeletedNotification(subcategory.name);
                             _filterProducts();
                           } catch (e) {
                             await notificationService.showErrorNotification(
@@ -1433,7 +1431,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       if (mounted) {
                                         Navigator.of(context).pop();
                                       }
-                                      await notificationService.showProductUpdatedNotification(subcategory.name);
                                       _filterProducts();
                                     } catch (e) {
                                       await notificationService.showErrorNotification(
@@ -1933,7 +1930,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             }
                             
                             // Show success notification
-                            await notificationService.showProductDeletedNotification(subcategory.name);
                             
                             // Refresh the products list
                             _filterProducts();

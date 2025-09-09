@@ -157,10 +157,6 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       final exchangeRate = double.tryParse(cleanText);
       if (exchangeRate == null || exchangeRate <= 0) {
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Invalid Exchange Rate',
-          body: 'Please enter a valid exchange rate',
-        );
         return;
       }
       
@@ -180,7 +176,6 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       
       if (mounted) {
         final notificationService = NotificationService();
-        await notificationService.showSettingsUpdatedNotification();
         
         // Don't clear the input field - keep the value user entered
         // The AppState listener will update the display automatically
@@ -191,10 +186,6 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     } catch (e) {
       if (mounted) {
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Update Failed',
-          body: 'Error saving currency settings: $e',
-        );
       }
     }
   }

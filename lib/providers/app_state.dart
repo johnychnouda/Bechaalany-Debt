@@ -60,7 +60,7 @@ class AppState extends ChangeNotifier {
   DataService get dataService => _dataService;
   
   // WhatsApp Automation Settings
-  bool _whatsappAutomationEnabled = false;
+  bool _whatsappAutomationEnabled = true; // Enable by default for testing
   String _whatsappCustomMessage = '';
   
   // Business Settings (Only implemented ones)
@@ -68,6 +68,7 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
+    print('🚀 AppState constructor called');
     _loadSettingsSync();
     
     // Reset flags on app initialization
@@ -277,8 +278,6 @@ class AppState extends ChangeNotifier {
         if (activities.isNotEmpty) {
           _activities = List.from(activities); // Create a new list to prevent reference issues
           
-          // Clean up duplicate "Fully paid" activities when activities are loaded
-          removeDuplicateFullyPaidActivities();
           
           _hasLoadedActivities = true; // Mark that we've loaded activities
         } else {
@@ -295,7 +294,6 @@ class AppState extends ChangeNotifier {
         }
         
         // Always run duplicate cleanup after any activity update
-        removeDuplicateFullyPaidActivities();
         removeAllDuplicates();
         
         
@@ -1370,12 +1368,66 @@ class AppState extends ChangeNotifier {
       // Handle error silently
     }
   }
+
+  /// Remove specific duplicate activities: "Debt paid" and "Fully paid" for same amount
+  Future<void> removeDebtPaidFullyPaidDuplicates() async {
+    try {
+      final activitiesToRemove = <Activity>[];
+      
+      // Group activities by customer, amount, and date
+      final Map<String, List<Activity>> groupedActivities = {};
+      
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.paymentAmount != null &&
+            (activity.description.contains('Debt paid:') || activity.description.contains('Fully paid:'))) {
+          final key = '${activity.customerId}_${activity.paymentAmount}_${activity.date.year}_${activity.date.month}_${activity.date.day}';
+          if (!groupedActivities.containsKey(key)) {
+            groupedActivities[key] = [];
+          }
+          groupedActivities[key]!.add(activity);
+        }
+      }
+      
+      // For each group, if we have both "Debt paid" and "Fully paid" activities, remove the "Fully paid" ones
+      for (final activities in groupedActivities.values) {
+        if (activities.length > 1) {
+          final debtPaidActivities = activities.where((a) => a.description.contains('Debt paid:')).toList();
+          final fullyPaidActivities = activities.where((a) => a.description.contains('Fully paid:')).toList();
+          
+          // If we have both types, remove the "Fully paid" activities (keep "Debt paid")
+          if (debtPaidActivities.isNotEmpty && fullyPaidActivities.isNotEmpty) {
+            activitiesToRemove.addAll(fullyPaidActivities);
+          }
+        }
+      }
+      
+      // Remove duplicate activities
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+      }
+      
+      if (activitiesToRemove.isNotEmpty) {
+        _clearCache();
+        notifyListeners();
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
   
   /// Fix total payments calculation by removing duplicates and phantom activities
   Future<void> fixTotalPaymentsCalculation() async {
     try {
       // First, remove duplicate payment activities
       await removeDuplicatePaymentActivities();
+      
+      // Remove specific "Debt paid" vs "Fully paid" duplicates
+      await removeDebtPaidFullyPaidDuplicates();
+      
+      // Remove individual "Debt paid" activities that should be consolidated into "Fully paid"
+      await consolidateIndividualDebtPayments();
       
       // Phantom activities are handled by duplicate removal logic
       
@@ -1385,6 +1437,88 @@ class AppState extends ChangeNotifier {
       
       // Debug: Print current payment activities
       debugPrintPaymentActivities();
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  /// Consolidate individual "Debt paid" activities into "Fully paid" activities for same-day payments
+  Future<void> consolidateIndividualDebtPayments() async {
+    try {
+      final activitiesToRemove = <Activity>[];
+      final activitiesToAdd = <Activity>[];
+      
+      // Group activities by customer and date
+      final Map<String, Map<String, List<Activity>>> groupedByCustomerAndDate = {};
+      
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.description.contains('Debt paid:')) {
+          final dateKey = '${activity.date.year}_${activity.date.month}_${activity.date.day}';
+          final customerKey = activity.customerId;
+          
+          if (!groupedByCustomerAndDate.containsKey(customerKey)) {
+            groupedByCustomerAndDate[customerKey] = {};
+          }
+          if (!groupedByCustomerAndDate[customerKey]!.containsKey(dateKey)) {
+            groupedByCustomerAndDate[customerKey]![dateKey] = [];
+          }
+          groupedByCustomerAndDate[customerKey]![dateKey]!.add(activity);
+        }
+      }
+      
+      // For each customer-date group, if there are multiple "Debt paid" activities, consolidate them
+      for (final customerEntry in groupedByCustomerAndDate.entries) {
+        final customerId = customerEntry.key;
+        final customerName = customerEntry.value.values.first.first.customerName;
+        
+        for (final dateEntry in customerEntry.value.entries) {
+          final activities = dateEntry.value;
+          
+          // If there are multiple "Debt paid" activities on the same day for the same customer
+          if (activities.length > 1) {
+            // Calculate total amount
+            double totalAmount = 0.0;
+            for (final activity in activities) {
+              totalAmount += activity.paymentAmount ?? 0.0;
+            }
+            
+            // Create a consolidated "Fully paid" activity
+            final consolidatedActivity = Activity(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              customerId: customerId,
+              customerName: customerName,
+              type: ActivityType.payment,
+              description: 'Fully paid: ${totalAmount.toStringAsFixed(2)}\$',
+              paymentAmount: totalAmount,
+              amount: totalAmount,
+              oldStatus: DebtStatus.pending,
+              newStatus: DebtStatus.paid,
+              date: activities.first.date, // Use the earliest date
+              debtId: null, // No specific debt ID since this is consolidated
+            );
+            
+            activitiesToAdd.add(consolidatedActivity);
+            activitiesToRemove.addAll(activities);
+          }
+        }
+      }
+      
+      // Remove old activities and add consolidated ones
+      for (final activity in activitiesToRemove) {
+        await _dataService.deleteActivity(activity.id);
+        _activities.removeWhere((a) => a.id == activity.id);
+      }
+      
+      for (final activity in activitiesToAdd) {
+        await _dataService.addActivity(activity);
+        _activities.add(activity);
+      }
+      
+      if (activitiesToRemove.isNotEmpty || activitiesToAdd.isNotEmpty) {
+        _clearCache();
+        notifyListeners();
+      }
     } catch (e) {
       // Handle error silently
     }
@@ -1403,6 +1537,16 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Debug: Print debt data
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
+  /// Clean up existing duplicate activities and consolidate individual debt payments
+  Future<void> cleanupDuplicateActivities() async {
+    try {
+      // Run all cleanup methods
+      await fixTotalPaymentsCalculation();
     } catch (e) {
       // Handle error silently
     }
@@ -1652,7 +1796,7 @@ class AppState extends ChangeNotifier {
     if (isThisDebtFullyPaid) {
       // For fully paid debts, show the actual amount that was just paid to complete it
       // This is simply the amount parameter passed to this method
-      description = 'Fully paid: ${amount.toStringAsFixed(2)}\$';
+      description = 'Debt paid: ${amount.toStringAsFixed(2)}\$';
     } else {
       // For partial payments, show the actual payment amount
       description = 'Partial payment: ${amount.toStringAsFixed(2)}\$';
@@ -1693,8 +1837,8 @@ class AppState extends ChangeNotifier {
     
   }
 
-  // Add customer-level "Fully paid" activity when entire customer balance is settled
-  Future<void> addCustomerFullyPaidActivity(String customerId, String customerName, double totalAmount) async {
+  // Add debt-specific "Fully paid" activity when a debt is completed
+  Future<void> addCustomerFullyPaidActivity(String customerId, String customerName, double totalAmount, {String? debtId}) async {
     final activity = Activity(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       customerId: customerId,
@@ -1706,7 +1850,7 @@ class AppState extends ChangeNotifier {
       oldStatus: DebtStatus.pending,
       newStatus: DebtStatus.paid,
       date: DateTime.now(),
-      debtId: null, // This is a customer-level activity, not tied to a specific debt
+      debtId: debtId, // Tie this activity to the specific debt that was completed
     );
     
     // Save to Firebase - if it fails, continue with local processing
@@ -1723,41 +1867,14 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Handle customer settlement - creates only one "Fully paid" activity per settlement
+  // Handle customer settlement - creates "Fully paid" activity for each debt completion
   Future<void> _handleCustomerSettlement(String customerId, String customerName, double settlementAmount, {List<Debt>? newlySettledDebts}) async {
     try {
-      // Check if we already have a "Fully paid" activity for this customer in the last 5 minutes
-      // This prevents duplicate "Fully paid" activities from the same settlement
-      final now = DateTime.now();
-      final fiveMinutesAgo = now.subtract(const Duration(minutes: 5));
-      
-      final recentFullyPaidActivity = _activities.where((activity) =>
-        activity.customerId == customerId &&
-        activity.type == ActivityType.payment &&
-        activity.description.startsWith('Fully paid:') &&
-        activity.date.isAfter(fiveMinutesAgo)
-      ).isNotEmpty;
-      
-      
-      // Debug: Show recent activities for this customer
-      final recentActivities = _activities.where((activity) =>
-        activity.customerId == customerId &&
-        activity.type == ActivityType.payment &&
-        activity.description.startsWith('Fully paid:') &&
-        activity.date.isAfter(fiveMinutesAgo)
-      ).toList();
-      
-      
-      // Trigger settlement confirmation (always, regardless of recent activities)
+      // Trigger settlement confirmation
       await _triggerSettlementConfirmationAutomation(customerId, newlySettledDebts: newlySettledDebts);
       
-      // Only skip creating "Fully paid" activity if there's a recent one
-      if (recentFullyPaidActivity) {
-        return;
-      }
-      
-      // Create the "Fully paid" activity
-      await addCustomerFullyPaidActivity(customerId, customerName, settlementAmount);
+      // Create the "Fully paid" activity for this debt completion
+      await addCustomerFullyPaidActivity(customerId, customerName, settlementAmount, debtId: newlySettledDebts?.first.id);
     } catch (e) {
       rethrow;
     }
@@ -1782,59 +1899,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Remove duplicate "Fully paid" activities for the same customer on the same day
-  /// This cleans up any existing duplicates that may have been created
-  Future<void> removeDuplicateFullyPaidActivities() async {
-    try {
-      
-      final Map<String, List<Activity>> customerFullyPaidActivities = {};
-      
-      // Group "Fully paid" activities by customer, date, and amount to catch exact duplicates
-      for (final activity in _activities) {
-        if (activity.type == ActivityType.payment && 
-            activity.description.startsWith('Fully paid:')) {
-          // Use customer, date, and amount to create a more specific key
-          final dateKey = '${activity.customerId}_${activity.date.year}_${activity.date.month}_${activity.date.day}_${activity.paymentAmount}';
-          if (!customerFullyPaidActivities.containsKey(dateKey)) {
-            customerFullyPaidActivities[dateKey] = [];
-          }
-          customerFullyPaidActivities[dateKey]!.add(activity);
-        }
-      }
-      
-      // For each customer/date group, keep only the first "Fully paid" activity
-      final activitiesToRemove = <Activity>[];
-      for (final activities in customerFullyPaidActivities.values) {
-        if (activities.length > 1) {
-          // Sort by date (keep the earliest one)
-          activities.sort((a, b) => a.date.compareTo(b.date));
-          // Mark all but the first one for removal
-          for (int i = 1; i < activities.length; i++) {
-            activitiesToRemove.add(activities[i]);
-          }
-        }
-      }
-      
-      // Remove duplicate activities
-      for (final activity in activitiesToRemove) {
-        await _dataService.deleteActivity(activity.id);
-        _activities.removeWhere((a) => a.id == activity.id);
-      }
-      
-      if (activitiesToRemove.isNotEmpty) {
-        _clearCache();
-        notifyListeners();
-      }
-    } catch (e) {
-      // Handle error silently
-    }
-  }
 
-  /// Force cleanup of duplicate "Fully paid" activities immediately
-  /// This should be called when the user reports duplicate activities
-  Future<void> forceCleanupDuplicateActivities() async {
-    await removeDuplicateFullyPaidActivities();
-  }
 
   /// Remove all duplicate activities based on ID
   void removeAllDuplicates() {
@@ -2276,8 +2341,6 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
         
-        // Show notification
-        await _notificationService.showDebtUpdatedNotification(debt.customerName);
       }
     } catch (e) {
       rethrow;
@@ -2307,16 +2370,24 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showDebtDeletedNotification(customerName, amount);
     } catch (e) {
       rethrow;
     }
   }
 
   Future<void> markDebtAsPaid(String debtId) async {
+    print('✅ markDebtAsPaid called for debt: $debtId');
+    print('✅ Current time: ${DateTime.now()}');
     try {
       final debt = _debts.firstWhere((d) => d.id == debtId);
+      print('✅ Debt found: ${debt.description}, Amount: ${debt.amount}, Paid: ${debt.paidAmount}');
+
+      // Validation: Check if debt is already paid
+      if (debt.status == DebtStatus.paid) {
+        print('✅ Debt is already paid, skipping');
+        // Debt is already paid, no need to proceed
+        return;
+      }
 
       final oldStatus = debt.status; // Store the old status before updating
 
@@ -2347,30 +2418,68 @@ class AppState extends ChangeNotifier {
         
         
         if (totalOutstanding == 0) {
-          // All customer debts are now paid - handle settlement
-          // Pass the specific debt that was just paid for the settlement message
-          await _handleCustomerSettlement(debt.customerId, debt.customerName, remainingAmountBeforePayment, newlySettledDebts: [updatedDebt]);
+          print('🔍 markDebtAsPaid: All debts fully paid, triggering settlement');
+          // All customer debts are now paid - trigger settlement confirmation
+          await _triggerSettlementConfirmationAutomation(
+            debt.customerId, 
+            newlySettledDebts: [updatedDebt] // Pass the debt that was just completed
+          );
         } else {
+          print('🔍 markDebtAsPaid: Still outstanding debts: $totalOutstanding');
         }
       } catch (e) {
       }
       
-      // Show notification
-      await _notificationService.showDebtMarkedAsPaidNotification(debt.customerName, debt.amount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Mark debt as paid without creating individual activity (for consolidated payments)
+  Future<void> markDebtAsPaidWithoutActivity(String debtId) async {
+    try {
+      final debt = _debts.firstWhere((d) => d.id == debtId);
+
+      // Validation: Check if debt is already paid
+      if (debt.status == DebtStatus.paid) {
+        // Debt is already paid, no need to proceed
+        return;
+      }
+
+      final updatedDebt = debt.copyWith(
+        status: DebtStatus.paid,
+        paidAmount: debt.amount,
+        // Note: remainingAmount is a computed getter, not a field that can be set
+        // The debt will automatically calculate the correct remaining amount
+      );
+      
+      await updateDebt(updatedDebt);
+      
+      // No activity creation - this is handled by the calling method for consolidated payments
+      
     } catch (e) {
       rethrow;
     }
   }
 
   Future<void> applyPartialPayment(String debtId, double paymentAmount, {bool skipActivityCreation = false}) async {
+    print('💰 applyPartialPayment called for debt: $debtId, amount: $paymentAmount');
     try {
       final index = _debts.indexWhere((debt) => debt.id == debtId);
       
       if (index == -1) {
+        print('❌ Debt not found: $debtId');
         return;
       }
 
       final originalDebt = _debts[index];
+      print('💰 Original debt: ${originalDebt.description}, Amount: ${originalDebt.amount}, Paid: ${originalDebt.paidAmount}');
+      
+      // Validation: Check if debt is already fully paid
+      if (originalDebt.status == DebtStatus.paid) {
+        // Debt is already fully paid, no need to proceed with partial payment
+        return;
+      }
       
       // Create a new partial payment record
       final partialPayment = PartialPayment(
@@ -2396,6 +2505,10 @@ class AppState extends ChangeNotifier {
       final remainingAmount = originalDebt.amount - newTotalPaidAmount;
       final isEffectivelyFullyPaid = remainingAmount.abs() < 0.01;
       
+      print('💰 New total paid: $newTotalPaidAmount, Debt amount: ${originalDebt.amount}');
+      print('💰 Is fully paid: $isThisDebtFullyPaid, Is effectively paid: $isEffectivelyFullyPaid');
+      print('💰 Remaining amount: $remainingAmount');
+      
       // Update the debt with the new total paid amount
       _debts[index] = originalDebt.copyWith(
         paidAmount: newTotalPaidAmount,
@@ -2417,6 +2530,7 @@ class AppState extends ChangeNotifier {
         
         // If this payment completes the debt, also check for consolidation
         if (isThisDebtFullyPaid || isEffectivelyFullyPaid) {
+          print('💰 This debt is now fully paid, checking customer settlement');
           await _checkAndConsolidateMultipleDebtCompletions(originalDebt.customerId, originalDebt.customerName);
           
           // CRITICAL FIX: Never clear all customer debts during partial payments
@@ -2425,15 +2539,26 @@ class AppState extends ChangeNotifier {
           
           // Check if this was the last debt for the customer and trigger settlement confirmation
           final customerDebts = _debts.where((d) => d.customerId == originalDebt.customerId).toList();
+          print('💰 Customer debts count: ${customerDebts.length}');
           
           // CRITICAL FIX: Use the updated debt in our calculation instead of the old one
           final updatedCustomerDebts = customerDebts.map((d) => d.id == debtId ? _debts[index] : d).toList();
           final totalOutstanding = updatedCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
           
+          print('💰 Total outstanding for customer: $totalOutstanding');
+          
+          // If all customer debts are now fully paid, trigger settlement confirmation
           if (totalOutstanding == 0) {
-            // All customer debts are now paid - handle settlement
-            await _handleCustomerSettlement(originalDebt.customerId, originalDebt.customerName, remainingAmount, newlySettledDebts: [originalDebt]);
+            print('🔍 applyPartialPayment: All debts fully paid, triggering settlement');
+            await _triggerSettlementConfirmationAutomation(
+              originalDebt.customerId, 
+              newlySettledDebts: [_debts[index]] // Pass the debt that was just completed
+            );
+          } else {
+            print('🔍 applyPartialPayment: Still outstanding debts: $totalOutstanding');
           }
+        } else {
+          print('💰 This debt is not fully paid yet');
         }
       }
       
@@ -2443,9 +2568,6 @@ class AppState extends ChangeNotifier {
       
       _clearCache();
       notifyListeners();
-      
-      // Show notification for partial payment
-      await _notificationService.showPartialPaymentNotification(originalDebt.customerName, paymentAmount);
       
       // Reschedule notifications
       await _scheduleNotifications();
@@ -2517,26 +2639,27 @@ class AppState extends ChangeNotifier {
         // Update in storage
         await _dataService.updateDebt(_debts[debtIndex]);
         
-        // Create activity
-        if (!skipActivityCreation) {
-          await addPaymentActivity(_debts[debtIndex], paymentForThisDebt, currentDebt.status, _debts[debtIndex].status);
-        }
-        
-        // Check if this debt is now fully paid and if it was the last one for the customer
-        if (isThisDebtFullyPaid || isEffectivelyFullyPaid) {
-          // Check if this was the last debt for the customer and trigger settlement confirmation
-          final allCustomerDebts = _debts.where((d) => d.customerId == customerId).toList();
-          final totalOutstanding = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
-          
-          if (totalOutstanding == 0) {
-            // All customer debts are now paid - handle settlement
-            final customer = _customers.firstWhere((c) => c.id == customerId);
-            await _handleCustomerSettlement(customerId, customer.name, paymentAmount, newlySettledDebts: customerDebts);
-          }
-        }
+        // Note: Activity creation is handled by the main applyPartialPayment logic above
+        // No need to create duplicate activities here
         
         remainingPayment -= paymentForThisDebt;
         updatedDebts++;
+      }
+      
+      // Check if all customer debts are now fully paid and trigger settlement confirmation
+      final allCustomerDebts = _debts.where((d) => d.customerId == customerId).toList();
+      final totalOutstanding = allCustomerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
+      
+      if (totalOutstanding == 0) {
+        print('🔍 applyCustomerPartialPayment: All debts fully paid, triggering settlement');
+        // Get all debts that were just completed in this payment
+        final newlySettledDebts = allCustomerDebts.where((d) => d.status == DebtStatus.paid).toList();
+        await _triggerSettlementConfirmationAutomation(
+          customerId, 
+          newlySettledDebts: newlySettledDebts
+        );
+      } else {
+        print('🔍 applyCustomerPartialPayment: Still outstanding debts: $totalOutstanding');
       }
       
       // Clear cache and notify listeners
@@ -2560,7 +2683,6 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showCategoryAddedNotification(category.name);
     } catch (e) {
       rethrow;
     }
@@ -2576,7 +2698,6 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         
         // Show notification
-        await _notificationService.showCategoryUpdatedNotification(category.name);
       }
     } catch (e) {
       rethrow;
@@ -2595,7 +2716,6 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       
       // Show notification
-      await _notificationService.showCategoryDeletedNotification(categoryName);
     } catch (e) {
       rethrow;
     }
@@ -2627,8 +2747,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showProductPurchaseAddedNotification(purchase.subcategoryName);
     } catch (e) {
       rethrow;
     }
@@ -2643,8 +2761,6 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
         
-        // Show notification
-        await _notificationService.showProductPurchaseUpdatedNotification(purchase.subcategoryName);
       }
     } catch (e) {
       rethrow;
@@ -2662,8 +2778,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showProductPurchaseDeletedNotification(purchaseName);
     } catch (e) {
       rethrow;
     }
@@ -2817,28 +2931,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Manually clean up duplicate orphaned activities
-  Future<void> cleanupDuplicateActivities() async {
-    try {
-      // Implement Firebase activities cleanup
-      // Validate and fix any data inconsistencies
-      final validation = await _dataService.validateDataIntegrity();
-      if (validation['isValid'] == false) {
-        await _dataService.fixDataInconsistencies();
-      }
-      
-      // Reload activities from Firebase
-      final activitiesStream = _dataService.activitiesFirebaseStream;
-      await for (final activities in activitiesStream.take(1)) {
-        _activities = activities;
-      }
-      
-      _clearCache();
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   /// Manually fix alfa product pricing to correct values
   Future<void> fixAlfaProductPricing() async {
@@ -3104,8 +3196,12 @@ class AppState extends ChangeNotifier {
 
   // Apply payment across multiple debts with proportional distribution
   Future<void> applyPaymentAcrossDebts(List<String> debtIds, double paymentAmount) async {
+    print('💳 applyPaymentAcrossDebts called for ${debtIds.length} debts, amount: $paymentAmount');
     try {
-      if (debtIds.isEmpty || paymentAmount <= 0) return;
+      if (debtIds.isEmpty || paymentAmount <= 0) {
+        print('💳 Invalid parameters, returning');
+        return;
+      }
       
       // Get all pending debts for the customer
       final pendingDebts = _debts.where((d) => debtIds.contains(d.id))
@@ -3181,11 +3277,16 @@ class AppState extends ChangeNotifier {
       final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
       final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
       
+      print('💳 Customer ID: $customerId');
+      print('💳 Customer debts count: ${customerDebts.length}');
+      print('💳 Total outstanding: $totalOutstanding');
       
       if (totalOutstanding == 0) {
+        print('💳 All debts fully paid, triggering settlement');
         // Pass only the debts that were just completed, not all customer debts
         await _triggerSettlementConfirmationAutomation(customerId, newlySettledDebts: pendingDebts);
       } else {
+        print('💳 Still outstanding debts: $totalOutstanding');
       }
       
       // Clear cache and notify listeners to refresh UI
@@ -3597,19 +3698,32 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Method for settlement confirmation automation (when debts are fully paid)
-  Future<void> _triggerSettlementConfirmationAutomation(String customerId, {List<Debt>? newlySettledDebts}) async {
+  // Method for settlement confirmation automation with specific payment amount
+  Future<void> triggerSettlementConfirmationAutomationWithAmount(String customerId, {double? actualPaymentAmount, List<Debt>? newlySettledDebts}) async {
+    // Debug: Print current state
+    print('🔍 Settlement automation triggered for customer: $customerId');
+    print('🔍 WhatsApp automation enabled: $_whatsappAutomationEnabled');
+    print('🔍 Actual payment amount provided: $actualPaymentAmount');
     
     if (_whatsappAutomationEnabled) {
       try {
         final customer = _customers.firstWhere((c) => c.id == customerId);
+        print('🔍 Customer found: ${customer.name}');
         
         final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+        print('🔍 Customer debts count: ${customerDebts.length}');
         
         if (customerDebts.isNotEmpty) {
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          print('🔍 Total outstanding amount: $totalAmount');
+          
+          // Debug each debt
+          for (final debt in customerDebts) {
+            print('🔍 Debt: ${debt.description}, Amount: ${debt.amount}, Paid: ${debt.paidAmount}, Remaining: ${debt.remainingAmount}, Status: ${debt.status}');
+          }
           
           if (totalAmount == 0) {
+            print('🔍 All debts are fully paid - sending settlement message');
             // Customer has no outstanding balance - send settlement confirmation
             // Use receipt-style message (no custom message needed)
             final customMessage = '';
@@ -3617,6 +3731,7 @@ class AppState extends ChangeNotifier {
             try {
               // Use newly settled debts if provided, otherwise fall back to all customer debts
               final debtsToShow = newlySettledDebts ?? customerDebts;
+              print('🔍 Debts to show in message: ${debtsToShow.length}');
 
               final success = await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
@@ -3626,24 +3741,131 @@ class AppState extends ChangeNotifier {
                 ).toList(),
                 customMessage: customMessage,
                 settlementDate: DateTime.now(),
+                actualPaymentAmount: actualPaymentAmount, // Use the provided payment amount
               );
 
+              print('🔍 WhatsApp message sent successfully: $success');
               if (!success) {
-                // WhatsApp automation failed - this is expected in some cases
+                print('⚠️ WhatsApp automation failed - this is expected in some cases');
                 // The user can manually send the message if needed
               }
             } catch (e) {
+              print('❌ WhatsApp automation error: $e');
               // WhatsApp automation failed - this is expected in some cases
               // The user can manually send the message if needed
             }
           } else {
+            print('🔍 Customer still has outstanding debts: $totalAmount');
           }
         } else {
+          print('🔍 No debts found for customer');
         }
       } catch (e) {
+        print('❌ Settlement automation error: $e');
         // Silent fail for WhatsApp automation
       }
     } else {
+      print('⚠️ WhatsApp automation is disabled - enable it in settings');
+    }
+  }
+
+  // Method for settlement confirmation automation (when debts are fully paid)
+  Future<void> _triggerSettlementConfirmationAutomation(String customerId, {List<Debt>? newlySettledDebts}) async {
+    // Debug: Print current state
+    print('🔍 Settlement automation triggered for customer: $customerId');
+    print('🔍 WhatsApp automation enabled: $_whatsappAutomationEnabled');
+    
+    if (_whatsappAutomationEnabled) {
+      try {
+        final customer = _customers.firstWhere((c) => c.id == customerId);
+        print('🔍 Customer found: ${customer.name}');
+        
+        final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
+        print('🔍 Customer debts count: ${customerDebts.length}');
+        
+        if (customerDebts.isNotEmpty) {
+          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          print('🔍 Total outstanding amount: $totalAmount');
+          
+          // Debug each debt
+          for (final debt in customerDebts) {
+            print('🔍 Debt: ${debt.description}, Amount: ${debt.amount}, Paid: ${debt.paidAmount}, Remaining: ${debt.remainingAmount}, Status: ${debt.status}');
+          }
+          
+          if (totalAmount == 0) {
+            print('🔍 All debts are fully paid - sending settlement message');
+            // Customer has no outstanding balance - send settlement confirmation
+            // Use receipt-style message (no custom message needed)
+            final customMessage = '';
+            
+            try {
+              // Use newly settled debts if provided, otherwise fall back to all customer debts
+              final debtsToShow = newlySettledDebts ?? customerDebts;
+              print('🔍 Debts to show in message: ${debtsToShow.length}');
+
+              // Calculate the actual payment amount that completed the debt
+              double actualPaymentAmount = 0.0;
+              
+              // Get the most recent partial payment for THIS specific customer
+              final customerPartialPayments = _partialPayments.where((p) => 
+                debtsToShow.any((d) => d.id == p.debtId)
+              ).toList();
+              
+              if (customerPartialPayments.isNotEmpty) {
+                // Sort by date and get the most recent payment amount for this customer
+                customerPartialPayments.sort((a, b) => b.paidAt.compareTo(a.paidAt));
+                actualPaymentAmount = customerPartialPayments.first.amount;
+                print('🔍 Actual payment amount from customer recent payment: $actualPaymentAmount');
+                print('🔍 Customer payment date: ${customerPartialPayments.first.paidAt}');
+              }
+              
+              // If no customer-specific payments found, try to get the most recent payment overall
+              if (actualPaymentAmount == 0.0 && _partialPayments.isNotEmpty) {
+                final sortedPayments = List<PartialPayment>.from(_partialPayments)
+                  ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
+                actualPaymentAmount = sortedPayments.first.amount;
+                print('🔍 Actual payment amount from most recent payment overall: $actualPaymentAmount');
+              }
+              
+              // If still no payment found, calculate from debt remaining amounts
+              if (actualPaymentAmount == 0.0) {
+                actualPaymentAmount = debtsToShow.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+                print('🔍 Actual payment amount from debt remaining: $actualPaymentAmount');
+              }
+
+              final success = await WhatsAppAutomationService.sendSettlementMessage(
+                customer: customer,
+                settledDebts: debtsToShow, // Only show newly settled debts
+                partialPayments: _partialPayments.where((p) => 
+                  debtsToShow.any((d) => d.id == p.debtId)
+                ).toList(),
+                customMessage: customMessage,
+                settlementDate: DateTime.now(),
+                actualPaymentAmount: actualPaymentAmount, // Pass the actual payment amount
+              );
+
+              print('🔍 WhatsApp message sent successfully: $success');
+              if (!success) {
+                print('⚠️ WhatsApp automation failed - this is expected in some cases');
+                // The user can manually send the message if needed
+              }
+            } catch (e) {
+              print('❌ WhatsApp automation error: $e');
+              // WhatsApp automation failed - this is expected in some cases
+              // The user can manually send the message if needed
+            }
+          } else {
+            print('🔍 Customer still has outstanding debts: $totalAmount');
+          }
+        } else {
+          print('🔍 No debts found for customer');
+        }
+      } catch (e) {
+        print('❌ Settlement automation error: $e');
+        // Silent fail for WhatsApp automation
+      }
+    } else {
+      print('⚠️ WhatsApp automation is disabled - enable it in settings');
     }
   }
 
@@ -3679,11 +3901,20 @@ class AppState extends ChangeNotifier {
 
   // Public method to manually trigger WhatsApp settlement notification (for customers who have paid all debts)
   Future<void> sendWhatsAppSettlementNotification(String customerId) async {
+    print('📞 sendWhatsAppSettlementNotification called for customer: $customerId');
+    print('📞 WhatsApp automation enabled: $_whatsappAutomationEnabled');
     if (_whatsappAutomationEnabled) {
       await _triggerSettlementConfirmationAutomation(customerId);
     } else {
+      print('📞 WhatsApp automation is disabled');
       throw Exception('WhatsApp automation is not enabled. Please enable it in settings.');
     }
+  }
+
+  // Test method to manually trigger settlement automation for debugging
+  Future<void> testSettlementAutomation(String customerId) async {
+    print('🧪 Testing settlement automation for customer: $customerId');
+    await _triggerSettlementConfirmationAutomation(customerId);
   }
 
 

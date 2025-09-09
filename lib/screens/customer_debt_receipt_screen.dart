@@ -9,8 +9,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 
 // These imports are only used in mobile-specific code
-// import 'package:path_provider/path_provider.dart';
-// import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
@@ -24,7 +24,6 @@ import '../utils/debt_description_utils.dart';
 import '../services/receipt_sharing_service.dart';
 import '../providers/app_state.dart';
 import 'add_customer_screen.dart';
-import 'customer_details_screen.dart';
 
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
@@ -954,10 +953,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       await _exportAsPDF();
     } catch (e) {
       final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Share Error',
-        body: 'Failed to share receipt: $e',
-      );
     }
   }
   
@@ -1242,23 +1237,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       
       if (success) {
         final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'WhatsApp Opened',
-          body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
-        );
       } else {
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'WhatsApp Error',
-          body: 'Could not open WhatsApp. Please check if it\'s installed.',
-        );
       }
     } catch (e) {
       final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'WhatsApp Error',
-        body: 'Failed to open WhatsApp: $e',
-      );
     }
   }
   
@@ -1275,23 +1258,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       
       if (success) {
         final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Email App Opened',
-          body: 'Your email app has been opened. Please attach the PDF receipt manually.',
-        );
       } else {
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Email Error',
-          body: 'Could not open email app. Please check if you have an email app installed.',
-        );
       }
     } catch (e) {
       final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Email Error',
-        body: 'Failed to open email app: $e',
-      );
     }
   }
   
@@ -1315,25 +1286,23 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
           // Use the existing share functionality to save to iPhone
           await Share.shareXFiles([XFile(pdfFile.path)]);
           
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'Receipt Saved',
-            body: 'Receipt has been saved to your iPhone. You can now share it via any app.',
-          );
-        } else {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'Save Error',
-            body: 'Failed to generate receipt for saving.',
-          );
+          if (mounted) {
+            final notificationService = NotificationService();
+            await notificationService.showSuccessNotification(
+              title: 'Receipt Saved',
+              body: 'Receipt has been saved to your device',
+            );
+          }
         }
       }
     } catch (e) {
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Save Error',
-        body: 'Failed to save receipt: $e',
-      );
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Save Error',
+          body: 'Failed to save receipt: $e',
+        );
+      }
     }
   }
   
@@ -1344,11 +1313,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       
       if (kIsWeb) {
         // Web-specific PDF handling - use share_plus for web compatibility
-        final pdfBytes = await pdf.save();
-        final now = DateTime.now();
-        final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
-        final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
-        
         try {
           // For web, use share_plus which handles web platforms better
           await Share.share(
@@ -1356,43 +1320,53 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             subject: 'Debt Receipt - ${widget.customer.name}',
           );
           
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'Receipt Shared',
-            body: 'Receipt has been shared successfully',
-          );
-        } catch (webError) {
-          // Fallback for web sharing issues
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'Web Sharing Error',
-            body: 'Failed to share receipt on web: $webError. Please try again.',
-          );
+          if (mounted) {
+            final notificationService = NotificationService();
+            await notificationService.showSuccessNotification(
+              title: 'PDF Exported',
+              body: 'Receipt has been exported successfully',
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            final notificationService = NotificationService();
+            await notificationService.showErrorNotification(
+              title: 'Export Error',
+              body: 'Failed to export PDF: $e',
+            );
+          }
         }
       } else {
         // Mobile PDF handling - only if not on web
         if (!kIsWeb) {
-          // On mobile, show a message that PDF export is not fully implemented
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'PDF Export',
-            body: 'PDF export is available on mobile devices',
-          );
-        } else {
-          // Web fallback - just show success message
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'PDF Generated',
-            body: 'Receipt PDF has been generated successfully on web',
-          );
+          final pdfBytes = await pdf.save();
+          final now = DateTime.now();
+          final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
+          final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
+          
+          final directory = await getApplicationDocumentsDirectory();
+          final file = File('${directory.path}/$fileName');
+          await file.writeAsBytes(pdfBytes);
+          
+          await Share.shareXFiles([XFile(file.path)]);
+          
+          if (mounted) {
+            final notificationService = NotificationService();
+            await notificationService.showSuccessNotification(
+              title: 'PDF Exported',
+              body: 'Receipt has been exported successfully',
+            );
+          }
         }
       }
     } catch (e) {
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'PDF Export Error',
-        body: 'Failed to export PDF: $e',
-      );
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Export Error',
+          body: 'Failed to export PDF: $e',
+        );
+      }
     }
   }
 
@@ -1422,8 +1396,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final partialPayments = _getPartialPaymentsForDebt(debt.id);
       if (partialPayments.isNotEmpty && debt.isFullyPaid) {
         // For fully paid debts, exclude the most recent payment (the final payment)
-
-        
         for (int i = 0; i < partialPayments.length; i++) {
           final payment = partialPayments[i];
           // Skip the most recent payment if the debt is fully paid
@@ -1954,11 +1926,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete debt: $e'),
-            backgroundColor: AppColors.error,
-          ),
+        final notificationService = NotificationService();
+        await notificationService.showErrorNotification(
+          title: 'Delete Error',
+          body: 'Failed to delete debt: $e',
         );
       }
     }

@@ -451,13 +451,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final hasAnyPayments = customerPartialPayments.isNotEmpty || customerActivities.any((a) => a.type == ActivityType.payment);
       
       if (!hasPendingDebts && !hasAnyPayments) {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'No Receipt Data',
-            body: 'Customer has no pending debts or payment history to generate receipt for.',
-          );
-        }
         return;
       }
       
@@ -510,25 +503,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
             );
           }
         } else {
-          if (mounted) {
-            final notificationService = NotificationService();
-            await notificationService.showErrorNotification(
-              title: 'PDF Generation Error',
-              body: 'Failed to generate receipt PDF. Please try again.',
-            );
-          }
         }
       }
     } catch (e) {
 
       
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'PDF Error',
-          body: 'Failed to generate receipt: $e',
-        );
-      }
     }
   }
   
@@ -547,30 +526,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       );
 
       if (success) {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'WhatsApp Opened',
-            body: 'WhatsApp has been opened. Please attach the PDF receipt manually.',
-          );
-        }
-      } else {
-        if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showErrorNotification(
-            title: 'WhatsApp Error',
-            body: 'Could not open WhatsApp. Please check if it\'s installed.',
-          );
-        }
       }
     } catch (e) {
-      if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'WhatsApp Error',
-          body: 'Failed to open WhatsApp: $e',
-        );
-      }
     }
   }
 
@@ -800,24 +757,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       );
       
       if (success) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Email App Opened',
-          body: 'Your email app has been opened. Please attach the PDF receipt manually.',
-        );
       } else {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Email Error',
-          body: 'Could not open email app. Please check if you have an email app installed.',
-        );
       }
     } catch (e) {
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Email Error',
-        body: 'Failed to open email app: $e',
-      );
     }
   }
   
@@ -840,24 +782,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Use the existing share functionality to save to iPhone
         await Share.shareXFiles([XFile(pdfFile.path)]);
         
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Receipt Saved',
-          body: 'Receipt has been saved to your iPhone. You can now share it via any app.',
-        );
       } else {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Save Error',
-          body: 'Failed to generate receipt for saving.',
-        );
       }
     } catch (e) {
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Save Error',
-        body: 'Failed to save receipt: $e',
-      );
     }
   }
   
@@ -1627,6 +1554,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply consolidated partial payment across all pending debts
   void _applyConsolidatedPartialPayment(double paymentAmount, List<Debt> pendingDebts, BuildContext context) {
+    print('💳 _applyConsolidatedPartialPayment called with amount: $paymentAmount');
     final appState = Provider.of<AppState>(context, listen: false);
     
     // Check if this is a "Pay Full Amount" scenario
@@ -1645,8 +1573,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   // Apply payment to total debt amount (not individual debts)
   Future<void> _applyPaymentToTotalDebt(List<Debt> pendingDebts, double paymentAmount, BuildContext context) async {
-    
-    final appState = Provider.of<AppState>(context, listen: false);
+    print('💸 _applyPaymentToTotalDebt called with amount: $paymentAmount');
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
     
     if (pendingDebts.isEmpty) return;
     
@@ -1654,6 +1583,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
     // Fix floating-point precision issues by rounding to 2 decimal places
     final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
+    
+    print('💸 Pending debts count: ${pendingDebts.length}');
+    print('💸 Total remaining before payment: $roundedTotalRemaining');
+    for (final debt in pendingDebts) {
+      print('💸 Debt: ${debt.description}, Amount: ${debt.amount}, Paid: ${debt.paidAmount}, Remaining: ${debt.remainingAmount}');
+    }
     
     // Use integer arithmetic to avoid floating-point errors
     // Convert to cents (multiply by 100) for precise calculations
@@ -1664,18 +1599,29 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final updatedDebts = <Debt>[];
     
     // Apply payment proportionally, but ensure exact total
+    print('💸 Starting payment processing loop for ${pendingDebts.length} debts');
     for (int i = 0; i < pendingDebts.length; i++) {
       final debt = pendingDebts[i];
       int reductionCents;
       
+      print('💸 Processing debt ${i + 1}/${pendingDebts.length}: ${debt.description}');
+      print('💸   - Remaining amount: ${debt.remainingAmount}');
+      print('💸   - Paid amount: ${debt.paidAmount}');
+      print('💸   - Total amount: ${debt.amount}');
+      print('💸   - Remaining payment cents: $remainingPaymentCents');
+      print('💸   - Total payment cents: $totalPaymentCents');
+      
       if (i == pendingDebts.length - 1) {
         // For the last debt, use remaining payment to ensure exact total
         reductionCents = remainingPaymentCents;
+        print('💸   - Last debt, using remaining payment: $remainingPaymentCents cents');
       } else {
         // Calculate proportional reduction using integer arithmetic
         final debtRemainingCents = (debt.remainingAmount * 100).round();
         reductionCents = (totalPaymentCents * debtRemainingCents) ~/ totalRemainingCents;
         remainingPaymentCents -= reductionCents;
+        print('💸   - Proportional reduction: $reductionCents cents');
+        print('💸   - Remaining payment after this debt: $remainingPaymentCents cents');
       }
       
       // Convert back to dollars
@@ -1685,17 +1631,29 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final maxReduction = debt.remainingAmount;
       final finalReductionAmount = reductionAmount > maxReduction ? maxReduction : reductionAmount;
       
+      print('💸   - Reduction amount: $reductionAmount');
+      print('💸   - Max reduction: $maxReduction');
+      print('💸   - Final reduction: $finalReductionAmount');
+      
       final newPaidAmount = debt.paidAmount + finalReductionAmount;
       final isFullyPaid = newPaidAmount >= debt.amount;
+      
+      print('💸   - New paid amount: $newPaidAmount');
+      print('💸   - Is fully paid: $isFullyPaid');
       
       // Update the debt
       final updatedDebt = debt.copyWith(
         paidAmount: newPaidAmount,
         status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
-        paidAt: DateTime.now(),
+        paidAt: isFullyPaid ? DateTime.now() : debt.paidAt,
       );
       
       updatedDebts.add(updatedDebt);
+      
+      print('💸 About to update debt in storage: ${updatedDebt.description}');
+      print('💸   - Paid amount: ${updatedDebt.paidAmount}');
+      print('💸   - Remaining amount: ${updatedDebt.remainingAmount}');
+      print('💸   - Status: ${updatedDebt.status}');
       
       // Update in storage
       await appState.updateDebt(updatedDebt);
@@ -1704,8 +1662,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final index = appState.debts.indexWhere((d) => d.id == debt.id);
       if (index != -1) {
         appState.debts[index] = updatedDebt;
+        print('💸 Updated local debt list at index $index');
+      } else {
+        print('💸 ERROR: Could not find debt in local list to update');
       }
+      
+      print('💸 Updated debt: ${updatedDebt.description}, Amount: ${updatedDebt.amount}, Paid: ${updatedDebt.paidAmount}, Remaining: ${updatedDebt.remainingAmount}, Status: ${updatedDebt.status}');
     }
+    
+    print('💸 Payment processing loop completed for ${updatedDebts.length} debts');
     
     // Create ONE consolidated payment activity for the entire payment amount
     if (paymentAmount > 0) {
@@ -1732,11 +1697,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
     final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
     
+    print('💸 Total outstanding: $totalOutstanding');
+    print('💸 Customer ID: $customerId');
+    print('💸 All customer debts:');
+    for (final debt in customerDebts) {
+      print('💸   - ${debt.description}: Amount=${debt.amount}, Paid=${debt.paidAmount}, Remaining=${debt.remainingAmount}, Status=${debt.status}');
+    }
     
     if (totalOutstanding == 0) {
-      // Pass only the debts that were just completed, not all customer debts
-      await appState.sendWhatsAppSettlementNotification(customerId);
+      print('💸 All debts fully paid, calling sendWhatsAppSettlementNotification');
+      print('💸 Customer ID: $customerId');
+      try {
+        // Pass only the debts that were just completed, not all customer debts
+        await appState.sendWhatsAppSettlementNotification(customerId);
+        print('💸 sendWhatsAppSettlementNotification completed successfully');
+      } catch (e) {
+        print('💸 Error calling sendWhatsAppSettlementNotification: $e');
+      }
     } else {
+      print('💸 Still outstanding debts: $totalOutstanding');
     }
     
     // FORCE UPDATE: Delay and force multiple notifications to ensure UI updates
@@ -1750,6 +1729,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     await Future.delayed(Duration(milliseconds: 500));
     appState.notifyListeners();
     
+    } catch (e) {
+      print('💸 ERROR in _applyPaymentToTotalDebt: $e');
+      print('💸 Stack trace: ${StackTrace.current}');
+    }
   }
   
   // Apply payment sequentially to debts (oldest first)
@@ -1864,33 +1847,58 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     double totalPaidAmount = 0.0;
     
     try {
-      // Process each debt payment
+      // Calculate total amount to be paid
       for (final debt in pendingDebts) {
         if (debt.remainingAmount > 0) {
           totalPaidAmount += debt.remainingAmount;
-          // Use markDebtAsPaid to trigger settlement automation
-          await appState.markDebtAsPaid(debt.id);
         }
+      }
+      
+      // Process each debt payment without creating individual activities
+      for (final debt in pendingDebts) {
+        if (debt.remainingAmount > 0) {
+          // Mark debt as paid without creating individual activity
+          await appState.markDebtAsPaidWithoutActivity(debt.id);
+        }
+      }
+      
+      // Create a single consolidated "Fully paid" activity for the total amount
+      if (totalPaidAmount > 0) {
+        final activity = Activity(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          customerId: pendingDebts.first.customerId,
+          customerName: pendingDebts.first.customerName,
+          type: ActivityType.payment,
+          description: 'Fully paid: ${totalPaidAmount.toStringAsFixed(2)}\$',
+          paymentAmount: totalPaidAmount,
+          amount: totalPaidAmount,
+          oldStatus: DebtStatus.pending,
+          newStatus: DebtStatus.paid,
+          date: DateTime.now(),
+          debtId: null, // No specific debt ID since this is a consolidated payment
+        );
+        
+        await appState.addActivity(activity);
+      }
+      
+      // Trigger WhatsApp settlement automation with the actual payment amount
+      try {
+        final customerId = pendingDebts.first.customerId;
+        print('💸 _payFullAmountForAllDebts: Triggering WhatsApp settlement for customer: $customerId');
+        print('💸 _payFullAmountForAllDebts: Total paid amount: $totalPaidAmount');
+        
+        // Call the settlement automation directly with the correct payment amount
+        await appState.triggerSettlementConfirmationAutomationWithAmount(
+          customerId, 
+          actualPaymentAmount: totalPaidAmount,
+          newlySettledDebts: pendingDebts
+        );
+        print('💸 _payFullAmountForAllDebts: WhatsApp settlement triggered successfully');
+      } catch (e) {
+        print('💸 _payFullAmountForAllDebts: WhatsApp settlement failed: $e');
       }
       
       paymentSuccess = true;
-      
-      // Create a single payment activity for the remaining amount that was just paid
-      // This is non-critical - if it fails, payment still succeeded
-      try {
-        final remainingAmount = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-        // Fix floating-point precision issues by rounding to 2 decimal places
-        final roundedRemainingAmount = ((remainingAmount * 100).round() / 100);
-        if (roundedRemainingAmount > 0) {
-          await appState.addCustomerFullyPaidActivity(
-            _currentCustomer.id,
-            _currentCustomer.name,
-            roundedRemainingAmount, // This should be the remaining amount that was just paid
-          );
-        }
-      } catch (activityError) {
-        // Activity logging failed - this is non-critical
-      }
       
     } catch (e) {
       // Only show error notification for critical payment failures
@@ -1899,21 +1907,24 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Show appropriate notification based on result
     if (mounted) {
+      print('💸 _payFullAmountForAllDebts: Showing notification - paymentSuccess: $paymentSuccess, errorMessage: $errorMessage');
       final notificationService = NotificationService();
       
       if (paymentSuccess) {
         // Show success notification
-        await notificationService.showSuccessNotification(
-          title: 'Payment Successful',
-          body: '${_currentCustomer.name} has fully paid all their debts',
-        );
+        print('💸 _payFullAmountForAllDebts: Showing success notification');
+        await notificationService.showPaymentSuccessfulNotification(_currentCustomer.name);
+        print('💸 _payFullAmountForAllDebts: Success notification shown');
       } else if (errorMessage != null) {
         // Show error notification only for critical failures
+        print('💸 _payFullAmountForAllDebts: Showing error notification: $errorMessage');
         await notificationService.showErrorNotification(
           title: 'Payment Error',
           body: 'Failed to process payment: $errorMessage',
         );
       }
+    } else {
+      print('💸 _payFullAmountForAllDebts: Widget not mounted, skipping notification');
     }
   }
   

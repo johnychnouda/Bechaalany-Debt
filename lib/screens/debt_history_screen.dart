@@ -240,10 +240,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       if (mounted) {
         // Show error notification
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to mark debt as paid: $e',
-        );
       }
     }
   }
@@ -402,10 +398,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                   if (mounted) {
                     // Show error notification
                     final notificationService = NotificationService();
-                    await notificationService.showErrorNotification(
-                      title: 'Error',
-                      body: 'Failed to delete debt: $e',
-                    );
                   }
                 }
               },
@@ -612,14 +604,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
 
 
       
-      // First, just try to show a simple message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Attempting to open receipt for customer: $customerId'),
-          backgroundColor: Colors.blue,
-          duration: Duration(seconds: 3),
-        ),
-      );
       
       // Wait a moment
       await Future.delayed(Duration(milliseconds: 1000));
@@ -634,14 +618,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
       final customerPartialPayments = appState.partialPayments.where((p) => p.debtId == specificDebt.id).toList();
       
-      // Show success message for data retrieval
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Data retrieved successfully! Now attempting navigation...'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
       
       // Wait a moment
       await Future.delayed(Duration(milliseconds: 1000));
@@ -659,25 +635,9 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         ),
       );
       
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Receipt opened successfully!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 5),
-        ),
-      );
       
     } catch (e) {
       
-      // Show detailed error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to open receipt: $e'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 10),
-        ),
-      );
     }
   }
 
@@ -757,15 +717,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           ),
         );
         
-        if (kIsWeb) {
-          // Show success message for web
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Receipt opened successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
       } catch (e) {
         // Show detailed error for debugging
         final notificationService = NotificationService();

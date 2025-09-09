@@ -80,7 +80,12 @@ class WhatsAppAutomationService {
     required List<PartialPayment> partialPayments,
     required String customMessage,
     required DateTime settlementDate,
+    double? actualPaymentAmount,
   }) async {
+    print('📱 WhatsApp settlement message requested for: ${customer.name}');
+    print('📱 Phone: ${customer.phone}');
+    print('📱 Settled debts: ${settledDebts.length}');
+    
     try {
       // Build the complete message
       final message = _buildSettlementMessage(
@@ -89,19 +94,26 @@ class WhatsAppAutomationService {
         partialPayments: partialPayments,
         customMessage: customMessage,
         settlementDate: settlementDate,
+        actualPaymentAmount: actualPaymentAmount,
       );
+
+      print('📱 Generated message: $message');
 
       // Format phone number for WhatsApp
       final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+      print('📱 Formatted phone: $formattedPhone');
       
       // Create WhatsApp URL with pre-filled message
       final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+      print('📱 WhatsApp URL: $whatsappUrl');
       
       // Launch WhatsApp
       final launched = await launchUrl(
         Uri.parse(whatsappUrl),
         mode: LaunchMode.externalApplication,
       );
+      
+      print('📱 WhatsApp launched: $launched');
       
       return launched;
     } catch (e) {
@@ -117,6 +129,7 @@ class WhatsAppAutomationService {
           partialPayments: partialPayments,
           customMessage: customMessage,
           settlementDate: settlementDate,
+          actualPaymentAmount: actualPaymentAmount,
         );
         
         // Try launching without external application mode
@@ -154,21 +167,32 @@ Connect''';
     required List<PartialPayment> partialPayments,
     required String customMessage,
     required DateTime settlementDate,
+    double? actualPaymentAmount,
   }) {
-    // Calculate total amount settled
-    final totalAmount = settledDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    print('📱 _buildSettlementMessage: actualPaymentAmount = $actualPaymentAmount');
+    print('📱 _buildSettlementMessage: partialPayments count = ${partialPayments.length}');
+    print('📱 _buildSettlementMessage: settledDebts count = ${settledDebts.length}');
     
-    // Format settlement date
+    // Use the actual payment amount if provided, otherwise calculate from partial payments
+    double finalPaymentAmount = 0.0;
+    if (actualPaymentAmount != null && actualPaymentAmount > 0) {
+      finalPaymentAmount = actualPaymentAmount;
+      print('📱 Using actualPaymentAmount: $finalPaymentAmount');
+    } else if (partialPayments.isNotEmpty) {
+      // Get the most recent partial payment amount
+      finalPaymentAmount = partialPayments.last.amount;
+      print('📱 Using last partial payment amount: $finalPaymentAmount');
+    } else {
+      // Fallback: calculate from settled debts
+      finalPaymentAmount = settledDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      print('📱 Using settled debts total: $finalPaymentAmount');
+    }
+    
+    // Format settlement date with seconds
     final dateStr = _formatDate(settlementDate);
-    final timeStr = _formatTime(settlementDate);
+    final timeStr = _formatTimeWithSeconds(settlementDate);
     
-    // Build products list
-    final productsList = settledDebts.map((debt) {
-      final cleanedDescription = debt.description.replaceAll('\n', ' ').trim();
-      return '• $cleanedDescription: \$${debt.amount.toStringAsFixed(2)}';
-    }).join('\n');
-    
-    // Build receipt-style message
+    // Build simplified receipt-style message
     final message = '''
 📋 PAYMENT RECEIPT
 
@@ -176,10 +200,7 @@ Customer: ${customer.name}
 Date: $dateStr
 Time: $timeStr
 
-Items Paid:
-$productsList
-
-Total Amount: \$${totalAmount.toStringAsFixed(2)}
+Total Amount: \$${finalPaymentAmount.toStringAsFixed(2)}
 Status: ✅ FULLY PAID
 
 Thank you for settling all your payments!
@@ -222,5 +243,15 @@ Bechaalany Connect''';
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$displayHour:$minute $period';
+  }
+
+  /// Format time with seconds for display
+  static String _formatTimeWithSeconds(DateTime date) {
+    final hour = date.hour;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '$displayHour:$minute:$second $period';
   }
 }

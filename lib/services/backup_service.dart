@@ -32,6 +32,9 @@ class BackupService {
     // Initialize notifications
     await _initializeNotifications();
     
+    // Enable automatic backup by default if not already set
+    await _ensureAutomaticBackupEnabled();
+    
     // Check if automatic backup is enabled
     final isEnabled = await isAutomaticBackupEnabled();
 
@@ -212,10 +215,23 @@ class BackupService {
 
   }
 
+  // Ensure automatic backup is enabled by default
+  Future<void> _ensureAutomaticBackupEnabled() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Only set if not already set (preserve user's choice if they've changed it)
+      if (!prefs.containsKey('automatic_backup_enabled')) {
+        await prefs.setBool('automatic_backup_enabled', true);
+      }
+    } catch (e) {
+      // Handle error silently
+    }
+  }
+
   // Check if automatic backup is enabled
   Future<bool> isAutomaticBackupEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getBool('automatic_backup_enabled') ?? false;
+    final value = prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
     return value;
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/notification_service.dart';
-import '../services/ios18_service.dart';
+import '../services/app_update_service.dart';
 import '../constants/app_colors.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
@@ -12,20 +12,8 @@ class NotificationSettingsScreen extends StatefulWidget {
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
   final NotificationService _notificationService = NotificationService();
+  final AppUpdateService _appUpdateService = AppUpdateService();
   
-  // iOS 18.6+ notification settings
-  String _interruptionLevel = 'active';
-  
-  // iOS 18.6+ advanced features
-  bool _focusModeIntegration = true;
-  bool _dynamicIslandEnabled = true;
-  bool _liveActivitiesEnabled = true;
-  bool _smartStackEnabled = true;
-  bool _aiFeaturesEnabled = true;
-  
-  // Device capabilities
-  Map<String, bool> _deviceCapabilities = {};
-  bool _isIOS186Supported = false;
 
   @override
   void initState() {
@@ -36,52 +24,27 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
   Future<void> _loadSettings() async {
     final settings = await _notificationService.loadNotificationSettings();
-    
-    setState(() {
-      _interruptionLevel = settings['interruptionLevel'] ?? 'active';
-    });
   }
 
   Future<void> _checkDeviceCapabilities() async {
-    final isSupported = await IOS18Service.isIOS186Supported();
-    final capabilities = await IOS18Service.getDeviceCapabilities();
-    
-    setState(() {
-      _isIOS186Supported = isSupported;
-      _deviceCapabilities = capabilities;
-    });
   }
 
   Future<void> _saveSettings() async {
     await _notificationService.updateNotificationSettings(
-      paymentRemindersEnabled: false, // Disabled
-      dailySummaryEnabled: false, // Disabled
-      weeklyReportEnabled: false, // Disabled
-      dailySummaryTime: const TimeOfDay(hour: 9, minute: 0), // Not used
-      weeklyReportWeekday: DateTime.monday, // Not used
-      weeklyReportTime: const TimeOfDay(hour: 10, minute: 0), // Not used
-      interruptionLevel: _interruptionLevel,
+      dailySummaryEnabled: true, // Enabled
+      weeklyReportEnabled: true, // Enabled
+      monthlyReportEnabled: true, // Enabled
+      yearlyReportEnabled: true, // Enabled
+      dailySummaryTime: const TimeOfDay(hour: 23, minute: 59),
+      weeklyReportWeekday: DateTime.sunday,
+      weeklyReportTime: const TimeOfDay(hour: 23, minute: 59),
+      monthlyReportDay: 31,
+      monthlyReportTime: const TimeOfDay(hour: 23, minute: 59),
+      yearlyReportMonth: 12,
+      yearlyReportDay: 31,
+      yearlyReportTime: const TimeOfDay(hour: 23, minute: 59),
     );
     
-    // Update iOS 18.6+ advanced features
-    if (_focusModeIntegration) {
-      await IOS18Service.enableFocusModeIntegration();
-    }
-    if (_dynamicIslandEnabled) {
-      await IOS18Service.enableDynamicIslandIntegration();
-    }
-    if (_liveActivitiesEnabled) {
-      await IOS18Service.enableLiveActivities();
-    }
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Notification settings updated'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    }
   }
 
   @override
@@ -108,11 +71,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // iOS 18.6+ Status
-            if (_isIOS186Supported) ...[
-              _buildIOS186StatusCard(),
-              const SizedBox(height: 20),
-            ],
             
             // Notification Types
             _buildSectionTitle('Notification Types'),
@@ -123,10 +81,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               color: Colors.blue,
               notifications: [
                 'Customer Added/Updated/Deleted',
-                'Debt Added/Updated/Paid/Deleted',
+                'Debt Added',
                 'Payment Applied',
+                'Payment Successful',
                 'Category Added/Updated/Deleted',
-                'Product Added/Updated/Deleted',
               ],
             ),
             const SizedBox(height: 12),
@@ -136,66 +94,44 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               icon: Icons.settings,
               color: Colors.green,
               notifications: [
-
-                'Cache Cleared',
-                'Sync Complete/Failed',
                 'App Updates',
                 'System Maintenance',
+                'Backup Success',
+                'Auto-Backup',
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildNotificationTypeCard(
+              title: 'Business Intelligence',
+              subtitle: 'Notifications for business insights and automation',
+              icon: Icons.analytics,
+              color: Colors.purple,
+              notifications: [
+                'Auto-Reminder Sent',
+                'App Update Available',
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildNotificationTypeCard(
+              title: 'Report Notifications',
+              subtitle: 'Automated business reports and summaries',
+              icon: Icons.assessment,
+              color: Colors.orange,
+              notifications: [
+                'Daily Summary (11:59 PM)',
+                'Weekly Report (Sunday 11:59 PM)',
+                'Monthly Report (Last day 11:59 PM)',
+                'Yearly Report (Dec 31st 11:59 PM)',
               ],
             ),
             
             const SizedBox(height: 20),
             
-            // iOS 18.6+ Advanced Features
-            if (_isIOS186Supported) ...[
-              _buildSectionTitle('iOS 18.6+ Advanced Features'),
-              _buildSwitchTile(
-                title: 'Focus Mode Integration',
-                subtitle: 'Smart notifications based on your Focus mode',
-                value: _focusModeIntegration,
-                onChanged: (value) => setState(() => _focusModeIntegration = value),
-                enabled: _deviceCapabilities['focusMode'] ?? false,
-              ),
-              _buildSwitchTile(
-                title: 'Dynamic Island',
-                subtitle: 'Show debt information in Dynamic Island',
-                value: _dynamicIslandEnabled,
-                onChanged: (value) => setState(() => _dynamicIslandEnabled = value),
-                enabled: _deviceCapabilities['dynamicIsland'] ?? false,
-              ),
-              _buildSwitchTile(
-                title: 'Live Activities',
-                subtitle: 'Track debt payments with Live Activities',
-                value: _liveActivitiesEnabled,
-                onChanged: (value) => setState(() => _liveActivitiesEnabled = value),
-                enabled: _deviceCapabilities['liveActivities'] ?? false,
-              ),
-              _buildSwitchTile(
-                title: 'Smart Stack',
-                subtitle: 'Add debt widgets to Smart Stack',
-                value: _smartStackEnabled,
-                onChanged: (value) => setState(() => _smartStackEnabled = value),
-                enabled: _deviceCapabilities['smartStack'] ?? false,
-              ),
-              _buildSwitchTile(
-                title: 'AI Features',
-                subtitle: 'Use AI-powered insights and predictions',
-                value: _aiFeaturesEnabled,
-                onChanged: (value) => setState(() => _aiFeaturesEnabled = value),
-                enabled: _deviceCapabilities['aiFeatures'] ?? false,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Interruption Levels
-              _buildSectionTitle('Interruption Level'),
-              _buildInterruptionLevelSelector(),
-            ],
             
             const SizedBox(height: 20),
             
             // Test Notifications
-            _buildSectionTitle('Test Notifications'),
+            _buildSectionTitle('Test New Notifications'),
             _buildTestNotificationButtons(),
             
             const SizedBox(height: 40),
@@ -205,45 +141,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  Widget _buildIOS186StatusCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: Colors.green, size: 24),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'iOS 18.6+ Supported',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your device supports advanced iOS 18.6+ notification features',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.green.withOpacity(0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildNotificationTypeCard({
     required String title,
@@ -384,85 +281,214 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     );
   }
 
-  Widget _buildInterruptionLevelSelector() {
-    final levels = [
-      {'value': 'active', 'title': 'Active', 'subtitle': 'Standard notifications'},
-      {'value': 'timeSensitive', 'title': 'Time Sensitive', 'subtitle': 'Important but not critical'},
-      {'value': 'critical', 'title': 'Critical', 'subtitle': 'Emergency notifications only'},
-      {'value': 'passive', 'title': 'Passive', 'subtitle': 'Silent notifications'},
-    ];
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: levels.map((level) {
-          final isSelected = _interruptionLevel == level['value'];
-          return RadioListTile<String>(
-            title: Text(
-              level['title']!,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.primary : AppColors.textPrimary,
-              ),
-            ),
-            subtitle: Text(
-              level['subtitle']!,
-              style: TextStyle(
-                fontSize: 14,
-                color: isSelected ? AppColors.primary.withOpacity(0.8) : AppColors.textSecondary,
-              ),
-            ),
-            value: level['value']!,
-            groupValue: _interruptionLevel,
-            onChanged: (value) => setState(() => _interruptionLevel = value!),
-            activeColor: AppColors.primary,
-          );
-        }).toList(),
-      ),
-    );
-  }
-
   Widget _buildTestNotificationButtons() {
     return Column(
       children: [
+        // Permission Test
         _buildTestButton(
-          title: 'Test Success Notification',
-          onPressed: () => _notificationService.showSuccessNotification(
-            title: 'Test Success',
-            body: 'This is a test success notification',
-          ),
+          title: 'Request Notification Permissions',
+          onPressed: () async {
+            await _notificationService.reRequestPermissions();
+          },
         ),
+        const SizedBox(height: 8),
+        
+        
+        // Customer Management Notifications
+        _buildSectionTitle('Customer Management'),
         _buildTestButton(
-          title: 'Test Error Notification',
-          onPressed: () => _notificationService.showErrorNotification(
-            title: 'Test Error',
-            body: 'This is a test error notification',
-          ),
+          title: 'Test Customer Added',
+          onPressed: () async {
+            await _notificationService.showCustomerAddedNotification('John Smith');
+          },
         ),
+        const SizedBox(height: 8),
         _buildTestButton(
-          title: 'Test Info Notification',
-          onPressed: () => _notificationService.showInfoNotification(
-            title: 'Test Info',
-            body: 'This is a test info notification',
-          ),
+          title: 'Test Customer Updated',
+          onPressed: () async {
+            await _notificationService.showCustomerUpdatedNotification('Jane Doe');
+          },
         ),
+        const SizedBox(height: 8),
         _buildTestButton(
-          title: 'Test Warning Notification',
-          onPressed: () => _notificationService.showWarningNotification(
-            title: 'Test Warning',
-            body: 'This is a test warning notification',
-          ),
+          title: 'Test Customer Deleted',
+          onPressed: () async {
+            await _notificationService.showCustomerDeletedNotification('Bob Johnson');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Category Management Notifications
+        _buildSectionTitle('Category Management'),
+        _buildTestButton(
+          title: 'Test Category Added',
+          onPressed: () async {
+            await _notificationService.showCategoryAddedNotification('Electronics');
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Category Updated',
+          onPressed: () async {
+            await _notificationService.showCategoryUpdatedNotification('Electronics');
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Category Deleted',
+          onPressed: () async {
+            await _notificationService.showCategoryDeletedNotification('Electronics');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Debt Management Notifications
+        _buildSectionTitle('Debt Management'),
+        _buildTestButton(
+          title: 'Test Debt Recorded',
+          onPressed: () async {
+            await _notificationService.showDebtAddedNotification('Alice Brown', 1250.50);
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Payment Applied',
+          onPressed: () async {
+            await _notificationService.showPaymentAppliedNotification('Charlie Wilson', 350.75);
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Payment Successful',
+          onPressed: () async {
+            await _notificationService.showPaymentSuccessfulNotification('David Lee');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Backup Notifications
+        _buildSectionTitle('Backup & Data'),
+        _buildTestButton(
+          title: 'Test Backup Created',
+          onPressed: () async {
+            await _notificationService.showBackupCreatedNotification();
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Backup Restored',
+          onPressed: () async {
+            await _notificationService.showBackupRestoredNotification();
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Backup Failed',
+          onPressed: () async {
+            await _notificationService.showBackupFailedNotification('Network connection error');
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Daily Backup Success',
+          onPressed: () async {
+            await _notificationService.showDailyBackupSuccessNotification();
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Auto-Backup',
+          onPressed: () async {
+            await _notificationService.showAutoBackupNotification('12:00 AM');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Business Intelligence Notifications
+        _buildSectionTitle('Business Intelligence'),
+        _buildTestButton(
+          title: 'Test Auto-Reminder Sent',
+          onPressed: () async {
+            await _notificationService.showAutoReminderSentNotification(5);
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test App Update Available',
+          onPressed: () async {
+            await _notificationService.showAppUpdateAvailableNotification('2.1.0');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // Report Notifications
+        _buildSectionTitle('Report Notifications'),
+        _buildTestButton(
+          title: 'Test Daily Summary',
+          onPressed: () async {
+            await _notificationService.showDailySummaryNotification(
+              totalPaid: 350.75,
+              totalRevenue: 1250.50,
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Weekly Report',
+          onPressed: () async {
+            await _notificationService.showWeeklyReportNotification(
+              totalPaid: 850.25,
+              totalRevenue: 2100.00,
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Monthly Report',
+          onPressed: () async {
+            await _notificationService.showMonthlyReportNotification(
+              totalPaid: 2100.00,
+              totalRevenue: 8500.00,
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test Yearly Report',
+          onPressed: () async {
+            await _notificationService.showYearlyReportNotification(
+              totalPaid: 12500.00,
+              totalRevenue: 45000.00,
+            );
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        // System Notifications
+        _buildSectionTitle('System Notifications'),
+        _buildTestButton(
+          title: 'Test App Update',
+          onPressed: () async {
+            await _notificationService.showAppUpdateNotification('2.1.0');
+          },
+        ),
+        const SizedBox(height: 8),
+        _buildTestButton(
+          title: 'Test System Maintenance',
+          onPressed: () async {
+            await _notificationService.showSystemMaintenanceNotification('Scheduled maintenance in 30 minutes');
+          },
+        ),
+        const SizedBox(height: 16),
+        
+        
+        // Test All Notifications
+        _buildSectionTitle('Bulk Testing'),
+        _buildTestButton(
+          title: 'Test All Notifications (5 second intervals)',
+          onPressed: () async {
+            await _testAllNotifications();
+          },
         ),
       ],
     );
@@ -489,4 +515,94 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       ),
     );
   }
+
+  // Test all notifications with 5-second intervals
+  Future<void> _testAllNotifications() async {
+    // Customer management
+    await _notificationService.showCustomerAddedNotification('John Smith');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showCustomerUpdatedNotification('Jane Doe');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showCustomerDeletedNotification('Bob Johnson');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // Category management
+    await _notificationService.showCategoryAddedNotification('Electronics');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showCategoryUpdatedNotification('Electronics');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showCategoryDeletedNotification('Electronics');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // Debt management
+    await _notificationService.showDebtAddedNotification('Alice Brown', 1250.50);
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showPaymentAppliedNotification('Charlie Wilson', 350.75);
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showPaymentSuccessfulNotification('David Lee');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // Backup notifications
+    await _notificationService.showBackupCreatedNotification();
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showBackupRestoredNotification();
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showBackupFailedNotification('Network connection error');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showDailyBackupSuccessNotification();
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showAutoBackupNotification('12:00 AM');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // Business intelligence
+    await _notificationService.showAutoReminderSentNotification(5);
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showAppUpdateAvailableNotification('2.1.0');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // System notifications
+    await _notificationService.showAppUpdateNotification('2.1.0');
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showSystemMaintenanceNotification('Scheduled maintenance in 30 minutes');
+    await Future.delayed(const Duration(seconds: 5));
+
+    // Report notifications
+    await _notificationService.showDailySummaryNotification(
+      totalPaid: 350.75,
+      totalRevenue: 1250.50,
+    );
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showWeeklyReportNotification(
+      totalPaid: 850.25,
+      totalRevenue: 2100.00,
+    );
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showMonthlyReportNotification(
+      totalPaid: 2100.00,
+      totalRevenue: 8500.00,
+    );
+    await Future.delayed(const Duration(seconds: 5));
+
+    await _notificationService.showYearlyReportNotification(
+      totalPaid: 12500.00,
+      totalRevenue: 45000.00,
+    );
+    await Future.delayed(const Duration(seconds: 5));
+
+  }
+
 } 

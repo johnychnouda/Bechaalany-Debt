@@ -227,7 +227,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
 
       final appState = Provider.of<AppState>(context, listen: false);
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
       
       if (widget.customer != null) {
         // Ensure we're updating with the latest data and preserve the original ID
@@ -242,13 +241,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         
         // Show success message and navigate back immediately
         if (mounted) {
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text('Customer "${updatedCustomer.name}" updated successfully!'),
-              backgroundColor: Colors.blue,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          final notificationService = NotificationService();
+          await notificationService.showCustomerUpdatedNotification(updatedCustomer.name);
           
           // Try direct navigation first
           try {
@@ -268,13 +262,8 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         // Show success message and navigate back immediately
         if (mounted) {
 
-          scaffoldMessenger.showSnackBar(
-            SnackBar(
-              content: Text('Customer "${customer.name}" added successfully!'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          final notificationService = NotificationService();
+          await notificationService.showCustomerAddedNotification(customer.name);
           
           // Try direct navigation first
           try {
@@ -291,10 +280,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     } catch (e) {
       if (mounted) {
         final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to save customer: $e',
-        );
       }
     } finally {
       if (mounted) {

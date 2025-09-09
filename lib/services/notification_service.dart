@@ -22,12 +22,19 @@ class NotificationService {
       return;
     }
     
-    // Initialize notification settings for iOS only
+    // Initialize notification settings for iOS with supported features
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      requestCriticalPermission: false,
+      requestProvisionalPermission: false,
+      defaultPresentAlert: true,
+      defaultPresentBadge: true,
+      defaultPresentSound: true,
+      defaultPresentBanner: true,
+      defaultPresentList: true,
     );
 
     const InitializationSettings initializationSettings = InitializationSettings(
@@ -53,12 +60,17 @@ class NotificationService {
     
     if (Platform.isIOS) {
       try {
-        // iOS notification permissions are handled automatically by the initialization
-        // The DarwinInitializationSettings already requests permissions
-  
+        // Request notification permissions explicitly using supported features
+        await _notifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(
+              alert: true,
+              badge: true,
+              sound: true,
+            );
       } catch (e) {
-        // Handle iOS notification permission request error
-        
+        // Handle error silently
       }
     }
   }
@@ -66,6 +78,24 @@ class NotificationService {
   // Public method to re-request permissions (for app lifecycle handling)
   Future<void> reRequestPermissions() async {
     await _requestPermissions();
+  }
+  
+  // Check if notifications are enabled
+  Future<bool> areNotificationsEnabled() async {
+    if (kIsWeb) return false;
+    
+    if (Platform.isIOS) {
+      try {
+        final result = await _notifications
+            .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin>()
+            ?.checkPermissions();
+        return result?.isEnabled ?? false;
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
   }
 
   void _onNotificationTapped(NotificationResponse response) {
@@ -80,44 +110,74 @@ class NotificationService {
     
     return {
       'interruptionLevel': prefs.getString('interruptionLevel') ?? 'active',
-      'paymentRemindersEnabled': prefs.getBool('paymentRemindersEnabled') ?? false,
-      'dailySummaryEnabled': prefs.getBool('dailySummaryEnabled') ?? false,
-      'weeklyReportEnabled': prefs.getBool('weeklyReportEnabled') ?? false,
-      'dailySummaryTime': prefs.getString('dailySummaryTime'),
-      'weeklyReportWeekday': prefs.getInt('weeklyReportWeekday') ?? DateTime.monday,
-      'weeklyReportTime': prefs.getString('weeklyReportTime'),
+      'dailySummaryEnabled': prefs.getBool('dailySummaryEnabled') ?? true,
+      'weeklyReportEnabled': prefs.getBool('weeklyReportEnabled') ?? true,
+      'monthlyReportEnabled': prefs.getBool('monthlyReportEnabled') ?? true,
+      'yearlyReportEnabled': prefs.getBool('yearlyReportEnabled') ?? true,
+      'dailySummaryTime': prefs.getString('dailySummaryTime') ?? '23:59',
+      'weeklyReportWeekday': prefs.getInt('weeklyReportWeekday') ?? DateTime.sunday,
+      'weeklyReportTime': prefs.getString('weeklyReportTime') ?? '23:59',
+      'monthlyReportDay': prefs.getInt('monthlyReportDay') ?? 31,
+      'monthlyReportTime': prefs.getString('monthlyReportTime') ?? '23:59',
+      'yearlyReportMonth': prefs.getInt('yearlyReportMonth') ?? 12,
+      'yearlyReportDay': prefs.getInt('yearlyReportDay') ?? 31,
+      'yearlyReportTime': prefs.getString('yearlyReportTime') ?? '23:59',
     };
   }
 
   /// Update notification settings and save to SharedPreferences
   Future<void> updateNotificationSettings({
-    bool? paymentRemindersEnabled,
     bool? dailySummaryEnabled,
     bool? weeklyReportEnabled,
+    bool? monthlyReportEnabled,
+    bool? yearlyReportEnabled,
     TimeOfDay? dailySummaryTime,
     int? weeklyReportWeekday,
     TimeOfDay? weeklyReportTime,
+    int? monthlyReportDay,
+    TimeOfDay? monthlyReportTime,
+    int? yearlyReportMonth,
+    int? yearlyReportDay,
+    TimeOfDay? yearlyReportTime,
     String? interruptionLevel,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     
-    if (paymentRemindersEnabled != null) {
-      await prefs.setBool('paymentRemindersEnabled', paymentRemindersEnabled);
-    }
     if (dailySummaryEnabled != null) {
       await prefs.setBool('dailySummaryEnabled', dailySummaryEnabled);
     }
     if (weeklyReportEnabled != null) {
       await prefs.setBool('weeklyReportEnabled', weeklyReportEnabled);
     }
+    if (monthlyReportEnabled != null) {
+      await prefs.setBool('monthlyReportEnabled', monthlyReportEnabled);
+    }
+    if (yearlyReportEnabled != null) {
+      await prefs.setBool('yearlyReportEnabled', yearlyReportEnabled);
+    }
     if (dailySummaryTime != null) {
-      await prefs.setString('dailySummaryTime', '${dailySummaryTime.hour}:${dailySummaryTime.minute}');
+      await prefs.setString('dailySummaryTime', '${dailySummaryTime.hour.toString().padLeft(2, '0')}:${dailySummaryTime.minute.toString().padLeft(2, '0')}');
     }
     if (weeklyReportWeekday != null) {
       await prefs.setInt('weeklyReportWeekday', weeklyReportWeekday);
     }
     if (weeklyReportTime != null) {
-      await prefs.setString('weeklyReportTime', '${weeklyReportWeekday}:${weeklyReportTime.minute}');
+      await prefs.setString('weeklyReportTime', '${weeklyReportTime.hour.toString().padLeft(2, '0')}:${weeklyReportTime.minute.toString().padLeft(2, '0')}');
+    }
+    if (monthlyReportDay != null) {
+      await prefs.setInt('monthlyReportDay', monthlyReportDay);
+    }
+    if (monthlyReportTime != null) {
+      await prefs.setString('monthlyReportTime', '${monthlyReportTime.hour.toString().padLeft(2, '0')}:${monthlyReportTime.minute.toString().padLeft(2, '0')}');
+    }
+    if (yearlyReportMonth != null) {
+      await prefs.setInt('yearlyReportMonth', yearlyReportMonth);
+    }
+    if (yearlyReportDay != null) {
+      await prefs.setInt('yearlyReportDay', yearlyReportDay);
+    }
+    if (yearlyReportTime != null) {
+      await prefs.setString('yearlyReportTime', '${yearlyReportTime.hour.toString().padLeft(2, '0')}:${yearlyReportTime.minute.toString().padLeft(2, '0')}');
     }
     if (interruptionLevel != null) {
       await prefs.setString('interruptionLevel', interruptionLevel);
@@ -202,25 +262,43 @@ class NotificationService {
       await initialize();
     }
 
+    // Generate a unique ID to avoid collisions
+    final uniqueId = DateTime.now().millisecondsSinceEpoch + (id % 1000);
+    
+    // iOS 18+ styled notification with modern features
     const DarwinNotificationDetails iOSPlatformChannelSpecifics =
         DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
       sound: 'default',
+      interruptionLevel: InterruptionLevel.active,
+      threadIdentifier: 'payment_success',
+      categoryIdentifier: 'payment_success',
+      attachments: [],
+      badgeNumber: 1,
+      subtitle: 'Bechaalany Connect',
     );
 
     const NotificationDetails platformChannelSpecifics = NotificationDetails(
       iOS: iOSPlatformChannelSpecifics,
     );
 
-    await _notifications.show(
-      id,
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: payload,
-    );
+    try {
+      // Add a small delay to ensure proper timing
+      await Future.delayed(Duration(milliseconds: 100));
+      
+      await _notifications.show(
+        uniqueId,
+        title,
+        body,
+        platformChannelSpecifics,
+        payload: payload,
+      );
+      
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
   // ===== BUSINESS OPERATION NOTIFICATIONS =====
@@ -250,60 +328,11 @@ class NotificationService {
     );
   }
 
-  // Debt-related notifications
-  Future<void> showDebtAddedNotification(String customerName, double amount) async {
-    await showSuccessNotification(
-      title: 'Debt Recorded',
-      body: '$customerName owes \$${amount.toStringAsFixed(2)}',
-      payload: 'debt_added',
-    );
-  }
-
-  Future<void> showDebtUpdatedNotification(String customerName) async {
-    await showSuccessNotification(
-      title: 'Debt Updated',
-      body: '$customerName\'s debt has been updated',
-      payload: 'debt_updated',
-    );
-  }
-
-  Future<void> showDebtDeletedNotification(String customerName, double amount) async {
-    await showInfoNotification(
-      title: 'Debt Deleted',
-      body: 'Removed \$${amount.toStringAsFixed(2)} debt for $customerName',
-      payload: 'debt_deleted',
-    );
-  }
-
-  Future<void> showDebtMarkedAsPaidNotification(String customerName, double amount) async {
-    await showSuccessNotification(
-      title: 'Debt Paid',
-      body: '$customerName has paid \$${amount.toStringAsFixed(2)}',
-      payload: 'debt_paid',
-    );
-  }
-
-  Future<void> showPartialPaymentNotification(String customerName, double amount) async {
-    await showInfoNotification(
-      title: 'Partial Payment',
-      body: '$customerName paid \$${amount.toStringAsFixed(2)}',
-      payload: 'partial_payment',
-    );
-  }
-
-  Future<void> showPaymentAppliedNotification(String customerName, double amount) async {
-    await showSuccessNotification(
-      title: 'Payment Applied',
-      body: '\$${amount.toStringAsFixed(2)} applied to $customerName\'s debt',
-      payload: 'payment_applied',
-    );
-  }
-
   // Category-related notifications
   Future<void> showCategoryAddedNotification(String categoryName) async {
     await showSuccessNotification(
       title: 'Category Added',
-      body: '$categoryName category has been created successfully',
+      body: '$categoryName category has been added successfully',
       payload: 'category_added',
     );
   }
@@ -311,7 +340,7 @@ class NotificationService {
   Future<void> showCategoryUpdatedNotification(String categoryName) async {
     await showSuccessNotification(
       title: 'Category Updated',
-      body: '$categoryName category has been updated',
+      body: '$categoryName category has been updated successfully',
       payload: 'category_updated',
     );
   }
@@ -324,47 +353,49 @@ class NotificationService {
     );
   }
 
-  // Product-related notifications
-  Future<void> showProductUpdatedNotification(String productName) async {
+  // Debt-related notifications
+  Future<void> showDebtAddedNotification(String customerName, double amount) async {
     await showSuccessNotification(
-      title: 'Product Updated',
-      body: '$productName has been updated successfully',
-      payload: 'product_updated',
+      title: 'Debt Recorded',
+      body: '$customerName owes \$${amount.toStringAsFixed(2)}',
+      payload: 'debt_added',
     );
   }
 
-  Future<void> showProductDeletedNotification(String productName) async {
-    await showInfoNotification(
-      title: 'Product Deleted',
-      body: '$productName has been removed from inventory',
-      payload: 'product_deleted',
-    );
-  }
 
-  // Product purchase notifications
-  Future<void> showProductPurchaseAddedNotification(String productName) async {
+
+  Future<void> showPaymentAppliedNotification(String customerName, double amount) async {
     await showSuccessNotification(
-      title: 'Purchase Recorded',
-      body: '$productName purchase has been added to inventory',
-      payload: 'purchase_added',
+      title: 'Payment Applied',
+      body: '\$${amount.toStringAsFixed(2)} applied to $customerName\'s debt',
+      payload: 'payment_applied',
     );
   }
 
-  Future<void> showProductPurchaseUpdatedNotification(String productName) async {
-    await showSuccessNotification(
-      title: 'Purchase Updated',
-      body: '$productName purchase has been updated',
-      payload: 'purchase_updated',
-    );
+  Future<void> showPaymentSuccessfulNotification(String customerName) async {
+    // Force re-initialization to ensure proper setup
+    await initialize();
+    
+    // Check if notifications are enabled
+    final notificationsEnabled = await areNotificationsEnabled();
+    
+    if (!notificationsEnabled) {
+      await reRequestPermissions();
+    }
+    
+    // Try to show the notification
+    try {
+      await showSuccessNotification(
+        title: 'Payment Successful',
+        body: '$customerName has fully paid all their debts',
+        payload: 'payment_successful',
+      );
+    } catch (e) {
+      // Handle error silently
+    }
   }
 
-  Future<void> showProductPurchaseDeletedNotification(String productName) async {
-    await showInfoNotification(
-      title: 'Purchase Deleted',
-      body: '$productName purchase has been removed',
-      payload: 'purchase_deleted',
-    );
-  }
+
 
   // Backup notifications
   Future<void> showBackupCreatedNotification() async {
@@ -391,14 +422,118 @@ class NotificationService {
     );
   }
 
-  // Settings notifications
-  Future<void> showSettingsUpdatedNotification() async {
+
+  // ===== BUSINESS INTELLIGENCE NOTIFICATIONS =====
+
+  /// Show auto-reminder sent notification
+  Future<void> showAutoReminderSentNotification(int customerCount) async {
     await showSuccessNotification(
-      title: 'Settings Updated',
-      body: 'Your app settings have been saved',
-      payload: 'settings_updated',
+      title: 'Auto-Reminder Sent',
+      body: 'Payment reminder sent to $customerCount customer${customerCount == 1 ? '' : 's'}',
+      payload: 'auto_reminder_sent',
     );
   }
+
+
+  /// Show daily backup success notification
+  Future<void> showDailyBackupSuccessNotification() async {
+    await showSuccessNotification(
+      title: 'Backup Success',
+      body: 'Daily backup completed successfully',
+      payload: 'daily_backup_success',
+    );
+  }
+
+  /// Show auto-backup notification
+  Future<void> showAutoBackupNotification(String time) async {
+    await showSuccessNotification(
+      title: 'Auto-Backup',
+      body: 'Automatic backup completed at $time',
+      payload: 'auto_backup',
+    );
+  }
+
+  // ===== REPORT NOTIFICATIONS =====
+
+  /// Show daily summary notification
+  Future<void> showDailySummaryNotification({
+    required double totalPaid,
+    required double totalRevenue,
+  }) async {
+    await showInfoNotification(
+      title: 'Daily Summary',
+      body: 'Today: \$${totalPaid.toStringAsFixed(2)} paid, \$${totalRevenue.toStringAsFixed(2)} revenue',
+      payload: 'daily_summary',
+    );
+  }
+
+  /// Show weekly report notification
+  Future<void> showWeeklyReportNotification({
+    required double totalPaid,
+    required double totalRevenue,
+  }) async {
+    await showInfoNotification(
+      title: 'Weekly Report',
+      body: 'This week: \$${totalPaid.toStringAsFixed(2)} paid, \$${totalRevenue.toStringAsFixed(2)} revenue',
+      payload: 'weekly_report',
+    );
+  }
+
+  /// Show monthly report notification
+  Future<void> showMonthlyReportNotification({
+    required double totalPaid,
+    required double totalRevenue,
+  }) async {
+    await showInfoNotification(
+      title: 'Monthly Report',
+      body: 'This month: \$${totalPaid.toStringAsFixed(2)} paid, \$${totalRevenue.toStringAsFixed(2)} revenue',
+      payload: 'monthly_report',
+    );
+  }
+
+  /// Show yearly report notification
+  Future<void> showYearlyReportNotification({
+    required double totalPaid,
+    required double totalRevenue,
+  }) async {
+    await showInfoNotification(
+      title: 'Yearly Report',
+      body: 'This year: \$${totalPaid.toStringAsFixed(2)} paid, \$${totalRevenue.toStringAsFixed(2)} revenue',
+      payload: 'yearly_report',
+    );
+  }
+
+
+  // ===== SYSTEM NOTIFICATIONS =====
+
+  /// Show app update notification
+  Future<void> showAppUpdateNotification(String version) async {
+    await showInfoNotification(
+      title: 'App Updated',
+      body: 'App has been updated to version $version',
+      payload: 'app_updated',
+    );
+  }
+
+  /// Show system maintenance notification
+  Future<void> showSystemMaintenanceNotification(String message) async {
+    await showWarningNotification(
+      title: 'System Maintenance',
+      body: message,
+      payload: 'system_maintenance',
+    );
+  }
+
+  /// Show app update available notification
+  Future<void> showAppUpdateAvailableNotification(String version) async {
+    await showInfoNotification(
+      title: 'App Update Available',
+      body: 'New version $version with improved features available',
+      payload: 'app_update_available',
+    );
+  }
+
+
 
   // Cancel all notifications
   Future<void> cancelAllNotifications() async {
@@ -421,6 +556,15 @@ class NotificationService {
     return await _notifications.pendingNotificationRequests();
   }
 
+  // Test notification method for debugging
+  Future<void> testNotification() async {
+    await showSuccessNotification(
+      title: 'Test Notification',
+      body: 'This is a test notification to verify the system is working',
+      payload: 'test',
+    );
+  }
+
   // Legacy methods for backward compatibility
   Future<void> showImmediateNotification({
     required String title,
@@ -433,4 +577,5 @@ class NotificationService {
       payload: payload,
     );
   }
+
 } 

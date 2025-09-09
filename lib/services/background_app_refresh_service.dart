@@ -114,25 +114,16 @@ class BackgroundAppRefreshService {
         
         
         // Send success notification
-        await _notificationService.showSuccessNotification(
-          title: 'Midnight Backup Complete',
-          body: 'Your data has been automatically backed up at midnight',
-        );
+        await _notificationService.showDailyBackupSuccessNotification();
       } else {
         
         // Send error notification
-        await _notificationService.showErrorNotification(
-          title: 'Midnight Backup Failed',
-          body: 'Automatic backup could not be completed at midnight',
-        );
+        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed at midnight');
       }
     } catch (e) {
       
       // Send error notification
-      await _notificationService.showErrorNotification(
-        title: 'Midnight Backup Error',
-        body: 'An error occurred during midnight backup',
-      );
+      await _notificationService.showBackupFailedNotification('An error occurred during midnight backup');
     }
   }
 
@@ -161,25 +152,16 @@ class BackgroundAppRefreshService {
         
         
         // Send success notification
-        await _notificationService.showSuccessNotification(
-          title: 'Background Backup Complete',
-          body: 'Your data has been automatically backed up',
-        );
+        await _notificationService.showDailyBackupSuccessNotification();
       } else {
         
         // Send error notification
-        await _notificationService.showErrorNotification(
-          title: 'Background Backup Failed',
-          body: 'Automatic backup could not be completed',
-        );
+        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed');
       }
     } catch (e) {
       
       // Send error notification
-      await _notificationService.showErrorNotification(
-        title: 'Background Backup Error',
-        body: 'An error occurred during automatic backup',
-      );
+      await _notificationService.showBackupFailedNotification('An error occurred during automatic backup');
     }
   }
 
@@ -187,9 +169,9 @@ class BackgroundAppRefreshService {
   Future<bool> _isAutomaticBackupEnabled() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('automatic_backup_enabled') ?? false;
+      return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
     } catch (e) {
-      return false;
+      return true; // Default to enabled even on error
     }
   }
 
@@ -204,7 +186,7 @@ class BackgroundAppRefreshService {
         return true;
       }
       
-      // Check if it's time for the next scheduled backup (12 AM)
+      // Check if it's time for the next scheduled backup (112:00 AM)
       final today = DateTime(now.year, now.month, now.day);
       final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
       

@@ -83,25 +83,16 @@ class BackgroundBackupService {
         
         
         // Send success notification
-        await _notificationService.showSuccessNotification(
-          title: 'Background Backup Complete',
-          body: 'Your data has been automatically backed up',
-        );
+        await _notificationService.showBackupCreatedNotification();
       } else {
         
         // Send error notification
-        await _notificationService.showErrorNotification(
-          title: 'Background Backup Failed',
-          body: 'Automatic backup could not be completed',
-        );
+        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed');
       }
     } catch (e) {
       
       // Send error notification
-      await _notificationService.showErrorNotification(
-        title: 'Background Backup Error',
-        body: 'An error occurred during automatic backup',
-      );
+      await _notificationService.showBackupFailedNotification('An error occurred during automatic backup');
     }
   }
 
@@ -109,9 +100,9 @@ class BackgroundBackupService {
   Future<bool> _isAutomaticBackupEnabled() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('automatic_backup_enabled') ?? false;
+      return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
     } catch (e) {
-      return false;
+      return true; // Default to enabled even on error
     }
   }
 

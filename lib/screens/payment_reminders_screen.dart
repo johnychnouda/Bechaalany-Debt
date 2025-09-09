@@ -530,15 +530,9 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       if (mounted) {
         final notificationService = NotificationService();
         if (successCount == totalCount) {
-          await notificationService.showSuccessNotification(
-            title: 'Payment Reminders Sent',
-            body: 'Successfully sent payment reminders to all $totalCount customers',
-          );
+          await notificationService.showAutoReminderSentNotification(totalCount);
         } else {
-          await notificationService.showSuccessNotification(
-            title: 'Payment Reminders Sent',
-            body: 'Sent reminders to $successCount out of $totalCount customers',
-          );
+          await notificationService.showAutoReminderSentNotification(successCount);
         }
         
         // Clear selection after sending
