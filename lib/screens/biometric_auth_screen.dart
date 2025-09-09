@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import '../constants/app_colors.dart';
 import '../services/security_service.dart';
 
 class BiometricAuthScreen extends StatefulWidget {
@@ -74,39 +73,43 @@ class _BiometricAuthScreenState extends State<BiometricAuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Biometric Icon
+              // Native iOS 18+ style biometric icon
               Container(
-                width: 100,
-                height: 100,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(50),
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(60),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.2),
+                    width: 1,
+                  ),
                 ),
                 child: Icon(
                   _biometricType.contains('Face') 
-                      ? CupertinoIcons.person_circle
-                      : CupertinoIcons.lock_shield,
-                  color: AppColors.primary,
-                  size: 50,
+                      ? CupertinoIcons.person_circle_fill
+                      : CupertinoIcons.lock_shield_fill,
+                  color: Colors.white,
+                  size: 60,
                 ),
               ),
               
               const SizedBox(height: 32),
               
-              // Title
+              // Title - Native iOS 18+ style
               Text(
-                'Authenticate with $_biometricType',
+                'Use Face ID to unlock',
                 style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -115,28 +118,29 @@ class _BiometricAuthScreenState extends State<BiometricAuthScreen> {
               
               // Subtitle
               Text(
-                'Use your $_biometricType to access Bechaalany Connect',
+                'Bechaalany Connect',
                 style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
+                  fontSize: 18,
+                  color: Colors.white.withOpacity(0.8),
+                  fontWeight: FontWeight.w400,
                 ),
                 textAlign: TextAlign.center,
               ),
               
               const SizedBox(height: 48),
               
-              // Error Message
+              // Error Message - Native iOS 18+ style
               if (_errorMessage.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: AppColors.systemRed.withOpacity(0.1),
+                    color: Colors.red.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _errorMessage,
                     style: const TextStyle(
-                      color: AppColors.systemRed,
+                      color: Colors.red,
                       fontSize: 14,
                     ),
                     textAlign: TextAlign.center,
@@ -145,32 +149,34 @@ class _BiometricAuthScreenState extends State<BiometricAuthScreen> {
               
               const SizedBox(height: 48),
               
-              // Authenticate Button
+              // Authenticate Button - Native iOS 18+ style
               if (_isLoading)
-                const CupertinoActivityIndicator()
+                const CupertinoActivityIndicator(
+                  color: Colors.white,
+                )
               else
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: CupertinoButton(
                     onPressed: _authenticate,
-                    color: AppColors.primary,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
                           _biometricType.contains('Face') 
-                              ? CupertinoIcons.person_circle
-                              : CupertinoIcons.lock_shield,
-                          color: Colors.white,
+                              ? CupertinoIcons.person_circle_fill
+                              : CupertinoIcons.lock_shield_fill,
+                          color: Colors.black,
                           size: 24,
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          'Authenticate with $_biometricType',
+                          'Use Face ID',
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.black,
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                           ),
@@ -182,14 +188,14 @@ class _BiometricAuthScreenState extends State<BiometricAuthScreen> {
               
               const SizedBox(height: 24),
               
-              // Fallback to PIN
+              // Fallback to Settings
               if (widget.onFallback != null)
                 TextButton(
                   onPressed: widget.onFallback,
-                  child: const Text(
-                    'Use PIN instead',
+                  child: Text(
+                    'Set up Face ID in Settings',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Colors.white.withOpacity(0.8),
                       fontSize: 16,
                     ),
                   ),
@@ -201,10 +207,10 @@ class _BiometricAuthScreenState extends State<BiometricAuthScreen> {
               if (widget.onCancel != null)
                 TextButton(
                   onPressed: widget.onCancel,
-                  child: const Text(
-                    'Cancel',
+                  child: Text(
+                    'Skip',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Colors.white.withOpacity(0.6),
                       fontSize: 16,
                     ),
                   ),

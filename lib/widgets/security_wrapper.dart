@@ -33,17 +33,21 @@ class _SecurityWrapperState extends State<SecurityWrapper> {
   Future<void> _checkSecurityStatus() async {
     await _securityService.initialize();
     
-    final securityEnabled = await _securityService.isSecurityEnabled();
-    final needsAuth = await _securityService.needsAuthentication();
     final biometricAvailable = await _securityService.isBiometricAvailable();
-    final biometricEnabled = await _securityService.isBiometricEnabled();
+    final needsAuth = await _securityService.needsAuthentication();
+    final needsSetup = await _securityService.needsBiometricSetup();
 
     setState(() {
       _isLoading = false;
-      _needsAuthentication = securityEnabled && needsAuth;
+      _needsAuthentication = biometricAvailable && needsAuth;
       _isBiometricAvailable = biometricAvailable;
-      _isBiometricEnabled = biometricEnabled;
+      _isBiometricEnabled = biometricAvailable;
     });
+
+    // If biometric is not set up, show setup screen
+    if (needsSetup) {
+      _showBiometricSetupRequired();
+    }
   }
 
   Future<void> _onAuthenticationSuccess() async {
@@ -54,21 +58,32 @@ class _SecurityWrapperState extends State<SecurityWrapper> {
 
   void _onBiometricFallback() {
     // No fallback available - user must use biometric authentication
-    _showBiometricRequiredDialog();
+    _showBiometricSetupRequired();
   }
 
-  void _showBiometricRequiredDialog() {
+  void _showBiometricSetupRequired() {
     showCupertinoDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Biometric Required'),
+        title: const Text('Set Up Face ID'),
         content: const Text(
-          'Biometric authentication is required to access the app. Please ensure Face ID/Touch ID is set up on your device.',
+          'To secure your debt data, please set up Face ID or Touch ID in your device settings.',
         ),
         actions: [
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () {
+              Navigator.pop(context);
+              _securityService.openDeviceSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _onCancel();
+            },
+            child: const Text('Skip'),
           ),
         ],
       ),

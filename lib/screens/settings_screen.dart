@@ -9,7 +9,6 @@ import '../services/firebase_auth_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'payment_reminders_screen.dart';
-import 'security_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -73,12 +72,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Configure currency settings and rates',
                     CupertinoIcons.money_dollar,
                     () => _showCurrencySettings(),
-                  ),
-                  _buildNavigationRow(
-                    'Security Settings',
-                    'App lock, PIN, and biometric authentication',
-                    CupertinoIcons.lock_shield,
-                    () => _showSecuritySettings(),
                   ),
                 ],
               ),
@@ -338,13 +331,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showSecuritySettings() {
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (context) => const SecuritySettingsScreen(),
-      ),
-    );
-  }
 
   void _showAppInfo() {
     showCupertinoDialog(

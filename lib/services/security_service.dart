@@ -1,6 +1,7 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:flutter/services.dart';
 
 class SecurityService {
   static final SecurityService _instance = SecurityService._internal();
@@ -12,8 +13,6 @@ class SecurityService {
   bool _isInitialized = false;
 
   // Security settings keys
-  static const String _securityEnabledKey = 'security_enabled';
-  static const String _biometricEnabledKey = 'biometric_enabled';
   static const String _lastUnlockKey = 'last_unlock_time';
   static const String _autoLockMinutesKey = 'auto_lock_minutes';
 
@@ -53,21 +52,10 @@ class SecurityService {
     _autoLockMinutes = prefs.getInt(_autoLockMinutesKey) ?? 5;
   }
 
-  /// Check if security is enabled
+  /// Check if security should be enabled (based on device biometric availability)
   Future<bool> isSecurityEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_securityEnabledKey) ?? false;
-  }
-
-  /// Enable/disable security
-  Future<void> setSecurityEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_securityEnabledKey, enabled);
-    
-    if (!enabled) {
-      // Clear biometric settings when disabling security
-      await prefs.setBool(_biometricEnabledKey, false);
-    }
+    // Security is enabled if biometric authentication is available
+    return await isBiometricAvailable();
   }
 
   /// Check if biometric authentication is available
@@ -81,16 +69,9 @@ class SecurityService {
     }
   }
 
-  /// Check if biometric is enabled
+  /// Check if biometric is enabled (always true if available)
   Future<bool> isBiometricEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_biometricEnabledKey) ?? false;
-  }
-
-  /// Enable/disable biometric authentication
-  Future<void> setBiometricEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_biometricEnabledKey, enabled);
+    return await isBiometricAvailable();
   }
 
 
@@ -104,23 +85,20 @@ class SecurityService {
   /// Get auto-lock timeout
   int get autoLockMinutes => _autoLockMinutes;
 
-  /// Authenticate with biometrics
+  /// Authenticate with biometrics using native iOS 18+ features
   Future<bool> authenticateWithBiometrics() async {
     try {
       if (!await isBiometricAvailable()) {
         return false;
       }
 
-      final isEnabled = await isBiometricEnabled();
-      if (!isEnabled) {
-        return false;
-      }
-
+      // Use native iOS 18+ authentication with proper options
       final result = await _localAuth.authenticate(
-        localizedReason: 'Authenticate to access Bechaalany Connect',
+        localizedReason: 'Use Face ID to access Bechaalany Connect',
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
+          sensitiveTransaction: true,
         ),
       );
 
@@ -210,5 +188,33 @@ class SecurityService {
       return 'Fingerprint / Face';
     }
     return 'Biometric';
+  }
+
+  /// Open iOS device settings for Face ID/Touch ID setup
+  Future<void> openDeviceSettings() async {
+    if (Platform.isIOS) {
+      try {
+        await SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+        // Open iOS Settings app
+        await SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+      } catch (e) {
+        print('Error opening device settings: $e');
+      }
+    }
+  }
+
+  /// Check if user needs to set up biometric authentication
+  Future<bool> needsBiometricSetup() async {
+    if (!Platform.isIOS) return false;
+    
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      
+      // If device supports biometrics but none are enrolled, user needs setup
+      return isDeviceSupported && !isAvailable;
+    } catch (e) {
+      return false;
+    }
   }
 }
