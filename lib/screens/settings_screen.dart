@@ -5,10 +5,12 @@ import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
 import '../services/firebase_data_service.dart';
 import '../services/firebase_auth_service.dart';
+import '../services/auth_service.dart';
 
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'payment_reminders_screen.dart';
+import 'sign_in_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -45,6 +47,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: Colors.transparent,
           child: ListView(
             children: [
+              const SizedBox(height: 20),
+              
+              // Account Section
+              _buildSection(
+                'Account',
+                [
+                  _buildNavigationRow(
+                    'Sign Out',
+                    'Sign out of your account',
+                    CupertinoIcons.square_arrow_right,
+                    () => _showSignOutDialog(),
+                  ),
+                ],
+              ),
+              
               const SizedBox(height: 20),
               
               // Appearance (App-specific only)
@@ -731,6 +748,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       CupertinoPageRoute(
         builder: (context) => const PaymentRemindersScreen(),
+      ),
+    );
+  }
+
+  void _showSignOutDialog() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out? You will need to sign in again to access your data.'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              // Sign out immediately using AuthService
+              final authService = AuthService();
+              await authService.signOut();
+              
+              // Force navigation to sign-in screen after a short delay
+              await Future.delayed(const Duration(milliseconds: 200));
+              
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  CupertinoPageRoute(builder: (context) => const SignInScreen()),
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }

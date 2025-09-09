@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../services/auth_service.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
+import '../utils/logo_utils.dart';
 import 'main_screen.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -24,7 +28,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _checkAuthState() {
     _authService.authStateChanges.listen((user) {
-      if (user != null) {
+      if (user != null && mounted) {
         // User is signed in, navigate to main screen
         _navigateToMainScreen();
       }
@@ -84,168 +88,190 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   void _navigateToMainScreen() {
-    Navigator.of(context).pushReplacement(
-      CupertinoPageRoute(
-        builder: (context) => const MainScreen(),
-      ),
-    );
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        CupertinoPageRoute(
+          builder: (context) => const MainScreen(),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 375;
+    final isLargeScreen = MediaQuery.of(context).size.width > 428;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: isDarkMode ? Colors.black : Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // App Logo
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(60),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.2),
-                    width: 1,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: isDarkMode
+                  ? [
+                      Colors.black,
+                      const Color(0xFF1C1C1E).withValues(alpha: 0.8),
+                      const Color(0xFF2C2C2E).withValues(alpha: 0.6),
+                    ]
+                  : [
+                      Colors.white,
+                      AppColors.primary.withValues(alpha: 0.05),
+                      AppColors.primary.withValues(alpha: 0.1),
+                    ],
+              stops: const [0.0, 0.7, 1.0],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacing24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo Design
+                LogoUtils.buildLogo(
+                  context: context,
+                  width: isSmallScreen ? 120 : isLargeScreen ? 160 : 140,
+                  height: isSmallScreen ? 120 : isLargeScreen ? 160 : 140,
+                  placeholder: Icon(
+                    Icons.account_balance_wallet,
+                    color: isDarkMode ? Colors.white : AppColors.primary,
+                    size: isSmallScreen ? 50 : isLargeScreen ? 70 : 60,
                   ),
                 ),
-                child: const Icon(
-                  CupertinoIcons.money_dollar_circle_fill,
-                  color: Colors.white,
-                  size: 60,
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // App Title
-              const Text(
-                'Bechaalany Connect',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Subtitle
-              Text(
-                'Sign in to manage your debt records',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white.withOpacity(0.8),
-                  fontWeight: FontWeight.w400,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 64),
-              
-              // Error Message
-              if (_errorMessage != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 14,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              
-              if (_errorMessage != null) const SizedBox(height: 24),
-              
-              // Sign In Buttons
-              if (_isLoading)
-                const CupertinoActivityIndicator(
-                  color: Colors.white,
-                  radius: 20,
-                )
-              else
-                Column(
-                  children: [
-                    // Google Sign In Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: CupertinoButton(
-                        onPressed: _signInWithGoogle,
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Google Logo (simplified)
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  'G',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                
+                SizedBox(height: isSmallScreen ? AppTheme.spacing32 : AppTheme.spacing40),
+                
+                // App Title with Elegant Styling
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Bechaalany ',
+                        style: AppTheme.title1.copyWith(
+                          color: isDarkMode ? Colors.white : Colors.black,
+                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.5,
                         ),
                       ),
+                      TextSpan(
+                        text: 'Connect',
+                        style: AppTheme.title1.copyWith(
+                          color: isDarkMode ? AppColors.primaryLight : AppColors.primary,
+                          fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                SizedBox(height: AppTheme.spacing16),
+                
+                // Subtitle with Elegant Styling
+                Text(
+                  'Sign in to manage your debt records',
+                  style: AppTheme.body.copyWith(
+                    color: isDarkMode 
+                        ? Colors.white.withValues(alpha: 0.8)
+                        : AppColors.textSecondary,
+                    fontSize: isSmallScreen ? 16 : 18,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                
+                SizedBox(height: isSmallScreen ? AppTheme.spacing48 : AppTheme.spacing56),
+                
+                // Error Message with Elegant Styling
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.spacing16,
+                      vertical: AppTheme.spacing12,
                     ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Apple Sign In Button
-                    if (Platform.isIOS)
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radius12),
+                      border: Border.all(
+                        color: AppColors.error.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.exclamationmark_triangle,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
+                        const SizedBox(width: AppTheme.spacing8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: AppTheme.callout.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                
+                if (_errorMessage != null) SizedBox(height: AppTheme.spacing24),
+                
+                // Sign In Buttons with Elegant Styling
+                if (_isLoading)
+                  Column(
+                    children: [
+                      const CupertinoActivityIndicator(
+                        color: AppColors.primary,
+                        radius: 20,
+                      ),
+                      const SizedBox(height: AppTheme.spacing16),
+                      Text(
+                        'Signing you in...',
+                        style: AppTheme.callout.copyWith(
+                          color: isDarkMode 
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      // Google Sign In Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: CupertinoButton(
-                          onPressed: _signInWithApple,
+                          onPressed: _signInWithGoogle,
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(AppTheme.radius16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(
-                                CupertinoIcons.app_badge,
-                                color: Colors.black,
-                                size: 24,
+                              // Google Logo
+                              SvgPicture.asset(
+                                'assets/images/google_logo.svg',
+                                width: 24,
+                                height: 24,
                               ),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Continue with Apple',
-                                style: TextStyle(
+                              const SizedBox(width: AppTheme.spacing12),
+                              Text(
+                                'Continue with Google',
+                                style: AppTheme.headline.copyWith(
                                   color: Colors.black,
-                                  fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -253,47 +279,45 @@ class _SignInScreenState extends State<SignInScreen> {
                           ),
                         ),
                       ),
-                  ],
-                ),
-              
-              const SizedBox(height: 48),
-              
-              // Security Info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(
-                      CupertinoIcons.lock_shield,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Secure Authentication',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your data is protected with Face ID and encrypted storage',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                      
+                      const SizedBox(height: AppTheme.spacing16),
+                      
+                      // Apple Sign In Button
+                      if (Platform.isIOS)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: CupertinoButton(
+                            onPressed: _signInWithApple,
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppTheme.radius16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Apple Logo
+                                SvgPicture.asset(
+                                  'assets/images/apple_logo.svg',
+                                  width: 24,
+                                  height: 24,
+                                ),
+                                const SizedBox(width: AppTheme.spacing12),
+                                Text(
+                                  'Continue with Apple',
+                                  style: AppTheme.headline.copyWith(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                
+                SizedBox(height: isSmallScreen ? AppTheme.spacing40 : AppTheme.spacing48),
+              ],
+            ),
           ),
         ),
       ),

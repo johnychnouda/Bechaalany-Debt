@@ -21,11 +21,19 @@ class AuthService {
   /// Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      // First, check if Google Sign-In is available
+      // Try to get current user first (this tests if the plugin is working)
+      final GoogleSignInAccount? currentUser = _googleSignIn.currentUser;
+      
+      // Check if user is already signed in
+      if (currentUser != null) {
+        await _googleSignIn.signOut();
+      }
+      
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       
       if (googleUser == null) {
-        // User cancelled the sign-in
         return null;
       }
 
@@ -39,9 +47,10 @@ class AuthService {
       );
 
       // Sign in to Firebase with the Google credential
-      return await _auth.signInWithCredential(credential);
+      final result = await _auth.signInWithCredential(credential);
+      
+      return result;
     } catch (e) {
-      print('Google sign-in error: $e');
       return null;
     }
   }
@@ -71,7 +80,6 @@ class AuthService {
       // Sign in to Firebase with Apple credential
       return await _auth.signInWithCredential(oauthCredential);
     } catch (e) {
-      print('Apple sign-in error: $e');
       return null;
     }
   }
@@ -79,12 +87,17 @@ class AuthService {
   /// Sign out
   Future<void> signOut() async {
     try {
-      await Future.wait([
-        _auth.signOut(),
-        _googleSignIn.signOut(),
-      ]);
+      // Sign out from Firebase first
+      await _auth.signOut();
+      
+      // Then sign out from Google
+      await _googleSignIn.signOut();
+      
+      // Force a small delay to ensure auth state is updated
+      await Future.delayed(const Duration(milliseconds: 100));
+      
     } catch (e) {
-      print('Sign out error: $e');
+      // Handle sign out error silently
     }
   }
 

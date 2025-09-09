@@ -44,10 +44,10 @@ class _SplashScreenState extends State<SplashScreen>
     _fadeController.forward();
     
     // Wait for fade animation to complete
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 1000));
     
     // Navigate after delay
-    await Future.delayed(const Duration(milliseconds: 2000));
+    await Future.delayed(const Duration(milliseconds: 3000));
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(

@@ -260,7 +260,7 @@
 	<key>UIWhitePointAdaptivityStyle</key>
 	<string>UIWhitePointAdaptivityStyleReading</string>
 	
-	<!-- Apple Sign-In -->
+	<!-- URL Schemes for Authentication -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -271,6 +271,14 @@
 				<string>com.bechaalany.debt</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>GoogleSignIn</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.908856160324-rifpo3dibqilhhee82mfcchc9t8rd500</string>
+			</array>
+		</dict>
 	</array>
 	
 	<!-- Sign In with Apple -->
@@ -278,5 +286,9 @@
 	<array>
 		<string>Default</string>
 	</array>
+	
+	<!-- Google Sign-In Configuration -->
+	<key>GIDClientID</key>
+	<string>908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com</string>
 </dict>
 </plist>

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../widgets/security_wrapper.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'products_screen.dart';
@@ -114,8 +113,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SecurityWrapper(
-      child: Scaffold(
+    return Scaffold(
         key: const Key('main_screen'),
         backgroundColor: AppColors.dynamicBackground(context),
         body: IndexedStack(
@@ -163,7 +161,6 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ),
         ),
-      ),
     );
   }
 }
