@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
+import 'screens/sign_in_screen.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
 import 'services/backup_service.dart';
@@ -43,8 +44,7 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     
-    // Sign in anonymously for development
-    await FirebaseAuth.instance.signInAnonymously();
+    // Firebase initialized - authentication will be handled by sign-in screens
     
     // Initialize timezone
     // tz.initializeTimeZones(); // Commented out due to API changes
@@ -56,8 +56,7 @@ void main() async {
     // Initialize Firebase service
     try {
       await FirebaseService.instance.initialize();
-      // Sign in anonymously for data access
-      await FirebaseService.instance.signInAnonymously();
+      // Firebase service initialized - authentication handled by sign-in screens
     } catch (e) {
       // Handle Firebase initialization error silently
     }
@@ -193,9 +192,7 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const SecurityWrapper(
-              child: SplashScreen(),
-            ),
+            home: const SignInScreen(),
             debugShowCheckedModeBanner: false,
             builder: (context, child) {
               // Apply custom theme based on app state

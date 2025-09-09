@@ -259,5 +259,24 @@
 	<!-- True Tone -->
 	<key>UIWhitePointAdaptivityStyle</key>
 	<string>UIWhitePointAdaptivityStyleReading</string>
+	
+	<!-- Apple Sign-In -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.bechaalany.debt</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.bechaalany.debt</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- Sign In with Apple -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

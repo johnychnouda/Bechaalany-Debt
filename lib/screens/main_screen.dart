@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
+import '../widgets/security_wrapper.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'products_screen.dart';
@@ -59,8 +60,8 @@ class _MainScreenState extends State<MainScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 color: isSelected 
                     ? AppColors.dynamicPrimary(context)
                     : AppColors.dynamicTextSecondary(context),
@@ -75,7 +76,8 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildActivitiesNavigationItem() {
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
+        Navigator.push(
+          context,
           MaterialPageRoute(
             builder: (context) => const FullActivityListScreen(),
           ),
@@ -99,8 +101,8 @@ class _MainScreenState extends State<MainScreen> {
             Text(
               'Activities',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.normal,
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
                 color: AppColors.dynamicTextSecondary(context),
               ),
             ),
@@ -112,54 +114,56 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: const Key('main_screen'),
-      backgroundColor: AppColors.dynamicBackground(context),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.dynamicSurface(context),
-          border: Border(
-            top: BorderSide(
-              color: AppColors.dynamicBorder(context),
-              width: 0.5,
+    return SecurityWrapper(
+      child: Scaffold(
+        key: const Key('main_screen'),
+        backgroundColor: AppColors.dynamicBackground(context),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            border: Border(
+              top: BorderSide(
+                color: AppColors.dynamicBorder(context),
+                width: 0.5,
+              ),
             ),
           ),
-        ),
-        child: SafeArea(
-          child: Container(
-            height: 88,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavigationItem(
-                  index: 0,
-                  icon: Icons.dashboard_rounded,
-                  label: 'Dashboard',
-                  isSelected: _currentIndex == 0,
-                ),
-                _buildNavigationItem(
-                  index: 1,
-                  icon: Icons.people_rounded,
-                  label: 'Customers',
-                  isSelected: _currentIndex == 1,
-                ),
-                _buildNavigationItem(
-                  index: 2,
-                  icon: Icons.inventory_2_rounded,
-                  label: 'Products',
-                  isSelected: _currentIndex == 2,
-                ),
-                _buildActivitiesNavigationItem(),
-              ],
+          child: SafeArea(
+            child: Container(
+              height: 88,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavigationItem(
+                    index: 0,
+                    icon: Icons.dashboard_rounded,
+                    label: 'Dashboard',
+                    isSelected: _currentIndex == 0,
+                  ),
+                  _buildNavigationItem(
+                    index: 1,
+                    icon: Icons.people_rounded,
+                    label: 'Customers',
+                    isSelected: _currentIndex == 1,
+                  ),
+                  _buildNavigationItem(
+                    index: 2,
+                    icon: Icons.inventory_2_rounded,
+                    label: 'Products',
+                    isSelected: _currentIndex == 2,
+                  ),
+                  _buildActivitiesNavigationItem(),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-} 
+}

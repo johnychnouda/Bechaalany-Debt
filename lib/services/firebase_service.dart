@@ -26,14 +26,7 @@ class FirebaseService {
   // Check if user is signed in
   bool get isSignedIn => _auth.currentUser != null;
 
-  // Sign in anonymously for data access
-  Future<UserCredential?> signInAnonymously() async {
-    try {
-      return await _auth.signInAnonymously();
-    } catch (e) {
-      return null;
-    }
-  }
+  // Anonymous authentication removed - now using Google/Apple sign-in
 
   // Sign out
   Future<void> signOut() async {
