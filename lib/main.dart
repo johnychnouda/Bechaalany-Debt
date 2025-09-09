@@ -15,6 +15,8 @@ import 'services/backup_service.dart';
 import 'services/background_backup_service.dart';
 import 'services/background_app_refresh_service.dart';
 import 'services/app_update_service.dart';
+import 'services/security_service.dart';
+import 'widgets/security_wrapper.dart';
 
 // Global service instances
 NotificationService? _globalNotificationService;
@@ -191,7 +193,9 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: const SplashScreen(),
+            home: const SecurityWrapper(
+              child: SplashScreen(),
+            ),
             debugShowCheckedModeBanner: false,
             builder: (context, child) {
               // Apply custom theme based on app state
