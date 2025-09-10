@@ -110,29 +110,29 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget build(BuildContext context) {
     final isSmallScreen = MediaQuery.of(context).size.width < 375;
     final isLargeScreen = MediaQuery.of(context).size.width > 428;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Colors.black : Colors.white,
-      body: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF000000) : const Color(0xFFF2F2F7),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFFFFFFFF),
+              const Color(0xFFF8F9FA),
+              const Color(0xFFF2F2F7),
+            ],
+            stops: const [0.0, 0.5, 1.0],
           ),
-          child: Stack(
-            children: [
-              // iOS 18.6 native background pattern
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: iOSBackgroundPainter(isDarkMode: isDarkMode),
-                ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(AppTheme.spacing24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacing24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 // Logo Design
                 LogoUtils.buildLogo(
                   context: context,
@@ -155,7 +155,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       TextSpan(
                         text: 'Bechaalany ',
                         style: AppTheme.title1.copyWith(
-                          color: isDarkMode ? Colors.white : Colors.black,
+                          color: Colors.black,
                           fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.5,
@@ -164,7 +164,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       TextSpan(
                         text: 'Connect',
                         style: AppTheme.title1.copyWith(
-                          color: isDarkMode ? const Color(0xFFFF3B30) : const Color(0xFFFF3B30),
+                          color: const Color(0xFFFF3B30),
                           fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.5,
@@ -180,9 +180,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 Text(
                   'Sign in to manage your debt records',
                   style: AppTheme.body.copyWith(
-                    color: isDarkMode 
-                        ? Colors.white.withValues(alpha: 0.8)
-                        : AppColors.textSecondary,
+                    color: AppColors.textSecondary,
                     fontSize: isSmallScreen ? 16 : 18,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.2,
@@ -243,9 +241,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       Text(
                         'Signing you in...',
                         style: AppTheme.callout.copyWith(
-                          color: isDarkMode 
-                              ? Colors.white.withValues(alpha: 0.7)
-                              : AppColors.textSecondary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -319,10 +315,8 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing40 : AppTheme.spacing48),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -330,86 +324,3 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 }
 
-// iOS 18.6 Native Background Painter
-class iOSBackgroundPainter extends CustomPainter {
-  final bool isDarkMode;
-
-  iOSBackgroundPainter({required this.isDarkMode});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-    
-    // iOS 18.6 native background pattern
-    if (isDarkMode) {
-      // Dark mode: subtle grid pattern
-      paint.color = const Color(0xFF1C1C1E).withValues(alpha: 0.3);
-      paint.strokeWidth = 0.5;
-      
-      // Draw subtle grid lines
-      for (double x = 0; x < size.width; x += 40) {
-        canvas.drawLine(
-          Offset(x, 0),
-          Offset(x, size.height),
-          paint,
-        );
-      }
-      
-      for (double y = 0; y < size.height; y += 40) {
-        canvas.drawLine(
-          Offset(0, y),
-          Offset(size.width, y),
-          paint,
-        );
-      }
-      
-      // Add subtle radial gradient overlay
-      final radialPaint = Paint()
-        ..shader = RadialGradient(
-          center: Alignment.topRight,
-          radius: 1.2,
-          colors: [
-            const Color(0xFF2C2C2E).withValues(alpha: 0.1),
-            Colors.transparent,
-          ],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-      
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        radialPaint,
-      );
-    } else {
-      // Light mode: iOS 18.6 native pattern
-      paint.color = const Color(0xFFE5E5EA).withValues(alpha: 0.4);
-      paint.strokeWidth = 0.3;
-      
-      // Draw subtle dot pattern (iOS 18.6 style)
-      for (double x = 20; x < size.width; x += 60) {
-        for (double y = 20; y < size.height; y += 60) {
-          canvas.drawCircle(Offset(x, y), 1.0, paint);
-        }
-      }
-      
-      // Add subtle gradient overlay
-      final gradientPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            const Color(0xFFF2F2F7).withValues(alpha: 0.3),
-            const Color(0xFFE5E5EA).withValues(alpha: 0.1),
-          ],
-          stops: const [0.0, 0.7, 1.0],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-      
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        gradientPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
