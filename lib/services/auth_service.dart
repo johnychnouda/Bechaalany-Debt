@@ -66,20 +66,19 @@ class AuthService {
       // Check if Apple Sign-In is available
       final isAvailable = await SignInWithApple.isAvailable();
       if (!isAvailable) {
-        throw Exception('Apple Sign-In is not available on this device');
+        throw Exception('Apple Sign-In is not available on this device. Please check your device settings.');
       }
 
-      // Request Apple ID credential
+      // Request Apple ID credential with minimal scopes for better compatibility
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
         ],
       );
 
-      // Check if user cancelled
-      if (appleCredential.identityToken == null) {
-        throw Exception('Apple Sign-In was cancelled by user');
+      // Check if user cancelled or if credential is invalid
+      if (appleCredential.identityToken == null || appleCredential.identityToken!.isEmpty) {
+        throw Exception('Apple Sign-In was cancelled or failed. Please try again.');
       }
 
       // Create Firebase credential
@@ -91,8 +90,16 @@ class AuthService {
       // Sign in to Firebase with Apple credential
       return await _auth.signInWithCredential(oauthCredential);
     } catch (e) {
-      // Re-throw the exception so it can be handled by the UI
-      rethrow;
+      // Provide more user-friendly error messages
+      if (e.toString().contains('1001') || e.toString().contains('canceled')) {
+        throw Exception('Apple Sign-In was cancelled. Please try again.');
+      } else if (e.toString().contains('not available')) {
+        throw Exception('Apple Sign-In is not available. Please check your device settings.');
+      } else if (e.toString().contains('network')) {
+        throw Exception('Network error. Please check your internet connection.');
+      } else {
+        throw Exception('Apple Sign-In failed. Please try again or use Google Sign-In instead.');
+      }
     }
   }
 
