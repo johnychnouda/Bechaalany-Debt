@@ -63,6 +63,12 @@ class AuthService {
         throw Exception('Apple Sign-In is only available on iOS');
       }
 
+      // Check if Apple Sign-In is available
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception('Apple Sign-In is not available on this device');
+      }
+
       // Request Apple ID credential
       final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
@@ -70,6 +76,11 @@ class AuthService {
           AppleIDAuthorizationScopes.fullName,
         ],
       );
+
+      // Check if user cancelled
+      if (appleCredential.identityToken == null) {
+        throw Exception('Apple Sign-In was cancelled by user');
+      }
 
       // Create Firebase credential
       final oauthCredential = OAuthProvider("apple.com").credential(
@@ -80,7 +91,8 @@ class AuthService {
       // Sign in to Firebase with Apple credential
       return await _auth.signInWithCredential(oauthCredential);
     } catch (e) {
-      return null;
+      // Re-throw the exception so it can be handled by the UI
+      rethrow;
     }
   }
 

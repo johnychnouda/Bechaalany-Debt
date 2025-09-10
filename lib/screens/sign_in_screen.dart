@@ -78,7 +78,14 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Apple sign-in failed: ${e.toString()}';
+        // Check if it's a cancellation error
+        if (e.toString().contains('cancelled')) {
+          _errorMessage = 'Apple sign-in was cancelled';
+        } else if (e.toString().contains('not available')) {
+          _errorMessage = 'Apple Sign-In is not available on this device';
+        } else {
+          _errorMessage = 'Apple sign-in failed: ${e.toString()}';
+        }
       });
     } finally {
       setState(() {
