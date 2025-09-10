@@ -113,30 +113,92 @@ class _SignInScreenState extends State<SignInScreen> {
     return Scaffold(
       backgroundColor: isDarkMode ? Colors.black : Colors.white,
       body: SafeArea(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: isDarkMode
-                  ? [
-                      Colors.black,
-                      const Color(0xFF1C1C1E).withValues(alpha: 0.8),
-                      const Color(0xFF2C2C2E).withValues(alpha: 0.6),
-                    ]
-                  : [
-                      Colors.white,
-                      AppColors.primary.withValues(alpha: 0.05),
-                      AppColors.primary.withValues(alpha: 0.1),
-                    ],
-              stops: const [0.0, 0.7, 1.0],
+        child: Stack(
+          children: [
+            // Main gradient background
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDarkMode
+                      ? [
+                          const Color(0xFF000000),
+                          const Color(0xFF1C1C1E),
+                          const Color(0xFF2C2C2E),
+                          const Color(0xFF1C1C1E),
+                        ]
+                      : [
+                          const Color(0xFFFFFFFF),
+                          const Color(0xFFF8FAFF),
+                          const Color(0xFFF0F4FF),
+                          const Color(0xFFE8F2FF),
+                        ],
+                  stops: const [0.0, 0.3, 0.7, 1.0],
+                ),
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacing24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+            // Subtle overlay pattern
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.topRight,
+                    radius: 1.5,
+                    colors: [
+                      (isDarkMode ? const Color(0xFF1C1C1E) : const Color(0xFFF8FAFF))
+                          .withValues(alpha: 0.3),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.7],
+                  ),
+                ),
+              ),
+            ),
+            // Additional subtle accent
+            Positioned(
+              top: -100,
+              right: -100,
+              child: Container(
+                width: 300,
+                height: 300,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      (isDarkMode ? const Color(0xFF2C2C2E) : AppColors.primary)
+                          .withValues(alpha: 0.1),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Bottom accent
+            Positioned(
+              bottom: -150,
+              left: -150,
+              child: Container(
+                width: 400,
+                height: 400,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      (isDarkMode ? const Color(0xFF1C1C1E) : AppColors.primaryLight)
+                          .withValues(alpha: 0.08),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                 // Logo Design
                 LogoUtils.buildLogo(
                   context: context,
@@ -323,9 +385,10 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing40 : AppTheme.spacing48),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
