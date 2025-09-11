@@ -82,9 +82,6 @@ class WhatsAppAutomationService {
     required DateTime settlementDate,
     double? actualPaymentAmount,
   }) async {
-    print('📱 WhatsApp settlement message requested for: ${customer.name}');
-    print('📱 Phone: ${customer.phone}');
-    print('📱 Settled debts: ${settledDebts.length}');
     
     try {
       // Build the complete message
@@ -97,15 +94,11 @@ class WhatsAppAutomationService {
         actualPaymentAmount: actualPaymentAmount,
       );
 
-      print('📱 Generated message: $message');
-
       // Format phone number for WhatsApp
       final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
-      print('📱 Formatted phone: $formattedPhone');
       
       // Create WhatsApp URL with pre-filled message
       final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
-      print('📱 WhatsApp URL: $whatsappUrl');
       
       // Launch WhatsApp
       final launched = await launchUrl(
@@ -113,7 +106,6 @@ class WhatsAppAutomationService {
         mode: LaunchMode.externalApplication,
       );
       
-      print('📱 WhatsApp launched: $launched');
       
       return launched;
     } catch (e) {
@@ -169,23 +161,17 @@ Connect''';
     required DateTime settlementDate,
     double? actualPaymentAmount,
   }) {
-    print('📱 _buildSettlementMessage: actualPaymentAmount = $actualPaymentAmount');
-    print('📱 _buildSettlementMessage: partialPayments count = ${partialPayments.length}');
-    print('📱 _buildSettlementMessage: settledDebts count = ${settledDebts.length}');
     
     // Use the actual payment amount if provided, otherwise calculate from partial payments
     double finalPaymentAmount = 0.0;
     if (actualPaymentAmount != null && actualPaymentAmount > 0) {
       finalPaymentAmount = actualPaymentAmount;
-      print('📱 Using actualPaymentAmount: $finalPaymentAmount');
     } else if (partialPayments.isNotEmpty) {
       // Get the most recent partial payment amount
       finalPaymentAmount = partialPayments.last.amount;
-      print('📱 Using last partial payment amount: $finalPaymentAmount');
     } else {
       // Fallback: calculate from settled debts
       finalPaymentAmount = settledDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
-      print('📱 Using settled debts total: $finalPaymentAmount');
     }
     
     // Format settlement date with seconds

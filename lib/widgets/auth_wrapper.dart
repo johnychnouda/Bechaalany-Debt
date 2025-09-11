@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/sign_in_screen.dart';
 import '../screens/main_screen.dart';
@@ -18,25 +19,13 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Clear any cached authentication state to ensure clean start
-    _clearCachedAuthState();
-    
     // Show splash screen for minimum duration
     _showSplashForMinimumDuration();
   }
 
-  Future<void> _clearCachedAuthState() async {
-    try {
-      // Force refresh the authentication state
-      await FirebaseAuth.instance.authStateChanges().first;
-    } catch (e) {
-      // Handle any errors silently
-    }
-  }
-
   Future<void> _showSplashForMinimumDuration() async {
-    // Show splash screen for at least 3 seconds
-    await Future.delayed(const Duration(seconds: 3));
+    // Show splash screen for at least 2 seconds
+    await Future.delayed(const Duration(seconds: 2));
     
     if (mounted) {
       setState(() {
@@ -50,9 +39,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
+
         // Show splash screen while loading or during minimum duration
-        if (_isLoading || snapshot.connectionState == ConnectionState.waiting) {
+        if (_isLoading) {
           return const SplashScreen();
+        }
+        
+        // Handle connection state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+        
+        // Handle errors
+        if (snapshot.hasError) {
+          // If there's an error, show sign-in screen
+          return const SignInScreen();
         }
         
         // If user is signed in, show main app

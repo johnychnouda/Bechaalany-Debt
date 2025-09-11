@@ -34,7 +34,6 @@ class SecurityService {
       if (isAvailable && isDeviceSupported) {
         // Get available biometric types
         final biometrics = await _localAuth.getAvailableBiometrics();
-        print('Available biometrics: $biometrics');
       }
 
       // Load security settings
@@ -42,7 +41,7 @@ class SecurityService {
       
       _isInitialized = true;
     } catch (e) {
-      print('Security service initialization error: $e');
+      // Error handling for security service initialization
     }
   }
 
@@ -109,7 +108,7 @@ class SecurityService {
 
       return result;
     } catch (e) {
-      print('Biometric authentication error: $e');
+      // Error handling for biometric authentication
       return false;
     }
   }
@@ -198,7 +197,7 @@ class SecurityService {
         // Open iOS Settings app
         await SystemChannels.platform.invokeMethod('SystemNavigator.pop');
       } catch (e) {
-        print('Error opening device settings: $e');
+        // Error handling for opening device settings
       }
     }
   }

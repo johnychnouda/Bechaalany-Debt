@@ -89,10 +89,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
-    // TODO: Re-enable userId filtering once user account strategy is finalized
     return _firestore
         .collection('customers')
+        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
@@ -112,9 +111,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('categories')
+        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductCategory.fromJson({...doc.data(), 'id': doc.id}))
@@ -194,9 +193,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('product_purchases')
+        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
@@ -260,9 +259,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('debts')
+        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -334,9 +333,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('partial_payments')
+        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) {
           final payments = snapshot.docs
@@ -403,7 +402,7 @@ class FirebaseDataService {
     
     await _firestore
         .collection('currency_settings')
-        .doc('default')
+        .doc(currentUserId!)
         .set(settingsData, SetOptions(merge: true));
   }
 
@@ -413,14 +412,14 @@ class FirebaseDataService {
       return Stream.value(null);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('currency_settings')
-        .doc('default')
+        .where('userId', isEqualTo: currentUserId)
+        .limit(1)
         .snapshots()
-        .map((doc) {
-          if (doc.exists && doc.data() != null) {
-            return CurrencySettings.fromJson(doc.data()!);
+        .map((snapshot) {
+          if (snapshot.docs.isNotEmpty && snapshot.docs.first.data() != null) {
+            return CurrencySettings.fromJson(snapshot.docs.first.data());
           }
           return null;
         });
@@ -433,7 +432,7 @@ class FirebaseDataService {
     try {
       final doc = await _firestore
           .collection('currency_settings')
-          .doc('default')
+          .doc(currentUserId!)
           .get();
       
       if (doc.exists && doc.data() != null) {
@@ -538,7 +537,10 @@ class FirebaseDataService {
     
     try {
       final queryLower = query.toLowerCase();
-      final snapshot = await _firestore.collection('customers').get();
+      final snapshot = await _firestore
+          .collection('customers')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
@@ -556,7 +558,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('customers').get();
+      final snapshot = await _firestore
+          .collection('customers')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
@@ -573,7 +578,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('customers').get();
+      final snapshot = await _firestore
+          .collection('customers')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
@@ -596,6 +604,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
           .where('customerId', isEqualTo: customerId)
           .get();
       
@@ -613,7 +622,10 @@ class FirebaseDataService {
     
     try {
       final queryLower = query.toLowerCase();
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -631,7 +643,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       final allDebts = snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
@@ -652,7 +667,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -669,7 +687,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -685,7 +706,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -732,6 +756,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('partial_payments')
+          .where('userId', isEqualTo: currentUserId)
           .where('debtId', isEqualTo: debtId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -751,6 +776,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('partial_payments')
+          .where('userId', isEqualTo: currentUserId)
           .where('customerId', isEqualTo: customerId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -768,7 +794,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('partial_payments').get();
+      final snapshot = await _firestore
+          .collection('partial_payments')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
@@ -786,7 +815,10 @@ class FirebaseDataService {
     
     try {
       final queryLower = query.toLowerCase();
-      final snapshot = await _firestore.collection('partial_payments').get();
+      final snapshot = await _firestore
+          .collection('partial_payments')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
@@ -805,6 +837,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
           .where('customerId', isEqualTo: customerId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -824,6 +857,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
           .where('categoryId', isEqualTo: categoryId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -841,7 +875,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('product_purchases').get();
+      final snapshot = await _firestore
+          .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
@@ -859,7 +896,10 @@ class FirebaseDataService {
     
     try {
       final queryLower = query.toLowerCase();
-      final snapshot = await _firestore.collection('product_purchases').get();
+      final snapshot = await _firestore
+          .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
@@ -988,6 +1028,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
           .where('type', isEqualTo: type)
           .orderBy('createdAt', descending: true)
           .get();
@@ -1005,7 +1046,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('activities').get();
+      final snapshot = await _firestore
+          .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
@@ -1024,6 +1068,7 @@ class FirebaseDataService {
     try {
       final snapshot = await _firestore
           .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
           .where('customerId', isEqualTo: customerId)
           .orderBy('createdAt', descending: true)
           .get();
@@ -1042,7 +1087,10 @@ class FirebaseDataService {
     
     try {
       final queryLower = query.toLowerCase();
-      final snapshot = await _firestore.collection('activities').get();
+      final snapshot = await _firestore
+          .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       
       return snapshot.docs
           .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
@@ -1061,9 +1109,9 @@ class FirebaseDataService {
       return Stream.value([]);
     }
     
-    // TEMPORARY: Remove userId filter to allow access to all data during development
     return _firestore
         .collection('activities')
+        .where('userId', isEqualTo: currentUserId)
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -1082,7 +1130,10 @@ class FirebaseDataService {
       final results = <String, List<dynamic>>{};
       
       // Search customers
-      final customersSnapshot = await _firestore.collection('customers').get();
+      final customersSnapshot = await _firestore
+          .collection('customers')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       final customers = customersSnapshot.docs
           .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
           .where((customer) => 
@@ -1092,7 +1143,10 @@ class FirebaseDataService {
       results['customers'] = customers;
       
       // Search debts
-      final debtsSnapshot = await _firestore.collection('debts').get();
+      final debtsSnapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       final debts = debtsSnapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
           .where((debt) => 
@@ -1102,7 +1156,10 @@ class FirebaseDataService {
       results['debts'] = debts;
       
       // Search products
-      final productsSnapshot = await _firestore.collection('product_purchases').get();
+      final productsSnapshot = await _firestore
+          .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       final products = productsSnapshot.docs
           .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
           .where((product) => 
@@ -1112,7 +1169,10 @@ class FirebaseDataService {
       results['products'] = products;
       
       // Search activities
-      final activitiesSnapshot = await _firestore.collection('activities').get();
+      final activitiesSnapshot = await _firestore
+          .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       final activities = activitiesSnapshot.docs
           .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
           .where((activity) => 
@@ -1132,7 +1192,10 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('debts').get();
+      final snapshot = await _firestore
+          .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
+          .get();
       List<Debt> debts = snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
@@ -1744,10 +1807,13 @@ class FirebaseDataService {
   
   // Clear all debts for current user
   Future<void> clearDebts() async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
     try {
-      // Get all debts (no userId filter since app is running without authentication)
+      // Get all debts for current user only
       final debtsSnapshot = await _firestore
           .collection('debts')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1773,10 +1839,13 @@ class FirebaseDataService {
   
   // Clear all partial payments for current user
   Future<void> clearPartialPayments() async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
     try {
-      // Get all partial payments (no userId filter since app is running without authentication)
+      // Get all partial payments for current user only
       final paymentsSnapshot = await _firestore
           .collection('partial_payments')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1805,10 +1874,13 @@ class FirebaseDataService {
   
   // Clear all activities for current user
   Future<void> clearActivities() async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
     try {
-      // Get all activities (no userId filter since app is running without authentication)
+      // Get all activities for current user only
       final activitiesSnapshot = await _firestore
           .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1880,15 +1952,18 @@ class FirebaseDataService {
   
   // Clear all data for current user (customers, debts, products, activities, payments)
   Future<void> clearAllData() async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
     try {
-      // Clear all collections (no userId filter since app is running without authentication)
+      // Clear all collections for current user only
       await clearDebts();
       await clearPartialPayments();
       await clearActivities();
       
-      // Clear customers
+      // Clear customers for current user
       final customersSnapshot = await _firestore
           .collection('customers')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -1900,9 +1975,10 @@ class FirebaseDataService {
         await customersBatch.commit().timeout(const Duration(seconds: 30));
       }
       
-      // Clear categories
+      // Clear categories for current user
       final categoriesSnapshot = await _firestore
           .collection('categories')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -1914,9 +1990,10 @@ class FirebaseDataService {
         await categoriesBatch.commit().timeout(const Duration(seconds: 30));
       }
       
-      // Clear product purchases
+      // Clear product purchases for current user
       final purchasesSnapshot = await _firestore
           .collection('product_purchases')
+          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -1926,6 +2003,16 @@ class FirebaseDataService {
           purchasesBatch.delete(doc.reference);
         }
         await purchasesBatch.commit().timeout(const Duration(seconds: 30));
+      }
+      
+      // Clear currency settings for current user
+      final settingsDoc = await _firestore
+          .collection('currency_settings')
+          .doc(currentUserId!)
+          .get();
+      
+      if (settingsDoc.exists) {
+        await settingsDoc.reference.delete();
       }
     } catch (e) {
       if (e.toString().contains('timeout')) {

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
+import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -19,6 +21,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
@@ -26,8 +29,14 @@ class _SignInScreenState extends State<SignInScreen> {
     _checkAuthState();
   }
 
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   void _checkAuthState() {
-    _authService.authStateChanges.listen((user) {
+    _authSubscription = _authService.authStateChanges.listen((user) {
       if (user != null && mounted) {
         // User is signed in, navigate to main screen
         _navigateToMainScreen();
@@ -36,6 +45,7 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -46,22 +56,29 @@ class _SignInScreenState extends State<SignInScreen> {
       if (result != null) {
         // Success - navigation will be handled by auth state listener
       } else {
-        setState(() {
-          _errorMessage = 'Google sign-in was cancelled';
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Google sign-in was cancelled';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Google sign-in failed: ${e.toString()}';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Google sign-in failed: ${e.toString()}';
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _signInWithApple() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -72,27 +89,33 @@ class _SignInScreenState extends State<SignInScreen> {
       if (result != null) {
         // Success - navigation will be handled by auth state listener
       } else {
-        setState(() {
-          _errorMessage = 'Apple sign-in was cancelled';
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Apple sign-in was cancelled';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        // Provide user-friendly error messages
-        if (e.toString().contains('cancelled')) {
-          _errorMessage = 'Apple sign-in was cancelled. Please try again.';
-        } else if (e.toString().contains('not available')) {
-          _errorMessage = 'Apple Sign-In is not available. Please check your device settings.';
-        } else if (e.toString().contains('network')) {
-          _errorMessage = 'Network error. Please check your internet connection.';
-        } else {
-          _errorMessage = 'Apple sign-in failed. Please try again or use Google Sign-In instead.';
-        }
-      });
+      if (mounted) {
+        setState(() {
+          // Provide user-friendly error messages
+          if (e.toString().contains('cancelled')) {
+            _errorMessage = 'Apple sign-in was cancelled. Please try again.';
+          } else if (e.toString().contains('not available')) {
+            _errorMessage = 'Apple Sign-In is not available. Please check your device settings.';
+          } else if (e.toString().contains('network')) {
+            _errorMessage = 'Network error. Please check your internet connection.';
+          } else {
+            _errorMessage = 'Apple sign-in failed. Please try again or use Google Sign-In instead.';
+          }
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -140,7 +163,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   height: isSmallScreen ? 120 : isLargeScreen ? 160 : 140,
                   placeholder: Icon(
                     Icons.account_balance_wallet,
-                    color: isDarkMode ? Colors.white : AppColors.primary,
+                    color: AppColors.primary,
                     size: isSmallScreen ? 50 : isLargeScreen ? 70 : 60,
                   ),
                 ),
@@ -249,29 +272,44 @@ class _SignInScreenState extends State<SignInScreen> {
                 else
                   Column(
                     children: [
-                      // Google Sign In Button
-                      SizedBox(
+                      // Google Sign In Button - iOS 18.6 Native Style
+                      Container(
                         width: double.infinity,
                         height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFE5E5EA),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
                         child: CupertinoButton(
                           onPressed: _signInWithGoogle,
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppTheme.radius16),
+                          padding: EdgeInsets.zero,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               // Google Logo
                               SvgPicture.asset(
                                 'assets/images/google_logo.svg',
-                                width: 24,
-                                height: 24,
+                                width: 20,
+                                height: 20,
                               ),
-                              const SizedBox(width: AppTheme.spacing12),
+                              const SizedBox(width: 12),
                               Text(
                                 'Continue with Google',
                                 style: AppTheme.headline.copyWith(
-                                  color: Colors.black,
-                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF1C1C1E),
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 17,
                                 ),
                               ),
                             ],
@@ -281,30 +319,45 @@ class _SignInScreenState extends State<SignInScreen> {
                       
                       const SizedBox(height: AppTheme.spacing16),
                       
-                      // Apple Sign In Button
+                      // Apple Sign In Button - iOS 18.6 Native Style
                       if (Platform.isIOS)
-                        SizedBox(
+                        Container(
                           width: double.infinity,
                           height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: const Color(0xFFE5E5EA),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
                           child: CupertinoButton(
                             onPressed: _signInWithApple,
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(AppTheme.radius16),
+                            padding: EdgeInsets.zero,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 // Apple Logo
                                 SvgPicture.asset(
                                   'assets/images/apple_logo.svg',
-                                  width: 24,
-                                  height: 24,
+                                  width: 20,
+                                  height: 20,
                                 ),
-                                const SizedBox(width: AppTheme.spacing12),
+                                const SizedBox(width: 12),
                                 Text(
                                   'Continue with Apple',
                                   style: AppTheme.headline.copyWith(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1C1C1E),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 17,
                                   ),
                                 ),
                               ],
