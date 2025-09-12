@@ -271,24 +271,11 @@
 				<string>com.bechaalany.debt</string>
 			</array>
 		</dict>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>GoogleSignIn</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.908856160324-rifpo3dibqilhhee82mfcchc9t8rd500</string>
-			</array>
-		</dict>
+		<!-- Google Sign-In URL scheme removed - using Email/Password and Phone only -->
 	</array>
 	
-	<!-- Sign In with Apple -->
-	<key>com.apple.developer.applesignin</key>
-	<array>
-		<string>Default</string>
-	</array>
+	<!-- Apple Sign-In configuration removed - using Email/Password and Phone only -->
 	
-	<!-- Google Sign-In Configuration -->
-	<key>GIDClientID</key>
-	<string>908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com</string>
+	<!-- Google Sign-In configuration removed - using Email/Password and Phone only -->
 </dict>
 </plist>

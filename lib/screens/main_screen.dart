@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../utils/web_utils.dart';
+import '../services/auth_service.dart';
+import '../widgets/email_verification_modal.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'products_screen.dart';
@@ -14,12 +19,52 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _hasShownVerificationModal = false;
 
   final List<Widget> _screens = [
     const HomeScreen(),
     const CustomersScreen(),
     const ProductsScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Check for email verification after a short delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkEmailVerification();
+    });
+  }
+
+  /// Check if user needs to verify their email
+  Future<void> _checkEmailVerification() async {
+    if (_hasShownVerificationModal) return;
+    
+    final authService = AuthService();
+    final user = authService.currentUser;
+    
+    if (user != null && !user.emailVerified) {
+      _hasShownVerificationModal = true;
+      _showEmailVerificationModal();
+    }
+  }
+
+  /// Show email verification modal
+  void _showEmailVerificationModal() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => EmailVerificationModal(
+        onVerified: () {
+          // Modal will close automatically when verified
+          Navigator.of(context).pop();
+        },
+        onDismiss: () {
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
 
   Widget _buildNavigationItem({
     required int index,
@@ -116,51 +161,67 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
         key: const Key('main_screen'),
         backgroundColor: AppColors.dynamicBackground(context),
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _screens,
-        ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: AppColors.dynamicSurface(context),
-            border: Border(
-              top: BorderSide(
-                color: AppColors.dynamicBorder(context),
-                width: 0.5,
-              ),
-            ),
+        body: WebUtils.buildResponsiveLayout(
+          mobile: IndexedStack(
+            index: _currentIndex,
+            children: _screens,
           ),
-          child: SafeArea(
+          web: Center(
             child: Container(
-              height: 88,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavigationItem(
-                    index: 0,
-                    icon: Icons.dashboard_rounded,
-                    label: 'Dashboard',
-                    isSelected: _currentIndex == 0,
-                  ),
-                  _buildNavigationItem(
-                    index: 1,
-                    icon: Icons.people_rounded,
-                    label: 'Customers',
-                    isSelected: _currentIndex == 1,
-                  ),
-                  _buildNavigationItem(
-                    index: 2,
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Products',
-                    isSelected: _currentIndex == 2,
-                  ),
-                  _buildActivitiesNavigationItem(),
-                ],
+              constraints: BoxConstraints(
+                maxWidth: WebUtils.getResponsiveContainerWidth(context),
+              ),
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens,
               ),
             ),
           ),
         ),
+        bottomNavigationBar: WebUtils.shouldShowMobileNavigation(context)
+            ? Container(
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicSurface(context),
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.dynamicBorder(context),
+                      width: 0.5,
+                    ),
+                  ),
+                  boxShadow: WebUtils.getResponsiveCardShadow(context),
+                ),
+                child: SafeArea(
+                  child: Container(
+                    height: 88,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavigationItem(
+                          index: 0,
+                          icon: Icons.dashboard_rounded,
+                          label: 'Dashboard',
+                          isSelected: _currentIndex == 0,
+                        ),
+                        _buildNavigationItem(
+                          index: 1,
+                          icon: Icons.people_rounded,
+                          label: 'Customers',
+                          isSelected: _currentIndex == 1,
+                        ),
+                        _buildNavigationItem(
+                          index: 2,
+                          icon: Icons.inventory_2_rounded,
+                          label: 'Products',
+                          isSelected: _currentIndex == 2,
+                        ),
+                        _buildActivitiesNavigationItem(),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            : null, // No bottom navigation on desktop web
     );
   }
 }

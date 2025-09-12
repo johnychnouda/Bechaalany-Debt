@@ -26,7 +26,7 @@ class FirebaseService {
   // Check if user is signed in
   bool get isSignedIn => _auth.currentUser != null;
 
-  // Anonymous authentication removed - now using Google/Apple sign-in
+  // Anonymous authentication removed - now using Email/Password and Phone sign-in
 
   // Sign out
   Future<void> signOut() async {

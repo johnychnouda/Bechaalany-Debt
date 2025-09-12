@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
 
@@ -16,6 +17,12 @@ class BackgroundBackupService {
   // Initialize background backup service
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    // Skip initialization on web platform
+    if (kIsWeb) {
+      _isInitialized = true;
+      return;
+    }
 
     try {
       // Configure background fetch
@@ -150,6 +157,9 @@ class BackgroundBackupService {
 
   // Start background fetch
   Future<void> start() async {
+    // Skip on web platform
+    if (kIsWeb) return;
+    
     try {
       await BackgroundFetch.start();
     } catch (e) {
@@ -158,6 +168,9 @@ class BackgroundBackupService {
 
   // Stop background fetch
   Future<void> stop() async {
+    // Skip on web platform
+    if (kIsWeb) return;
+    
     try {
       await BackgroundFetch.stop();
     } catch (e) {
@@ -166,6 +179,9 @@ class BackgroundBackupService {
 
   // Check if background fetch is available
   Future<bool> isAvailable() async {
+    // Always return false on web platform
+    if (kIsWeb) return false;
+    
     try {
       final status = await BackgroundFetch.status;
       return status == 1; // 1 = available, 0 = denied
@@ -176,6 +192,9 @@ class BackgroundBackupService {
 
   // Get background fetch status
   Future<int> getStatus() async {
+    // Always return 0 (denied) on web platform
+    if (kIsWeb) return 0;
+    
     try {
       return await BackgroundFetch.status;
     } catch (e) {

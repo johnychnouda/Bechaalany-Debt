@@ -5,8 +5,10 @@
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Bechaalany Connect - Professional debt management application",
     "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "en",
     "prefer_related_applications": false,
     "icons": [
         {

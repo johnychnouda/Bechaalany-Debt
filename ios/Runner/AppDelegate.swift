@@ -2,7 +2,6 @@ import UIKit
 import Flutter
 import UserNotifications
 import ActivityKit
-import GoogleSignIn
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,15 +10,7 @@ import GoogleSignIn
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     
-    // Configure Google Sign-In
-    if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-       let plist = NSDictionary(contentsOfFile: path),
-       let clientId = plist["CLIENT_ID"] as? String {
-      print("🔧 Configuring Google Sign-In with CLIENT_ID: \(clientId)")
-      GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
-    } else {
-      print("❌ Failed to load GoogleService-Info.plist or CLIENT_ID")
-    }
+    // Google Sign-In configuration removed - using Email/Password and Phone only
     
     GeneratedPluginRegistrant.register(with: self)
     
@@ -34,14 +25,7 @@ import GoogleSignIn
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   
-  // Handle Google Sign-In URL
-  override func application(
-    _ app: UIApplication,
-    open url: URL,
-    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
-  ) -> Bool {
-    return GIDSignIn.sharedInstance.handle(url)
-  }
+  // Google Sign-In URL handling removed - using Email/Password and Phone only
   
   // Handle notification method calls
   private func handleNotificationMethodCall(call: FlutterMethodCall, result: @escaping FlutterResult) {
