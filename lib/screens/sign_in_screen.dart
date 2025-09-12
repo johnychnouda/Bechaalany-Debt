@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:country_code_picker/country_code_picker.dart';
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -30,6 +31,133 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
   int? _resendToken;
   bool _isPhoneAuth = false;
   bool _obscurePassword = true;
+  String _countryCode = '+961'; // Default to Lebanon
+  String _selectedCountry = 'Lebanon';
+  String _selectedFlag = '🇱🇧';
+  String _phoneValidationMessage = '';
+  
+  // Common countries for dropdown
+  final List<Map<String, String>> _countries = [
+    {'name': 'Lebanon', 'code': '+961', 'flag': '🇱🇧'},
+    {'name': 'United States', 'code': '+1', 'flag': '🇺🇸'},
+    {'name': 'United Kingdom', 'code': '+44', 'flag': '🇬🇧'},
+    {'name': 'France', 'code': '+33', 'flag': '🇫🇷'},
+    {'name': 'Germany', 'code': '+49', 'flag': '🇩🇪'},
+    {'name': 'Italy', 'code': '+39', 'flag': '🇮🇹'},
+    {'name': 'Spain', 'code': '+34', 'flag': '🇪🇸'},
+    {'name': 'Canada', 'code': '+1', 'flag': '🇨🇦'},
+    {'name': 'Australia', 'code': '+61', 'flag': '🇦🇺'},
+    {'name': 'Japan', 'code': '+81', 'flag': '🇯🇵'},
+    {'name': 'China', 'code': '+86', 'flag': '🇨🇳'},
+    {'name': 'India', 'code': '+91', 'flag': '🇮🇳'},
+    {'name': 'Brazil', 'code': '+55', 'flag': '🇧🇷'},
+    {'name': 'Russia', 'code': '+7', 'flag': '🇷🇺'},
+    {'name': 'Turkey', 'code': '+90', 'flag': '🇹🇷'},
+    {'name': 'Egypt', 'code': '+20', 'flag': '🇪🇬'},
+    {'name': 'Saudi Arabia', 'code': '+966', 'flag': '🇸🇦'},
+    {'name': 'UAE', 'code': '+971', 'flag': '🇦🇪'},
+    {'name': 'Jordan', 'code': '+962', 'flag': '🇯🇴'},
+    {'name': 'Syria', 'code': '+963', 'flag': '🇸🇾'},
+  ];
+
+  // Phone format validation for different countries
+  Map<String, Map<String, dynamic>> _phoneFormats = {
+    '+961': { // Lebanon
+      'pattern': r'^[0-9]{8}$',
+      'example': '70123456',
+      'description': '8 digits (e.g., 70123456)',
+    },
+    '+1': { // US/Canada
+      'pattern': r'^[0-9]{10}$',
+      'example': '5551234567',
+      'description': '10 digits (e.g., 5551234567)',
+    },
+    '+44': { // UK
+      'pattern': r'^[0-9]{10,11}$',
+      'example': '7700123456',
+      'description': '10-11 digits (e.g., 7700123456)',
+    },
+    '+33': { // France
+      'pattern': r'^[0-9]{9}$',
+      'example': '123456789',
+      'description': '9 digits (e.g., 123456789)',
+    },
+    '+49': { // Germany
+      'pattern': r'^[0-9]{10,11}$',
+      'example': '15123456789',
+      'description': '10-11 digits (e.g., 15123456789)',
+    },
+    '+39': { // Italy
+      'pattern': r'^[0-9]{10}$',
+      'example': '3123456789',
+      'description': '10 digits (e.g., 3123456789)',
+    },
+    '+34': { // Spain
+      'pattern': r'^[0-9]{9}$',
+      'example': '612345678',
+      'description': '9 digits (e.g., 612345678)',
+    },
+    '+61': { // Australia
+      'pattern': r'^[0-9]{9}$',
+      'example': '412345678',
+      'description': '9 digits (e.g., 412345678)',
+    },
+    '+81': { // Japan
+      'pattern': r'^[0-9]{10,11}$',
+      'example': '9012345678',
+      'description': '10-11 digits (e.g., 9012345678)',
+    },
+    '+86': { // China
+      'pattern': r'^[0-9]{11}$',
+      'example': '13812345678',
+      'description': '11 digits (e.g., 13812345678)',
+    },
+    '+91': { // India
+      'pattern': r'^[0-9]{10}$',
+      'example': '9876543210',
+      'description': '10 digits (e.g., 9876543210)',
+    },
+    '+55': { // Brazil
+      'pattern': r'^[0-9]{10,11}$',
+      'example': '11987654321',
+      'description': '10-11 digits (e.g., 11987654321)',
+    },
+    '+7': { // Russia
+      'pattern': r'^[0-9]{10}$',
+      'example': '9123456789',
+      'description': '10 digits (e.g., 9123456789)',
+    },
+    '+90': { // Turkey
+      'pattern': r'^[0-9]{10}$',
+      'example': '5321234567',
+      'description': '10 digits (e.g., 5321234567)',
+    },
+    '+20': { // Egypt
+      'pattern': r'^[0-9]{10}$',
+      'example': '1012345678',
+      'description': '10 digits (e.g., 1012345678)',
+    },
+    '+966': { // Saudi Arabia
+      'pattern': r'^[0-9]{9}$',
+      'example': '501234567',
+      'description': '9 digits (e.g., 501234567)',
+    },
+    '+971': { // UAE
+      'pattern': r'^[0-9]{9}$',
+      'example': '501234567',
+      'description': '9 digits (e.g., 501234567)',
+    },
+    '+962': { // Jordan
+      'pattern': r'^[0-9]{9}$',
+      'example': '791234567',
+      'description': '9 digits (e.g., 791234567)',
+    },
+    '+963': { // Syria
+      'pattern': r'^[0-9]{9}$',
+      'example': '941234567',
+      'description': '9 digits (e.g., 941234567)',
+    },
+  };
   
   late TabController _tabController;
   StreamSubscription<User?>? _authSubscription;
@@ -270,7 +398,7 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
 
     try {
       await _authService.verifyPhoneNumber(
-        phoneNumber: _phoneController.text.trim(),
+        phoneNumber: '$_countryCode${_phoneController.text.trim()}',
         verificationCompleted: (PhoneAuthCredential credential) async {
           await _signInWithPhoneCredential(credential);
         },
@@ -376,6 +504,127 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
         ),
       );
     }
+  }
+
+  // Real-time phone number validation
+  void _validatePhoneFormat(String phoneNumber) {
+    if (phoneNumber.isEmpty) {
+      setState(() {
+        _phoneValidationMessage = '';
+      });
+      return;
+    }
+
+    final format = _phoneFormats[_countryCode];
+    if (format == null) {
+      setState(() {
+        _phoneValidationMessage = 'Unknown country format';
+      });
+      return;
+    }
+
+    final pattern = RegExp(format['pattern']);
+    final isValid = pattern.hasMatch(phoneNumber);
+    
+    if (isValid) {
+      setState(() {
+        _phoneValidationMessage = '✓ Valid format';
+      });
+    } else {
+      setState(() {
+        _phoneValidationMessage = 'Format: ${format['description']}';
+      });
+    }
+  }
+
+  void _showCountryPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle bar
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Select Country',
+                  style: AppTheme.headline.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.dynamicTextPrimary(context),
+                  ),
+                ),
+              ),
+              // Countries list
+              Container(
+                constraints: const BoxConstraints(maxHeight: 300),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _countries.length,
+                  itemBuilder: (context, index) {
+                    final country = _countries[index];
+                    final isSelected = country['name'] == _selectedCountry;
+                    
+                    return ListTile(
+                      leading: Text(
+                        country['flag']!,
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      title: Text(
+                        country['name']!,
+                        style: AppTheme.callout.copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                      trailing: Text(
+                        country['code']!,
+                        style: AppTheme.callout.copyWith(
+                          color: isSelected ? AppColors.primary : AppColors.dynamicTextSecondary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedTileColor: AppColors.primary.withOpacity(0.1),
+                      onTap: () {
+                        setState(() {
+                          _selectedCountry = country['name']!;
+                          _countryCode = country['code']!;
+                          _selectedFlag = country['flag']!;
+                        });
+                        // Re-validate phone number with new country format
+                        _validatePhoneFormat(_phoneController.text);
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
   }
 
 
@@ -890,16 +1139,45 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Phone Field
+          // Phone Field with Integrated Country Code Selector
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
             validator: _validatePhone,
+            onChanged: _validatePhoneFormat,
             decoration: InputDecoration(
               labelText: 'Phone Number',
               hintText: 'Enter your phone number',
-              prefixIcon: const Icon(Icons.phone_outlined),
+              prefixIcon: GestureDetector(
+                onTap: () => _showCountryPicker(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _selectedFlag,
+                        style: const TextStyle(fontSize: 18),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _countryCode,
+                        style: AppTheme.callout.copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        color: AppColors.dynamicTextSecondary(context),
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -913,6 +1191,51 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
               ),
             ),
           ),
+          
+          // Real-time validation message
+          if (_phoneValidationMessage.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _phoneValidationMessage.startsWith('✓') 
+                    ? AppColors.success.withOpacity(0.1)
+                    : AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _phoneValidationMessage.startsWith('✓')
+                      ? AppColors.success.withOpacity(0.3)
+                      : AppColors.warning.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _phoneValidationMessage.startsWith('✓')
+                        ? Icons.check_circle
+                        : Icons.info_outline,
+                    color: _phoneValidationMessage.startsWith('✓')
+                        ? AppColors.success
+                        : AppColors.warning,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _phoneValidationMessage,
+                      style: AppTheme.callout.copyWith(
+                        color: _phoneValidationMessage.startsWith('✓')
+                            ? AppColors.success
+                            : AppColors.warning,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           
           const SizedBox(height: AppTheme.spacing12),
           
@@ -933,7 +1256,7 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
                 const SizedBox(width: AppTheme.spacing8),
                 Expanded(
                   child: Text(
-                    'We\'ll send you a verification code via SMS',
+                    'We\'ll send you a verification code via SMS to $_countryCode',
                     style: AppTheme.callout.copyWith(
                       color: AppColors.primary,
                     ),
@@ -1021,7 +1344,7 @@ class _SignInScreenState extends State<SignInScreen> with TickerProviderStateMix
                 const SizedBox(width: AppTheme.spacing8),
                 Expanded(
                   child: Text(
-                    'Code sent to ${_phoneController.text}',
+                    'Code sent to $_countryCode${_phoneController.text}',
                     style: AppTheme.callout.copyWith(
                       color: AppColors.success,
                     ),
