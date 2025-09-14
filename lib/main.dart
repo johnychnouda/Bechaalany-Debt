@@ -3,9 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:url_launcher/url_launcher.dart';
 import 'firebase_options.dart';
 import 'constants/app_theme.dart';
 import 'providers/app_state.dart';
@@ -47,8 +44,6 @@ void main() async {
     
     // Firebase initialized - authentication will be handled by sign-in screens
     
-    // Initialize timezone
-    // tz.initializeTimeZones(); // Commented out due to API changes
     
   } catch (e) {
     // Handle initialization error silently
