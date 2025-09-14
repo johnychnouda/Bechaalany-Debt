@@ -2016,7 +2016,6 @@ class _ProductCard extends StatelessWidget {
                           // Exchange Rate Display - Only show for LBP products
                           Consumer<AppState>(
                             builder: (context, appState, child) {
-                              // Debug: Print subcategory currency info
 
                               
                               // Show exchange rate chip for LBP products when currency settings are available
@@ -2064,7 +2063,6 @@ class _ProductCard extends StatelessWidget {
                     .where((p) => p.subcategoryName == subcategory.name)
                     .toList();
                 
-                // Debug: Print ProductPurchase data
 
                 if (productPurchases.isNotEmpty) {
                   for (final purchase in productPurchases) {
@@ -2104,7 +2102,6 @@ class _ProductCard extends StatelessWidget {
                   }
                 }
                 
-                // Final debug: Show what values will be displayed
 
                 
                 return Row(

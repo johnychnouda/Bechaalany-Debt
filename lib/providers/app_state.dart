@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,14 +14,13 @@ import '../models/product_purchase.dart';
 import '../services/data_service.dart';
 import '../services/revenue_calculation_service.dart';
 import '../services/theme_service.dart';
-import '../services/whatsapp_automation_service.dart';
 import '../services/notification_service.dart';
+import '../services/whatsapp_automation_service.dart';
 
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final ThemeService _themeService = ThemeService();
-  final WhatsAppAutomationService _whatsappService = WhatsAppAutomationService();
   final NotificationService _notificationService = NotificationService();
 
   
@@ -55,8 +53,6 @@ class AppState extends ChangeNotifier {
   // Firebase authentication status
   bool get isAuthenticated => _dataService.isAuthenticated;
   
-  // Public getter for data service (for debugging purposes)
-  DataService get dataService => _dataService;
   
   // WhatsApp Automation Settings
   bool _whatsappAutomationEnabled = true; // Enable by default for testing
@@ -167,8 +163,6 @@ class AppState extends ChangeNotifier {
           _customers = [];
         }
         
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
@@ -177,12 +171,9 @@ class AppState extends ChangeNotifier {
       },
     );
     
-    // Listen to categories stream - FIXED for web app real-time updates
+    // Listen to categories stream
     _dataService.categoriesFirebaseStream.listen(
       (categories) {
-        
-        // WEB APP FIX: Always update categories from Firebase stream for real-time updates
-        // This ensures web app shows/removes categories automatically like customers
         if (categories.isNotEmpty) {
           _categories = List.from(categories); // Create a new list to prevent reference issues
         } else {
@@ -190,15 +181,11 @@ class AppState extends ChangeNotifier {
           _categories = [];
         }
         
-        // CRITICAL: Always notify listeners to ensure UI updates
-        
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
       onError: (error) {
-        // CRITICAL: Don't clear categories on error - keep existing data
+        // Don't clear categories on error - keep existing data
         // Still notify listeners so UI can show error state if needed
         notifyListeners();
       },
@@ -233,8 +220,6 @@ class AppState extends ChangeNotifier {
         
         _clearDebtCache(); // Clear debt calculation cache when payments change
         
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
@@ -257,8 +242,6 @@ class AppState extends ChangeNotifier {
           _productPurchases = [];
         }
         
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
@@ -273,12 +256,13 @@ class AppState extends ChangeNotifier {
     _dataService.activitiesFirebaseStream.listen(
       (activities) {
         
-        // WEB APP FIX: Always update activities from Firebase stream for real-time updates
+        // IMPROVED WEB APP FIX: Better handling of Firebase stream updates
         if (activities.isNotEmpty) {
           _activities = List.from(activities); // Create a new list to prevent reference issues
           
+          // IMPROVED: Always mark as loaded when we get activities from Firebase
+          _hasLoadedActivities = true;
           
-          _hasLoadedActivities = true; // Mark that we've loaded activities
         } else {
           // CRITICAL FIX: Never clear activities when Firebase returns empty
           // This prevents activities from disappearing due to temporary Firebase issues
@@ -296,8 +280,6 @@ class AppState extends ChangeNotifier {
         removeAllDuplicates();
         
         
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
@@ -323,8 +305,6 @@ class AppState extends ChangeNotifier {
           _currencySettings = currencySettings;
         }
         
-        // Debug data consistency
-        debugDataConsistency();
         
         notifyListeners();
       },
@@ -346,10 +326,6 @@ class AppState extends ChangeNotifier {
     _cachedTopDebtors = null;
   }
   
-  // Debug method to check data consistency
-  void debugDataConsistency() {
-    // Debug data consistency check
-  }
 
 
 
@@ -651,6 +627,40 @@ class AppState extends ChangeNotifier {
     
     // No currency conversion needed - revenue is already in USD
     return roundedRevenue;
+  }
+
+  // Force refresh activities from Firebase (for manual refresh)
+  Future<void> refreshActivitiesFromFirebase() async {
+    try {
+      // Force a fresh fetch of activities from Firebase
+      final freshActivities = await _dataService.getAllActivities();
+      
+      if (freshActivities.isNotEmpty) {
+        _activities = List.from(freshActivities);
+        _hasLoadedActivities = true;
+        
+        // Clean up duplicates
+        _activities = _removeDuplicatesFromList(_activities);
+        
+        notifyListeners();
+      }
+    } catch (e) {
+      // If refresh fails, don't clear existing data
+      // Just notify listeners so UI can show error state if needed
+      notifyListeners();
+    }
+  }
+
+  // Helper method to remove duplicate activities from a list
+  List<Activity> _removeDuplicatesFromList(List<Activity> activities) {
+    final seenIds = <String>{};
+    return activities.where((activity) {
+      if (seenIds.contains(activity.id)) {
+        return false;
+      }
+      seenIds.add(activity.id);
+      return true;
+    }).toList();
   }
 
   // Get customer potential revenue (from unpaid amounts)
@@ -1262,33 +1272,59 @@ class AppState extends ChangeNotifier {
 
   Future<void> _loadSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      _whatsappAutomationEnabled = prefs.getBool('whatsappAutomationEnabled') ?? false;
-      _whatsappCustomMessage = prefs.getString('whatsappCustomMessage') ?? '';
-      _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final data = doc.data()!;
+          _isDarkMode = data['isDarkMode'] ?? false;
+          _whatsappAutomationEnabled = data['whatsappAutomationEnabled'] ?? true;
+          _whatsappCustomMessage = data['whatsappCustomMessage'] ?? '';
+          _defaultCurrency = data['defaultCurrency'] ?? 'USD';
+        } else {
+          // Use default values if document doesn't exist
+          _isDarkMode = false;
+          _whatsappAutomationEnabled = true;
+          _whatsappCustomMessage = '';
+          _defaultCurrency = 'USD';
+        }
+      } else {
+        // Use default values if user is not authenticated
+        _isDarkMode = false;
+        _whatsappAutomationEnabled = true;
+        _whatsappCustomMessage = '';
+        _defaultCurrency = 'USD';
+      }
       notifyListeners();
     } catch (e) {
       // Use defaults if settings can't be loaded
+      _isDarkMode = false;
+      _whatsappAutomationEnabled = true;
+      _whatsappCustomMessage = '';
+      _defaultCurrency = 'USD';
+      notifyListeners();
     }
   }
 
   void _loadSettingsSync() {
-    SharedPreferences.getInstance().then((prefs) {
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
-      _whatsappAutomationEnabled = prefs.getBool('whatsappAutomationEnabled') ?? false;
-      _whatsappCustomMessage = prefs.getString('whatsappCustomMessage') ?? '';
-      _defaultCurrency = prefs.getString('defaultCurrency') ?? 'USD';
-      notifyListeners();
-    });
+    // SharedPreferences removed - using Firebase only
+    // Use default values for synchronous loading (Firebase loading is async)
+    _isDarkMode = false;
+    _whatsappAutomationEnabled = true; // Default to enabled
+    _whatsappCustomMessage = '';
+    _defaultCurrency = 'USD';
+    notifyListeners();
+    
+    // Load actual settings from Firebase asynchronously
+    _loadSettings();
   }
 
   void _clearCache() {
-    _cachedTotalDebt = null;
-    _cachedTotalPaid = null;
-    _cachedPendingCount = null;
-    _cachedRecentDebts = null;
-    _cachedTopDebtors = null;
+    // Cache cleared - using Firebase only
   }
   
   /// Public method to clear cache and refresh calculations
@@ -1297,25 +1333,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
   
-  /// Debug method to print current debt amounts for troubleshooting
-  void debugPrintDebtAmounts() {
-    // Debug method - no output
-  }
-  
-  /// Debug method to print all debts for a specific customer
-  void debugPrintCustomerDebts(String customerId) {
-    // Debug method - no output
-  }
-  
-  /// Debug method to print all payment activities
-  void debugPrintPaymentActivities() {
-    double total = 0.0;
-    for (final activity in _activities) {
-      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
-        total += activity.paymentAmount!;
-      }
-    }
-  }
   
 
   
@@ -1432,8 +1449,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Debug: Print current payment activities
-      debugPrintPaymentActivities();
     } catch (e) {
       // Handle error silently
     }
@@ -1533,7 +1548,6 @@ class AppState extends ChangeNotifier {
       // Force notify listeners
       notifyListeners();
       
-      // Debug: Print debt data
     } catch (e) {
       // Handle error silently
     }
@@ -3143,11 +3157,18 @@ class AppState extends ChangeNotifier {
   // Settings methods
   Future<void> _saveSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isDarkMode', _isDarkMode);
-      await prefs.setBool('whatsappAutomationEnabled', _whatsappAutomationEnabled);
-      await prefs.setString('whatsappCustomMessage', _whatsappCustomMessage);
-      await prefs.setString('defaultCurrency', _defaultCurrency);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'isDarkMode': _isDarkMode,
+          'whatsappAutomationEnabled': _whatsappAutomationEnabled,
+          'whatsappCustomMessage': _whatsappCustomMessage,
+          'defaultCurrency': _defaultCurrency,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       // Use defaults if settings can't be saved
     }
@@ -3665,7 +3686,6 @@ class AppState extends ChangeNotifier {
 
   // Method for settlement confirmation automation with specific payment amount
   Future<void> triggerSettlementConfirmationAutomationWithAmount(String customerId, {double? actualPaymentAmount, List<Debt>? newlySettledDebts}) async {
-    // Debug: Print current state
     
     if (_whatsappAutomationEnabled) {
       try {
@@ -3676,9 +3696,6 @@ class AppState extends ChangeNotifier {
         if (customerDebts.isNotEmpty) {
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
           
-          // Debug each debt
-          for (final debt in customerDebts) {
-          }
           
           if (totalAmount == 0) {
             // Customer has no outstanding balance - send settlement confirmation
@@ -3720,7 +3737,6 @@ class AppState extends ChangeNotifier {
 
   // Method for settlement confirmation automation (when debts are fully paid)
   Future<void> _triggerSettlementConfirmationAutomation(String customerId, {List<Debt>? newlySettledDebts}) async {
-    // Debug: Print current state
     
     if (_whatsappAutomationEnabled) {
       try {
@@ -3731,9 +3747,6 @@ class AppState extends ChangeNotifier {
         if (customerDebts.isNotEmpty) {
           final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
           
-          // Debug each debt
-          for (final debt in customerDebts) {
-          }
           
           if (totalAmount == 0) {
             // Customer has no outstanding balance - send settlement confirmation
@@ -3838,10 +3851,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // Test method to manually trigger settlement automation for debugging
-  Future<void> testSettlementAutomation(String customerId) async {
-    await _triggerSettlementConfirmationAutomation(customerId);
-  }
 
 
 

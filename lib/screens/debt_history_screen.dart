@@ -598,7 +598,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
     );
   }
 
-  // Simple direct function for web testing
+  // Simple direct function for testing
   void _openReceiptDirectly(String customerId, Debt specificDebt) async {
     try {
 
@@ -680,27 +680,24 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       }).toList();
       
       // Test with a simple dialog first to see if navigation works
-      if (kIsWeb) {
-        // For web, show a simple dialog first to test navigation
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: Text('Test Navigation'),
-              content: Text('Navigation is working. Now trying to open receipt...'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text('OK'),
-                ),
-              ],
-            );
-          },
-        );
-        
-        // Wait a bit then try to open the receipt
-        await Future.delayed(Duration(milliseconds: 500));
-      }
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Test Navigation'),
+            content: Text('Navigation is working. Now trying to open receipt...'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+      
+      // Wait a bit then try to open the receipt
+      await Future.delayed(Duration(milliseconds: 500));
       
       // Try to open the receipt screen
       try {
@@ -718,14 +715,13 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         );
         
       } catch (e) {
-        // Show detailed error for debugging
+        // Show detailed error
         final notificationService = NotificationService();
         await notificationService.showErrorNotification(
           title: 'Navigation Error',
           body: 'Failed to open receipt: $e\n\nCustomer: ${customer.name}\nDebt ID: ${specificDebt.id}',
         );
         
-        // Also show in console for debugging
       }
       
       // Force refresh of debt history when returning from receipt
@@ -973,7 +969,7 @@ class _GroupedDebtCard extends StatelessWidget {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             title: Text('Test Dialog'),
-                            content: Text('Button click is working! Platform: ${kIsWeb ? "Web" : "Mobile"}'),
+                            content: Text('Button click is working! Platform: Mobile'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.of(context).pop(),

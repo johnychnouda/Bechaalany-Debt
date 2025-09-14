@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:background_fetch/background_fetch.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BackgroundBackupService {
   static final BackgroundBackupService _instance = BackgroundBackupService._internal();
@@ -18,11 +19,6 @@ class BackgroundBackupService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // Skip initialization on web platform
-    if (kIsWeb) {
-      _isInitialized = true;
-      return;
-    }
 
     try {
       // Configure background fetch
@@ -106,8 +102,8 @@ class BackgroundBackupService {
   // Check if automatic backup is enabled
   Future<bool> _isAutomaticBackupEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
+      // SharedPreferences removed - using Firebase only
+      return true; // Default value
     } catch (e) {
       return true; // Default to enabled even on error
     }
@@ -138,8 +134,8 @@ class BackgroundBackupService {
   // Get last automatic backup time
   Future<DateTime?> _getLastAutomaticBackupTime() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final timestamp = prefs.getInt('last_automatic_backup_timestamp');
+      // SharedPreferences removed - using Firebase only
+      final timestamp = 0; // Default value
       return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
     } catch (e) {
       return null;
@@ -149,16 +145,22 @@ class BackgroundBackupService {
   // Set last automatic backup time
   Future<void> _setLastAutomaticBackupTime(DateTime time) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'background_backup_enabled': true,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
+      // Error saving setting
     }
   }
 
   // Start background fetch
   Future<void> start() async {
-    // Skip on web platform
-    if (kIsWeb) return;
     
     try {
       await BackgroundFetch.start();
@@ -168,8 +170,6 @@ class BackgroundBackupService {
 
   // Stop background fetch
   Future<void> stop() async {
-    // Skip on web platform
-    if (kIsWeb) return;
     
     try {
       await BackgroundFetch.stop();
@@ -179,8 +179,6 @@ class BackgroundBackupService {
 
   // Check if background fetch is available
   Future<bool> isAvailable() async {
-    // Always return false on web platform
-    if (kIsWeb) return false;
     
     try {
       final status = await BackgroundFetch.status;
@@ -192,8 +190,6 @@ class BackgroundBackupService {
 
   // Get background fetch status
   Future<int> getStatus() async {
-    // Always return 0 (denied) on web platform
-    if (kIsWeb) return 0;
     
     try {
       return await BackgroundFetch.status;

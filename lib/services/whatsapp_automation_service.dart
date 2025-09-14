@@ -4,76 +4,6 @@ import '../models/debt.dart';
 import '../models/partial_payment.dart';
 
 class WhatsAppAutomationService {
-  /// Check if a phone number has WhatsApp available
-  static Future<bool> hasWhatsApp(String phoneNumber) async {
-    try {
-      // Format phone number for WhatsApp
-      final formattedPhone = _formatPhoneForWhatsApp(phoneNumber);
-      final whatsappUrl = 'https://wa.me/$formattedPhone';
-      
-      // Try to launch WhatsApp URL
-      final canLaunch = await canLaunchUrl(Uri.parse(whatsappUrl));
-      
-      // If canLaunchUrl returns false, we'll still try to send the message
-      // because the check might not be reliable on all platforms
-      return true; // Always return true to attempt sending
-    } catch (e) {
-      // Even if the check fails, we'll still try to send the message
-      return true;
-    }
-  }
-
-  /// Send automated WhatsApp message for payment reminders
-  static Future<bool> sendPaymentReminderMessage({
-    required Customer customer,
-    required List<Debt> outstandingDebts,
-    required String customMessage,
-  }) async {
-    try {
-      // Build the complete message
-      final message = _buildPaymentReminderMessage(
-        customer: customer,
-        outstandingDebts: outstandingDebts,
-        customMessage: customMessage,
-      );
-
-      // Format phone number for WhatsApp
-      final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
-      
-      // Create WhatsApp URL with pre-filled message
-      final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
-      
-      // Launch WhatsApp
-      final launched = await launchUrl(
-        Uri.parse(whatsappUrl),
-        mode: LaunchMode.externalApplication,
-      );
-      
-      return launched;
-    } catch (e) {
-      // If launching fails, try alternative approach
-      try {
-        // Format phone number for WhatsApp
-        final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
-        
-        // Build the complete message
-        final message = _buildPaymentReminderMessage(
-          customer: customer,
-          outstandingDebts: outstandingDebts,
-          customMessage: customMessage,
-        );
-        
-        // Try launching without external application mode
-        final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
-        final launched = await launchUrl(Uri.parse(whatsappUrl));
-        return launched;
-      } catch (e2) {
-        return false;
-      }
-    }
-  }
-
-  /// Send automated WhatsApp message for debt settlement
   static Future<bool> sendSettlementMessage({
     required Customer customer,
     required List<Debt> settledDebts,
@@ -82,10 +12,9 @@ class WhatsAppAutomationService {
     required DateTime settlementDate,
     double? actualPaymentAmount,
   }) async {
-    
     try {
-      // Build the complete message
-      final message = _buildSettlementMessage(
+      // Format the settlement message
+      String message = _formatSettlementMessage(
         customer: customer,
         settledDebts: settledDebts,
         partialPayments: partialPayments,
@@ -95,65 +24,57 @@ class WhatsAppAutomationService {
       );
 
       // Format phone number for WhatsApp
-      final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
+      String phoneNumber = _formatPhoneForWhatsApp(customer.phone);
       
-      // Create WhatsApp URL with pre-filled message
-      final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
+      // Create WhatsApp URL
+      String whatsappUrl = 'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
       
       // Launch WhatsApp
-      final launched = await launchUrl(
-        Uri.parse(whatsappUrl),
-        mode: LaunchMode.externalApplication,
-      );
-      
-      
-      return launched;
-    } catch (e) {
-      // If launching fails, try alternative approach
-      try {
-        // Format phone number for WhatsApp
-        final formattedPhone = _formatPhoneForWhatsApp(customer.phone);
-        
-        // Build the complete message
-        final message = _buildSettlementMessage(
-          customer: customer,
-          settledDebts: settledDebts,
-          partialPayments: partialPayments,
-          customMessage: customMessage,
-          settlementDate: settlementDate,
-          actualPaymentAmount: actualPaymentAmount,
-        );
-        
-        // Try launching without external application mode
-        final whatsappUrl = 'https://wa.me/$formattedPhone?text=${Uri.encodeComponent(message)}';
-        final launched = await launchUrl(Uri.parse(whatsappUrl));
-        return launched;
-      } catch (e2) {
+      final uri = Uri.parse(whatsappUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return true;
+      } else {
         return false;
       }
+    } catch (e) {
+      return false;
     }
   }
 
-  /// Build the complete payment reminder message
-  static String _buildPaymentReminderMessage({
+  static Future<bool> sendPaymentReminderMessage({
     required Customer customer,
     required List<Debt> outstandingDebts,
     required String customMessage,
-  }) {
-    // Calculate total outstanding amount
-    final totalAmount = outstandingDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-    
-    // Build simplified message with only custom message and total remaining amount
-    return '''
-$customMessage
+  }) async {
+    try {
+      // Format the payment reminder message
+      String message = _formatPaymentReminderMessage(
+        customer: customer,
+        outstandingDebts: outstandingDebts,
+        customMessage: customMessage,
+      );
 
-Total Remaining Amount: \$${totalAmount.toStringAsFixed(2)} Bechaalany
-
-Connect''';
+      // Format phone number for WhatsApp
+      String phoneNumber = _formatPhoneForWhatsApp(customer.phone);
+      
+      // Create WhatsApp URL
+      String whatsappUrl = 'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+      
+      // Launch WhatsApp
+      final uri = Uri.parse(whatsappUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      return false;
+    }
   }
 
-  /// Build the complete settlement message
-  static String _buildSettlementMessage({
+  static String _formatSettlementMessage({
     required Customer customer,
     required List<Debt> settledDebts,
     required List<PartialPayment> partialPayments,
@@ -161,49 +82,92 @@ Connect''';
     required DateTime settlementDate,
     double? actualPaymentAmount,
   }) {
+    StringBuffer message = StringBuffer();
     
-    // Use the actual payment amount if provided, otherwise calculate from partial payments
-    double finalPaymentAmount = 0.0;
-    if (actualPaymentAmount != null && actualPaymentAmount > 0) {
-      finalPaymentAmount = actualPaymentAmount;
-    } else if (partialPayments.isNotEmpty) {
-      // Get the most recent partial payment amount
-      finalPaymentAmount = partialPayments.last.amount;
-    } else {
-      // Fallback: calculate from settled debts
-      finalPaymentAmount = settledDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    // Header
+    message.writeln('🎉 *Payment Confirmation*');
+    message.writeln();
+    
+    // Customer greeting
+    message.writeln('Hello ${customer.name},');
+    message.writeln();
+    
+    // Custom message if provided
+    if (customMessage.isNotEmpty) {
+      message.writeln(customMessage);
+      message.writeln();
     }
     
-    // Format settlement date with seconds
-    final dateStr = _formatDate(settlementDate);
-    final timeStr = _formatTimeWithSeconds(settlementDate);
+    // Settlement details
+    message.writeln('*Settlement Details:*');
+    message.writeln('Date: ${_formatDate(settlementDate)}');
     
-    // Build simplified receipt-style message
-    final message = '''
-📋 PAYMENT RECEIPT
-
-Customer: ${customer.name}
-Date: $dateStr
-Time: $timeStr
-
-Total Amount: \$${finalPaymentAmount.toStringAsFixed(2)}
-Status: ✅ FULLY PAID
-
-Thank you for settling all your payments!
-
-Bechaalany Connect''';
+    if (actualPaymentAmount != null && actualPaymentAmount > 0) {
+      message.writeln('Amount Paid: \$${actualPaymentAmount.toStringAsFixed(2)}');
+    }
     
-    return message.trim();
+    message.writeln();
+    
+    // Settled debts
+    if (settledDebts.isNotEmpty) {
+      message.writeln('*Settled Debts:*');
+      for (var debt in settledDebts) {
+        message.writeln('• ${debt.description}: \$${debt.remainingAmount.toStringAsFixed(2)}');
+      }
+      message.writeln();
+    }
+    
+    // Partial payments
+    if (partialPayments.isNotEmpty) {
+      message.writeln('*Payment History:*');
+      for (var payment in partialPayments) {
+        message.writeln('• ${_formatDate(payment.paidAt)}: \$${payment.amount.toStringAsFixed(2)}');
+      }
+      message.writeln();
+    }
+    
+    // Footer
+    message.writeln('Thank you for your business! 🙏');
+    message.writeln();
+    message.writeln('If you have any questions, please don\'t hesitate to contact us.');
+    
+    return message.toString();
   }
 
-  /// Format phone number for WhatsApp
+  static String _formatPaymentReminderMessage({
+    required Customer customer,
+    required List<Debt> outstandingDebts,
+    required String customMessage,
+  }) {
+    StringBuffer message = StringBuffer();
+    
+    // Custom message
+    message.writeln(customMessage);
+    message.writeln();
+    
+    // Total amount owed
+    if (outstandingDebts.isNotEmpty) {
+      double totalAmount = 0;
+      for (var debt in outstandingDebts) {
+        totalAmount += debt.remainingAmount;
+      }
+      message.writeln('*Total Outstanding: \$${totalAmount.toStringAsFixed(2)}*');
+      message.writeln();
+    }
+    
+    // Request to contact for payment arrangements
+    message.writeln('Please contact us to arrange payment at your earliest convenience.');
+    
+    return message.toString();
+  }
+
   static String _formatPhoneForWhatsApp(String phone) {
     // Remove all non-digit characters
     String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
     
     // If it starts with 00, replace with +
     if (cleaned.startsWith('00')) {
-      cleaned = '+' + cleaned.substring(2);
+      cleaned = '+${cleaned.substring(2)}';
     }
     
     // If it doesn't start with +, add it
@@ -214,30 +178,7 @@ Bechaalany Connect''';
     return cleaned;
   }
 
-  /// Format date for display
   static String _formatDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final year = date.year;
-    return '$day/$month/$year';
-  }
-
-  /// Format time for display
-  static String _formatTime(DateTime date) {
-    final hour = date.hour;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    return '$displayHour:$minute $period';
-  }
-
-  /// Format time with seconds for display
-  static String _formatTimeWithSeconds(DateTime date) {
-    final hour = date.hour;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final second = date.second.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
-    final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-    return '$displayHour:$minute:$second $period';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

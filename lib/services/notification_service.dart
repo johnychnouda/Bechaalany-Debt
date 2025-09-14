@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -16,11 +17,6 @@ class NotificationService {
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    // Skip initialization for web platform
-    if (kIsWeb) {
-      _isInitialized = true;
-      return;
-    }
     
     // Initialize notification settings for iOS with supported features
     const DarwinInitializationSettings initializationSettingsIOS =
@@ -53,10 +49,6 @@ class NotificationService {
   }
 
   Future<void> _requestPermissions() async {
-    // Skip platform-specific code for web
-    if (kIsWeb) {
-      return;
-    }
     
     if (Platform.isIOS) {
       try {
@@ -82,7 +74,6 @@ class NotificationService {
   
   // Check if notifications are enabled
   Future<bool> areNotificationsEnabled() async {
-    if (kIsWeb) return false;
     
     if (Platform.isIOS) {
       try {
@@ -104,28 +95,57 @@ class NotificationService {
 
   // ===== NOTIFICATION SETTINGS =====
 
-  /// Load notification settings from SharedPreferences
+  /// Load notification settings from Firebase
   Future<Map<String, dynamic>> loadNotificationSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final data = doc.data()!;
+          return {
+            'interruptionLevel': data['interruptionLevel'] ?? 'active',
+            'dailySummaryEnabled': data['dailySummaryEnabled'] ?? true,
+            'weeklyReportEnabled': data['weeklyReportEnabled'] ?? true,
+            'monthlyReportEnabled': data['monthlyReportEnabled'] ?? true,
+            'yearlyReportEnabled': data['yearlyReportEnabled'] ?? true,
+            'dailySummaryTime': data['dailySummaryTime'] ?? '23:59',
+            'weeklyReportWeekday': data['weeklyReportWeekday'] ?? DateTime.sunday,
+            'weeklyReportTime': data['weeklyReportTime'] ?? '23:59',
+            'monthlyReportDay': data['monthlyReportDay'] ?? 31,
+            'monthlyReportTime': data['monthlyReportTime'] ?? '23:59',
+            'yearlyReportMonth': data['yearlyReportMonth'] ?? 12,
+            'yearlyReportDay': data['yearlyReportDay'] ?? 31,
+            'yearlyReportTime': data['yearlyReportTime'] ?? '23:59',
+          };
+        }
+      }
+    } catch (e) {
+      // Return defaults if error
+    }
     
     return {
-      'interruptionLevel': prefs.getString('interruptionLevel') ?? 'active',
-      'dailySummaryEnabled': prefs.getBool('dailySummaryEnabled') ?? true,
-      'weeklyReportEnabled': prefs.getBool('weeklyReportEnabled') ?? true,
-      'monthlyReportEnabled': prefs.getBool('monthlyReportEnabled') ?? true,
-      'yearlyReportEnabled': prefs.getBool('yearlyReportEnabled') ?? true,
-      'dailySummaryTime': prefs.getString('dailySummaryTime') ?? '23:59',
-      'weeklyReportWeekday': prefs.getInt('weeklyReportWeekday') ?? DateTime.sunday,
-      'weeklyReportTime': prefs.getString('weeklyReportTime') ?? '23:59',
-      'monthlyReportDay': prefs.getInt('monthlyReportDay') ?? 31,
-      'monthlyReportTime': prefs.getString('monthlyReportTime') ?? '23:59',
-      'yearlyReportMonth': prefs.getInt('yearlyReportMonth') ?? 12,
-      'yearlyReportDay': prefs.getInt('yearlyReportDay') ?? 31,
-      'yearlyReportTime': prefs.getString('yearlyReportTime') ?? '23:59',
+      'interruptionLevel': 'active',
+      'dailySummaryEnabled': true,
+      'weeklyReportEnabled': true,
+      'monthlyReportEnabled': true,
+      'yearlyReportEnabled': true,
+      'dailySummaryTime': '23:59',
+      'weeklyReportWeekday': DateTime.sunday,
+      'weeklyReportTime': '23:59',
+      'monthlyReportDay': 31,
+      'monthlyReportTime': '23:59',
+      'yearlyReportMonth': 12,
+      'yearlyReportDay': 31,
+      'yearlyReportTime': '23:59',
     };
   }
 
-  /// Update notification settings and save to SharedPreferences
+  /// Update notification settings and save to Firebase
   Future<void> updateNotificationSettings({
     bool? dailySummaryEnabled,
     bool? weeklyReportEnabled,
@@ -141,46 +161,60 @@ class NotificationService {
     TimeOfDay? yearlyReportTime,
     String? interruptionLevel,
   }) async {
-    final prefs = await SharedPreferences.getInstance();
-    
-    if (dailySummaryEnabled != null) {
-      await prefs.setBool('dailySummaryEnabled', dailySummaryEnabled);
-    }
-    if (weeklyReportEnabled != null) {
-      await prefs.setBool('weeklyReportEnabled', weeklyReportEnabled);
-    }
-    if (monthlyReportEnabled != null) {
-      await prefs.setBool('monthlyReportEnabled', monthlyReportEnabled);
-    }
-    if (yearlyReportEnabled != null) {
-      await prefs.setBool('yearlyReportEnabled', yearlyReportEnabled);
-    }
-    if (dailySummaryTime != null) {
-      await prefs.setString('dailySummaryTime', '${dailySummaryTime.hour.toString().padLeft(2, '0')}:${dailySummaryTime.minute.toString().padLeft(2, '0')}');
-    }
-    if (weeklyReportWeekday != null) {
-      await prefs.setInt('weeklyReportWeekday', weeklyReportWeekday);
-    }
-    if (weeklyReportTime != null) {
-      await prefs.setString('weeklyReportTime', '${weeklyReportTime.hour.toString().padLeft(2, '0')}:${weeklyReportTime.minute.toString().padLeft(2, '0')}');
-    }
-    if (monthlyReportDay != null) {
-      await prefs.setInt('monthlyReportDay', monthlyReportDay);
-    }
-    if (monthlyReportTime != null) {
-      await prefs.setString('monthlyReportTime', '${monthlyReportTime.hour.toString().padLeft(2, '0')}:${monthlyReportTime.minute.toString().padLeft(2, '0')}');
-    }
-    if (yearlyReportMonth != null) {
-      await prefs.setInt('yearlyReportMonth', yearlyReportMonth);
-    }
-    if (yearlyReportDay != null) {
-      await prefs.setInt('yearlyReportDay', yearlyReportDay);
-    }
-    if (yearlyReportTime != null) {
-      await prefs.setString('yearlyReportTime', '${yearlyReportTime.hour.toString().padLeft(2, '0')}:${yearlyReportTime.minute.toString().padLeft(2, '0')}');
-    }
-    if (interruptionLevel != null) {
-      await prefs.setString('interruptionLevel', interruptionLevel);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final Map<String, dynamic> updates = {};
+        
+        if (dailySummaryEnabled != null) {
+          updates['dailySummaryEnabled'] = dailySummaryEnabled;
+        }
+        if (weeklyReportEnabled != null) {
+          updates['weeklyReportEnabled'] = weeklyReportEnabled;
+        }
+        if (monthlyReportEnabled != null) {
+          updates['monthlyReportEnabled'] = monthlyReportEnabled;
+        }
+        if (yearlyReportEnabled != null) {
+          updates['yearlyReportEnabled'] = yearlyReportEnabled;
+        }
+        if (dailySummaryTime != null) {
+          updates['dailySummaryTime'] = '${dailySummaryTime.hour.toString().padLeft(2, '0')}:${dailySummaryTime.minute.toString().padLeft(2, '0')}';
+        }
+        if (weeklyReportWeekday != null) {
+          updates['weeklyReportWeekday'] = weeklyReportWeekday;
+        }
+        if (weeklyReportTime != null) {
+          updates['weeklyReportTime'] = '${weeklyReportTime.hour.toString().padLeft(2, '0')}:${weeklyReportTime.minute.toString().padLeft(2, '0')}';
+        }
+        if (monthlyReportDay != null) {
+          updates['monthlyReportDay'] = monthlyReportDay;
+        }
+        if (monthlyReportTime != null) {
+          updates['monthlyReportTime'] = '${monthlyReportTime.hour.toString().padLeft(2, '0')}:${monthlyReportTime.minute.toString().padLeft(2, '0')}';
+        }
+        if (yearlyReportMonth != null) {
+          updates['yearlyReportMonth'] = yearlyReportMonth;
+        }
+        if (yearlyReportDay != null) {
+          updates['yearlyReportDay'] = yearlyReportDay;
+        }
+        if (yearlyReportTime != null) {
+          updates['yearlyReportTime'] = '${yearlyReportTime.hour.toString().padLeft(2, '0')}:${yearlyReportTime.minute.toString().padLeft(2, '0')}';
+        }
+        if (interruptionLevel != null) {
+          updates['interruptionLevel'] = interruptionLevel;
+        }
+        
+        if (updates.isNotEmpty) {
+          await FirebaseFirestore.instance
+              .collection('user_settings')
+              .doc(user.uid)
+              .set(updates, SetOptions(merge: true));
+        }
+      }
+    } catch (e) {
+      // Error saving settings
     }
   }
 
@@ -253,10 +287,6 @@ class NotificationService {
     String? payload,
     required String type,
   }) async {
-    // Skip notifications for web platform
-    if (kIsWeb) {
-      return;
-    }
     
     if (!_isInitialized) {
       await initialize();
@@ -537,26 +567,20 @@ class NotificationService {
 
   // Cancel all notifications
   Future<void> cancelAllNotifications() async {
-    // Skip for web platform
-    if (kIsWeb) return;
     await _notifications.cancelAll();
   }
 
   // Cancel specific notification
   Future<void> cancelNotification(int id) async {
-    // Skip for web platform
-    if (kIsWeb) return;
     await _notifications.cancel(id);
   }
 
   // Get pending notifications
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-    // Skip for web platform
-    if (kIsWeb) return [];
     return await _notifications.pendingNotificationRequests();
   }
 
-  // Test notification method for debugging
+  // Test notification method
   Future<void> testNotification() async {
     await showSuccessNotification(
       title: 'Test Notification',

@@ -90,26 +90,27 @@ class PdfFontUtils {
   static String sanitizeText(String text) {
     // Replace common problematic Unicode characters with safe alternatives
     return text
-        .replaceAll('👤', '●') // Person icon
-        .replaceAll('📞', '☎') // Phone icon
-        .replaceAll('🏷', '🏷') // Label icon (keep if supported)
-        .replaceAll('📄', '📄') // Document icon (keep if supported)
+        .replaceAll('👤', 'Person') // Person icon
+        .replaceAll('📞', 'Phone') // Phone icon
+        .replaceAll('🏷', 'Tag') // Label icon
+        .replaceAll('📄', 'Doc') // Document icon
         .replaceAll('️', '') // Remove invisible characters
-        .replaceAll('✉️', '✉') // Email icon
-        .replaceAll('📍', '📍') // Location icon (keep if supported)
-        .replaceAll('📅', '📅') // Calendar icon (keep if supported)
-        .replaceAll('💰', '💰') // Money icon (keep if supported)
-        .replaceAll('💳', '💳') // Payment icon (keep if supported)
-        .replaceAll('🧾', '🧾') // Receipt icon (keep if supported)
-        .replaceAll('🏦', '🏦') // Bank icon (keep if supported)
-        .replaceAll('📈', '📈') // Trending up (keep if supported)
-        .replaceAll('📉', '📉') // Trending down (keep if supported)
-        .replaceAll('ℹ️', 'ℹ') // Info icon
-        .replaceAll('⚠️', '⚠') // Warning icon
-        .replaceAll('❌', '❌') // Error icon (keep if supported)
-        .replaceAll('✅', '✅') // Success icon (keep if supported)
-        .replaceAll('⏰', '⏰') // Schedule icon (keep if supported)
-        .replaceAll('🔔', '🔔'); // Notification icon (keep if supported)
+        .replaceAll('✉️', 'Email') // Email icon
+        .replaceAll('📍', 'Location') // Location icon
+        .replaceAll('📅', 'Date') // Calendar icon
+        .replaceAll('💰', 'Money') // Money icon
+        .replaceAll('💳', 'Payment') // Payment icon
+        .replaceAll('🧾', 'Receipt') // Receipt icon
+        .replaceAll('🏦', 'Bank') // Bank icon
+        .replaceAll('📈', 'Up') // Trending up
+        .replaceAll('📉', 'Down') // Trending down
+        .replaceAll('ℹ️', 'Info') // Info icon
+        .replaceAll('⚠️', 'Warning') // Warning icon
+        .replaceAll('❌', 'Error') // Error icon
+        .replaceAll('✅', 'Success') // Success icon
+        .replaceAll('⏰', 'Time') // Schedule icon
+        .replaceAll('🔔', 'Alert') // Notification icon
+        .replaceAll('🙏', 'Thank you'); // Prayer/thank you emoji
   }
 
   /// Get a list of safe Unicode characters that work in most PDF fonts

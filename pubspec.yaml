@@ -32,33 +32,32 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.2.0
 
+  # Core Flutter packages
   provider: ^6.1.1
-  shared_preferences: ^2.2.2
   local_auth: ^2.1.8
-  connectivity_plus: ^6.1.4
   url_launcher: ^6.2.5
   path_provider: ^2.1.2
   pdf: ^3.10.7
-  share_plus: ^7.2.1
-  intl: ^0.19.0
-  country_code_picker: ^3.0.0
-  syncfusion_flutter_pdfviewer: ^24.2.9
-  # file_picker: ^5.0.1
-  flutter_local_notifications: ^17.2.2
+  share_plus: ^12.0.0
+  intl: ^0.20.2
+  syncfusion_flutter_pdfviewer: ^31.1.19
+  flutter_local_notifications: ^19.4.2
   background_fetch: ^1.4.0
-  # iOS 18+ specific dependencies
-  # home_widget: ^0.4.1
-  # device_info_plus: ^11.3.0
+  
+  # Removed unnecessary packages for iOS-only:
+  # - connectivity_plus: Not needed for iOS-only
+  # - country_code_picker: Not used in your code
+  # - file_picker: Commented out anyway
   
   # Firebase dependencies
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.1
   cloud_firestore: ^6.0.0
-  timezone: ^0.9.2
+  timezone: ^0.10.1
   
   # Authentication providers
-  # google_sign_in: ^6.2.1  # Removed - using Email/Password and Phone only
-  # sign_in_with_apple: ^6.1.1  # Removed - using Email/Password and Phone only
+  google_sign_in: ^7.1.1
+  sign_in_with_apple: ^7.0.1
 
 
 dev_dependencies:
@@ -70,9 +69,9 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
   build_runner: ^2.4.13
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -109,11 +108,6 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/app_icon.png"
   remove_alpha_ios: true
-  web:
-    generate: true
-    image_path: "assets/images/app_icon.png"
-    background_color: "#f5f5f5"
-    theme_color: "#E73828"
   #       - asset: fonts/Schyler-Regular.ttf
   #       - asset: fonts/Schyler-Italic.ttf
   #         style: italic

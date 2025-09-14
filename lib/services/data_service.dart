@@ -189,7 +189,7 @@ class DataService {
     return await _firebaseService.getCurrencySettings();
   }
   
-  // ===== DIRECT DATA FETCHING (for web app) =====
+  // ===== DIRECT DATA FETCHING =====
   
   // Fetch categories directly from Firebase
   Future<List<ProductCategory>> getCategoriesDirectly() async {
@@ -297,6 +297,11 @@ class DataService {
   List<Activity> get activities {
     // Return empty list - will be populated by Firebase streams
     return [];
+  }
+
+  // Get all activities from Firebase (for manual refresh)
+  Future<List<Activity>> getAllActivities() async {
+    return await _firebaseService.getAllActivities();
   }
   
   Future<void> addActivity(Activity activity) async {

@@ -120,7 +120,7 @@ class FirebaseDataService {
             .toList());
   }
   
-  // Get categories directly (for web app)
+  // Get categories directly
   Future<List<ProductCategory>> getCategoriesDirectly() async {
     if (!isAuthenticated) return [];
     
@@ -132,7 +132,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        // If no categories found with user ID, try without filter (for web app)
+        // If no categories found with user ID, try without filter
         querySnapshot = await _firestore
             .collection('categories')
             .get();
@@ -202,7 +202,7 @@ class FirebaseDataService {
             .toList());
   }
   
-  // Get product purchases directly (for web app)
+  // Get product purchases directly
   Future<List<ProductPurchase>> getProductPurchasesDirectly() async {
     if (!isAuthenticated) return [];
     
@@ -214,7 +214,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        // If no product purchases found with user ID, try without filter (for web app)
+        // If no product purchases found with user ID, try without filter
         querySnapshot = await _firestore
             .collection('product_purchases')
             .get();
@@ -268,7 +268,7 @@ class FirebaseDataService {
             .toList());
   }
   
-  // Get debts directly (for web app)
+  // Get debts directly
   Future<List<Debt>> getDebtsDirectly() async {
     if (!isAuthenticated) return [];
     
@@ -280,7 +280,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        // If no debts found with user ID, try without filter (for web app)
+        // If no debts found with user ID, try without filter
         querySnapshot = await _firestore
             .collection('debts')
             .get();
@@ -349,7 +349,7 @@ class FirebaseDataService {
         });
   }
   
-  // Get partial payments directly (for web app)
+  // Get partial payments directly
   Future<List<PartialPayment>> getPartialPaymentsDirectly() async {
     if (!isAuthenticated) return [];
     
@@ -361,7 +361,7 @@ class FirebaseDataService {
           .get();
       
       if (querySnapshot.docs.isEmpty) {
-        // If no partial payments found with user ID, try without filter (for web app)
+        // If no partial payments found with user ID, try without filter
         querySnapshot = await _firestore
             .collection('partial_payments')
             .get();
@@ -1117,6 +1117,27 @@ class FirebaseDataService {
         .map((snapshot) => snapshot.docs
             .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
             .toList());
+  }
+
+  // Get all activities from Firebase (for manual refresh)
+  Future<List<Activity>> getAllActivities() async {
+    if (!isAuthenticated) {
+      return [];
+    }
+    
+    try {
+      final snapshot = await _firestore
+          .collection('activities')
+          .where('userId', isEqualTo: currentUserId)
+          .orderBy('date', descending: true)
+          .get();
+      
+      return snapshot.docs
+          .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
+          .toList();
+    } catch (e) {
+      return [];
+    }
   }
   
   // ===== ADVANCED SEARCH METHODS =====

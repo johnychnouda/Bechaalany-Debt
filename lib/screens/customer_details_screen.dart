@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-import '../constants/app_theme.dart';
+import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:cross_file/cross_file.dart';import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
@@ -454,55 +454,31 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         return;
       }
       
-      if (kIsWeb) {
-        // Web-specific handling - navigate directly to receipt screen
-
-        
+      // Generate PDF receipt
+      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        customer: _currentCustomer,
+        debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
+        partialPayments: customerPartialPayments,
+        activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
+        specificDate: null, // No specific date filter
+        specificDebtId: null, // No specific debt filter
+      );
+      
+      if (pdfFile != null) {
         if (mounted) {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => CustomerDebtReceiptScreen(
-                customer: _currentCustomer,
-                customerDebts: customerDebts,
-                partialPayments: customerPartialPayments,
-                activities: customerActivities,
-                specificDate: null,
-                specificDebtId: null,
+            CupertinoPageRoute(
+              fullscreenDialog: true,
+              builder: (BuildContext context) => PDFViewerPopup(
+                pdfFile: pdfFile,
+                customerName: _currentCustomer.name,
+                customer: _currentCustomer, // Pass customer information
+                onClose: () {
+                  Navigator.of(context).pop();
+                },
               ),
             ),
           );
-        }
-      } else {
-        // Mobile-specific handling - use PDF viewer popup
-
-        
-        // Generate PDF receipt
-        final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-          customer: _currentCustomer,
-          debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-          partialPayments: customerPartialPayments,
-          activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
-          specificDate: null, // No specific date filter
-          specificDebtId: null, // No specific debt filter
-        );
-        
-        if (pdfFile != null) {
-          if (mounted) {
-            Navigator.of(context).push(
-              CupertinoPageRoute(
-                fullscreenDialog: true,
-                builder: (BuildContext context) => PDFViewerPopup(
-                  pdfFile: pdfFile,
-                  customerName: _currentCustomer.name,
-                  customer: _currentCustomer, // Pass customer information
-                  onClose: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ),
-            );
-          }
-        } else {
         }
       }
     } catch (e) {
@@ -780,7 +756,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       if (pdfFile != null) {
         // Use the existing share functionality to save to iPhone
-        await Share.shareXFiles([XFile(pdfFile.path)]);
+        await SharePlus.Share.shareXFiles([XFile(pdfFile.path)]);
         
       } else {
       }

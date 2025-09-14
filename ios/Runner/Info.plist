@@ -271,11 +271,33 @@
 				<string>com.bechaalany.debt</string>
 			</array>
 		</dict>
-		<!-- Google Sign-In URL scheme removed - using Email/Password and Phone only -->
+		<!-- Firebase Phone Authentication URL scheme -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>firebase-phone-auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-908856160324-ios-08460e3562c039349f8c11</string>
+			</array>
+		</dict>
+		<!-- Google Sign-In URL scheme -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.908856160324-rifpo3dibqilhhee82mfcchc9t8rd500</string>
+			</array>
+		</dict>
+		<!-- Apple Sign-In URL scheme -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>apple-sign-in</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.bechaalany.debt.bechaalanyDebtApp</string>
+			</array>
+		</dict>
 	</array>
-	
-	<!-- Apple Sign-In configuration removed - using Email/Password and Phone only -->
-	
-	<!-- Google Sign-In configuration removed - using Email/Password and Phone only -->
 </dict>
 </plist>

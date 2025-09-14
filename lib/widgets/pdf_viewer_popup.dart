@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
+import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:cross_file/cross_file.dart';import 'dart:io';
 import 'dart:typed_data';
 import '../constants/app_colors.dart';
 import '../services/notification_service.dart';
@@ -358,41 +358,51 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
   }
 
   Widget _buildStablePdfViewer() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      child: SfPdfViewer.memory(
-        _pdfBytes!,
-        enableDoubleTapZooming: true,
-        enableTextSelection: false,
-        canShowScrollHead: false,
-        canShowScrollStatus: false,
-        pageSpacing: 0,
-        enableDocumentLinkAnnotation: false,
-        enableHyperlinkNavigation: false,
-        canShowPaginationDialog: false,
-        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-          if (mounted) {
-            setState(() {
-              _totalPages = details.document.pages.count;
-            });
-          }
-        },
-        onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-          if (mounted) {
-            setState(() {
-              _errorMessage = details.error.toString();
-            });
-          }
-        },
-        onPageChanged: (PdfPageChangedDetails details) {
-          if (mounted) {
-            setState(() {
-              _currentPage = details.newPageNumber;
-            });
-          }
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          width: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
+          height: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
+          constraints: BoxConstraints(
+            minWidth: 200,
+            minHeight: 200,
+            maxWidth: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
+            maxHeight: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
+          ),
+          child: SfPdfViewer.memory(
+            _pdfBytes!,
+            enableDoubleTapZooming: true,
+            enableTextSelection: false,
+            canShowScrollHead: false,
+            canShowScrollStatus: false,
+            pageSpacing: 0,
+            enableDocumentLinkAnnotation: false,
+            enableHyperlinkNavigation: false,
+            canShowPaginationDialog: false,
+            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+              if (mounted) {
+                setState(() {
+                  _totalPages = details.document.pages.count;
+                });
+              }
+            },
+            onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+              if (mounted) {
+                setState(() {
+                  _errorMessage = details.error.toString();
+                });
+              }
+            },
+            onPageChanged: (PdfPageChangedDetails details) {
+              if (mounted) {
+                setState(() {
+                  _currentPage = details.newPageNumber;
+                });
+              }
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -502,7 +512,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
 
   Future<void> _sharePDF() async {
     try {
-      await Share.shareXFiles([XFile(widget.pdfFile.path)]);
+      await SharePlus.Share.shareXFiles([XFile(widget.pdfFile.path)]);
       
       if (mounted) {
         final notificationService = NotificationService();

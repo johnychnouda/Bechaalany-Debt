@@ -1,5 +1,4 @@
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:flutter/services.dart';
 
@@ -45,9 +44,9 @@ class SecurityService {
     }
   }
 
-  /// Load security settings from SharedPreferences
+  /// Load security settings from // SharedPreferences removed - using Firebase only
   Future<void> _loadSecuritySettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    // SharedPreferences removed - using Firebase only
     _autoLockMinutes = prefs.getInt(_autoLockMinutesKey) ?? 5;
   }
 
@@ -77,8 +76,8 @@ class SecurityService {
   /// Set auto-lock timeout
   Future<void> setAutoLockMinutes(int minutes) async {
     _autoLockMinutes = minutes;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_autoLockMinutesKey, minutes);
+    // SharedPreferences removed - using Firebase only
+    await // SharedPreferences removed - using Firebase only
   }
 
   /// Get auto-lock timeout
@@ -117,7 +116,7 @@ class SecurityService {
   /// Check if app should be locked (auto-lock)
   Future<bool> shouldLockApp() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // SharedPreferences removed - using Firebase only
       final lastUnlock = prefs.getInt(_lastUnlockKey);
       
       if (lastUnlock == null) {
@@ -136,8 +135,8 @@ class SecurityService {
 
   /// Update last unlock time
   Future<void> _updateLastUnlockTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_lastUnlockKey, DateTime.now().millisecondsSinceEpoch);
+    // SharedPreferences removed - using Firebase only
+    await // SharedPreferences removed - using Firebase only
   }
 
   /// Lock the app

@@ -19,8 +19,7 @@
         "lib/firebase_options.dart": {
           "projectId": "bechaalany-debt-app-e1bb0",
           "configurations": {
-            "ios": "1:908856160324:ios:08460e3562c039349f8c11",
-            "web": "1:908856160324:web:857794700f26f9569f8c11"
+            "ios": "1:908856160324:ios:08460e3562c039349f8c11"
           }
         }
       }
@@ -31,38 +30,5 @@
     "location": "nam5",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  },
-  "hosting": {
-    "public": "build/web",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          {
-            "key": "Cross-Origin-Opener-Policy",
-            "value": "same-origin-allow-popups"
-          },
-          {
-            "key": "Cross-Origin-Embedder-Policy",
-            "value": "unsafe-none"
-          },
-          {
-            "key": "Cross-Origin-Resource-Policy",
-            "value": "cross-origin"
-          }
-        ]
-      }
-    ]
   }
 }

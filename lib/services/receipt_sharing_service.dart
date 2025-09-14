@@ -51,7 +51,6 @@ class ReceiptSharingService {
         // Launch WhatsApp
         final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
         
-        // Note: WhatsApp Web doesn't support file attachments via URL
         // The PDF will be available in the app's share sheet for manual attachment
         return launched;
       }
@@ -365,13 +364,11 @@ class ReceiptSharingService {
                 color: PdfColor.fromInt(0xFFE3F2FD),
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
               ),
-              child: pw.Text(
+              child: PdfFontUtils.createGracefulText(
                 'Receipt for: ${_formatDateTime(specificDate)}',
-                style: pw.TextStyle(
-                  fontSize: 11,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromInt(0xFF1976D2),
-                ),
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColor.fromInt(0xFF1976D2),
               ),
             ),
             pw.SizedBox(height: 2),
@@ -431,15 +428,13 @@ class ReceiptSharingService {
                         ),
                       ),
                       pw.SizedBox(width: 4),
-                      pw.Text(
+                      PdfFontUtils.createGracefulText(
                         _formatCurrency(item['amount']),
-                        style: pw.TextStyle(
-                          fontSize: 14, // Increased from 13px
-                          fontWeight: pw.FontWeight.bold,
-                          color: isPayment 
-                              ? PdfColor.fromInt(0xFF2E7D32) // Green for payments
-                              : PdfColor.fromInt(0xFF1E40AF), // Dark blue for debts
-                        ),
+                        fontSize: 14, // Increased from 13px
+                        fontWeight: pw.FontWeight.bold,
+                        color: isPayment 
+                            ? PdfColor.fromInt(0xFF2E7D32) // Green for payments
+                            : PdfColor.fromInt(0xFF1E40AF), // Dark blue for debts
                       ),
                     ],
                   ),

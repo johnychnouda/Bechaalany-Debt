@@ -72,7 +72,10 @@ class _SplashScreenState extends State<SplashScreen>
     final isSmallScreen = MediaQuery.of(context).size.width < 375;
     final isLargeScreen = MediaQuery.of(context).size.width > 428;
 
-    return Scaffold(
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Builder(
+        builder: (context) => Scaffold(
       backgroundColor: Colors.white,
       body: AnimatedBuilder(
         animation: _fadeController,
@@ -247,6 +250,8 @@ class _SplashScreenState extends State<SplashScreen>
           );
         },
       ),
+    ),
+    ),
     );
   }
 }

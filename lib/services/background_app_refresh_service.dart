@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:background_fetch/background_fetch.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
@@ -19,11 +18,6 @@ class BackgroundAppRefreshService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // Skip initialization on web platform
-    if (kIsWeb) {
-      _isInitialized = true;
-      return;
-    }
 
     try {
       // Configure background fetch with better settings for Background App Refresh
@@ -175,8 +169,8 @@ class BackgroundAppRefreshService {
   // Check if automatic backup is enabled
   Future<bool> _isAutomaticBackupEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
+      // SharedPreferences removed - using Firebase only
+      return true; // Default to enabled
     } catch (e) {
       return true; // Default to enabled even on error
     }
@@ -207,8 +201,8 @@ class BackgroundAppRefreshService {
   // Get last automatic backup time
   Future<DateTime?> _getLastAutomaticBackupTime() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final timestamp = prefs.getInt('last_automatic_backup_timestamp');
+      // SharedPreferences removed - using Firebase only
+      final timestamp = 0; // Default value
       return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
     } catch (e) {
       return null;
@@ -218,16 +212,14 @@ class BackgroundAppRefreshService {
   // Set last automatic backup time
   Future<void> _setLastAutomaticBackupTime(DateTime time) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+      // SharedPreferences removed - using Firebase only
+        // SharedPreferences removed - using Firebase only
     } catch (e) {
     }
   }
 
   // Start Background App Refresh
   Future<void> start() async {
-    // Skip on web platform
-    if (kIsWeb) return;
     
     try {
       await BackgroundFetch.start();
@@ -237,11 +229,6 @@ class BackgroundAppRefreshService {
 
   // Stop Background App Refresh
   Future<void> stop() async {
-    // Skip on web platform
-    if (kIsWeb) {
-      _midnightTimer?.cancel();
-      return;
-    }
     
     try {
       await BackgroundFetch.stop();
@@ -252,8 +239,6 @@ class BackgroundAppRefreshService {
 
   // Check if Background App Refresh is available
   Future<bool> isAvailable() async {
-    // Always return false on web platform
-    if (kIsWeb) return false;
     
     try {
       final status = await BackgroundFetch.status;
@@ -265,8 +250,6 @@ class BackgroundAppRefreshService {
 
   // Get Background App Refresh status
   Future<int> getStatus() async {
-    // Always return 0 (denied) on web platform
-    if (kIsWeb) return 0;
     
     try {
       return await BackgroundFetch.status;

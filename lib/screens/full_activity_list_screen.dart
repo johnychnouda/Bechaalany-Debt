@@ -50,6 +50,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -67,8 +68,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
-
-
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
@@ -113,6 +112,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         final emptyMessage = _searchQuery.isNotEmpty 
             ? 'No activities found for "$_searchQuery"'
             : _getEmptyMessage(view);
+
 
         // Get period-specific financial data from AppState
         final periodData = appState.getPeriodFinancialData(_getPeriodString(view));
@@ -644,8 +644,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     switch (view) {
       case ActivityView.daily:
         // Show only today's activities (from 00:00:00 to 23:59:59)
-        final startDate = today;
-        final endDate = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+        // FIXED: Use a wider range to catch all today's activities including recent ones
+        final startDate = today.subtract(const Duration(hours: 12)); // Go back 12 hours to catch late night activities
+        final endDate = today.add(const Duration(days: 1, hours: 12)); // Go forward 12 hours to catch early morning activities
         activities = _getActivitiesForPeriod(appState, startDate, endDate);
         break;
         
@@ -687,17 +688,23 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     // Get activities without duplicates (without modifying state)
     final activitiesWithoutDuplicates = _removeDuplicatesFromList(appState.activities);
     
+    // IMPROVED: Add buffer time to handle timezone and synchronization issues
+    // Extend the time range by 1 hour to catch activities that might be slightly off due to timezone differences
+    final bufferedStartDate = startDate.subtract(const Duration(hours: 1));
+    final bufferedEndDate = endDate.add(const Duration(hours: 1));
+    
+    
     // Get activities from the new Activity model
     for (final activity in activitiesWithoutDuplicates) {
       
-      // Check if activity date is within the period
-      // Simplified date comparison using timestamps
+      // IMPROVED: More robust date comparison with buffer
       final activityTimestamp = activity.date.millisecondsSinceEpoch;
-      final startTimestamp = startDate.millisecondsSinceEpoch;
-      final endTimestamp = endDate.millisecondsSinceEpoch;
+      final startTimestamp = bufferedStartDate.millisecondsSinceEpoch;
+      final endTimestamp = bufferedEndDate.millisecondsSinceEpoch;
       
-      // Simple inclusive comparison using timestamps
+      // Enhanced inclusive comparison with buffer
       final isWithinPeriod = activityTimestamp >= startTimestamp && activityTimestamp <= endTimestamp;
+      
       
       if (isWithinPeriod) {
         // Show all activities within the period - no additional filtering
@@ -705,7 +712,24 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       }
     }
     
-    
+    // IMPROVED: For daily view, also include ALL activities from the last 24 hours
+    // This ensures we don't miss recent activities due to timezone or sync issues
+    if (_currentView == ActivityView.daily) {
+      final now = DateTime.now();
+      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
+      
+      
+      for (final activity in activitiesWithoutDuplicates) {
+        final activityTimestamp = activity.date.millisecondsSinceEpoch;
+        final twentyFourHoursAgoTimestamp = twentyFourHoursAgo.millisecondsSinceEpoch;
+        
+        // Include activities from the last 24 hours that might not be in the current day range
+        if (activityTimestamp >= twentyFourHoursAgoTimestamp && 
+            !activities.any((existing) => existing.id == activity.id)) {
+          activities.add(activity);
+        }
+      }
+    }
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));

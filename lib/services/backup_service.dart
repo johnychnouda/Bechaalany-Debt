@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'data_service.dart';
 import 'notification_service.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BackupService {
   static final BackupService _instance = BackupService._internal();
@@ -177,7 +178,6 @@ class BackupService {
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
     );
     
@@ -201,8 +201,19 @@ class BackupService {
 
   // Enable/disable automatic backups
   Future<void> setAutomaticBackupEnabled(bool enabled) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('automatic_backup_enabled', enabled);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'automatic_backup_enabled': enabled,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Error saving setting
+    }
     
     if (enabled) {
       await _scheduleDailyBackupNotification();
@@ -211,17 +222,27 @@ class BackupService {
     } else {
       await _notifications.cancelAll();
     }
-    
-
   }
 
   // Ensure automatic backup is enabled by default
   Future<void> _ensureAutomaticBackupEnabled() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      // Only set if not already set (preserve user's choice if they've changed it)
-      if (!prefs.containsKey('automatic_backup_enabled')) {
-        await prefs.setBool('automatic_backup_enabled', true);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        // Only set if not already set (preserve user's choice if they've changed it)
+        if (!doc.exists || !doc.data()!.containsKey('automatic_backup_enabled')) {
+          await FirebaseFirestore.instance
+              .collection('user_settings')
+              .doc(user.uid)
+              .set({
+            'automatic_backup_enabled': true,
+          }, SetOptions(merge: true));
+        }
       }
     } catch (e) {
       // Handle error silently
@@ -230,35 +251,98 @@ class BackupService {
 
   // Check if automatic backup is enabled
   Future<bool> isAutomaticBackupEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getBool('automatic_backup_enabled') ?? true; // Default to enabled
-    return value;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          return doc.data()!['automatic_backup_enabled'] ?? true; // Default to enabled
+        }
+      }
+    } catch (e) {
+      // Return default on error
+    }
+    return true; // Default to enabled
   }
 
   // Get last automatic backup time
   Future<DateTime?> getLastAutomaticBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final timestamp = prefs.getInt('last_automatic_backup_timestamp');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final timestamp = doc.data()!['last_automatic_backup_time'];
+          return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+        }
+      }
+    } catch (e) {
+      // Return null on error
+    }
+    return null;
   }
 
   // Set last automatic backup time
   Future<void> setLastAutomaticBackupTime(DateTime time) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('last_automatic_backup_timestamp', time.millisecondsSinceEpoch);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'last_automatic_backup_time': time.millisecondsSinceEpoch,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Error saving time
+    }
   }
 
   // Get last manual backup time
   Future<DateTime?> getLastManualBackupTime() async {
-    final prefs = await SharedPreferences.getInstance();
-    final timestamp = prefs.getInt('last_manual_backup_timestamp');
-    return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final timestamp = doc.data()!['last_manual_backup_time'];
+          return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+        }
+      }
+    } catch (e) {
+      // Return null on error
+    }
+    return null;
   }
 
   // Set last manual backup time
   Future<void> setLastManualBackupTime(DateTime time) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('last_manual_backup_timestamp', time.millisecondsSinceEpoch);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'last_manual_backup_time': time.millisecondsSinceEpoch,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // Error saving time
+    }
   }
 
   // Check if the backup service is already initialized

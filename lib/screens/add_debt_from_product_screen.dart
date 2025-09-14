@@ -636,7 +636,6 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       double actualCostPrice;
       String storedCurrency;
       
-      // Debug: Log the actual product data
 
       
       if (_selectedSubcategory!.sellingPriceCurrency == 'LBP') {

@@ -2,7 +2,7 @@
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -16,9 +16,6 @@ import 'package:flutter/foundation.dart'
 /// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
-    }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         throw UnsupportedError(
@@ -49,15 +46,6 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCTmvk5pfyn80jqSJCKKM8Oqkuoz05cZTA',
-    appId: '1:908856160324:web:857794700f26f9569f8c11',
-    messagingSenderId: '908856160324',
-    projectId: 'bechaalany-debt-app-e1bb0',
-    authDomain: 'bechaalany-debt-app-e1bb0.firebaseapp.com',
-    storageBucket: 'bechaalany-debt-app-e1bb0.firebasestorage.app',
-    measurementId: 'G-Q093R7HEY9',
-  );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAc9aVixuplm5hJLI3YcKkoA9b41blf2EE',

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../utils/logo_utils.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../screens/settings_screen.dart';
 
@@ -89,58 +90,87 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
     return orderedWidgets;
   }
 
-  void _loadWidgetPreferences() {
-    SharedPreferences.getInstance().then((prefs) {
-      final enabledWidgetIds = prefs.getStringList('dashboard_widget_order') ?? [];
-      
-      // Force remove the activity widget from preferences if it exists
-      final filteredWidgetIds = enabledWidgetIds.where((id) => id != 'weekly_activity').toList();
-      if (filteredWidgetIds.length != enabledWidgetIds.length) {
-        // Save the filtered preferences to remove the activity widget
-        prefs.setStringList('dashboard_widget_order', filteredWidgetIds);
-      }
-      
-      if (filteredWidgetIds.isNotEmpty) {
-        // User has custom preferences - load them
-        final orderedWidgets = <DashboardWidget>[];
-        final availableWidgetIds = _availableWidgets.map((w) => w.id).toSet();
+  void _loadWidgetPreferences() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
         
-        for (final widgetId in filteredWidgetIds) {
-          if (availableWidgetIds.contains(widgetId) && widgetId != 'weekly_activity') {
-            final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
-            orderedWidgets.add(widget);
-          }
+        List<String> enabledWidgetIds = [];
+        if (doc.exists) {
+          enabledWidgetIds = List<String>.from(doc.data()!['dashboard_widget_order'] ?? []);
         }
         
-        // Add any remaining widgets that weren't in the saved order (except activity widget)
-        for (final widget in _availableWidgets) {
-          if (!orderedWidgets.any((w) => w.id == widget.id) && widget.id != 'weekly_activity') {
-            orderedWidgets.add(widget);
-          }
+        // Force remove the activity widget from preferences if it exists
+        final filteredWidgetIds = enabledWidgetIds.where((id) => id != 'weekly_activity').toList();
+        if (filteredWidgetIds.length != enabledWidgetIds.length) {
+          // Save the filtered preferences to remove the activity widget
+          await FirebaseFirestore.instance
+              .collection('user_settings')
+              .doc(user.uid)
+              .set({
+            'dashboard_widget_order': filteredWidgetIds,
+          }, SetOptions(merge: true));
         }
         
-        setState(() {
-          _enabledWidgets = orderedWidgets;
-          _isLoading = false;
-        });
-      } else {
-        // First time installation - use default order and save it
+          if (filteredWidgetIds.isNotEmpty) {
+            // User has custom preferences - load them
+            final orderedWidgets = <DashboardWidget>[];
+            final availableWidgetIds = _availableWidgets.map((w) => w.id).toSet();
+            
+            for (final widgetId in filteredWidgetIds) {
+              if (availableWidgetIds.contains(widgetId) && widgetId != 'weekly_activity') {
+                final widget = _availableWidgets.firstWhere((w) => w.id == widgetId);
+                orderedWidgets.add(widget);
+              }
+            }
+            
+            // Add any remaining widgets that weren't in the saved order (except activity widget)
+            for (final widget in _availableWidgets) {
+              if (!orderedWidgets.any((w) => w.id == widget.id) && widget.id != 'weekly_activity') {
+                orderedWidgets.add(widget);
+              }
+            }
+            
+            setState(() {
+              _enabledWidgets = orderedWidgets;
+              _isLoading = false;
+            });
+          } else {
+            // First time installation - use default order and save it
+            setState(() {
+              _enabledWidgets = _getDefaultWidgetOrder();
+              _isLoading = false;
+            });
+            
+            // Save the default order so it's preserved
+            _saveWidgetPreferences();
+          }
+        }
+      } catch (e) {
+        // Error loading preferences, use defaults
         setState(() {
           _enabledWidgets = _getDefaultWidgetOrder();
           _isLoading = false;
         });
-        
-        // Save the default order so it's preserved
-        _saveWidgetPreferences();
       }
-    });
-  }
+    }
 
   void _saveWidgetPreferences() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final widgetIds = _enabledWidgets.map((w) => w.id).toList();
-      await prefs.setStringList('dashboard_widget_order', widgetIds);
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final widgetIds = _enabledWidgets.map((w) => w.id).toList();
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'dashboard_widget_order': widgetIds,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       // Error saving widget preferences
     }

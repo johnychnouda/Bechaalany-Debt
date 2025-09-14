@@ -5,9 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-// Conditional imports for web compatibility
-import 'package:share_plus/share_plus.dart';
-
+import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:cross_file/cross_file.dart';
 // These imports are only used in mobile-specific code
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -85,10 +84,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   @override
   Widget build(BuildContext context) {
-    // Add debugging for web
-    if (kIsWeb) {
-
-    }
     
     // Filter debts to only include those relevant to the payment being viewed
     // This excludes new debts that were created after the payment was completed
@@ -136,16 +131,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             color: AppColors.dynamicTextPrimary(context),
           ),
           onPressed: () {
-            // Web-compatible navigation
-            if (kIsWeb) {
-              // For web, just pop once and let the browser handle navigation
-              Navigator.of(context).pop();
-            } else {
-              // For mobile, pop multiple times to get back to customer details
-              Navigator.of(context).pop(); // Pop receipt
-              Navigator.of(context).pop(); // Pop debt history
-              Navigator.of(context).pop(); // Pop any other screen
-            }
+            // Navigate back to customer details
+            Navigator.of(context).pop(); // Pop receipt
+            Navigator.of(context).pop(); // Pop debt history
+            Navigator.of(context).pop(); // Pop any other screen
           },
         ),
         iconTheme: IconThemeData(
@@ -1035,8 +1024,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   _buildActionButton(
                     context: context,
                     icon: CupertinoIcons.arrow_down_circle,
-                    title: kIsWeb ? 'Download PDF' : 'Save to iPhone',
-                    subtitle: kIsWeb ? 'Download receipt as PDF file' : 'Download to Files or Photos',
+                    title: 'Save to iPhone',
+                    subtitle: 'Download to Files or Photos',
                     color: CupertinoColors.systemBlue,
                     onTap: () {
                       Navigator.pop(context);
@@ -1268,31 +1257,26 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   Future<void> _saveReceiptToIPhone() async {
     try {
-      if (kIsWeb) {
-        // For web, just export as PDF (download)
-        await _exportAsPDF();
-      } else {
-        // Generate PDF receipt for iOS/Android
-        final pdfFile = await ReceiptSharingService.generateReceiptPDF(
-          customer: widget.customer,
-          debts: widget.customerDebts,
-          partialPayments: widget.partialPayments,
-          activities: widget.activities,
-          specificDate: widget.specificDate,
-          specificDebtId: widget.specificDebtId,
-        );
+      // Generate PDF receipt for iOS
+      final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        customer: widget.customer,
+        debts: widget.customerDebts,
+        partialPayments: widget.partialPayments,
+        activities: widget.activities,
+        specificDate: widget.specificDate,
+        specificDebtId: widget.specificDebtId,
+      );
+      
+      if (pdfFile != null) {
+        // Use the existing share functionality to save to iPhone
+        await SharePlus.Share.shareXFiles([XFile(pdfFile.path)]);
         
-        if (pdfFile != null) {
-          // Use the existing share functionality to save to iPhone
-          await Share.shareXFiles([XFile(pdfFile.path)]);
-          
-          if (mounted) {
-            final notificationService = NotificationService();
-            await notificationService.showSuccessNotification(
-              title: 'Receipt Saved',
-              body: 'Receipt has been saved to your device',
-            );
-          }
+        if (mounted) {
+          final notificationService = NotificationService();
+          await notificationService.showSuccessNotification(
+            title: 'Receipt Saved',
+            body: 'Receipt has been saved to your device',
+          );
         }
       }
     } catch (e) {
@@ -1311,53 +1295,24 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdf = PdfFontUtils.createDocumentWithFonts();
       await _buildMultiPagePDF(pdf);
       
-      if (kIsWeb) {
-        // Web-specific PDF handling - use share_plus for web compatibility
-        try {
-          // For web, use share_plus which handles web platforms better
-          await Share.share(
-            'Receipt for ${widget.customer.name}',
-            subject: 'Debt Receipt - ${widget.customer.name}',
-          );
-          
-          if (mounted) {
-            final notificationService = NotificationService();
-            await notificationService.showSuccessNotification(
-              title: 'PDF Exported',
-              body: 'Receipt has been exported successfully',
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            final notificationService = NotificationService();
-            await notificationService.showErrorNotification(
-              title: 'Export Error',
-              body: 'Failed to export PDF: $e',
-            );
-          }
-        }
-      } else {
-        // Mobile PDF handling - only if not on web
-        if (!kIsWeb) {
-          final pdfBytes = await pdf.save();
-          final now = DateTime.now();
-          final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
-          final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
-          
-          final directory = await getApplicationDocumentsDirectory();
-          final file = File('${directory.path}/$fileName');
-          await file.writeAsBytes(pdfBytes);
-          
-          await Share.shareXFiles([XFile(file.path)]);
-          
-          if (mounted) {
-            final notificationService = NotificationService();
-            await notificationService.showSuccessNotification(
-              title: 'PDF Exported',
-              body: 'Receipt has been exported successfully',
-            );
-          }
-        }
+      // Mobile PDF handling
+      final pdfBytes = await pdf.save();
+      final now = DateTime.now();
+      final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
+      final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
+      
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+      
+      await SharePlus.Share.shareXFiles([XFile(file.path)]);
+      
+      if (mounted) {
+        final notificationService = NotificationService();
+        await notificationService.showSuccessNotification(
+          title: 'PDF Exported',
+          body: 'Receipt has been exported successfully',
+        );
       }
     } catch (e) {
       if (mounted) {
