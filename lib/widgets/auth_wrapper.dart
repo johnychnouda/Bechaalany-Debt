@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/sign_in_screen.dart';
 import '../screens/main_screen.dart';
 import '../screens/splash_screen.dart';
-import '../screens/onboarding_screen.dart';
 import '../services/auth_service.dart';
 import '../services/user_state_service.dart';
 
@@ -118,8 +117,6 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
               }
               
               final userStatus = userStatusSnapshot.data ?? {};
-              final needsOnboarding = userStatus['needsOnboarding'] ?? false;
-              final needsVerification = userStatus['needsVerification'] ?? false;
               final userDeleted = userStatus['userDeleted'] ?? false;
               
               // If user was deleted from Firebase, sign them out
@@ -128,17 +125,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
                 return const SignInScreen();
               }
               
-              // If user needs onboarding, show onboarding screen
-              if (needsOnboarding) {
-                return const OnboardingScreen();
-              }
-              
-              // If user needs verification, show onboarding screen
-              if (needsVerification) {
-                return const OnboardingScreen();
-              }
-              
-              // User is verified and ready to use the app
+              // User is signed in and ready to use the app (skip onboarding/verification)
               return const MainScreen();
             },
           );
