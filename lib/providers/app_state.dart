@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 import '../models/activity.dart';
 import '../models/category.dart';
 import '../models/currency_settings.dart';
@@ -43,6 +44,9 @@ class AppState extends ChangeNotifier {
   // Firebase stream initialization flag
   bool _streamsInitialized = false;
   
+  // Auth listener to handle user switching
+  StreamSubscription<User?>? _authSubscription;
+  
   // Connectivity
   bool _isOnline = true;
   
@@ -68,6 +72,9 @@ class AppState extends ChangeNotifier {
     // Reset flags on app initialization
     _hasLoadedActivities = false;
     
+    // Listen to authentication state changes to handle user switching
+    _setupAuthListener();
+    
     // Initialize Firebase streams immediately for all platforms
     _initializeFirebaseStreams();
     
@@ -85,6 +92,13 @@ class AppState extends ChangeNotifier {
     Future.delayed(const Duration(seconds: 3), () {
       fixDebtAmountPrecision();
     });
+  }
+  
+  @override
+  void dispose() {
+    // Clean up auth subscription
+    _authSubscription?.cancel();
+    super.dispose();
   }
   
   // Cached calculations
@@ -138,6 +152,51 @@ class AppState extends ChangeNotifier {
   // Accessibility Settings Getters (Needed for theme service)
   String get textSize => 'Medium'; // Default value
   bool get boldTextEnabled => false; // Default value
+  
+  // Setup authentication state listener to handle user switching
+  void _setupAuthListener() {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        // User signed out - clear all local data
+        _clearAllLocalData();
+      } else {
+        // User signed in - reinitialize streams for new user
+        _reinitializeStreamsForNewUser();
+      }
+    });
+  }
+  
+  // Clear all local data when user signs out
+  void _clearAllLocalData() {
+    _customers.clear();
+    _debts.clear();
+    _categories.clear();
+    _productPurchases.clear();
+    _activities.clear();
+    _partialPayments.clear();
+    _currencySettings = null;
+    
+    // Clear cached calculations
+    _clearCache();
+    
+    // Reset flags
+    _hasLoadedActivities = false;
+    
+    // Notify listeners to update UI
+    notifyListeners();
+  }
+  
+  // Reinitialize streams for new user (when switching accounts)
+  void _reinitializeStreamsForNewUser() {
+    // Reset stream initialization flag to allow re-initialization
+    _streamsInitialized = false;
+    
+    // Clear any existing data first
+    _clearAllLocalData();
+    
+    // Initialize streams for the new user
+    _initializeFirebaseStreams();
+  }
   
   // Initialize Firebase streams
   void _initializeFirebaseStreams() {

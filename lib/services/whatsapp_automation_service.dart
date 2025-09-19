@@ -84,51 +84,21 @@ class WhatsAppAutomationService {
   }) {
     StringBuffer message = StringBuffer();
     
-    // Header
-    message.writeln('🎉 *Payment Confirmation*');
-    message.writeln();
-    
     // Customer greeting
     message.writeln('Hello ${customer.name},');
     message.writeln();
     
-    // Custom message if provided
-    if (customMessage.isNotEmpty) {
-      message.writeln(customMessage);
-      message.writeln();
-    }
-    
     // Settlement details
     message.writeln('*Settlement Details:*');
-    message.writeln('Date: ${_formatDate(settlementDate)}');
+    message.writeln('Date/time: ${_formatDateTime(settlementDate)}');
     
     if (actualPaymentAmount != null && actualPaymentAmount > 0) {
-      message.writeln('Amount Paid: \$${actualPaymentAmount.toStringAsFixed(2)}');
+      message.writeln('Amount Paid: \$${actualPaymentAmount.toStringAsFixed(2)} ✅');
     }
     
     message.writeln();
-    
-    // Settled debts
-    if (settledDebts.isNotEmpty) {
-      message.writeln('*Settled Debts:*');
-      for (var debt in settledDebts) {
-        message.writeln('• ${debt.description}: \$${debt.remainingAmount.toStringAsFixed(2)}');
-      }
-      message.writeln();
-    }
-    
-    // Partial payments
-    if (partialPayments.isNotEmpty) {
-      message.writeln('*Payment History:*');
-      for (var payment in partialPayments) {
-        message.writeln('• ${_formatDate(payment.paidAt)}: \$${payment.amount.toStringAsFixed(2)}');
-      }
-      message.writeln();
-    }
     
     // Footer
-    message.writeln('Thank you for your business! 🙏');
-    message.writeln();
     message.writeln('If you have any questions, please don\'t hesitate to contact us.');
     
     return message.toString();
@@ -180,5 +150,9 @@ class WhatsAppAutomationService {
 
   static String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  static String _formatDateTime(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

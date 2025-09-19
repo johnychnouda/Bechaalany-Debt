@@ -2,60 +2,45 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Customers collection - users can only access their own customers
-    match /customers/{customerId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Debts collection - users can only access their own debts
-    match /debts/{debtId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Categories collection - users can only access their own categories
-    match /categories/{categoryId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Product purchases collection - users can only access their own purchases
-    match /product_purchases/{purchaseId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Partial payments collection - users can only access their own payments
-    match /partial_payments/{paymentId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Currency settings collection - users can only access their own settings
-    match /currency_settings/{settingsId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Activities collection - users can only access their own activities
-    match /activities/{activityId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
+    // User-specific data structure - each user has their own private subcollections
+    match /users/{userId} {
+      // Only allow access to authenticated user's own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Customers subcollection - private to each user
+      match /customers/{customerId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Debts subcollection - private to each user
+      match /debts/{debtId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Categories subcollection - private to each user
+      match /categories/{categoryId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Product purchases subcollection - private to each user
+      match /product_purchases/{purchaseId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Partial payments subcollection - private to each user
+      match /partial_payments/{paymentId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Currency settings subcollection - private to each user
+      match /currency_settings/{settingsId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Activities subcollection - private to each user
+      match /activities/{activityId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     // Health check collection - allow for connectivity testing
@@ -63,7 +48,31 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // Deny all other collections
+    // Backups collection - users can only access their own backups
+    match /backups/{backupId} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Notifications collection - users can only access their own notifications
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Scheduled notifications collection - users can only access their own scheduled notifications
+    match /scheduled_notifications/{notificationId} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Deny all other collections and documents
     match /{document=**} {
       allow read, write: if false;
     }

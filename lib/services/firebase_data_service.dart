@@ -74,9 +74,11 @@ class FirebaseDataService {
     
     final customerData = customer.toJson();
     customerData['lastUpdated'] = FieldValue.serverTimestamp();
-    customerData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('customers')
         .doc(customer.id)
         .set(customerData, SetOptions(merge: true));
@@ -90,8 +92,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('customers')
-        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
@@ -102,7 +105,12 @@ class FirebaseDataService {
   Future<void> deleteCustomer(String customerId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('customers').doc(customerId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('customers')
+        .doc(customerId)
+        .delete();
   }
 
   // Get all categories for current user
@@ -112,8 +120,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('categories')
-        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductCategory.fromJson({...doc.data(), 'id': doc.id}))
@@ -125,18 +134,14 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      // First try with user ID filter
+      // Get categories from user-specific subcollection
       var querySnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('categories')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
-      if (querySnapshot.docs.isEmpty) {
-        // If no categories found with user ID, try without filter
-        querySnapshot = await _firestore
-            .collection('categories')
-            .get();
-      }
+      // No need for fallback since data is user-specific
       
       final categories = querySnapshot.docs
           .map((doc) => ProductCategory.fromJson(doc.data()))
@@ -152,7 +157,12 @@ class FirebaseDataService {
   Future<void> deleteCategory(String categoryId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('categories').doc(categoryId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('categories')
+        .doc(categoryId)
+        .delete();
   }
 
   // ===== CATEGORIES =====
@@ -163,9 +173,11 @@ class FirebaseDataService {
     
     final categoryData = category.toJson();
     categoryData['lastUpdated'] = FieldValue.serverTimestamp();
-    categoryData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('categories')
         .doc(category.id)
         .set(categoryData, SetOptions(merge: true));
@@ -179,9 +191,11 @@ class FirebaseDataService {
     
     final purchaseData = purchase.toJson();
     purchaseData['lastUpdated'] = FieldValue.serverTimestamp();
-    purchaseData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('product_purchases')
         .doc(purchase.id)
         .set(purchaseData, SetOptions(merge: true));
@@ -194,8 +208,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('product_purchases')
-        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
@@ -207,18 +222,14 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      // First try with user ID filter
+      // Get product purchases from user-specific subcollection
       var querySnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('product_purchases')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
-      if (querySnapshot.docs.isEmpty) {
-        // If no product purchases found with user ID, try without filter
-        querySnapshot = await _firestore
-            .collection('product_purchases')
-            .get();
-      }
+      // No need for fallback since data is user-specific
       
       final productPurchases = querySnapshot.docs
           .map((doc) => ProductPurchase.fromJson(doc.data()))
@@ -234,7 +245,12 @@ class FirebaseDataService {
   Future<void> deleteProductPurchase(String purchaseId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('product_purchases').doc(purchaseId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('product_purchases')
+        .doc(purchaseId)
+        .delete();
   }
 
   // ===== DEBTS =====
@@ -245,9 +261,11 @@ class FirebaseDataService {
     
     final debtData = debt.toJson();
     debtData['lastUpdated'] = FieldValue.serverTimestamp();
-    debtData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('debts')
         .doc(debt.id)
         .set(debtData, SetOptions(merge: true));
@@ -260,8 +278,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('debts')
-        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -273,18 +292,14 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      // First try with user ID filter
+      // Get debts from user-specific subcollection
       var querySnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
-      if (querySnapshot.docs.isEmpty) {
-        // If no debts found with user ID, try without filter
-        querySnapshot = await _firestore
-            .collection('debts')
-            .get();
-      }
+      // No need for fallback since data is user-specific
       
       final debts = querySnapshot.docs
           .map((doc) => Debt.fromJson(doc.data()))
@@ -300,7 +315,12 @@ class FirebaseDataService {
   Future<void> deleteDebt(String debtId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('debts').doc(debtId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('debts')
+        .doc(debtId)
+        .delete();
   }
 
   // ===== PARTIAL PAYMENTS =====
@@ -311,9 +331,11 @@ class FirebaseDataService {
     
     final paymentData = payment.toJson();
     paymentData['lastUpdated'] = FieldValue.serverTimestamp();
-    paymentData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('partial_payments')
         .doc(payment.id)
         .set(paymentData, SetOptions(merge: true));
@@ -334,8 +356,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('partial_payments')
-        .where('userId', isEqualTo: currentUserId)
         .snapshots()
         .map((snapshot) {
           final payments = snapshot.docs
@@ -354,18 +377,14 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      // First try with user ID filter
+      // Get partial payments from user-specific subcollection
       var querySnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
-      if (querySnapshot.docs.isEmpty) {
-        // If no partial payments found with user ID, try without filter
-        querySnapshot = await _firestore
-            .collection('partial_payments')
-            .get();
-      }
+      // No need for fallback since data is user-specific
       
       final partialPayments = querySnapshot.docs
           .map((doc) => PartialPayment.fromJson(doc.data()))
@@ -384,7 +403,12 @@ class FirebaseDataService {
   Future<void> deletePartialPayment(String paymentId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('partial_payments').doc(paymentId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('partial_payments')
+        .doc(paymentId)
+        .delete();
     
     // Remove from local list
     _partialPayments.removeWhere((p) => p.id == paymentId);
@@ -398,11 +422,13 @@ class FirebaseDataService {
     
     final settingsData = settings.toJson();
     settingsData['lastUpdated'] = FieldValue.serverTimestamp();
-    settingsData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
-        .collection('currency_settings')
+        .collection('users')
         .doc(currentUserId!)
+        .collection('currency_settings')
+        .doc('settings')
         .set(settingsData, SetOptions(merge: true));
   }
 
@@ -413,13 +439,14 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('currency_settings')
-        .where('userId', isEqualTo: currentUserId)
-        .limit(1)
+        .doc('settings')
         .snapshots()
         .map((snapshot) {
-          if (snapshot.docs.isNotEmpty && snapshot.docs.first.data() != null) {
-            return CurrencySettings.fromJson(snapshot.docs.first.data());
+          if (snapshot.exists && snapshot.data() != null) {
+            return CurrencySettings.fromJson(snapshot.data()!);
           }
           return null;
         });
@@ -431,8 +458,10 @@ class FirebaseDataService {
     
     try {
       final doc = await _firestore
-          .collection('currency_settings')
+          .collection('users')
           .doc(currentUserId!)
+          .collection('currency_settings')
+          .doc('settings')
           .get();
       
       if (doc.exists && doc.data() != null) {
@@ -521,7 +550,12 @@ class FirebaseDataService {
     if (!isAuthenticated) return null;
     
     try {
-      final doc = await _firestore.collection('customers').doc(customerId).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('customers')
+          .doc(customerId)
+          .get();
       if (doc.exists && doc.data() != null) {
         return Customer.fromJson({...doc.data()!, 'id': doc.id});
       }
@@ -538,8 +572,9 @@ class FirebaseDataService {
     try {
       final queryLower = query.toLowerCase();
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('customers')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
       return snapshot.docs
@@ -559,8 +594,9 @@ class FirebaseDataService {
     
     try {
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('customers')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
       return snapshot.docs
@@ -579,8 +615,9 @@ class FirebaseDataService {
     
     try {
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('customers')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
       return snapshot.docs
@@ -603,8 +640,9 @@ class FirebaseDataService {
     
     try {
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
           .where('customerId', isEqualTo: customerId)
           .get();
       
@@ -623,8 +661,9 @@ class FirebaseDataService {
     try {
       final queryLower = query.toLowerCase();
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       
       return snapshot.docs
@@ -724,7 +763,12 @@ class FirebaseDataService {
   Future<void> markDebtAsPaid(String debtId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('debts').doc(debtId).update({
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('debts')
+        .doc(debtId)
+        .update({
       'paidAmount': FieldValue.increment(1000000), // Large number to ensure it's marked as paid
       'lastUpdated': FieldValue.serverTimestamp(),
     });
@@ -916,7 +960,12 @@ class FirebaseDataService {
   Future<void> markProductPurchaseAsPaid(String purchaseId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('product_purchases').doc(purchaseId).update({
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('product_purchases')
+        .doc(purchaseId)
+        .update({
       'isPaid': true,
       'lastUpdated': FieldValue.serverTimestamp(),
     });
@@ -927,7 +976,12 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      final doc = await _firestore.collection('product_purchases').doc(purchaseId).get();
+      final doc = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('product_purchases')
+          .doc(purchaseId)
+          .get();
       if (doc.exists && doc.data() != null) {
         return [ProductPurchase.fromJson({...doc.data()!, 'id': doc.id})];
       }
@@ -968,7 +1022,7 @@ class FirebaseDataService {
     
     final activityData = activity.toJson();
     activityData['lastUpdated'] = FieldValue.serverTimestamp();
-    activityData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     
     // Rate limiting: Add delay between activity saves to prevent throttling
@@ -976,7 +1030,11 @@ class FirebaseDataService {
     
     // Simplified approach: Save without aggressive verification
     try {
-      final docRef = _firestore.collection('activities').doc(activity.id);
+      final docRef = _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('activities')
+          .doc(activity.id);
       await docRef.set(activityData, SetOptions(merge: true));
       
       // Simple verification with multiple attempts to handle eventual consistency
@@ -1006,9 +1064,11 @@ class FirebaseDataService {
     
     final activityData = activity.toJson();
     activityData['lastUpdated'] = FieldValue.serverTimestamp();
-    activityData['userId'] = currentUserId;
+    // Remove userId from data since it's now implicit in the path structure
     
     await _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('activities')
         .doc(activity.id)
         .set(activityData, SetOptions(merge: true));
@@ -1018,7 +1078,12 @@ class FirebaseDataService {
   Future<void> deleteActivity(String activityId) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
-    await _firestore.collection('activities').doc(activityId).delete();
+    await _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('activities')
+        .doc(activityId)
+        .delete();
   }
   
   // Get activities by type
@@ -1110,8 +1175,9 @@ class FirebaseDataService {
     }
     
     return _firestore
+        .collection('users')
+        .doc(currentUserId!)
         .collection('activities')
-        .where('userId', isEqualTo: currentUserId)
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -1127,8 +1193,9 @@ class FirebaseDataService {
     
     try {
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('activities')
-          .where('userId', isEqualTo: currentUserId)
           .orderBy('date', descending: true)
           .get();
       
@@ -1833,8 +1900,9 @@ class FirebaseDataService {
     try {
       // Get all debts for current user only
       final debtsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1865,8 +1933,9 @@ class FirebaseDataService {
     try {
       // Get all partial payments for current user only
       final paymentsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1900,8 +1969,9 @@ class FirebaseDataService {
     try {
       // Get all activities for current user only
       final activitiesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('activities')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30)); // Add timeout protection
       
@@ -1983,8 +2053,9 @@ class FirebaseDataService {
       
       // Clear customers for current user
       final customersSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('customers')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -1998,8 +2069,9 @@ class FirebaseDataService {
       
       // Clear categories for current user
       final categoriesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('categories')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -2013,8 +2085,9 @@ class FirebaseDataService {
       
       // Clear product purchases for current user
       final purchasesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('product_purchases')
-          .where('userId', isEqualTo: currentUserId)
           .get()
           .timeout(const Duration(seconds: 30));
       
@@ -2028,8 +2101,10 @@ class FirebaseDataService {
       
       // Clear currency settings for current user
       final settingsDoc = await _firestore
-          .collection('currency_settings')
+          .collection('users')
           .doc(currentUserId!)
+          .collection('currency_settings')
+          .doc('settings')
           .get();
       
       if (settingsDoc.exists) {
