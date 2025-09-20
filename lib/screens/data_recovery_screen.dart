@@ -6,7 +6,6 @@ import '../services/data_service.dart';
 import '../services/backup_service.dart';
 import '../services/background_backup_service.dart';
 import '../services/background_app_refresh_service.dart';
-import '../services/notification_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 
@@ -210,6 +209,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     }
   }
 
+
   Future<void> _createBackup() async {
     try {
       await _backupService.createManualBackup();
@@ -257,18 +257,13 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         await _loadBackupSettings();
         
         if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showBackupRestoredNotification();
+          // Backup restored successfully
           Navigator.of(context).pop();
         }
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Restore Error',
-          body: 'Failed to restore data: $e',
-        );
+        // Restore error occurred
       }
     }
   }
@@ -304,20 +299,12 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
         await _loadBackups();
         
         if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'Backup Deleted',
-            body: 'Backup file deleted successfully',
-          );
+          // Backup deleted successfully
         }
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Delete Error',
-          body: 'Failed to delete backup: $e',
-        );
+        // Delete error occurred
       }
     }
   }
@@ -635,6 +622,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       return '$month $day, $year at $timeString';
     }
   }
+
 
   String _formatBackupFileName(String fileName) {
     // Extract timestamp from backup filename (e.g., "backup_1754326124601")

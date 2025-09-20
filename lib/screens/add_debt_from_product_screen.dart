@@ -6,7 +6,7 @@ import '../models/debt.dart';
 import '../models/category.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 import '../widgets/expandable_chip_dropdown.dart';
 import '../widgets/searchable_customer_field.dart';
 
@@ -696,12 +696,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       }
     } catch (e) {
       if (mounted) {
-        // Show error notification
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to add debt: $e',
-        );
+        // Error adding debt
       }
     } finally {
       if (mounted) {

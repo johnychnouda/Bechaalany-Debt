@@ -9,7 +9,6 @@ import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'widgets/auth_wrapper.dart';
-import 'services/notification_service.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/backup_service.dart';
@@ -17,8 +16,6 @@ import 'services/background_backup_service.dart';
 import 'services/background_app_refresh_service.dart';
 import 'services/app_update_service.dart';
 
-// Global service instances
-NotificationService? _globalNotificationService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,13 +61,6 @@ void main() async {
       // Handle Google Sign-In initialization error silently
     }
     
-    // Initialize notification service first
-    try {
-      _globalNotificationService = NotificationService();
-      await _globalNotificationService!.initialize();
-    } catch (e) {
-      // Handle notification service initialization error silently
-    }
     
     // Initialize automatic daily backup service
     try {
@@ -136,17 +126,10 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came to foreground, reinitialize services
-        if (_globalNotificationService != null) {
-          // Re-request notification permissions if needed
-          _globalNotificationService!.reRequestPermissions();
-        }
         
         // Reinitialize backup service
         _handleBackupServiceReinitialization();
         
-        // Handle any pending notifications
-        _handlePendingNotifications();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
@@ -161,14 +144,6 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     }
   }
 
-  void _handlePendingNotifications() async {
-    try {
-      final backupService = BackupService();
-      await backupService.handleBackupNotificationTap();
-    } catch (e) {
-      // Handle notification tap error silently
-    }
-  }
 
   void _handleBackupServiceReinitialization() async {
     try {

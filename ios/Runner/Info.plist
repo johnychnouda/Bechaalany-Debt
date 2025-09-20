@@ -113,8 +113,6 @@
 	<string>This app uses location services to provide location-based debt tracking and customer management features.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>This app uses microphone for voice notes, audio recordings, and voice-to-text features for debt documentation.</string>
-	<key>NSNotificationInterruptionLevel</key>
-	<string>active</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app saves debt documents and receipts to your photo library for backup and sharing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -140,10 +138,6 @@
 	</array>
 	<key>NSSiriUsageDescription</key>
 	<string>This app integrates with Siri to provide voice commands for debt management and quick actions.</string>
-	<key>NSUserNotificationUsageDescription</key>
-	<string>This app uses notifications to keep you informed about debt payments, daily summaries, and important financial updates.</string>
-	<key>NSUserNotificationsUsageDescription</key>
-	<string>This app uses notifications to remind you about pending debt payments, due dates, and daily summaries.</string>
 	<key>UIAccessibilityIsAssistiveTouchRunning</key>
 	<true/>
 	<key>UIAccessibilityIsBoldTextEnabled</key>
@@ -178,10 +172,6 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
 	<key>UIHapticFeedbackEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

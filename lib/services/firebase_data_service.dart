@@ -82,7 +82,6 @@ class FirebaseDataService {
         .collection('customers')
         .doc(customer.id)
         .set(customerData, SetOptions(merge: true));
-
   }
 
   // Get all customers for current user
@@ -471,6 +470,23 @@ class FirebaseDataService {
     } catch (e) {
       return null;
     }
+  }
+
+  // Get all activities for current user
+  Stream<List<Activity>> getActivitiesStream() {
+    if (!isAuthenticated) {
+      return Stream.value([]);
+    }
+    
+    return _firestore
+        .collection('users')
+        .doc(currentUserId!)
+        .collection('activities')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
+            .toList());
   }
 
   // ===== DATA MIGRATION METHODS =====
@@ -1168,22 +1184,6 @@ class FirebaseDataService {
     }
   }
   
-  // Get activities stream
-  Stream<List<Activity>> getActivitiesStream() {
-    if (!isAuthenticated) {
-      return Stream.value([]);
-    }
-    
-    return _firestore
-        .collection('users')
-        .doc(currentUserId!)
-        .collection('activities')
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
-            .toList());
-  }
 
   // Get all activities from Firebase (for manual refresh)
   Future<List<Activity>> getAllActivities() async {
@@ -1333,6 +1333,51 @@ class FirebaseDataService {
     
     try {
       final backupId = 'backup_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // Get all user data for backup
+      final customersSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('customers')
+          .get();
+      
+      final debtsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('debts')
+          .get();
+      
+      final categoriesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('categories')
+          .get();
+      
+      final purchasesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('product_purchases')
+          .get();
+      
+      final paymentsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('partial_payments')
+          .get();
+      
+      final activitiesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('activities')
+          .get();
+      
+      final settingsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('currency_settings')
+          .get();
+      
+      // Prepare backup data with actual user data
       final backupData = <String, dynamic>{
         'id': backupId,
         'userId': currentUserId,
@@ -1340,30 +1385,50 @@ class FirebaseDataService {
         'timestamp': DateTime.now().toIso8601String(),
         'isAutomatic': isAutomatic,
         'backupType': isAutomatic ? 'automatic' : 'manual',
+        'status': 'created',
+        'data': {
+          'customers': customersSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'debts': debtsSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'categories': categoriesSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'product_purchases': purchasesSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'partial_payments': paymentsSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'activities': activitiesSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+          'currency_settings': settingsSnapshot.docs.map((doc) => {
+            'id': doc.id,
+            ...doc.data(),
+          }).toList(),
+        },
       };
       
-      // Get all data for backup
-      final customersSnapshot = await _firestore.collection('customers').get();
-      final debtsSnapshot = await _firestore.collection('debts').get();
-      final categoriesSnapshot = await _firestore.collection('categories').get();
-      final purchasesSnapshot = await _firestore.collection('product_purchases').get();
-      final paymentsSnapshot = await _firestore.collection('partial_payments').get();
-      final activitiesSnapshot = await _firestore.collection('activities').get();
-      final settingsSnapshot = await _firestore.collection('currency_settings').get();
-      
-      backupData['customers'] = customersSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['debts'] = debtsSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['categories'] = categoriesSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['product_purchases'] = purchasesSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['partial_payments'] = paymentsSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['activities'] = activitiesSnapshot.docs.map((doc) => doc.data()).toList();
-      backupData['currency_settings'] = settingsSnapshot.docs.map((doc) => doc.data()).toList();
-      
-      await _firestore.collection('backups').doc(backupId).set(backupData);
+      // Store backup with actual data in user-specific collection
+      await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('backups')
+          .doc(backupId)
+          .set(backupData);
       
       return backupId;
     } catch (e) {
-      rethrow;
+      throw Exception('Failed to create backup: $e');
     }
   }
   
@@ -1372,20 +1437,14 @@ class FirebaseDataService {
     if (!isAuthenticated) return [];
     
     try {
-      // Get all backups and filter in memory to avoid composite index requirement
-      var snapshot = await _firestore
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('backups')
           .orderBy('createdAt', descending: true)
           .get();
       
-      // Filter by userId in memory
-      final userBackups = snapshot.docs.where((doc) {
-        final data = doc.data();
-        return data['userId'] == currentUserId;
-      }).toList();
-      
-      final backupIds = userBackups.map((doc) => doc.id).toList();
-      return backupIds;
+      return snapshot.docs.map((doc) => doc.id).toList();
     } catch (e) {
       return [];
     }
@@ -1396,19 +1455,17 @@ class FirebaseDataService {
     if (!isAuthenticated) return null;
     
     try {
-      final doc = await _firestore.collection('backups').doc(backupId).get();
-      if (!doc.exists || doc.data() == null) {
-        return null;
-      }
+      final doc = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('backups')
+          .doc(backupId)
+          .get();
       
-      final data = doc.data()!;
-      return {
-        'id': backupId,
-        'isAutomatic': data['isAutomatic'] ?? false,
-        'backupType': data['backupType'] ?? 'manual',
-        'timestamp': data['timestamp'],
-        'createdAt': data['createdAt'],
-      };
+      if (doc.exists) {
+        return doc.data();
+      }
+      return null;
     } catch (e) {
       return null;
     }
@@ -1419,75 +1476,151 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      final backupDoc = await _firestore.collection('backups').doc(backupId).get();
+      // Get backup data
+      final backupDoc = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('backups')
+          .doc(backupId)
+          .get();
+      
       if (!backupDoc.exists || backupDoc.data() == null) {
         return false;
       }
       
       final backupData = backupDoc.data()!;
+      final userData = backupData['data'] as Map<String, dynamic>?;
+      
+      if (userData == null) {
+        return false;
+      }
       
       // Clear existing data first
-      await clearAllData();
+      await _clearUserData();
       
-      // Restore data from backup
+      // Restore data from backup using batch writes for efficiency
       final batch = _firestore.batch();
       
       // Restore customers
-      if (backupData.containsKey('customers')) {
-        for (final customerData in backupData['customers']) {
-          final customerRef = _firestore.collection('customers').doc();
-          batch.set(customerRef, customerData);
+      if (userData.containsKey('customers')) {
+        final customers = userData['customers'] as List<dynamic>;
+        for (final customerData in customers) {
+          final customerMap = customerData as Map<String, dynamic>;
+          final customerId = customerMap['id'] as String;
+          customerMap.remove('id'); // Remove id from data before storing
+          
+          final customerRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('customers')
+              .doc(customerId);
+          batch.set(customerRef, customerMap);
         }
       }
       
       // Restore categories
-      if (backupData.containsKey('categories')) {
-        for (final categoryData in backupData['categories']) {
-          final categoryRef = _firestore.collection('categories').doc();
-          batch.set(categoryRef, categoryData);
+      if (userData.containsKey('categories')) {
+        final categories = userData['categories'] as List<dynamic>;
+        for (final categoryData in categories) {
+          final categoryMap = categoryData as Map<String, dynamic>;
+          final categoryId = categoryMap['id'] as String;
+          categoryMap.remove('id');
+          
+          final categoryRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('categories')
+              .doc(categoryId);
+          batch.set(categoryRef, categoryMap);
         }
       }
       
       // Restore debts
-      if (backupData.containsKey('debts')) {
-        for (final debtData in backupData['debts']) {
-          final debtRef = _firestore.collection('debts').doc();
-          batch.set(debtRef, debtData);
+      if (userData.containsKey('debts')) {
+        final debts = userData['debts'] as List<dynamic>;
+        for (final debtData in debts) {
+          final debtMap = debtData as Map<String, dynamic>;
+          final debtId = debtMap['id'] as String;
+          debtMap.remove('id');
+          
+          final debtRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('debts')
+              .doc(debtId);
+          batch.set(debtRef, debtMap);
         }
       }
       
       // Restore product purchases
-      if (backupData.containsKey('product_purchases')) {
-        for (final purchaseData in backupData['product_purchases']) {
-          final purchaseRef = _firestore.collection('product_purchases').doc();
-          batch.set(purchaseRef, purchaseData);
+      if (userData.containsKey('product_purchases')) {
+        final purchases = userData['product_purchases'] as List<dynamic>;
+        for (final purchaseData in purchases) {
+          final purchaseMap = purchaseData as Map<String, dynamic>;
+          final purchaseId = purchaseMap['id'] as String;
+          purchaseMap.remove('id');
+          
+          final purchaseRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('product_purchases')
+              .doc(purchaseId);
+          batch.set(purchaseRef, purchaseMap);
         }
       }
       
       // Restore partial payments
-      if (backupData.containsKey('partial_payments')) {
-        for (final paymentData in backupData['partial_payments']) {
-          final paymentRef = _firestore.collection('partial_payments').doc();
-          batch.set(paymentRef, paymentData);
+      if (userData.containsKey('partial_payments')) {
+        final payments = userData['partial_payments'] as List<dynamic>;
+        for (final paymentData in payments) {
+          final paymentMap = paymentData as Map<String, dynamic>;
+          final paymentId = paymentMap['id'] as String;
+          paymentMap.remove('id');
+          
+          final paymentRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('partial_payments')
+              .doc(paymentId);
+          batch.set(paymentRef, paymentMap);
         }
       }
       
       // Restore activities
-      if (backupData.containsKey('activities')) {
-        for (final activityData in backupData['activities']) {
-          final activityRef = _firestore.collection('activities').doc();
-          batch.set(activityRef, activityData);
+      if (userData.containsKey('activities')) {
+        final activities = userData['activities'] as List<dynamic>;
+        for (final activityData in activities) {
+          final activityMap = activityData as Map<String, dynamic>;
+          final activityId = activityMap['id'] as String;
+          activityMap.remove('id');
+          
+          final activityRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('activities')
+              .doc(activityId);
+          batch.set(activityRef, activityMap);
         }
       }
       
       // Restore currency settings
-      if (backupData.containsKey('currency_settings')) {
-        for (final settingData in backupData['currency_settings']) {
-          final settingRef = _firestore.collection('currency_settings').doc();
-          batch.set(settingRef, settingData);
+      if (userData.containsKey('currency_settings')) {
+        final settings = userData['currency_settings'] as List<dynamic>;
+        for (final settingData in settings) {
+          final settingMap = settingData as Map<String, dynamic>;
+          final settingId = settingMap['id'] as String;
+          settingMap.remove('id');
+          
+          final settingRef = _firestore
+              .collection('users')
+              .doc(currentUserId!)
+              .collection('currency_settings')
+              .doc(settingId);
+          batch.set(settingRef, settingMap);
         }
       }
       
+      // Commit all changes
       await batch.commit();
       return true;
     } catch (e) {
@@ -1500,10 +1633,98 @@ class FirebaseDataService {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      await _firestore.collection('backups').doc(backupId).delete();
+      await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('backups')
+          .doc(backupId)
+          .delete();
       return true;
     } catch (e) {
       return false;
+    }
+  }
+  
+  // Clear all user data (used before restore)
+  Future<void> _clearUserData() async {
+    if (!isAuthenticated) throw Exception('User not authenticated');
+    
+    try {
+      final batch = _firestore.batch();
+      
+      // Clear customers
+      final customersSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('customers')
+          .get();
+      for (final doc in customersSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear debts
+      final debtsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('debts')
+          .get();
+      for (final doc in debtsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear categories
+      final categoriesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('categories')
+          .get();
+      for (final doc in categoriesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear product purchases
+      final purchasesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('product_purchases')
+          .get();
+      for (final doc in purchasesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear partial payments
+      final paymentsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('partial_payments')
+          .get();
+      for (final doc in paymentsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear activities
+      final activitiesSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('activities')
+          .get();
+      for (final doc in activitiesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Clear currency settings
+      final settingsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('currency_settings')
+          .get();
+      for (final doc in settingsSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to clear user data: $e');
     }
   }
   
@@ -1674,95 +1895,6 @@ class FirebaseDataService {
     }
   }
   
-  // ===== NOTIFICATION & COMMUNICATION =====
-  
-  // Send notification
-  Future<void> sendNotification(String userId, String message) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    try {
-      final notificationData = {
-        'id': 'notification_${DateTime.now().millisecondsSinceEpoch}',
-        'userId': userId,
-        'message': message,
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'senderId': currentUserId,
-      };
-      
-      await _firestore
-          .collection('notifications')
-          .doc(notificationData['id'] as String)
-          .set(notificationData);
-    } catch (e) {
-      rethrow;
-    }
-  }
-  
-  // Schedule notification
-  Future<void> scheduleNotification(String userId, String message, DateTime time) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    try {
-      final notificationData = {
-        'id': 'scheduled_${DateTime.now().millisecondsSinceEpoch}',
-        'userId': userId,
-        'message': message,
-        'scheduledFor': time.toIso8601String(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'senderId': currentUserId,
-        'status': 'scheduled',
-      };
-      
-      await _firestore
-          .collection('scheduled_notifications')
-          .doc(notificationData['id'] as String)
-          .set(notificationData);
-    } catch (e) {
-      rethrow;
-    }
-  }
-  
-  // Get notification history
-  Future<List<Map<String, dynamic>>> getNotificationHistory(String userId) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final snapshot = await _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .limit(100)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => {
-            'id': doc.id,
-            ...doc.data(),
-          })
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
-  
-  // Mark notification as read
-  Future<void> markNotificationAsRead(String notificationId) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({
-            'isRead': true,
-            'readAt': FieldValue.serverTimestamp(),
-          });
-    } catch (e) {
-      rethrow;
-    }
-  }
   
   // ===== DATA VALIDATION & INTEGRITY =====
   
@@ -2117,4 +2249,5 @@ class FirebaseDataService {
       rethrow;
     }
   }
+
 }

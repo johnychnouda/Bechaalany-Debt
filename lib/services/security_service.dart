@@ -47,7 +47,7 @@ class SecurityService {
   /// Load security settings from // SharedPreferences removed - using Firebase only
   Future<void> _loadSecuritySettings() async {
     // SharedPreferences removed - using Firebase only
-    _autoLockMinutes = prefs.getInt(_autoLockMinutesKey) ?? 5;
+    _autoLockMinutes = 5; // Default value
   }
 
   /// Check if security should be enabled (based on device biometric availability)
@@ -77,7 +77,7 @@ class SecurityService {
   Future<void> setAutoLockMinutes(int minutes) async {
     _autoLockMinutes = minutes;
     // SharedPreferences removed - using Firebase only
-    await // SharedPreferences removed - using Firebase only
+    // Settings are now managed in-memory only
   }
 
   /// Get auto-lock timeout
@@ -117,17 +117,8 @@ class SecurityService {
   Future<bool> shouldLockApp() async {
     try {
       // SharedPreferences removed - using Firebase only
-      final lastUnlock = prefs.getInt(_lastUnlockKey);
-      
-      if (lastUnlock == null) {
-        return true; // Never unlocked, should lock
-      }
-
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final timeSinceUnlock = now - lastUnlock;
-      final lockTimeoutMs = _autoLockMinutes * 60 * 1000;
-
-      return timeSinceUnlock > lockTimeoutMs;
+      // For now, always require authentication when app is reopened
+      return !_isAuthenticated;
     } catch (e) {
       return true; // Error, should lock for security
     }
@@ -136,7 +127,7 @@ class SecurityService {
   /// Update last unlock time
   Future<void> _updateLastUnlockTime() async {
     // SharedPreferences removed - using Firebase only
-    await // SharedPreferences removed - using Firebase only
+    // Last unlock time is now managed in-memory only
   }
 
   /// Lock the app

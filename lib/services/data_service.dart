@@ -15,6 +15,18 @@ class DataService {
   
   // Firebase service for all data operations
   final FirebaseDataService _firebaseService = FirebaseDataService();
+  
+  // Authentication status
+  bool get isAuthenticated => _firebaseService.isAuthenticated;
+  
+  // Firebase streams for real-time data
+  Stream<List<Customer>> get customersFirebaseStream => _firebaseService.getCustomersStream();
+  Stream<List<ProductCategory>> get categoriesFirebaseStream => _firebaseService.getCategoriesStream();
+  Stream<List<Debt>> get debtsFirebaseStream => _firebaseService.getDebtsStream();
+  Stream<List<PartialPayment>> get partialPaymentsFirebaseStream => _firebaseService.getPartialPaymentsStream();
+  Stream<List<ProductPurchase>> get productPurchasesFirebaseStream => _firebaseService.getProductPurchasesStream();
+  Stream<CurrencySettings?> get currencySettingsFirebaseStream => _firebaseService.getCurrencySettingsStream();
+  Stream<List<Activity>> get activitiesFirebaseStream => _firebaseService.getActivitiesStream();
 
   // ===== CUSTOMER METHODS =====
   
@@ -145,49 +157,6 @@ class DataService {
     await _firebaseService.addOrUpdatePartialPayment(payment);
   }
 
-  // ===== FIREBASE STREAM ACCESS =====
-  
-  // Get Firebase streams for real-time data
-  Stream<List<Customer>> get customersFirebaseStream {
-    return _firebaseService.getCustomersStream();
-  }
-  
-  Stream<List<Debt>> get debtsFirebaseStream {
-    return _firebaseService.getDebtsStream();
-  }
-  
-  Stream<List<ProductCategory>> get categoriesFirebaseStream {
-    return _firebaseService.getCategoriesStream();
-  }
-
-  // ===== USER AUTHENTICATION =====
-  
-  // Get current user ID
-  String? get currentUserId => _firebaseService.currentUserId;
-  
-  // Check if user is authenticated
-  bool get isAuthenticated => _firebaseService.isAuthenticated;
-  
-  Stream<List<ProductPurchase>> get productPurchasesFirebaseStream {
-    return _firebaseService.getProductPurchasesStream();
-  }
-  
-  Stream<List<PartialPayment>> get partialPaymentsFirebaseStream {
-    return _firebaseService.getPartialPaymentsStream();
-  }
-  
-  Stream<CurrencySettings?> get currencySettingsFirebaseStream {
-    return _firebaseService.getCurrencySettingsStream();
-  }
-  
-  Stream<List<Activity>> get activitiesFirebaseStream {
-    return _firebaseService.getActivitiesStream();
-  }
-
-  // Get currency settings directly
-  Future<CurrencySettings?> getCurrencySettings() async {
-    return await _firebaseService.getCurrencySettings();
-  }
   
   // ===== DIRECT DATA FETCHING =====
   
@@ -290,6 +259,10 @@ class DataService {
 
   Future<void> saveCurrencySettings(CurrencySettings settings) async {
     await _firebaseService.addOrUpdateCurrencySettings(settings);
+  }
+  
+  Future<CurrencySettings?> getCurrencySettings() async {
+    return await _firebaseService.getCurrencySettings();
   }
 
   // ===== ACTIVITY METHODS =====
@@ -501,25 +474,4 @@ class DataService {
     return await _firebaseService.getProductPurchaseHistory(purchaseId);
   }
   
-  // ===== NOTIFICATION METHODS =====
-  
-  // Send notification
-  Future<void> sendNotification(String userId, String message) async {
-    await _firebaseService.sendNotification(userId, message);
-  }
-  
-  // Schedule notification
-  Future<void> scheduleNotification(String userId, String message, DateTime time) async {
-    await _firebaseService.scheduleNotification(userId, message, time);
-  }
-  
-  // Get notification history
-  Future<List<Map<String, dynamic>>> getNotificationHistory(String userId) async {
-    return await _firebaseService.getNotificationHistory(userId);
-  }
-  
-  // Mark notification as read
-  Future<void> markNotificationAsRead(String notificationId) async {
-    await _firebaseService.markNotificationAsRead(notificationId);
-  }
 } 

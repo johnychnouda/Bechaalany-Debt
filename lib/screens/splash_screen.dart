@@ -229,7 +229,7 @@ class _SplashScreenState extends State<SplashScreen>
                               
                               // App version
                               Text(
-                                'Version 1.0.0',
+                                'Version 1.0.1',
                                 style: AppTheme.body.copyWith(
                                   color: Colors.grey[400],
                                   fontSize: isSmallScreen ? 11 : 13,

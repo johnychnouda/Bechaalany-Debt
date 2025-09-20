@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:flutter/foundation.dart';
 import 'data_service.dart';
-import 'notification_service.dart';
+// Notification service import removed
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -12,7 +12,7 @@ class BackgroundBackupService {
   BackgroundBackupService._internal();
 
   final DataService _dataService = DataService();
-  final NotificationService _notificationService = NotificationService();
+  // Notification service removed
   bool _isInitialized = false;
 
   // Initialize background backup service
@@ -85,17 +85,14 @@ class BackgroundBackupService {
         await _setLastAutomaticBackupTime(DateTime.now());
         
         
-        // Send success notification
-        await _notificationService.showBackupCreatedNotification();
+        // Backup created successfully
       } else {
         
-        // Send error notification
-        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed');
+        // Backup failed
       }
     } catch (e) {
       
-      // Send error notification
-      await _notificationService.showBackupFailedNotification('An error occurred during automatic backup');
+      // Backup error occurred
     }
   }
 
@@ -112,20 +109,9 @@ class BackgroundBackupService {
   // Check if backup is needed
   Future<bool> _checkIfBackupNeeded() async {
     try {
-      final lastBackup = await _getLastAutomaticBackupTime();
-      final now = DateTime.now();
-      
-      if (lastBackup == null) {
-        // No backup exists, create one
-        return true;
-      }
-      
-      // Check if it's time for the next scheduled backup (12 AM)
-      final today = DateTime(now.year, now.month, now.day);
-      final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
-      
-      // If we haven't backed up today and it's past midnight, create backup
-      return lastBackupDate.isBefore(today);
+      // Background service should not create backups
+      // Only the main BackupService timer at 12 AM should create backups
+      return false;
     } catch (e) {
       return false;
     }
@@ -134,12 +120,22 @@ class BackgroundBackupService {
   // Get last automatic backup time
   Future<DateTime?> _getLastAutomaticBackupTime() async {
     try {
-      // SharedPreferences removed - using Firebase only
-      final timestamp = 0; // Default value
-      return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final timestamp = doc.data()!['last_automatic_backup_time'];
+          return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+        }
+      }
     } catch (e) {
       return null;
     }
+    return null;
   }
 
   // Set last automatic backup time
@@ -151,7 +147,7 @@ class BackgroundBackupService {
             .collection('user_settings')
             .doc(user.uid)
             .set({
-          'background_backup_enabled': true,
+          'last_automatic_backup_time': time.millisecondsSinceEpoch,
         }, SetOptions(merge: true));
       }
     } catch (e) {

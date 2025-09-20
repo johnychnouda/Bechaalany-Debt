@@ -15,14 +15,12 @@ import '../models/product_purchase.dart';
 import '../services/data_service.dart';
 import '../services/revenue_calculation_service.dart';
 import '../services/theme_service.dart';
-import '../services/notification_service.dart';
 import '../services/whatsapp_automation_service.dart';
 
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
   final ThemeService _themeService = ThemeService();
-  final NotificationService _notificationService = NotificationService();
 
   
 
@@ -2138,10 +2136,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> _scheduleNotifications() async {
-    // This method was used for scheduling notifications
-    // Simplified to avoid compilation errors
-  }
 
   Future<void> createMissingPaymentActivitiesForAllPaidDebts() async {
     // This method was used for creating missing payment activities
@@ -2311,8 +2305,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showCustomerAddedNotification(customer.name);
+      // Customer added successfully
     } catch (e) {
       rethrow;
     }
@@ -2330,8 +2323,7 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
         
-        // Show notification
-        await _notificationService.showCustomerUpdatedNotification(customer.name);
+        // Customer updated successfully
       } else {
         // If customer not found in local list, add it
         _customers.add(customer);
@@ -2345,7 +2337,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteCustomer(String customerId) async {
     try {
-      // Get customer name before deletion for notification
       final customer = _customers.firstWhere((c) => c.id == customerId);
       final customerName = customer.name;
       
@@ -2354,8 +2345,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showCustomerDeletedNotification(customerName);
+      // Customer deleted successfully
     } catch (e) {
       rethrow;
     }
@@ -2393,8 +2383,7 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
-      await _notificationService.showDebtAddedNotification(debt.customerName, debt.amount);
+      // Debt added successfully
       
       // Note: WhatsApp automation for new debt creation has been removed as requested
     } catch (e) {
@@ -2616,8 +2605,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Reschedule notifications
-      await _scheduleNotifications();
     } catch (e) {
       rethrow;
     }
@@ -2711,8 +2698,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Reschedule notifications
-      await _scheduleNotifications();
       
     } catch (e) {
       rethrow;
@@ -2727,7 +2712,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
     } catch (e) {
       rethrow;
     }
@@ -2742,7 +2726,6 @@ class AppState extends ChangeNotifier {
         _clearCache();
         notifyListeners();
         
-        // Show notification
       }
     } catch (e) {
       rethrow;
@@ -2751,7 +2734,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteCategory(String categoryId) async {
     try {
-      // Get category name before deletion for notification
       final category = _categories.firstWhere((c) => c.id == categoryId);
       final categoryName = category.name;
       
@@ -2760,7 +2742,6 @@ class AppState extends ChangeNotifier {
       _clearCache();
       notifyListeners();
       
-      // Show notification
     } catch (e) {
       rethrow;
     }
@@ -2814,7 +2795,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> deleteProductPurchase(String purchaseId) async {
     try {
-      // Get purchase name before deletion for notification
       final purchase = _productPurchases.firstWhere((p) => p.id == purchaseId);
       final purchaseName = purchase.subcategoryName;
       

@@ -6,7 +6,7 @@ import '../models/debt.dart';
 import '../models/category.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 import '../widgets/expandable_chip_dropdown.dart';
 
 class AddDebtScreen extends StatefulWidget {
@@ -78,12 +78,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
           _isLoading = false;
         });
         
-        // Show error notification
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to add debt: $e',
-        );
+        // Error adding debt
       }
     }
   }

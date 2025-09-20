@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
 import '../models/customer.dart';
-import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
 
 class PaymentRemindersScreen extends StatefulWidget {
@@ -528,11 +527,11 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       }
 
       if (mounted) {
-        final notificationService = NotificationService();
+        // Show success feedback via dialog instead of notification
         if (successCount == totalCount) {
-          await notificationService.showAutoReminderSentNotification(totalCount);
+          _showSuccessDialog(context, 'All reminders sent successfully!');
         } else {
-          await notificationService.showAutoReminderSentNotification(successCount);
+          _showWarningDialog(context, 'Sent to $successCount out of $totalCount customers');
         }
         
         // Clear selection after sending
@@ -543,13 +542,57 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Batch Reminders Failed',
-          body: 'Failed to send batch payment reminders: $e',
-        );
+        _showErrorDialog(context, 'Failed to send batch payment reminders: $e');
       }
     }
+  }
+
+  void _showSuccessDialog(BuildContext context, String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Success'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWarningDialog(BuildContext context, String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Warning'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -712,3 +755,4 @@ class _CustomerReminderTile extends StatelessWidget {
     );
   }
 }
+

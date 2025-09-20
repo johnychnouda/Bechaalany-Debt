@@ -12,7 +12,6 @@ import '../models/partial_payment.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
-import '../services/notification_service.dart';
 import '../services/receipt_sharing_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
 import 'add_debt_from_product_screen.dart';
@@ -513,19 +512,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       await appState.sendWhatsAppPaymentReminder(widget.customer.id);
 
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Payment Reminder Sent',
-          body: 'WhatsApp payment reminder has been sent to ${widget.customer.name}',
-        );
+        // Payment reminder sent successfully
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Payment Reminder Failed',
-          body: 'Failed to send payment reminder: $e',
-        );
+        // Payment reminder failed
       }
     }
   }
@@ -536,19 +527,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       await appState.sendWhatsAppSettlementNotification(widget.customer.id);
 
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Settlement Notification Sent',
-          body: 'WhatsApp settlement notification has been sent to ${widget.customer.name}',
-        );
+        // Settlement notification sent successfully
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Settlement Notification Failed',
-          body: 'Failed to send settlement notification: $e',
-        );
+        // Settlement notification failed
       }
     }
   }
@@ -787,12 +770,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
                 } catch (e) {
                   if (mounted) {
-                    // Show error notification
-                    final notificationService = NotificationService();
-                    await notificationService.showErrorNotification(
-                      title: 'Error',
-                      body: 'Failed to mark debt as paid: $e',
-                    );
+                    // Error marking debt as paid
                   }
                 }
               },
@@ -860,12 +838,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
 
                     } catch (e) {
                       if (mounted) {
-                        // Show error notification
-                        final notificationService = NotificationService();
-                        await notificationService.showErrorNotification(
-                          title: 'Error',
-                          body: 'Failed to delete debt: $e',
-                        );
+                        // Error deleting debt
                       }
                     }
                   },
@@ -1748,13 +1721,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final customerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
       final totalOutstanding = customerDebts.fold<double>(0, (sum, d) => sum + d.remainingAmount);
       
-      // Only show notification if all debts are fully paid (no outstanding amount)
+      // All debts are fully paid
       if (totalOutstanding == 0) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'Payment Successful',
-          body: '${_currentCustomer.name} has fully paid all their debts',
-        );
+        // Payment successful - all debts paid
       }
     }
     
@@ -1827,19 +1796,12 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       errorMessage = e.toString();
     }
     
-    // Show appropriate notification based on result
+    // Payment processing completed
     if (mounted) {
-      final notificationService = NotificationService();
-      
       if (paymentSuccess) {
-        // Show success notification
-        await notificationService.showPaymentSuccessfulNotification(_currentCustomer.name);
+        // Payment successful
       } else if (errorMessage != null) {
-        // Show error notification only for critical failures
-        await notificationService.showErrorNotification(
-          title: 'Payment Error',
-          body: 'Failed to process payment: $errorMessage',
-        );
+        // Payment error occurred
       }
     }
   }
@@ -2228,11 +2190,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       _loadCustomerDebts(); // Re-load after deletion
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to delete debt: $e',
-        );
+        // Error deleting debt
       }
     }
   }
@@ -2248,11 +2206,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       _loadCustomerDebts(); // Re-load after deletion
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Error',
-          body: 'Failed to delete some debts: $e',
-        );
+        // Error deleting some debts
       }
     }
   }

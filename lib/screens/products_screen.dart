@@ -10,7 +10,7 @@ import '../models/category.dart' show ProductCategory, Subcategory;
 import '../models/currency_settings.dart';
 import '../utils/currency_formatter.dart';
 import '../widgets/expandable_chip_dropdown.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 import 'currency_settings_screen.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
@@ -627,7 +627,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               onPressed: () async {
                 if (nameController.text.trim().isNotEmpty) {
                   final appState = Provider.of<AppState>(context, listen: false);
-                  final notificationService = NotificationService();
+                  // Notification service removed
                   final category = ProductCategory(
                     id: appState.generateCategoryId(),
                     name: nameController.text.trim(),
@@ -644,11 +644,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     // Refresh the products list
                     _filterProducts();
                   } catch (e) {
-                    // Show error notification
-                    await notificationService.showErrorNotification(
-                      title: 'Error',
-                      body: 'Failed to add category: $e',
-                    );
+                    // Error adding category
                   }
                 }
               },
@@ -925,7 +921,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             onPressed: isEnabled
                                 ? () async {
                                     final appState = Provider.of<AppState>(context, listen: false);
-                                    final notificationService = NotificationService();
+                                    // Notification service removed
                                     final category = appState.categories.firstWhere(
                                       (cat) => cat.name == categoryName,
                                       orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
@@ -945,10 +941,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       // Validate prices before saving to prevent corruption
                                       if (!subcategory.hasValidPrices) {
                                         final validationMessage = subcategory.priceValidationMessage;
-                                        await notificationService.showErrorNotification(
-                                          title: 'Invalid Prices',
-                                          body: validationMessage ?? 'Please check the product prices.',
-                                        );
+                                        // Notification removed
                                         return;
                                       }
                                       
@@ -958,10 +951,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       }
                                       _filterProducts();
                                     } catch (e) {
-                                      await notificationService.showErrorNotification(
-                                        title: 'Error',
-                                        body: 'Failed to update product: $e',
-                                      );
+                                      // Notification removed
                                     }
                                   }
                                 : null,
@@ -1106,7 +1096,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           final appState = Provider.of<AppState>(context, listen: false);
-                          final notificationService = NotificationService();
+                          // Notification service removed
                           final category = appState.categories.firstWhere(
                             (cat) => cat.name == categoryName,
                             orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
@@ -1119,10 +1109,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             }
                             _filterProducts();
                           } catch (e) {
-                            await notificationService.showErrorNotification(
-                              title: 'Error',
-                              body: 'Failed to delete product: $e',
-                            );
+                            // Notification removed
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -1394,7 +1381,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             onPressed: isEnabled
                                 ? () async {
                                     final appState = Provider.of<AppState>(context, listen: false);
-                                    final notificationService = NotificationService();
+                                    // Notification service removed
                                     final category = appState.categories.firstWhere(
                                       (cat) => cat.name == categoryName,
                                       orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
@@ -1419,10 +1406,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       // Validate prices before saving to prevent corruption
                                       if (!subcategory.hasValidPrices) {
                                         final validationMessage = subcategory.priceValidationMessage;
-                                        await notificationService.showErrorNotification(
-                                          title: 'Invalid Prices',
-                                          body: validationMessage ?? 'Please check the product prices.',
-                                        );
+                                        // Notification removed
                                         return;
                                       }
                                       
@@ -1433,10 +1417,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       }
                                       _filterProducts();
                                     } catch (e) {
-                                      await notificationService.showErrorNotification(
-                                        title: 'Error',
-                                        body: 'Failed to add product: $e',
-                                      );
+                                      // Notification removed
                                     }
                                   }
                                 : null,
@@ -1720,7 +1701,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           final appState = Provider.of<AppState>(context, listen: false);
-                          final notificationService = NotificationService();
+                          // Notification service removed
                           
                           try {
                             await appState.deleteCategory(category.id);
@@ -1739,10 +1720,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             _filterProducts();
                           } catch (e) {
                             // Show error notification
-                            await notificationService.showErrorNotification(
-                              title: 'Error',
-                              body: 'Failed to delete category: $e',
-                            );
+                            // Notification removed
                           }
                         },
                         style: ElevatedButton.styleFrom(
@@ -1921,7 +1899,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: ElevatedButton(
                         onPressed: () async {
                           final appState = Provider.of<AppState>(context, listen: false);
-                          final notificationService = NotificationService();
+                          // Notification service removed
                           
                           try {
                             await appState.deleteSubcategory(category.id, subcategory.id);
@@ -1935,10 +1913,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             _filterProducts();
                           } catch (e) {
                             // Show error notification
-                            await notificationService.showErrorNotification(
-                              title: 'Error',
-                              body: 'Failed to delete product: $e',
-                            );
+                            // Notification removed
                           }
                         },
                         style: ElevatedButton.styleFrom(

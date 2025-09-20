@@ -7,7 +7,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../models/currency_settings.dart';
 import '../services/data_service.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 import '../providers/app_state.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
@@ -156,7 +156,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       final cleanText = _exchangeRateController.text.replaceAll(',', '');
       final exchangeRate = double.tryParse(cleanText);
       if (exchangeRate == null || exchangeRate <= 0) {
-        final notificationService = NotificationService();
+        // Notification service removed
         return;
       }
       
@@ -175,7 +175,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       await appState.updateCurrencySettings(settings);
       
       if (mounted) {
-        final notificationService = NotificationService();
+        // Notification service removed
         
         // Don't clear the input field - keep the value user entered
         // The AppState listener will update the display automatically
@@ -185,7 +185,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
+        // Notification service removed
       }
     }
   }

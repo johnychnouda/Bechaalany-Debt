@@ -157,7 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildInfoRow(
                     'App Version',
-                    '1.0.1',
+                    '1.0.0',
                     CupertinoIcons.info_circle,
                   ),
                 ],
@@ -348,6 +348,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+
+      
+      // Show confirmation
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(
+              'Badge Cleared',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'The app badge has been cleared. You should no longer see the red notification badge on the app icon.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: AppColors.dynamicPrimary(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(
+              'Error',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'Failed to clear badge: $e',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: AppColors.dynamicPrimary(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
 
   void _showAppInfo() {
     showCupertinoDialog(

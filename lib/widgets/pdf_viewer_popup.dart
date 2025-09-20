@@ -5,7 +5,7 @@ import 'package:share_plus/share_plus.dart' as SharePlus;
 import 'package:cross_file/cross_file.dart';import 'dart:io';
 import 'dart:typed_data';
 import '../constants/app_colors.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 import '../models/customer.dart'; // Added import for Customer model
 import '../screens/customer_details_screen.dart'; // Added import for CustomerDetailsScreen
 
@@ -515,19 +515,13 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
       await SharePlus.Share.shareXFiles([XFile(widget.pdfFile.path)]);
       
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'PDF Shared',
-          body: 'Receipt has been shared successfully.',
-        );
+        // Notification service removed
+        // Notification removed
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Share Error',
-          body: 'Failed to share PDF: $e',
-        );
+        // Notification service removed
+        // Notification removed
       }
     }
   }

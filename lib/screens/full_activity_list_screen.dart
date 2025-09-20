@@ -644,9 +644,8 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     switch (view) {
       case ActivityView.daily:
         // Show only today's activities (from 00:00:00 to 23:59:59)
-        // FIXED: Use a wider range to catch all today's activities including recent ones
-        final startDate = today.subtract(const Duration(hours: 12)); // Go back 12 hours to catch late night activities
-        final endDate = today.add(const Duration(days: 1, hours: 12)); // Go forward 12 hours to catch early morning activities
+        final startDate = today; // Start of today (00:00:00)
+        final endDate = today.add(const Duration(days: 1)); // Start of tomorrow (00:00:00)
         activities = _getActivitiesForPeriod(appState, startDate, endDate);
         break;
         
@@ -688,10 +687,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     // Get activities without duplicates (without modifying state)
     final activitiesWithoutDuplicates = _removeDuplicatesFromList(appState.activities);
     
-    // IMPROVED: Add buffer time to handle timezone and synchronization issues
-    // Extend the time range by 1 hour to catch activities that might be slightly off due to timezone differences
-    final bufferedStartDate = startDate.subtract(const Duration(hours: 1));
-    final bufferedEndDate = endDate.add(const Duration(hours: 1));
+    // Use exact date ranges without buffers for precise filtering
+    final bufferedStartDate = startDate;
+    final bufferedEndDate = endDate;
     
     
     // Get activities from the new Activity model
@@ -712,24 +710,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       }
     }
     
-    // IMPROVED: For daily view, also include ALL activities from the last 24 hours
-    // This ensures we don't miss recent activities due to timezone or sync issues
-    if (_currentView == ActivityView.daily) {
-      final now = DateTime.now();
-      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
-      
-      
-      for (final activity in activitiesWithoutDuplicates) {
-        final activityTimestamp = activity.date.millisecondsSinceEpoch;
-        final twentyFourHoursAgoTimestamp = twentyFourHoursAgo.millisecondsSinceEpoch;
-        
-        // Include activities from the last 24 hours that might not be in the current day range
-        if (activityTimestamp >= twentyFourHoursAgoTimestamp && 
-            !activities.any((existing) => existing.id == activity.id)) {
-          activities.add(activity);
-        }
-      }
-    }
+    // Activities are now filtered strictly by the specified period without additional buffers
 
     // Sort by date (newest first)
     activities.sort((a, b) => b.date.compareTo(a.date));

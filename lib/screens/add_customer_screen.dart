@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
-import '../services/notification_service.dart';
+// Notification service import removed
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
@@ -241,8 +241,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         
         // Show success message and navigate back immediately
         if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showCustomerUpdatedNotification(updatedCustomer.name);
+          // Customer updated successfully
           
           // Try direct navigation first
           try {
@@ -262,8 +261,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         // Show success message and navigate back immediately
         if (mounted) {
 
-          final notificationService = NotificationService();
-          await notificationService.showCustomerAddedNotification(customer.name);
+          // Customer added successfully
           
           // Try direct navigation first
           try {
@@ -279,7 +277,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
+        // Error occurred
       }
     } finally {
       if (mounted) {

@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'data_service.dart';
-import 'notification_service.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
+import 'weekly_backup_cleanup.dart';
+// Timezone imports removed
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,16 +11,13 @@ class BackupService {
   BackupService._internal();
 
   final DataService _dataService = DataService();
-  final NotificationService _notificationService = NotificationService();
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final WeeklyBackupCleanup _weeklyCleanup = WeeklyBackupCleanup();
   bool _timezoneInitialized = false;
+  Timer? _backupCheckTimer;
 
-  // Ensure timezone is initialized
+  // Timezone initialization removed
   void _ensureTimezoneInitialized() {
-    if (!_timezoneInitialized) {
-      tz.initializeTimeZones();
-      _timezoneInitialized = true;
-    }
+    // Timezone functionality disabled
   }
 
   // Initialize automatic daily backup
@@ -30,8 +25,6 @@ class BackupService {
     // Ensure timezone is initialized
     _ensureTimezoneInitialized();
     
-    // Initialize notifications
-    await _initializeNotifications();
     
     // Enable automatic backup by default if not already set
     await _ensureAutomaticBackupEnabled();
@@ -41,99 +34,150 @@ class BackupService {
 
     
     if (isEnabled) {
-      // Schedule daily backup notification
-      await _scheduleDailyBackupNotification();
 
+      // Start periodic backup checking (every 30 minutes)
+      _startPeriodicBackupCheck();
       
-      // Check if we need to create a backup now (app just opened)
-      await _checkAndCreateBackupIfNeeded();
+      // Initialize weekly cleanup
+      await _weeklyCleanup.initializeWeeklyCleanup();
+      
+      // Check for missed backups when app opens
+      await checkForMissedBackups();
     }
   }
 
-  // Initialize local notifications
-  Future<void> _initializeNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    
-    const initSettings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
-    
-    await _notifications.initialize(initSettings);
-  }
 
   // Handle app lifecycle changes
   Future<void> handleAppLifecycleChange() async {
     final isEnabled = await isAutomaticBackupEnabled();
     
     if (isEnabled) {
-      // Re-schedule notification when app comes to foreground
-      await _scheduleDailyBackupNotification();
       
-      // Check if we need to create a backup (app resumed)
-      await _checkAndCreateBackupIfNeeded();
+      // Restart periodic backup checking
+      _startPeriodicBackupCheck();
+      
+      // Check for missed backups when app resumes
+      await checkForMissedBackups();
     }
   }
+  
+  // Start precise 12 AM backup checking
+  void _startPeriodicBackupCheck() {
+    // Cancel any existing timer
+    _backupCheckTimer?.cancel();
+    
+    // Calculate time until next 12 AM
+    final now = DateTime.now();
+    final nextMidnight = _getNextMidnight(now);
+    final timeUntilMidnight = nextMidnight.difference(now);
+    
+    // Next backup scheduled for midnight
+    
+    // Schedule backup exactly at midnight
+    _backupCheckTimer = Timer(timeUntilMidnight, () async {
+      try {
+        final isEnabled = await isAutomaticBackupEnabled();
+        if (isEnabled) {
+          // Only create backup if we haven't already backed up today
+          final lastBackup = await getLastAutomaticBackupTime();
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          
+          if (lastBackup == null) {
+            // First backup ever
+            await _createAutomaticBackup();
+          } else {
+            final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
+            if (lastBackupDate.isBefore(today)) {
+              // Haven't backed up today, create backup
+              await _createAutomaticBackup();
+            }
+          }
+          
+          // Schedule next day's backup
+          _startPeriodicBackupCheck();
+        }
+      } catch (e) {
+        // Error in 12 AM backup
+      }
+    });
+  }
+  
+  // Get next midnight (12 AM)
+  DateTime _getNextMidnight(DateTime now) {
+    final today = DateTime(now.year, now.month, now.day);
+    final midnightToday = DateTime(today.year, today.month, today.day, 0, 0, 0);
+    
+    // If it's past midnight today, next backup is tomorrow at midnight
+    if (now.isAfter(midnightToday)) {
+      return midnightToday.add(const Duration(days: 1));
+    } else {
+      // If it's before midnight today, next backup is today at midnight
+      return midnightToday;
+    }
+  }
+  
+  // Stop periodic backup checking
+  void _stopPeriodicBackupCheck() {
+    _backupCheckTimer?.cancel();
+    _backupCheckTimer = null;
+  }
 
-  // Check if backup is needed and create it automatically
+  // Check if backup is needed and create it automatically (called on app start/resume)
   Future<void> _checkAndCreateBackupIfNeeded() async {
+    try {
+      // Don't create backups when app starts/resumes
+      // Backups should only happen at scheduled 12 AM time
+      // This method is now disabled to prevent app lifecycle backups
+      return;
+    } catch (e) {
+      // Error checking backup status
+    }
+  }
+  
+  // Check for missed backups and create them (called when app opens)
+  Future<void> checkForMissedBackups() async {
     try {
       final lastBackup = await getLastAutomaticBackupTime();
       final now = DateTime.now();
       
+      // Don't create backup when app opens - only at scheduled 12 AM
+      // This method now just checks the status but doesn't create backups
+      
       if (lastBackup == null) {
-        // No backup exists, create one
-
-        await _createAutomaticBackup();
+        // No backup exists, but don't create one here - wait for 12 AM
         return;
       }
       
-      // Check if it's time for the next scheduled backup (12 AM)
-      final today = DateTime(now.year, now.month, now.day);
-      final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
+      // Just verify the backup schedule is working
+      // Actual backup creation happens only at midnight via timer
       
-      // If we haven't backed up today and it's past midnight, create backup
-      if (lastBackupDate.isBefore(today)) {
-
-        await _createAutomaticBackup();
-      } else {
-
-      }
     } catch (e) {
-
+      // Error checking for missed backups
     }
+  }
+  
+
+  // Cleanup method to stop timers
+  void dispose() {
+    _stopPeriodicBackupCheck();
+    _weeklyCleanup.dispose();
   }
 
   // Create automatic backup (called when app opens and backup is needed)
   Future<void> _createAutomaticBackup() async {
     try {
-
-      
       final backupId = await _dataService.createBackup(isAutomatic: true);
       
-      if (backupId != null) {
+      if (backupId.isNotEmpty) {
         await setLastAutomaticBackupTime(DateTime.now());
-
         
-        // Show success notification
-        await _notificationService.showSuccessNotification(
-          title: 'Daily Backup Complete',
-          body: 'Your data has been automatically backed up',
-        );
+        // Daily backup completed successfully
+      } else {
+        throw Exception('Backup creation failed');
       }
     } catch (e) {
-
-      
-      // Show error notification
-      await _notificationService.showErrorNotification(
-        title: 'Backup Failed',
-        body: 'Automatic backup failed: $e',
-      );
+      // Backup failed
     }
   }
 
@@ -144,53 +188,23 @@ class BackupService {
     return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
   }
 
-  // Schedule daily backup notification at 12 AM
-  Future<void> _scheduleDailyBackupNotification() async {
-    // Ensure timezone is initialized
-    _ensureTimezoneInitialized();
-    
-    // Cancel any existing notifications
-    await _notifications.cancelAll();
-    
-    // Calculate next 12 AM
-    final now = DateTime.now();
-    final tomorrow = now.add(const Duration(days: 1));
-    final nextBackup = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0);
-    
-    // Schedule notification
-    await _notifications.zonedSchedule(
-      1001, // Unique ID for backup notification
-      'Daily Backup Reminder',
-      'Open the app to create your daily backup and keep your data safe',
-      _nextInstanceOfMidnight(),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'backup_channel',
-          'Backup Reminders',
-          channelDescription: 'Daily backup reminders',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
-    
 
+  // Timezone functionality disabled
+  DateTime _nextInstanceOf11PM() {
+    final DateTime now = DateTime.now();
+    DateTime scheduledDate = DateTime(now.year, now.month, now.day, 23, 0, 0);
+    
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    
+    return scheduledDate;
   }
 
-  // Get next instance of midnight (12 AM)
-  tz.TZDateTime _nextInstanceOfMidnight() {
-    // Ensure timezone is initialized
-    _ensureTimezoneInitialized();
-    
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 0, 0, 0);
+  // Timezone functionality disabled
+  DateTime _nextInstanceOfMidnight() {
+    final DateTime now = DateTime.now();
+    DateTime scheduledDate = DateTime(now.year, now.month, now.day, 0, 0, 0);
     
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
@@ -216,11 +230,11 @@ class BackupService {
     }
     
     if (enabled) {
-      await _scheduleDailyBackupNotification();
+      _startPeriodicBackupCheck();
       // Check if backup is needed immediately
       await _checkAndCreateBackupIfNeeded();
     } else {
-      await _notifications.cancelAll();
+      _stopPeriodicBackupCheck();
     }
   }
 
@@ -356,9 +370,7 @@ class BackupService {
       return true; // If disabled, state is valid
     }
     
-    // Check if notification is scheduled
-    final pendingNotifications = await _notifications.pendingNotificationRequests();
-    return pendingNotifications.any((notification) => notification.id == 1001);
+    return false;
   }
 
   // Get available backups
@@ -394,22 +406,14 @@ class BackupService {
         // Track manual backup time separately
         await setLastManualBackupTime(DateTime.now());
         
-        // Show success notification
-        await _notificationService.showSuccessNotification(
-          title: 'Backup Created',
-          body: 'Your data has been backed up successfully',
-        );
+        // Backup created successfully
       }
       
       return backupId;
     } catch (e) {
 
       
-      // Show error notification
-      await _notificationService.showErrorNotification(
-        title: 'Backup Failed',
-        body: 'Failed to create backup: $e',
-      );
+      // Backup creation failed
       
       return null;
     }
@@ -441,15 +445,5 @@ class BackupService {
 
       return false;
     }
-  }
-
-  // Handle backup notification tap (now just opens the app)
-  Future<void> handleBackupNotificationTap() async {
-    // The notification now just serves as a reminder to open the app
-    // The actual backup creation happens automatically when the app opens
-
-    
-    // Check if backup is needed
-    await _checkAndCreateBackupIfNeeded();
   }
 } 

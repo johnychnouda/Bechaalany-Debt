@@ -37,6 +37,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
+      // Backup subcollection - private to each user
+      match /backups/{backupId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
       // Activities subcollection - private to each user
       match /activities/{activityId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -48,13 +53,6 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // Backups collection - users can only access their own backups
-    match /backups/{backupId} {
-      allow read, write: if request.auth != null 
-        && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null 
-        && request.auth.uid == request.resource.data.userId;
-    }
     
     // Notifications collection - users can only access their own notifications
     match /notifications/{notificationId} {

@@ -1,11 +1,11 @@
-import 'notification_service.dart';
+// Notification service import removed
 
 class AppUpdateService {
   static final AppUpdateService _instance = AppUpdateService._internal();
   factory AppUpdateService() => _instance;
   AppUpdateService._internal();
 
-  final NotificationService _notificationService = NotificationService();
+  // Notification service removed
 
   /// Check for app updates and show notification if available
   Future<void> checkForUpdates() async {
@@ -15,10 +15,7 @@ class AppUpdateService {
       final hasUpdate = await _checkForUpdateAvailable();
       
       if (hasUpdate) {
-        await _notificationService.showInfoNotification(
-          title: 'App Update Available',
-          body: 'New version with improved features available',
-        );
+        // App update available
       }
     } catch (e) {
       // Handle error silently - app update checking is optional
@@ -40,17 +37,11 @@ class AppUpdateService {
 
   /// Force check for updates (for testing purposes)
   Future<void> forceCheckForUpdates() async {
-    await _notificationService.showInfoNotification(
-      title: 'App Update Available',
-      body: 'New version with improved features available',
-    );
+    // App update available
   }
 
   /// Manually trigger app update notification (for testing)
   Future<void> triggerUpdateNotification() async {
-    await _notificationService.showInfoNotification(
-      title: 'App Update Available',
-      body: 'New version with improved features available',
-    );
+    // App update available
   }
 }

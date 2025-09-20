@@ -5,7 +5,6 @@ import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
-import '../services/notification_service.dart';
 import 'add_debt_from_product_screen.dart';
 import 'customer_debt_receipt_screen.dart';
 
@@ -238,8 +237,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       _filterDebts(); // Re-filter after status change
     } catch (e) {
       if (mounted) {
-        // Show error notification
-        final notificationService = NotificationService();
+        // Error occurred
       }
     }
   }
@@ -396,8 +394,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
                   _filterDebts(); // Re-filter after deletion
                 } catch (e) {
                   if (mounted) {
-                    // Show error notification
-                    final notificationService = NotificationService();
+                    // Error occurred
                   }
                 }
               },
@@ -715,12 +712,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         );
         
       } catch (e) {
-        // Show detailed error
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Navigation Error',
-          body: 'Failed to open receipt: $e\n\nCustomer: ${customer.name}\nDebt ID: ${specificDebt.id}',
-        );
+        // Navigation error occurred
         
       }
       
@@ -729,12 +721,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
         _filterDebts();
       }
     } catch (e) {
-      // Show error notification if navigation fails
-      final notificationService = NotificationService();
-      await notificationService.showErrorNotification(
-        title: 'Navigation Error',
-        body: 'Failed to open receipt: $e',
-      );
+      // Navigation error occurred
     }
   }
 

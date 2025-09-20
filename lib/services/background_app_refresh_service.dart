@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'data_service.dart';
-import 'notification_service.dart';
+// Notification service import removed
 
 class BackgroundAppRefreshService {
   static final BackgroundAppRefreshService _instance = BackgroundAppRefreshService._internal();
@@ -10,7 +12,7 @@ class BackgroundAppRefreshService {
   BackgroundAppRefreshService._internal();
 
   final DataService _dataService = DataService();
-  final NotificationService _notificationService = NotificationService();
+  // Notification service removed
   bool _isInitialized = false;
   Timer? _midnightTimer;
 
@@ -114,23 +116,28 @@ class BackgroundAppRefreshService {
         await _setLastAutomaticBackupTime(DateTime.now());
         
         
-        // Send success notification
-        await _notificationService.showDailyBackupSuccessNotification();
+        // Backup completed successfully
       } else {
         
-        // Send error notification
-        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed at midnight');
+        // Backup failed
       }
     } catch (e) {
       
-      // Send error notification
-      await _notificationService.showBackupFailedNotification('An error occurred during midnight backup');
+      // Backup error occurred
     }
   }
 
   // Perform backup in background (called by iOS Background App Refresh)
   Future<void> _performBackgroundBackup() async {
     try {
+      final now = DateTime.now();
+      
+      // Only allow backups at midnight (12:00 AM to 12:01 AM)
+      final isAroundMidnight = now.hour == 0 && now.minute <= 1;
+      if (!isAroundMidnight) {
+        return; // Not midnight, don't backup
+      }
+      
       // Check if automatic backup is enabled
       final isEnabled = await _isAutomaticBackupEnabled();
       if (!isEnabled) {
@@ -143,7 +150,6 @@ class BackgroundAppRefreshService {
         return;
       }
 
-      
       // Create backup
       final backupId = await _dataService.createBackup(isAutomatic: true);
       
@@ -151,18 +157,12 @@ class BackgroundAppRefreshService {
         // Update last backup time
         await _setLastAutomaticBackupTime(DateTime.now());
         
-        
-        // Send success notification
-        await _notificationService.showDailyBackupSuccessNotification();
+        // Backup completed successfully
       } else {
-        
-        // Send error notification
-        await _notificationService.showBackupFailedNotification('Automatic backup could not be completed');
+        // Backup failed
       }
     } catch (e) {
-      
-      // Send error notification
-      await _notificationService.showBackupFailedNotification('An error occurred during automatic backup');
+      // Backup error occurred
     }
   }
 
@@ -182,16 +182,26 @@ class BackgroundAppRefreshService {
       final lastBackup = await _getLastAutomaticBackupTime();
       final now = DateTime.now();
       
+      // Only create backup if:
+      // 1. It's exactly midnight (12 AM) - within a 1-minute window
+      // 2. We haven't backed up today
+      
+      // Check if it's around midnight (12:00 AM to 12:01 AM)
+      final isAroundMidnight = now.hour == 0 && now.minute <= 1;
+      
+      if (!isAroundMidnight) {
+        return false; // Not midnight, don't backup
+      }
+      
       if (lastBackup == null) {
-        // No backup exists, create one
+        // No backup exists and it's midnight, create one
         return true;
       }
       
-      // Check if it's time for the next scheduled backup (112:00 AM)
       final today = DateTime(now.year, now.month, now.day);
       final lastBackupDate = DateTime(lastBackup.year, lastBackup.month, lastBackup.day);
       
-      // If we haven't backed up today and it's past midnight, create backup
+      // Only backup if we haven't backed up today and it's midnight
       return lastBackupDate.isBefore(today);
     } catch (e) {
       return false;
@@ -201,20 +211,38 @@ class BackgroundAppRefreshService {
   // Get last automatic backup time
   Future<DateTime?> _getLastAutomaticBackupTime() async {
     try {
-      // SharedPreferences removed - using Firebase only
-      final timestamp = 0; // Default value
-      return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .get();
+        
+        if (doc.exists) {
+          final timestamp = doc.data()!['last_automatic_backup_time'];
+          return timestamp != null ? DateTime.fromMillisecondsSinceEpoch(timestamp) : null;
+        }
+      }
     } catch (e) {
       return null;
     }
+    return null;
   }
 
   // Set last automatic backup time
   Future<void> _setLastAutomaticBackupTime(DateTime time) async {
     try {
-      // SharedPreferences removed - using Firebase only
-        // SharedPreferences removed - using Firebase only
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('user_settings')
+            .doc(user.uid)
+            .set({
+          'last_automatic_backup_time': time.millisecondsSinceEpoch,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
+      // Error saving setting
     }
   }
 

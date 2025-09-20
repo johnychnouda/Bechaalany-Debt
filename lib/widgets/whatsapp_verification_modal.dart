@@ -130,8 +130,8 @@ class _WhatsAppVerificationModalState extends State<WhatsAppVerificationModal> {
                     children: [
                       Text(
                         'WhatsApp Verification',
-                        style: AppTheme.headline3.copyWith(
-                          color: AppColors.dynamicText(context),
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
                         ),
                       ),

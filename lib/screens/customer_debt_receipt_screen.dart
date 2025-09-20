@@ -15,7 +15,6 @@ import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/partial_payment.dart';
 import '../models/activity.dart';
-import '../services/notification_service.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
 import '../utils/logo_utils.dart';
@@ -941,7 +940,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     try {
       await _exportAsPDF();
     } catch (e) {
-      final notificationService = NotificationService();
+      // Notification service removed
     }
   }
   
@@ -1225,12 +1224,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       );
       
       if (success) {
-        final notificationService = NotificationService();
+        // Notification service removed
       } else {
-        final notificationService = NotificationService();
+        // Notification service removed
       }
     } catch (e) {
-      final notificationService = NotificationService();
+      // Notification service removed
     }
   }
   
@@ -1246,12 +1245,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       );
       
       if (success) {
-        final notificationService = NotificationService();
+        // Notification service removed
       } else {
-        final notificationService = NotificationService();
+        // Notification service removed
       }
     } catch (e) {
-      final notificationService = NotificationService();
+      // Notification service removed
     }
   }
   
@@ -1272,20 +1271,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         await SharePlus.Share.shareXFiles([XFile(pdfFile.path)]);
         
         if (mounted) {
-          final notificationService = NotificationService();
-          await notificationService.showSuccessNotification(
-            title: 'Receipt Saved',
-            body: 'Receipt has been saved to your device',
-          );
+          // Receipt saved successfully
         }
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Save Error',
-          body: 'Failed to save receipt: $e',
-        );
+        // Save error occurred
       }
     }
   }
@@ -1308,19 +1299,11 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       await SharePlus.Share.shareXFiles([XFile(file.path)]);
       
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showSuccessNotification(
-          title: 'PDF Exported',
-          body: 'Receipt has been exported successfully',
-        );
+        // PDF exported successfully
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Export Error',
-          body: 'Failed to export PDF: $e',
-        );
+        // Export error occurred
       }
     }
   }
@@ -1881,11 +1864,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       }
     } catch (e) {
       if (mounted) {
-        final notificationService = NotificationService();
-        await notificationService.showErrorNotification(
-          title: 'Delete Error',
-          body: 'Failed to delete debt: $e',
-        );
+        // Delete error occurred
       }
     }
   }
