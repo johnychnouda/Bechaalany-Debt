@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 import 'firebase_options.dart';
 import 'constants/app_theme.dart';
+import 'constants/platform_theme.dart';
 import 'providers/app_state.dart';
 import 'screens/splash_screen.dart';
 import 'screens/sign_in_screen.dart';
@@ -20,18 +22,32 @@ import 'services/app_update_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Configure status bar for iOS 18+ (default)
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-      // iOS 18+ specific settings
-      systemStatusBarContrastEnforced: true,
-    ),
-  );
+  // Configure status bar based on platform
+  if (Platform.isIOS) {
+    // iOS 18+ specific settings
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemStatusBarContrastEnforced: true,
+      ),
+    );
+  } else {
+    // Android 16 specific settings
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Color(0xFFFEF7FF),
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Color(0xFFE7E0EC),
+      ),
+    );
+  }
   
   try {
     // Initialize Firebase
@@ -158,6 +174,48 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     }
   }
 
+  SystemUiOverlayStyle _getSystemUIOverlayStyle(bool isDarkMode) {
+    if (Platform.isIOS) {
+      // iOS 18+ specific settings
+      return isDarkMode 
+        ? const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Colors.black,
+            systemNavigationBarIconBrightness: Brightness.light,
+            systemStatusBarContrastEnforced: true,
+          )
+        : const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+            systemNavigationBarColor: Colors.white,
+            systemNavigationBarIconBrightness: Brightness.dark,
+            systemStatusBarContrastEnforced: true,
+          );
+    } else {
+      // Android 16 specific settings
+      return isDarkMode 
+        ? const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+            statusBarBrightness: Brightness.dark,
+            systemNavigationBarColor: Color(0xFF141218),
+            systemNavigationBarIconBrightness: Brightness.light,
+            systemNavigationBarDividerColor: Color(0xFF49454F),
+          )
+        : const SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+            systemNavigationBarColor: Color(0xFFFEF7FF),
+            systemNavigationBarIconBrightness: Brightness.dark,
+            systemNavigationBarDividerColor: Color(0xFFE7E0EC),
+          );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -168,8 +226,8 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
         builder: (context, appState, child) {
           return MaterialApp(
             title: 'Bechaalany Connect',
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
+            theme: PlatformTheme.getLightTheme(context),
+            darkTheme: PlatformTheme.getDarkTheme(context),
             themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
@@ -180,21 +238,7 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
                   textScaler: TextScaler.linear(1.0), // Use our custom text scaling
                 ),
                 child: AnnotatedRegion<SystemUiOverlayStyle>(
-                  value: appState.isDarkMode 
-                    ? const SystemUiOverlayStyle(
-                        statusBarColor: Colors.transparent,
-                        statusBarIconBrightness: Brightness.light,
-                        statusBarBrightness: Brightness.dark,
-                        systemNavigationBarColor: Colors.black,
-                        systemNavigationBarIconBrightness: Brightness.light,
-                      )
-                    : const SystemUiOverlayStyle(
-                        statusBarColor: Colors.transparent,
-                        statusBarIconBrightness: Brightness.dark,
-                        statusBarBrightness: Brightness.light,
-                        systemNavigationBarColor: Colors.white,
-                        systemNavigationBarIconBrightness: Brightness.dark,
-                      ),
+                  value: _getSystemUIOverlayStyle(appState.isDarkMode),
                   child: child!,
                 ),
               );

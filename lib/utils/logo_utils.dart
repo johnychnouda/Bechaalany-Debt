@@ -6,7 +6,7 @@ class LogoUtils {
   static String getLogoAsset(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return isDarkMode 
-        ? 'assets/images/Logolightmode.svg' 
+        ? 'assets/images/Logodarkmode.svg' 
         : 'assets/images/Logolightmode.svg';
   }
 

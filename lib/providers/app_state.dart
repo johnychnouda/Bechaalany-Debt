@@ -2530,12 +2530,29 @@ class AppState extends ChangeNotifier {
         return;
       }
       
-      // Create a new partial payment record
+      // Create a new partial payment record with unique ID
+      // Use timestamp + random component to prevent duplicates
+      final now = DateTime.now();
+      final randomSuffix = (now.microsecondsSinceEpoch % 10000).toString().padLeft(4, '0');
+      final uniqueId = '${now.millisecondsSinceEpoch}_$randomSuffix';
+      
+      // Check for duplicate payments within the last 5 seconds to prevent double-tapping
+      final recentPayments = _partialPayments.where((payment) => 
+        payment.debtId == debtId && 
+        payment.amount == paymentAmount &&
+        payment.paidAt.isAfter(now.subtract(const Duration(seconds: 5)))
+      ).toList();
+      
+      if (recentPayments.isNotEmpty) {
+        // Duplicate payment detected, don't create another one
+        return;
+      }
+      
       final partialPayment = PartialPayment(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: uniqueId,
         debtId: debtId,
         amount: paymentAmount,
-        paidAt: DateTime.now(),
+        paidAt: now,
       );
       
       // Add the partial payment to storage
@@ -2642,12 +2659,16 @@ class AppState extends ChangeNotifier {
         // Calculate how much of the remaining payment to apply to this debt
         final paymentForThisDebt = remainingPayment > currentRemaining ? currentRemaining : remainingPayment;
         
-        // Create partial payment record
+        // Create partial payment record with unique ID
+        final now = DateTime.now();
+        final randomSuffix = (now.microsecondsSinceEpoch % 10000).toString().padLeft(4, '0');
+        final uniqueId = '${now.millisecondsSinceEpoch}_${updatedDebts}_$randomSuffix';
+        
         final partialPayment = PartialPayment(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$updatedDebts',
+          id: uniqueId,
           debtId: currentDebt.id,
           amount: paymentForThisDebt,
-          paidAt: DateTime.now(),
+          paidAt: now,
         );
         
         // Add to storage
