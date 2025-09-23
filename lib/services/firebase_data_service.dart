@@ -6,7 +6,6 @@ import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
 import '../models/activity.dart';
-import '../models/partial_payment.dart';
 
 class FirebaseDataService {
   static final FirebaseDataService _instance = FirebaseDataService._internal();
@@ -61,10 +60,7 @@ class FirebaseDataService {
   }
 
   // Local storage for partial payments
-  List<PartialPayment> _partialPayments = [];
-
-  // Getter for partial payments
-  List<PartialPayment> get partialPayments => _partialPayments;
+  // Note: Partial payments are now handled as activities only
 
   // ===== CUSTOMERS =====
   
@@ -322,96 +318,13 @@ class FirebaseDataService {
         .delete();
   }
 
-  // ===== PARTIAL PAYMENTS =====
-  
-  // Add/Update partial payment
-  Future<void> addOrUpdatePartialPayment(PartialPayment payment) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    final paymentData = payment.toJson();
-    paymentData['lastUpdated'] = FieldValue.serverTimestamp();
-    // Remove userId from data since it's now implicit in the path structure
-    
-    await _firestore
-        .collection('users')
-        .doc(currentUserId!)
-        .collection('partial_payments')
-        .doc(payment.id)
-        .set(paymentData, SetOptions(merge: true));
-    
-    // Update local list
-    final index = _partialPayments.indexWhere((p) => p.id == payment.id);
-    if (index >= 0) {
-      _partialPayments[index] = payment;
-    } else {
-      _partialPayments.add(payment);
-    }
-  }
+  // Note: Partial payments are now handled as activities only
 
-  // Get all partial payments for current user
-  Stream<List<PartialPayment>> getPartialPaymentsStream() {
-    if (!isAuthenticated) {
-      return Stream.value([]);
-    }
-    
-    return _firestore
-        .collection('users')
-        .doc(currentUserId!)
-        .collection('partial_payments')
-        .snapshots()
-        .map((snapshot) {
-          final payments = snapshot.docs
-              .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-              .toList();
-          
-          // Update local list
-          _partialPayments = payments;
-          
-          return payments;
-        });
-  }
+  // Note: Partial payments are now handled as activities only
   
-  // Get partial payments directly
-  Future<List<PartialPayment>> getPartialPaymentsDirectly() async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      // Get partial payments from user-specific subcollection
-      var querySnapshot = await _firestore
-          .collection('users')
-          .doc(currentUserId!)
-          .collection('partial_payments')
-          .get();
-      
-      // No need for fallback since data is user-specific
-      
-      final partialPayments = querySnapshot.docs
-          .map((doc) => PartialPayment.fromJson(doc.data()))
-          .toList();
-      
-      // Update local list
-      _partialPayments = partialPayments;
-      
-      return partialPayments;
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
 
-  // Delete partial payment
-  Future<void> deletePartialPayment(String paymentId) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    await _firestore
-        .collection('users')
-        .doc(currentUserId!)
-        .collection('partial_payments')
-        .doc(paymentId)
-        .delete();
-    
-    // Remove from local list
-    _partialPayments.removeWhere((p) => p.id == paymentId);
-  }
+  // Note: Partial payments are now handled as activities only
 
   // ===== CURRENCY SETTINGS =====
   
@@ -509,7 +422,7 @@ class FirebaseDataService {
         await addOrUpdateDebt(item as Debt);
         break;
       case 'partial_payments':
-        await addOrUpdatePartialPayment(item as PartialPayment);
+        // Note: Partial payments are now handled as activities only
         break;
       case 'currency_settings':
         await addOrUpdateCurrencySettings(item as CurrencySettings);
@@ -790,105 +703,15 @@ class FirebaseDataService {
     });
   }
   
-  // Get debt history
-  Future<List<PartialPayment>> getDebtHistory(String debtId) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final snapshot = await _firestore
-          .collection('partial_payments')
-          .where('debtId', isEqualTo: debtId)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Debt history is now handled by activities only
   
-  // Get partial payments by debt
-  Future<List<PartialPayment>> getPartialPaymentsByDebt(String debtId) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final snapshot = await _firestore
-          .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
-          .where('debtId', isEqualTo: debtId)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
-  // Get partial payments by customer
-  Future<List<PartialPayment>> getPartialPaymentsByCustomer(String customerId) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final snapshot = await _firestore
-          .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
-          .where('customerId', isEqualTo: customerId)
-          .orderBy('createdAt', descending: true)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
-  // Get partial payments by date range
-  Future<List<PartialPayment>> getPartialPaymentsByDateRange(DateTime start, DateTime end) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final snapshot = await _firestore
-          .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .where((payment) => 
-            payment.paidAt.isAfter(start) && payment.paidAt.isBefore(end))
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
-  // Search partial payments
-  Future<List<PartialPayment>> searchPartialPayments(String query) async {
-    if (!isAuthenticated) return [];
-    
-    try {
-      final queryLower = query.toLowerCase();
-      final snapshot = await _firestore
-          .collection('partial_payments')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
-      
-      return snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .where((payment) => 
-            payment.debtId.toLowerCase().contains(queryLower))
-          .toList();
-    } catch (e) {
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
   // Get product purchases by customer
   Future<List<ProductPurchase>> getProductPurchasesByCustomer(String customerId) async {
@@ -1759,20 +1582,30 @@ class FirebaseDataService {
   
   // ===== ANALYTICS & REPORTING =====
   
-  // Get revenue by period
+  // Get revenue by period (now using activities)
   Future<double> getRevenueByPeriod(DateTime start, DateTime end) async {
     if (!isAuthenticated) return 0.0;
     
     try {
-      final snapshot = await _firestore.collection('partial_payments').get();
+      // Get payment activities for the period
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('activities')
+          .where('type', isEqualTo: 'payment')
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+          .get();
       
-      final List<PartialPayment> payments = snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .where((payment) => 
-            payment.paidAt.isAfter(start) && payment.paidAt.isBefore(end))
-          .toList();
+      double totalRevenue = 0.0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (data['amount'] != null) {
+          totalRevenue += (data['amount'] as num).toDouble();
+        }
+      }
       
-      return payments.fold<double>(0.0, (double sum, PartialPayment payment) => sum + payment.amount);
+      return totalRevenue;
     } catch (e) {
       return 0.0;
     }
@@ -1792,8 +1625,8 @@ class FirebaseDataService {
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
           .toList();
       
-      final totalDebt = debts.fold(0.0, (sum, debt) => sum + debt.amount);
-      final totalPaid = debts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+      final totalDebt = debts.fold(0.0, (total, debt) => total + debt.amount);
+      final totalPaid = debts.fold(0.0, (total, debt) => total + debt.paidAmount);
       final pendingAmount = totalDebt - totalPaid;
       
       return {
@@ -1808,24 +1641,29 @@ class FirebaseDataService {
     }
   }
   
-  // Get payment trends
+  // Get payment trends (now using activities)
   Future<List<Map<String, dynamic>>> getPaymentTrends(DateTime start, DateTime end) async {
     if (!isAuthenticated) return [];
     
     try {
-      final snapshot = await _firestore.collection('partial_payments').get();
-      
-      final payments = snapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .where((payment) => 
-            payment.paidAt.isAfter(start) && payment.paidAt.isBefore(end))
-          .toList();
+      // Get payment activities for the period
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
+          .collection('activities')
+          .where('type', isEqualTo: 'payment')
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+          .get();
       
       // Group by date
       final groupedPayments = <String, double>{};
-      for (final payment in payments) {
-        final dateKey = '${payment.paidAt.year}-${payment.paidAt.month.toString().padLeft(2, '0')}-${payment.paidAt.day.toString().padLeft(2, '0')}';
-        groupedPayments[dateKey] = (groupedPayments[dateKey] ?? 0.0) + payment.amount;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final date = (data['date'] as Timestamp).toDate();
+        final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+        groupedPayments[dateKey] = (groupedPayments[dateKey] ?? 0.0) + amount;
       }
       
       return groupedPayments.entries
@@ -1995,23 +1833,27 @@ class FirebaseDataService {
       final debtsSnapshot = await _firestore.collection('debts').get();
       final categoriesSnapshot = await _firestore.collection('categories').get();
       final purchasesSnapshot = await _firestore.collection('product_purchases').get();
-      final paymentsSnapshot = await _firestore.collection('partial_payments').get();
       final activitiesSnapshot = await _firestore.collection('activities').get();
       
       final totalDebt = debtsSnapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
-          .fold(0.0, (sum, debt) => sum + debt.amount);
+          .fold(0.0, (total, debt) => total + debt.amount);
       
-      final totalPaid = paymentsSnapshot.docs
-          .map((doc) => PartialPayment.fromJson({...doc.data(), 'id': doc.id}))
-          .fold(0.0, (sum, payment) => sum + payment.amount);
+      // Calculate total paid from payment activities
+      double totalPaid = 0.0;
+      for (final doc in activitiesSnapshot.docs) {
+        final data = doc.data();
+        if (data['type'] == 'payment' && data['amount'] != null) {
+          totalPaid += (data['amount'] as num).toDouble();
+        }
+      }
       
       return {
         'totalCustomers': customersSnapshot.docs.length,
         'totalDebts': debtsSnapshot.docs.length,
         'totalCategories': categoriesSnapshot.docs.length,
         'totalProductPurchases': purchasesSnapshot.docs.length,
-        'totalPartialPayments': paymentsSnapshot.docs.length,
+        'totalPartialPayments': 0, // Note: Partial payments are now handled as activities
         'totalActivities': activitiesSnapshot.docs.length,
         'totalDebtAmount': totalDebt,
         'totalPaidAmount': totalPaid,
@@ -2058,41 +1900,7 @@ class FirebaseDataService {
     }
   }
   
-  // Clear all partial payments for current user
-  Future<void> clearPartialPayments() async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
-    
-    try {
-      // Get all partial payments for current user only
-      final paymentsSnapshot = await _firestore
-          .collection('users')
-          .doc(currentUserId!)
-          .collection('partial_payments')
-          .get()
-          .timeout(const Duration(seconds: 30)); // Add timeout protection
-      
-      if (paymentsSnapshot.docs.isEmpty) {
-        return;
-      }
-      
-      // Delete each payment document
-      final batch = _firestore.batch();
-      for (final doc in paymentsSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
-      
-      // Commit the batch deletion with timeout
-      await batch.commit().timeout(const Duration(seconds: 30));
-      
-      // Clear local list
-      _partialPayments.clear();
-    } catch (e) {
-      if (e.toString().contains('timeout')) {
-        throw Exception('Timeout while clearing partial payments. Please try again.');
-      }
-      rethrow;
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
   // Clear all activities for current user
   Future<void> clearActivities() async {
@@ -2180,7 +1988,7 @@ class FirebaseDataService {
     try {
       // Clear all collections for current user only
       await clearDebts();
-      await clearPartialPayments();
+      // Note: Partial payments are now handled as activities only
       await clearActivities();
       
       // Clear customers for current user

@@ -165,10 +165,10 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.warning, color: Colors.orange),
-                SizedBox(width: 12),
+                const Icon(Icons.warning, color: Colors.orange),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
+                  child: const Text(
                     'No categories available',
                     style: TextStyle(
                       color: Colors.orange,
@@ -179,8 +179,8 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 ),
               ],
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               'You need to add categories and products first. Go to the Products tab to create categories and products.',
               style: TextStyle(
                 color: Colors.orange,

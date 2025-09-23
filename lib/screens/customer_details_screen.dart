@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:cross_file/cross_file.dart';import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
-import '../models/partial_payment.dart';
 
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
@@ -67,64 +66,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     // Customer debts are loaded in build method
   }
   
-  // Helper method to get all partial payments for the current customer
-  // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
-  List<PartialPayment> _getCustomerPartialPayments(AppState appState) {
-    return appState.partialPayments.where((p) {
-      // First try to find the debt this payment was made for
-      final linkedDebt = appState.debts.firstWhere(
-        (d) => d.id == p.debtId,
-        orElse: () => Debt(
-          id: p.debtId,
-          customerId: _currentCustomer.id,
-          customerName: _currentCustomer.name,
-          amount: 0,
-          description: 'Unknown Product',
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: p.paidAt,
-          subcategoryId: null,
-          subcategoryName: null,
-          originalSellingPrice: null,
-          originalCostPrice: null,
-          categoryName: null,
-          storedCurrency: 'USD',
-        ),
-      );
-      
-      // Include the payment if it's for this customer
-      return linkedDebt.customerId == _currentCustomer.id;
-    }).toList();
-  }
-  
-  // Helper method to get all partial payments for a specific customer
-  List<PartialPayment> _getCustomerPartialPaymentsById(AppState appState, String customerId, String customerName) {
-    return appState.partialPayments.where((p) {
-      // First try to find the debt this payment was made for
-      final linkedDebt = appState.debts.firstWhere(
-        (d) => d.id == p.debtId,
-        orElse: () => Debt(
-          id: p.debtId,
-          customerId: customerId,
-          customerName: customerName,
-          amount: 0,
-          description: 'Unknown Product',
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: p.paidAt,
-          subcategoryId: null,
-          subcategoryName: null,
-          originalSellingPrice: null,
-          originalCostPrice: null,
-          categoryName: null,
-          storedCurrency: 'USD',
-        ),
-      );
-      
-      // Include the payment if it's for this customer
-      return linkedDebt.customerId == customerId;
-    }).toList();
-  }
+  // Note: Partial payments are now handled as activities only
   
   // Helper method to get current debt cycle (show ONLY products with remaining amounts)
   List<Debt> _getCurrentDebtCycle(List<Debt> allCustomerDebts) {
@@ -327,7 +269,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -436,9 +378,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // Get customer data
       final customerDebts = appState.debts.where((d) => d.customerId == _currentCustomer.id).toList();
       
-      // Include ALL partial payments for this customer, not just those linked to existing debts
-      // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
-      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      // Note: Partial payments are now handled as activities only
       
       final customerActivities = appState.activities.where((a) => a.customerId == _currentCustomer.id).toList();
       
@@ -447,7 +387,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       // Check if customer has pending debts OR has made any payments
       final hasPendingDebts = customerDebts.any((debt) => debt.remainingAmount > 0);
-      final hasAnyPayments = customerPartialPayments.isNotEmpty || customerActivities.any((a) => a.type == ActivityType.payment);
+      final hasAnyPayments = customerActivities.any((a) => a.type == ActivityType.payment);
       
       if (!hasPendingDebts && !hasAnyPayments) {
         return;
@@ -457,7 +397,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
         customer: _currentCustomer,
         debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        partialPayments: customerPartialPayments,
+        // Note: Partial payments are now handled as activities only
         activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
         specificDate: null, // No specific date filter
         specificDebtId: null, // No specific debt filter
@@ -481,20 +421,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         }
       }
     } catch (e) {
-
-      
+      // Handle PDF generation errors gracefully
     }
   }
   
   Future<void> _shareReceiptViaWhatsApp(AppState appState) async {
     try {
-      // Include ALL partial payments for this customer, not just those linked to existing debts
-      final customerPartialPayments = _getCustomerPartialPaymentsById(appState, widget.customer.id, widget.customer.name);
+      // Note: Partial payments are now handled as activities only
       
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
         widget.customer,
         appState.debts.where((d) => d.customerId == widget.customer.id).toList(),
-        customerPartialPayments,
         appState.activities.where((a) => a.customerId == widget.customer.id).toList(),
         null, // No specific date filter
         null, // No specific debt filter
@@ -503,6 +440,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       if (success) {
       }
     } catch (e) {
+      // Handle WhatsApp sharing errors gracefully
     }
   }
 
@@ -703,13 +641,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   Future<void> _shareReceiptViaEmail(AppState appState) async {
     try {
-      // Include ALL partial payments for this customer, not just those linked to existing debts
-      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      // Note: Partial payments are now handled as activities only
       
       final success = await ReceiptSharingService.shareReceiptViaEmail(
         _currentCustomer,
         appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        customerPartialPayments,
         appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
         null, // No specific date filter
         null, // No specific debt filter
@@ -724,14 +660,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   
   Future<void> _saveReceiptToIPhone(AppState appState) async {
     try {
-      // Include ALL partial payments for this customer, not just those linked to existing debts
-      final customerPartialPayments = _getCustomerPartialPayments(appState);
+      // Note: Partial payments are now handled as activities only
       
       // Generate PDF receipt
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
         customer: _currentCustomer,
         debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
-        partialPayments: customerPartialPayments,
+        // Note: Partial payments are now handled as activities only
         activities: appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
         specificDate: null, // No specific date filter
         specificDebtId: null, // No specific debt filter
@@ -739,7 +674,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       if (pdfFile != null) {
         // Use the existing share functionality to save to iPhone
-        await SharePlus.Share.shareXFiles([XFile(pdfFile.path)]);
+        await share_plus.Share.shareXFiles([XFile(pdfFile.path)]);
         
       } else {
       }

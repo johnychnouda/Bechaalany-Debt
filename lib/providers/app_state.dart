@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/activity.dart';
 import '../models/category.dart';
 import '../models/currency_settings.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/partial_payment.dart';
 import '../models/product_purchase.dart';
 import '../services/data_service.dart';
 import '../services/revenue_calculation_service.dart';
@@ -31,7 +28,6 @@ class AppState extends ChangeNotifier {
   List<ProductCategory> _categories = [];
   List<ProductPurchase> _productPurchases = [];
   List<Activity> _activities = [];
-  List<PartialPayment> _partialPayments = [];
   CurrencySettings? _currencySettings;
   
   // Loading states
@@ -116,14 +112,6 @@ class AppState extends ChangeNotifier {
     _customers = newCustomers;
   }
   List<Debt> get debts => _debts;
-  List<PartialPayment> get partialPayments {
-    try {
-      final payments = _dataService.partialPayments;
-      return payments;
-    } catch (e) {
-      return [];
-    }
-  }
   List<ProductCategory> get categories => _categories;
   List<ProductPurchase> get productPurchases => _productPurchases;
   List<Activity> get activities => _activities;
@@ -171,7 +159,7 @@ class AppState extends ChangeNotifier {
     _categories.clear();
     _productPurchases.clear();
     _activities.clear();
-    _partialPayments.clear();
+    // Note: Partial payments are now handled as activities only
     _currencySettings = null;
     
     // Clear cached calculations
@@ -263,35 +251,13 @@ class AppState extends ChangeNotifier {
       },
     );
     
-    // Listen to partial payments stream
-    _dataService.partialPaymentsFirebaseStream.listen(
-      (partialPayments) {
-        
-        // WEB APP FIX: Always update partial payments from Firebase stream for real-time updates
-        if (partialPayments.isNotEmpty) {
-          _partialPayments = List.from(partialPayments); // Create a new list to prevent reference issues
-        } else {
-          // If Firebase returns empty, set to empty (allows real-time removal)
-          _partialPayments = [];
-        }
-        
-        _clearDebtCache(); // Clear debt calculation cache when payments change
-        
-        
-        notifyListeners();
-      },
-      onError: (error) {
-        // CRITICAL: Don't clear partial payments on error - keep existing data
-        // Still notify listeners so UI can show error state if needed
-        notifyListeners();
-      },
-    );
+    // Note: Partial payments are now handled as activities only
     
     // Listen to product purchases stream
     _dataService.productPurchasesFirebaseStream.listen(
       (productPurchases) {
         
-        // WEB APP FIX: Always update product purchases from Firebase stream for real-time updates
+        // Always update product purchases from Firebase stream for real-time updates
         if (productPurchases.isNotEmpty) {
           _productPurchases = List.from(productPurchases); // Create a new list to prevent reference issues
         } else {
@@ -313,7 +279,7 @@ class AppState extends ChangeNotifier {
     _dataService.activitiesFirebaseStream.listen(
       (activities) {
         
-        // IMPROVED WEB APP FIX: Better handling of Firebase stream updates
+        // Better handling of Firebase stream updates
         if (activities.isNotEmpty) {
           _activities = List.from(activities); // Create a new list to prevent reference issues
           
@@ -411,7 +377,7 @@ class AppState extends ChangeNotifier {
   double get averageDebtAmount {
     final pendingDebts = _debts.where((d) => d.paidAmount == 0).toList();
     if (pendingDebts.isEmpty) return 0.0;
-    final totalAmount = pendingDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    final totalAmount = pendingDebts.fold<double>(0, (total, debt) => total + debt.amount);
     return totalAmount / pendingDebts.length;
   }
   
@@ -439,37 +405,7 @@ class AppState extends ChangeNotifier {
     // Fix floating-point precision issues by rounding to 2 decimal places
     totalPaid = ((totalPaid * 100).round() / 100);
     
-    // CRITICAL FIX: Also include partial payments that might not be reflected in debt records
-    // This ensures payment tracking consistency between Activity History and Customer Details
-    final customerPartialPayments = _partialPayments.where((p) {
-      // Find the debt this payment belongs to
-      final debt = _debts.firstWhere((d) => d.id == p.debtId, orElse: () => Debt(
-        id: '',
-        customerId: '',
-        customerName: '',
-        amount: 0.0,
-        description: '',
-        type: DebtType.credit,
-        status: DebtStatus.pending,
-        createdAt: DateTime.now(),
-      ));
-      return debt.customerId == customerId;
-    }).toList();
-    
-    // Calculate total from partial payments
-    double partialPaymentTotal = customerPartialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-    // Fix floating-point precision issues by rounding to 2 decimal places
-    partialPaymentTotal = ((partialPaymentTotal * 100).round() / 100);
-    
-    // CRITICAL: If we have partial payments but no debt records show payments,
-    // it means the payment was recorded but not applied to any debt
-    // In this case, we should use the partial payment total directly
-    if (partialPaymentTotal > 0 && totalPaid == 0) {
-      totalPaid = partialPaymentTotal;
-    } else if (partialPaymentTotal > totalPaid) {
-      // Use the higher of the two values to ensure consistency
-      totalPaid = partialPaymentTotal;
-    }
+    // Note: Partial payments are now handled as activities only
     
     // Fix floating-point precision issues by rounding to 2 decimal places
     return ((totalPaid * 100).round() / 100);
@@ -479,82 +415,8 @@ class AppState extends ChangeNotifier {
   // This ensures debt records are properly updated with payments
   Future<void> fixCustomerPaymentSynchronization(String customerId) async {
     try {
-      final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
-      final customerPartialPayments = _partialPayments.where((p) {
-        final debt = _debts.firstWhere((d) => d.id == p.debtId, orElse: () => Debt(
-          id: '',
-          customerId: '',
-          customerName: '',
-          amount: 0.0,
-          description: '',
-          type: DebtType.credit,
-          status: DebtStatus.pending,
-          createdAt: DateTime.now(),
-        ));
-        return debt.customerId == customerId;
-      }).toList();
-      
-      // Group payments by debt ID
-      final Map<String, List<PartialPayment>> paymentsByDebt = {};
-      for (final payment in customerPartialPayments) {
-        paymentsByDebt.putIfAbsent(payment.debtId, () => []).add(payment);
-      }
-      
-      // Update each debt with its actual paid amount from partial payments
-      bool hasUpdates = false;
-      for (final debt in customerDebts) {
-        final debtPayments = paymentsByDebt[debt.id] ?? [];
-        final actualPaidAmount = debtPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-        
-        // If the debt's paidAmount doesn't match the actual payments, fix it
-        if ((debt.paidAmount - actualPaidAmount).abs() > 0.01) {
-          final updatedDebt = debt.copyWith(
-            paidAmount: actualPaidAmount,
-            status: actualPaidAmount >= debt.amount ? DebtStatus.paid : DebtStatus.pending,
-          );
-          
-          // Update the debt in the list
-          final index = _debts.indexWhere((d) => d.id == debt.id);
-          if (index != -1) {
-            _debts[index] = updatedDebt;
-            await _dataService.updateDebt(updatedDebt);
-            hasUpdates = true;
-          }
-        }
-      }
-      
-      // CRITICAL: If no debt records were updated but we have partial payments,
-      // it means the payment might be applied to a different debt or there's a mismatch
-      if (!hasUpdates && customerPartialPayments.isNotEmpty) {
-        // Find the debt with the highest amount and apply the payment there
-        // This is a fallback for cases where payment debtId doesn't match any existing debt
-        final totalPaymentAmount = customerPartialPayments.fold(0.0, (sum, payment) => sum + payment.amount);
-        if (totalPaymentAmount > 0) {
-          // Find the largest debt for this customer
-          final largestDebt = customerDebts.isNotEmpty 
-              ? customerDebts.reduce((a, b) => a.amount > b.amount ? a : b)
-              : null;
-          
-          if (largestDebt != null) {
-            final updatedDebt = largestDebt.copyWith(
-              paidAmount: totalPaymentAmount,
-              status: totalPaymentAmount >= largestDebt.amount ? DebtStatus.paid : DebtStatus.pending,
-            );
-            
-            final index = _debts.indexWhere((d) => d.id == largestDebt.id);
-            if (index != -1) {
-              _debts[index] = updatedDebt;
-              await _dataService.updateDebt(updatedDebt);
-              hasUpdates = true;
-            }
-          }
-        }
-      }
-      
-      if (hasUpdates) {
-        _clearCache();
-        notifyListeners();
-      }
+      // Note: Payment synchronization is now handled by activities
+      // This method is kept for compatibility but no longer performs partial payment operations
     } catch (e) {
       // Silent fail - this is a background fix
     }
@@ -567,19 +429,23 @@ class AppState extends ChangeNotifier {
       final startOfMonth = DateTime(now.year, now.month, 1);
       final startOfYear = DateTime(now.year, 1, 1);
       
-      // Calculate monthly revenue
+      // Calculate monthly revenue from payment activities
       double monthlyRevenue = 0.0;
-      for (final payment in _partialPayments) {
-        if (payment.paidAt.isAfter(startOfMonth)) {
-          monthlyRevenue += payment.amount;
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.paymentAmount != null &&
+            activity.date.isAfter(startOfMonth)) {
+          monthlyRevenue += activity.paymentAmount!;
         }
       }
       
-      // Calculate yearly revenue
+      // Calculate yearly revenue from payment activities
       double yearlyRevenue = 0.0;
-      for (final payment in _partialPayments) {
-        if (payment.paidAt.isAfter(startOfYear)) {
-          yearlyRevenue += payment.amount;
+      for (final activity in _activities) {
+        if (activity.type == ActivityType.payment && 
+            activity.paymentAmount != null &&
+            activity.date.isAfter(startOfYear)) {
+          yearlyRevenue += activity.paymentAmount!;
         }
       }
       
@@ -665,7 +531,7 @@ class AppState extends ChangeNotifier {
     }
     
     // Revenue calculation service returns values in USD (same as debt amounts)
-    final revenue = RevenueCalculationService().calculateTotalRevenue(_debts, _partialPayments, activities: _activities, appState: this);
+    final revenue = RevenueCalculationService().calculateTotalRevenue(_debts, activities: _activities, appState: this);
     
     // CRITICAL: Round to exactly 2 decimal places to avoid floating-point precision errors
     final roundedRevenue = (revenue * 100).round() / 100;
@@ -821,7 +687,6 @@ class AppState extends ChangeNotifier {
     // Use the same RevenueCalculationService as the dashboard for consistency
     final revenue = RevenueCalculationService().calculateTotalRevenue(
       periodDebts, 
-      _partialPayments, 
       activities: periodActivities, 
       appState: this
     );
@@ -1050,7 +915,6 @@ class AppState extends ChangeNotifier {
   /// Also automatically fixes any new Syria tel debts with incorrect currency
   Future<void> fixSyriaTelDebt() async {
     try {
-      int fixedCount = 0;
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('syria tel')) {
@@ -1070,7 +934,6 @@ class AppState extends ChangeNotifier {
           final index = _debts.indexWhere((d) => d.id == debt.id);
           if (index != -1) {
             _debts[index] = updatedDebt;
-            fixedCount++;
           }
         }
       }
@@ -1086,23 +949,17 @@ class AppState extends ChangeNotifier {
   /// This prevents the issue from happening again
   Future<void> autoFixSyriaTelDebts() async {
     try {
-      int fixedCount = 0;
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('syria tel')) {
           bool needsFix = false;
-          String fixReason = '';
-          
           // Check for various issues that need fixing
           if (debt.storedCurrency == 'LBP' && debt.amount < 1.0) {
             needsFix = true;
-            fixReason = 'LBP currency with small amount';
           } else if (debt.amount == 0.0 || debt.amount < 0.1) {
             needsFix = true;
-            fixReason = 'Amount too small or zero';
           } else if (debt.storedCurrency != 'USD') {
             needsFix = true;
-            fixReason = 'Wrong currency: ${debt.storedCurrency}';
           }
           
           if (needsFix) {
@@ -1128,16 +985,13 @@ class AppState extends ChangeNotifier {
             final index = _debts.indexWhere((d) => d.id == debt.id);
             if (index != -1) {
               _debts[index] = updatedDebt;
-              fixedCount++;
             }
           }
         }
       }
       
-      if (fixedCount > 0) {
-        _clearCache();
-        notifyListeners();
-      }
+      _clearCache();
+      notifyListeners();
     } catch (e) {
       // Error during auto-fix of Syria tel debts
       // Don't rethrow - this is a background fix that shouldn't crash the app
@@ -1214,7 +1068,6 @@ class AppState extends ChangeNotifier {
   /// This bypasses migration and directly updates the debt
   Future<void> fixAlfaUshareDebtDirectly() async {
     try {
-      int fixedCount = 0;
       
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa')) {
@@ -1236,14 +1089,11 @@ class AppState extends ChangeNotifier {
             _debts[index] = updatedDebt;
           }
           
-          fixedCount++;
         }
       }
       
-      if (fixedCount > 0) {
-        _clearCache();
-        notifyListeners();
-      }
+      _clearCache();
+      notifyListeners();
     } catch (e) {
       // Error fixing alfa debts
     }
@@ -1404,6 +1254,7 @@ class AppState extends ChangeNotifier {
       
       for (final activity in _activities) {
         if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
+          // Group by customer, amount, and date (year-month-day) for duplicate detection
           final key = '${activity.customerId}_${activity.paymentAmount}_${activity.date.year}_${activity.date.month}_${activity.date.day}';
           if (!groupedActivities.containsKey(key)) {
             groupedActivities[key] = [];
@@ -1418,9 +1269,25 @@ class AppState extends ChangeNotifier {
         if (activities.length > 1) {
           // Sort by date (keep the earliest one)
           activities.sort((a, b) => a.date.compareTo(b.date));
-          // Mark all but the first one for removal
-          for (int i = 1; i < activities.length; i++) {
-            activitiesToRemove.add(activities[i]);
+          
+          // For each group, check if there are activities with the same timestamp (exact duplicates)
+          final Map<String, List<Activity>> timestampGroups = {};
+          for (final activity in activities) {
+            final timestampKey = '${activity.date.millisecondsSinceEpoch}';
+            if (!timestampGroups.containsKey(timestampKey)) {
+              timestampGroups[timestampKey] = [];
+            }
+            timestampGroups[timestampKey]!.add(activity);
+          }
+          
+          // Remove exact timestamp duplicates (keep only the first one)
+          for (final timestampActivities in timestampGroups.values) {
+            if (timestampActivities.length > 1) {
+              // Keep the first one, mark the rest for removal
+              for (int i = 1; i < timestampActivities.length; i++) {
+                activitiesToRemove.add(timestampActivities[i]);
+              }
+            }
           }
         }
       }
@@ -1509,6 +1376,13 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       // Handle error silently
     }
+  }
+
+  /// Manually trigger duplicate removal for testing
+  Future<void> cleanupDuplicatePayments() async {
+    await removeDuplicatePaymentActivities();
+    _clearCache();
+    notifyListeners();
   }
 
   /// Consolidate individual "Debt paid" activities into "Fully paid" activities for same-day payments
@@ -1725,8 +1599,7 @@ class AppState extends ChangeNotifier {
       ).toList();
       
       // Check if there are any partial payments that need to be distributed
-      final totalPaidAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
-      final totalDebtAmount = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.amount);
+      final totalPaidAmount = syriaTelDebts.fold(0.0, (total, debt) => total + debt.paidAmount);
       
       if (totalPaidAmount > 0) {
         // Reset all paid amounts to 0 first
@@ -1750,7 +1623,7 @@ class AppState extends ChangeNotifier {
       double remainingPayment = 0.15;
       
       // Calculate total remaining amount to distribute payment proportionally
-      final totalRemaining = syriaTelDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      final totalRemaining = syriaTelDebts.fold(0.0, (total, debt) => total + debt.remainingAmount);
       
       for (final debt in syriaTelDebts) {
         if (remainingPayment <= 0) break;
@@ -1891,7 +1764,7 @@ class AppState extends ChangeNotifier {
       
       // Check Firebase health if saving fails
       try {
-        final health = await _dataService.checkFirebaseHealth();
+        await _dataService.checkFirebaseHealth();
       } catch (healthError) {
       }
     }
@@ -1935,18 +1808,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Handle customer settlement - creates "Fully paid" activity for each debt completion
-  Future<void> _handleCustomerSettlement(String customerId, String customerName, double settlementAmount, {List<Debt>? newlySettledDebts}) async {
-    try {
-      // Trigger settlement confirmation
-      await _triggerSettlementConfirmationAutomation(customerId, newlySettledDebts: newlySettledDebts);
-      
-      // Create the "Fully paid" activity for this debt completion
-      await addCustomerFullyPaidActivity(customerId, customerName, settlementAmount, debtId: newlySettledDebts?.first.id);
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   Future<void> addDebtActivity(Debt debt) async {
     try {
@@ -2057,84 +1918,7 @@ class AppState extends ChangeNotifier {
   }
 
   /// CRITICAL: This method should ONLY be called when explicitly clearing customer data
-  /// NEVER call this during partial payments or normal debt operations
-  /// It will permanently delete all customer debts and product records
-  Future<void> _clearAllCustomerDebts(String customerId) async {
-    try {
-      // Get all debts for this customer
-      final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
-      
-      // Clear all debts for this customer (this will also clean up activities and partial payments)
-      for (final debt in customerDebts) {
-        await _dataService.deleteDebt(debt.id);
-      }
-      
-      // Remove from local lists
-      _debts.removeWhere((d) => d.customerId == customerId);
-      _partialPayments.removeWhere((p) => customerDebts.any((d) => d.id == p.debtId));
-      
-      // Reload activities from data service to ensure UI stays in sync
-      _activities = _dataService.activities;
-      
-      _clearCache();
-      notifyListeners();
-      
-    } catch (e) {
-      rethrow;
-    }
-  }
 
-  Future<void> _triggerWhatsAppAutomation(String customerId) async {
-    if (_whatsappAutomationEnabled) {
-      try {
-        final customer = _customers.firstWhere((c) => c.id == customerId);
-        
-        final customerDebts = _debts.where((d) => d.id == customerId).toList();
-        
-        if (customerDebts.isNotEmpty) {
-          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-          
-          if (totalAmount > 0) {
-            // Customer has remaining debts - send payment reminder
-            final message = _whatsappCustomMessage.isNotEmpty 
-                ? _whatsappCustomMessage 
-                : 'Hello ${customer.name}, you have an outstanding balance of \$${totalAmount.toStringAsFixed(2)}. Please contact us to arrange payment.';
-            
-            try {
-              await WhatsAppAutomationService.sendSettlementMessage(
-                customer: customer,
-                settledDebts: [], // No settled debts for this case
-                partialPayments: [],
-                customMessage: message,
-                settlementDate: DateTime.now(),
-              );
-            } catch (e) {
-              // Fallback: just log that automation was attempted
-            }
-          } else {
-            // Customer has no outstanding balance - send settlement confirmation
-            final message = 'Hello ${customer.name}, congratulations! You have successfully paid all your outstanding debts. Thank you for your business! 🎉';
-            
-            try {
-              await WhatsAppAutomationService.sendSettlementMessage(
-                customer: customer,
-                settledDebts: customerDebts, // All debts are settled
-                partialPayments: _partialPayments.where((p) => 
-                  customerDebts.any((d) => d.id == p.debtId)
-                ).toList(),
-                customMessage: message,
-                settlementDate: DateTime.now(),
-              );
-            } catch (e) {
-              // Fallback: just log that automation was attempted
-            }
-          }
-        }
-      } catch (e) {
-        // Silent fail for WhatsApp automation
-      }
-    }
-  }
 
 
   Future<void> createMissingPaymentActivitiesForAllPaidDebts() async {
@@ -2174,12 +1958,12 @@ class AppState extends ChangeNotifier {
       await Future.wait([
         _dataService.clearDebts(),
         _dataService.clearActivities(),
-        _dataService.clearPartialPayments(),
+        // Note: Partial payments are now handled as activities only
       ]).timeout(const Duration(seconds: 90)); // 90 seconds total timeout
       
       // Clear local lists
       _debts.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _activities.clear();
       
       _clearCache();
@@ -2187,7 +1971,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       // Always clear local data even if Firebase fails
       _debts.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _activities.clear();
       _clearCache();
       notifyListeners();
@@ -2205,7 +1989,7 @@ class AppState extends ChangeNotifier {
     try {
       // Clear local data first for immediate UI response
       _debts.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _activities.clear();
       _clearCache();
       notifyListeners();
@@ -2215,7 +1999,7 @@ class AppState extends ChangeNotifier {
         await Future.wait([
           _dataService.clearDebts(),
           _dataService.clearActivities(),
-          _dataService.clearPartialPayments(),
+          // Note: Partial payments are now handled as activities only
         ]).timeout(const Duration(seconds: 10)); // Reduced to 10 seconds
       } catch (firebaseError) {
         // Firebase clearing failed, but local data is already cleared
@@ -2224,7 +2008,7 @@ class AppState extends ChangeNotifier {
     } catch (e) {
       // Always clear local data even if everything fails
       _debts.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _activities.clear();
       _clearCache();
       notifyListeners();
@@ -2239,7 +2023,7 @@ class AppState extends ChangeNotifier {
       
       // Clear local lists immediately
       _debts.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _activities.clear();
       
       _clearCache();
@@ -2280,7 +2064,7 @@ class AppState extends ChangeNotifier {
       _categories.clear();
       _productPurchases.clear();
       _activities.clear();
-      _partialPayments.clear();
+      // Note: Partial payments are now handled as activities only
       _clearCache();
       notifyListeners();
     } catch (e) {
@@ -2338,7 +2122,6 @@ class AppState extends ChangeNotifier {
   Future<void> deleteCustomer(String customerId) async {
     try {
       final customer = _customers.firstWhere((c) => c.id == customerId);
-      final customerName = customer.name;
       
       await _dataService.deleteCustomer(customerId);
       _customers.removeWhere((c) => c.id == customerId);
@@ -2417,7 +2200,7 @@ class AppState extends ChangeNotifier {
       
       // Remove from local lists
       _debts.removeWhere((d) => d.id == debtId);
-      _partialPayments.removeWhere((p) => p.debtId == debtId);
+      // Note: Partial payments are now handled as activities only
       
       // Remove all activities associated with this debt
       final activitiesToDelete = _activities.where((activity) => activity.debtId == debtId).toList();
@@ -2530,17 +2313,15 @@ class AppState extends ChangeNotifier {
         return;
       }
       
-      // Create a new partial payment record with unique ID
-      // Use timestamp + random component to prevent duplicates
-      final now = DateTime.now();
-      final randomSuffix = (now.microsecondsSinceEpoch % 10000).toString().padLeft(4, '0');
-      final uniqueId = '${now.millisecondsSinceEpoch}_$randomSuffix';
-      
       // Check for duplicate payments within the last 5 seconds to prevent double-tapping
-      final recentPayments = _partialPayments.where((payment) => 
-        payment.debtId == debtId && 
-        payment.amount == paymentAmount &&
-        payment.paidAt.isAfter(now.subtract(const Duration(seconds: 5)))
+      final now = DateTime.now();
+      final fiveSecondsAgo = now.subtract(const Duration(seconds: 5));
+      
+      final recentPayments = _activities.where((activity) => 
+        activity.type == ActivityType.payment &&
+        activity.customerId == originalDebt.customerId &&
+        activity.paymentAmount == paymentAmount &&
+        activity.date.isAfter(fiveSecondsAgo)
       ).toList();
       
       if (recentPayments.isNotEmpty) {
@@ -2548,16 +2329,7 @@ class AppState extends ChangeNotifier {
         return;
       }
       
-      final partialPayment = PartialPayment(
-        id: uniqueId,
-        debtId: debtId,
-        amount: paymentAmount,
-        paidAt: now,
-      );
-      
-      // Add the partial payment to storage
-      await _dataService.addPartialPayment(partialPayment);
-      _partialPayments.add(partialPayment);
+      // Note: Partial payments are now handled as activities only
       
       // Calculate new total paid amount by adding to existing paidAmount
       final newTotalPaidAmount = originalDebt.paidAmount + paymentAmount;
@@ -2664,16 +2436,7 @@ class AppState extends ChangeNotifier {
         final randomSuffix = (now.microsecondsSinceEpoch % 10000).toString().padLeft(4, '0');
         final uniqueId = '${now.millisecondsSinceEpoch}_${updatedDebts}_$randomSuffix';
         
-        final partialPayment = PartialPayment(
-          id: uniqueId,
-          debtId: currentDebt.id,
-          amount: paymentForThisDebt,
-          paidAt: now,
-        );
-        
-        // Add to storage
-        await _dataService.addPartialPayment(partialPayment);
-        _partialPayments.add(partialPayment);
+        // Note: Partial payments are now handled as activities only
         
         // Update debt
         final newTotalPaidAmount = currentDebt.paidAmount + paymentForThisDebt;
@@ -3042,7 +2805,6 @@ class AppState extends ChangeNotifier {
   Future<void> fixSuspiciousPricing() async {
     try {
 
-      int fixedCount = 0;
       
       for (final debt in _debts) {
         bool needsFix = false;
@@ -3114,15 +2876,12 @@ class AppState extends ChangeNotifier {
             _debts[index] = updatedDebt;
           }
           
-          fixedCount++;
 
         }
       }
       
-      if (fixedCount > 0) {
-        _clearCache();
-        notifyListeners();
-      }
+      _clearCache();
+      notifyListeners();
     } catch (e) {
 
       rethrow;
@@ -3265,7 +3024,7 @@ class AppState extends ChangeNotifier {
       pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
       // Calculate total remaining amount across all pending debts
-      final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      final totalRemaining = pendingDebts.fold(0.0, (total, debt) => total + debt.remainingAmount);
       
       if (totalRemaining <= 0) return;
       
@@ -3366,7 +3125,7 @@ class AppState extends ChangeNotifier {
       pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
       // Calculate total remaining amount across all pending debts
-      final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
+      final totalRemaining = pendingDebts.fold(0.0, (total, debt) => total + debt.remainingAmount);
       
       if (totalRemaining <= 0) return;
       
@@ -3484,7 +3243,7 @@ class AppState extends ChangeNotifier {
       if (customerDebts.isEmpty) return;
       
       // Calculate total paid amount across all debts
-      final totalPaidAmount = customerDebts.fold(0.0, (sum, debt) => sum + debt.paidAmount);
+      final totalPaidAmount = customerDebts.fold(0.0, (total, debt) => total + debt.paidAmount);
       
       if (totalPaidAmount <= 0) return;
       
@@ -3714,7 +3473,7 @@ class AppState extends ChangeNotifier {
         final customerDebts = _debts.where((d) => d.customerId == customerId && !d.isFullyPaid).toList();
         
         if (customerDebts.isNotEmpty) {
-          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          final totalAmount = customerDebts.fold<double>(0, (total, debt) => total + debt.remainingAmount);
           
           // Use custom message if provided, otherwise use custom settlement message
           String message;
@@ -3754,7 +3513,7 @@ class AppState extends ChangeNotifier {
         final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
         
         if (customerDebts.isNotEmpty) {
-          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          final totalAmount = customerDebts.fold<double>(0, (total, debt) => total + debt.remainingAmount);
           
           
           if (totalAmount == 0) {
@@ -3769,9 +3528,7 @@ class AppState extends ChangeNotifier {
               final success = await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
                 settledDebts: debtsToShow, // Only show newly settled debts
-                partialPayments: _partialPayments.where((p) => 
-                  debtsToShow.any((d) => d.id == p.debtId)
-                ).toList(),
+                // Note: Partial payments are now handled as activities only
                 customMessage: customMessage,
                 settlementDate: DateTime.now(),
                 actualPaymentAmount: actualPaymentAmount, // Use the provided payment amount
@@ -3805,7 +3562,7 @@ class AppState extends ChangeNotifier {
         final customerDebts = _debts.where((d) => d.customerId == customerId).toList();
         
         if (customerDebts.isNotEmpty) {
-          final totalAmount = customerDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+          final totalAmount = customerDebts.fold<double>(0, (total, debt) => total + debt.remainingAmount);
           
           
           if (totalAmount == 0) {
@@ -3821,34 +3578,30 @@ class AppState extends ChangeNotifier {
               double actualPaymentAmount = 0.0;
               
               // Get the most recent partial payment for THIS specific customer
-              final customerPartialPayments = _partialPayments.where((p) => 
-                debtsToShow.any((d) => d.id == p.debtId)
-              ).toList();
+              // Note: Partial payments are now handled as activities only
+              final customerPartialPayments = <Activity>[];
               
               if (customerPartialPayments.isNotEmpty) {
                 // Sort by date and get the most recent payment amount for this customer
-                customerPartialPayments.sort((a, b) => b.paidAt.compareTo(a.paidAt));
-                actualPaymentAmount = customerPartialPayments.first.amount;
+                customerPartialPayments.sort((a, b) => b.date.compareTo(a.date));
+                actualPaymentAmount = customerPartialPayments.first.paymentAmount ?? 0.0;
               }
               
-              // If no customer-specific payments found, try to get the most recent payment overall
-              if (actualPaymentAmount == 0.0 && _partialPayments.isNotEmpty) {
-                final sortedPayments = List<PartialPayment>.from(_partialPayments)
-                  ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
-                actualPaymentAmount = sortedPayments.first.amount;
+              // If no customer-specific payments found, use the total amount
+              if (actualPaymentAmount == 0.0) {
+                // Note: Payment amount calculation is now handled by activities
+                actualPaymentAmount = totalAmount;
               }
               
               // If still no payment found, calculate from debt remaining amounts
               if (actualPaymentAmount == 0.0) {
-                actualPaymentAmount = debtsToShow.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
+                actualPaymentAmount = debtsToShow.fold<double>(0, (total, debt) => total + debt.remainingAmount);
               }
 
               final success = await WhatsAppAutomationService.sendSettlementMessage(
                 customer: customer,
                 settledDebts: debtsToShow, // Only show newly settled debts
-                partialPayments: _partialPayments.where((p) => 
-                  debtsToShow.any((d) => d.id == p.debtId)
-                ).toList(),
+                // Note: Partial payments are now handled as activities only
                 customMessage: customMessage,
                 settlementDate: DateTime.now(),
                 actualPaymentAmount: actualPaymentAmount, // Pass the actual payment amount

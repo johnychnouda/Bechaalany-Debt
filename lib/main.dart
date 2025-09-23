@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'firebase_options.dart';
-import 'constants/app_theme.dart';
 import 'constants/platform_theme.dart';
 import 'providers/app_state.dart';
-import 'screens/splash_screen.dart';
-import 'screens/sign_in_screen.dart';
 import 'widgets/auth_wrapper.dart';
 import 'services/firebase_service.dart';
 import 'services/auth_service.dart';
 import 'services/backup_service.dart';
-import 'services/background_backup_service.dart';
-import 'services/background_app_refresh_service.dart';
+// Background services removed - no longer needed
 import 'services/app_update_service.dart';
 
 
@@ -86,24 +81,9 @@ void main() async {
       // Handle backup service initialization error silently
     }
     
-    // Initialize background services
-    // Initialize background backup service
-    try {
-      final backgroundBackupService = BackgroundBackupService();
-      await backgroundBackupService.initialize();
-      await backgroundBackupService.start();
-    } catch (e) {
-      // Handle background backup service initialization error silently
-    }
-    
-    // Initialize Background App Refresh service (more reliable)
-    try {
-      final backgroundAppRefreshService = BackgroundAppRefreshService();
-      await backgroundAppRefreshService.initialize();
-      await backgroundAppRefreshService.start();
-    } catch (e) {
-      // Handle Background App Refresh service initialization error silently
-    }
+    // Background services disabled to prevent iOS notifications
+    // Background backup service disabled
+    // Background App Refresh service disabled
     
     // Check for app updates
     try {
@@ -166,9 +146,7 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
       final backupService = BackupService();
       await backupService.handleAppLifecycleChange();
       
-      // Also reinitialize Background App Refresh
-      final backgroundAppRefreshService = BackgroundAppRefreshService();
-      await backgroundAppRefreshService.initialize();
+      // Background App Refresh service disabled to prevent iOS notifications
     } catch (e) {
       // Handle backup service reinitialization error silently
     }

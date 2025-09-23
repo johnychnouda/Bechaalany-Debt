@@ -122,7 +122,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
           _currentSettings = await _dataService.getCurrencySettings();
 
         } catch (e) {
-
+          // Use default settings if loading fails
         }
       }
       
@@ -137,7 +137,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
 
       }
     } catch (e) {
-
+      // Handle initialization errors gracefully
     } finally {
       setState(() {
         _isLoading = false;

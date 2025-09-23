@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_colors.dart';
 import '../providers/app_state.dart';
 import '../services/firebase_data_service.dart';
@@ -20,12 +21,26 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  String _appVersion = '1.0.2'; // Default fallback
+
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {});
     });
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+      });
+    } catch (e) {
+      // Keep default version if loading fails
+    }
   }
 
   @override
@@ -157,7 +172,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildInfoRow(
                     'App Version',
-                    '1.0.1',
+                    _appVersion,
                     CupertinoIcons.info_circle,
                   ),
                 ],
@@ -613,12 +628,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final appState = Provider.of<AppState>(context, listen: false);
                 await appState.fixAlfaProductCurrency();
                 
-                // Hide loading indicator
-                Navigator.pop(context);
-                
-                // Show success message
-                showCupertinoDialog(
-                  context: context,
+                // Check if widget is still mounted before using context
+                if (mounted) {
+                  // Hide loading indicator
+                  Navigator.pop(context);
+                  
+                  // Show success message
+                  showCupertinoDialog(
+                    context: context,
                   builder: (context) => CupertinoAlertDialog(
                     title: Text(
                       'Success',
@@ -650,13 +667,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 );
+                }
               } catch (e) {
-                // Hide loading indicator
-                Navigator.pop(context);
-                
-                // Show error message
-                showCupertinoDialog(
-                  context: context,
+                // Check if widget is still mounted before using context
+                if (mounted) {
+                  // Hide loading indicator
+                  Navigator.pop(context);
+                  
+                  // Show error message
+                  showCupertinoDialog(
+                    context: context,
                   builder: (context) => CupertinoAlertDialog(
                     title: Text(
                       'Error',
@@ -688,6 +708,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 );
+                }
               }
             },
             child: Text(

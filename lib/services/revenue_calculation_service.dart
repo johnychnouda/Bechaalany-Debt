@@ -1,5 +1,4 @@
 import '../models/debt.dart';
-import '../models/partial_payment.dart';
 import '../models/activity.dart';
 import '../providers/app_state.dart';
 
@@ -13,7 +12,7 @@ class RevenueCalculationService {
 
   /// Calculate total revenue from all debts
   /// This is the main revenue calculation method
-  double calculateTotalRevenue(List<Debt> debts, List<PartialPayment> partialPayments, {List<Activity>? activities, AppState? appState}) {
+  double calculateTotalRevenue(List<Debt> debts, {List<Activity>? activities, AppState? appState}) {
     double totalRevenue = 0.0;
     
     // Calculate revenue as profit from payments received

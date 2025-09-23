@@ -321,7 +321,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       const SizedBox(height: AppTheme.spacing16),
                       
                       // Apple Sign In Button - iOS 18.6 Native Style
-                      // Show Apple Sign-In on both iOS and Web for consistent experience
+                      // Show Apple Sign-In for iOS
                       Container(
                           width: double.infinity,
                           height: 56,

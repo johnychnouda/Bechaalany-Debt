@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:cross_file/cross_file.dart';import 'dart:io';
 import 'dart:typed_data';
 import '../constants/app_colors.dart';
@@ -512,7 +512,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
 
   Future<void> _sharePDF() async {
     try {
-      await SharePlus.Share.shareXFiles([XFile(widget.pdfFile.path)]);
+          await share_plus.Share.shareXFiles([XFile(widget.pdfFile.path)]);
       
       if (mounted) {
         // Notification service removed

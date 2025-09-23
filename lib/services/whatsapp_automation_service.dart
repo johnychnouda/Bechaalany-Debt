@@ -1,13 +1,12 @@
 import 'package:url_launcher/url_launcher.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/partial_payment.dart';
 
 class WhatsAppAutomationService {
   static Future<bool> sendSettlementMessage({
     required Customer customer,
     required List<Debt> settledDebts,
-    required List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     required String customMessage,
     required DateTime settlementDate,
     double? actualPaymentAmount,
@@ -17,7 +16,7 @@ class WhatsAppAutomationService {
       String message = _formatSettlementMessage(
         customer: customer,
         settledDebts: settledDebts,
-        partialPayments: partialPayments,
+        // Note: Partial payments are now handled as activities only
         customMessage: customMessage,
         settlementDate: settlementDate,
         actualPaymentAmount: actualPaymentAmount,
@@ -77,7 +76,7 @@ class WhatsAppAutomationService {
   static String _formatSettlementMessage({
     required Customer customer,
     required List<Debt> settledDebts,
-    required List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     required String customMessage,
     required DateTime settlementDate,
     double? actualPaymentAmount,
@@ -121,11 +120,12 @@ class WhatsAppAutomationService {
       for (var debt in outstandingDebts) {
         totalAmount += debt.remainingAmount;
       }
-      message.writeln('*Total Outstanding: \$${totalAmount.toStringAsFixed(2)}*');
+      message.writeln('*المبلغ المستحق / Total Outstanding: \$${totalAmount.toStringAsFixed(2)}*');
       message.writeln();
     }
     
     // Request to contact for payment arrangements
+    message.writeln('يرجى التواصل معنا لترتيب الدفع في أقرب وقت ممكن.');
     message.writeln('Please contact us to arrange payment at your earliest convenience.');
     
     return message.toString();

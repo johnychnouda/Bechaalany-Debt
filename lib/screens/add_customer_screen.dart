@@ -126,7 +126,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
             try {
               Navigator.of(context).maybePop();
             } catch (e2) {
-
+              // Ignore navigation errors
             }
           }
         }
@@ -355,7 +355,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Container(
+        DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.dynamicSurface(context),
             borderRadius: BorderRadius.circular(12),
@@ -435,10 +435,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.dynamicSurface(context).withOpacity(0.5),
+                        color: AppColors.dynamicSurface(context).withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.dynamicBorder(context).withOpacity(0.5),
+                          color: AppColors.dynamicBorder(context).withValues(alpha: 0.5),
                           width: 1,
                         ),
                       ),

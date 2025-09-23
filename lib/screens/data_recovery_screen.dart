@@ -4,8 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../services/data_service.dart';
 import '../services/backup_service.dart';
-import '../services/background_backup_service.dart';
-import '../services/background_app_refresh_service.dart';
+// Background services removed - no longer needed
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 
@@ -19,8 +18,7 @@ class DataRecoveryScreen extends StatefulWidget {
 class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   final DataService _dataService = DataService();
   final BackupService _backupService = BackupService();
-  final BackgroundBackupService _backgroundBackupService = BackgroundBackupService();
-  final BackgroundAppRefreshService _backgroundAppRefreshService = BackgroundAppRefreshService();
+  // Background services removed - no longer needed
   List<String> _availableBackups = [];
   Map<String, Map<String, dynamic>> _backupMetadata = {};
   bool _isAutomaticBackupEnabled = false;
@@ -67,8 +65,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       final isEnabled = await _backupService.isAutomaticBackupEnabled();
       final lastAutomaticBackupTime = await _backupService.getLastAutomaticBackupTime();
       final lastManualBackupTime = await _backupService.getLastManualBackupTime();
-      final isBackgroundAvailable = await _backgroundBackupService.isAvailable();
-      final isBackgroundAppRefreshAvailable = await _backgroundAppRefreshService.isAvailable();
+      // Background services removed - no longer available
+      final isBackgroundAvailable = false;
+      final isBackgroundAppRefreshAvailable = false;
       
       // Show the most recent backup time (either manual or automatic)
       DateTime? mostRecentBackup;

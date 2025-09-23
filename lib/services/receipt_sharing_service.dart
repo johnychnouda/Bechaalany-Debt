@@ -5,7 +5,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/partial_payment.dart';
 import '../models/activity.dart';
 import '../utils/pdf_font_utils.dart';
 import '../utils/debt_description_utils.dart';
@@ -18,7 +17,7 @@ class ReceiptSharingService {
   static Future<bool> shareReceiptViaWhatsApp(
     Customer customer,
     List<Debt> customerDebts,
-    List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     List<Activity> activities,
     DateTime? specificDate,
     String? specificDebtId,
@@ -28,7 +27,7 @@ class ReceiptSharingService {
       final pdfFile = await generateReceiptPDF(
         customer: customer,
         debts: customerDebts,
-        partialPayments: partialPayments,
+        // Note: Partial payments are now handled as activities only
         activities: activities,
         specificDate: specificDate,
         specificDebtId: specificDebtId,
@@ -64,7 +63,7 @@ class ReceiptSharingService {
   static Future<bool> shareReceiptViaEmail(
     Customer customer,
     List<Debt> customerDebts,
-    List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     List<Activity> activities,
     DateTime? specificDate,
     String? specificDebtId,
@@ -74,7 +73,7 @@ class ReceiptSharingService {
       final pdfFile = await generateReceiptPDF(
         customer: customer,
         debts: customerDebts,
-        partialPayments: partialPayments,
+        // Note: Partial payments are now handled as activities only
         activities: activities,
         specificDate: specificDate,
         specificDebtId: specificDebtId,
@@ -108,7 +107,7 @@ class ReceiptSharingService {
   static Future<bool> shareReceiptViaSMS(
     Customer customer,
     List<Debt> customerDebts,
-    List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     List<Activity> activities,
     DateTime? specificDate,
     String? specificDebtId,
@@ -139,14 +138,14 @@ class ReceiptSharingService {
   static Future<File?> generateReceiptPDF({
     required Customer customer,
     required List<Debt> debts,
-    required List<PartialPayment> partialPayments,
+    // Note: Partial payments are now handled as activities only
     required List<Activity> activities,
     DateTime? specificDate,
     String? specificDebtId,
   }) async {
     try {
       // Filter debts to only include those relevant to the payment being viewed
-      final relevantDebts = _getRelevantDebts(debts, partialPayments, activities, customer, specificDate, specificDebtId);
+      final relevantDebts = _getRelevantDebts(debts, activities, customer, specificDate, specificDebtId);
       final sortedDebts = List<Debt>.from(relevantDebts);
       sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
@@ -171,18 +170,7 @@ class ReceiptSharingService {
       }
       
       // Filter partial payments to only include those relevant to the debts being shown
-      final relevantPartialPayments = _getRelevantPartialPayments(partialPayments, sortedDebts, specificDate, specificDebtId);
-      
-      // Add relevant partial payments
-      for (PartialPayment payment in relevantPartialPayments) {
-        allItems.add({
-          'type': 'partial_payment',
-          'description': 'Partial Payment',
-          'amount': payment.amount,
-          'date': payment.paidAt,
-          'payment': payment,
-        });
-      }
+      // Note: Partial payments are now handled as payment activities below
       
       // Filter payment activities to only include those relevant to the debts being shown
       final relevantPaymentActivities = _getRelevantPaymentActivities(activities, sortedDebts, customer, specificDate, specificDebtId);
@@ -203,14 +191,8 @@ class ReceiptSharingService {
       
       allItems.sort((a, b) => b['date'].compareTo(a['date']));
       
-      // Calculate total paid amount from relevant partial payments
-      double totalPaidFromPartialPayments = relevantPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
-      
       // Calculate total paid amount from relevant payment activities
-      double totalPaidFromActivities = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
-      
-      // Use the higher of the two values to ensure we don't miss any payments
-      double totalPaidAmount = totalPaidFromActivities > totalPaidFromPartialPayments ? totalPaidFromActivities : totalPaidFromPartialPayments;
+      double totalPaidAmount = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
       
       // Calculate total original amount from relevant debts
       double totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
@@ -680,7 +662,6 @@ This is an automated receipt. Please contact us for any account-related inquirie
   /// Get relevant debts based on payment context
   static List<Debt> _getRelevantDebts(
     List<Debt> allCustomerDebts,
-    List<PartialPayment> partialPayments,
     List<Activity> activities,
     Customer customer,
     DateTime? specificDate,
@@ -720,33 +701,7 @@ This is an automated receipt. Please contact us for any account-related inquirie
   }
   
   /// Get relevant partial payments based on the debts being shown
-  static List<PartialPayment> _getRelevantPartialPayments(
-    List<PartialPayment> allPartialPayments,
-    List<Debt> relevantDebts,
-    DateTime? specificDate,
-    String? specificDebtId,
-  ) {
-    // If a specific debt ID is provided, only include payments for that debt
-    if (specificDebtId != null) {
-      return allPartialPayments.where((payment) => payment.debtId == specificDebtId).toList();
-    }
-    
-    // If a specific date is provided, only include payments made within 1 hour of that date
-    if (specificDate != null) {
-      final targetDate = specificDate;
-      final startTime = targetDate.subtract(const Duration(hours: 1));
-      final endTime = targetDate.add(const Duration(hours: 1));
-      
-      return allPartialPayments.where((payment) {
-        return payment.paidAt.isAfter(startTime) && payment.paidAt.isBefore(endTime);
-      }).toList();
-    }
-    
-    // If no specific filters, include only partial payments for the active debts being shown
-    // This excludes payments for old debts that were already paid off
-    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
-    return allPartialPayments.where((payment) => relevantDebtIds.contains(payment.debtId)).toList();
-  }
+  // Note: Partial payments are now handled as activities only
   
   /// Get relevant payment activities based on the debts being shown
   static List<Activity> _getRelevantPaymentActivities(

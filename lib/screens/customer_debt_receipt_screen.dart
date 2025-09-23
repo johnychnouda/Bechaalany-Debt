@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:share_plus/share_plus.dart' as SharePlus;
+import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:cross_file/cross_file.dart';
 // These imports are only used in mobile-specific code
 import 'package:path_provider/path_provider.dart';
@@ -13,7 +13,6 @@ import 'dart:io';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
-import '../models/partial_payment.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/pdf_font_utils.dart';
@@ -26,7 +25,6 @@ import 'add_customer_screen.dart';
 class CustomerDebtReceiptScreen extends StatefulWidget {
   final Customer customer;
   final List<Debt> customerDebts;
-  final List<PartialPayment> partialPayments;
   final List<Activity> activities;
   final DateTime? specificDate; // Optional date to filter debts
   final String? specificDebtId; // Optional specific debt ID to show only that debt
@@ -35,7 +33,6 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
     super.key,
     required this.customer,
     required this.customerDebts,
-    required this.partialPayments,
     required this.activities,
     this.specificDate,
     this.specificDebtId,
@@ -97,17 +94,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
     
     // Get relevant partial payments and activities for accurate total calculation
-    final relevantPartialPayments = _getRelevantPartialPayments(widget.partialPayments, sortedDebts);
     final relevantPaymentActivities = _getRelevantPaymentActivities(widget.activities, sortedDebts);
     
-    // Calculate total paid amount from relevant partial payments
-    final totalPaidFromPartialPayments = relevantPartialPayments.fold<double>(0, (sum, payment) => sum + payment.amount);
-    
     // Calculate total paid amount from relevant payment activities
-    final totalPaidFromActivities = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
-    
-    // Use the higher of the two values to ensure we don't miss any payments
-    final totalPaidAmount = totalPaidFromActivities > totalPaidFromPartialPayments ? totalPaidFromActivities : totalPaidFromPartialPayments;
+    final totalPaidAmount = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
     
     // Calculate total original amount
     final totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
@@ -305,19 +295,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       });
     }
     
-    // Filter partial payments to only include those relevant to the debts being shown
-    final relevantPartialPayments = _getRelevantPartialPayments(widget.partialPayments, sortedDebts);
-    
-    // Add relevant partial payments
-    for (PartialPayment payment in relevantPartialPayments) {
-      allItems.add({
-        'type': 'partial_payment',
-        'description': 'Partial Payment',
-        'amount': payment.amount,
-        'date': payment.paidAt,
-        'payment': payment,
-      });
-    }
+    // Note: Partial payments are now handled as payment activities below
     
     // Filter payment activities to only include those relevant to the debts being shown
     final relevantPaymentActivities = _getRelevantPaymentActivities(widget.activities, sortedDebts);
@@ -329,7 +307,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         allItems.add({
           'type': 'payment_activity',
           'description': 'Partial Payment',
-          'amount': activity.paymentAmount!,
+          'amount': activity.paymentAmount,
           'date': activity.date,
           'activity': activity,
         });
@@ -381,7 +359,8 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             } else if (item['type'] == 'payment_activity') {
               return _buildPaymentActivityItem(item['activity'] as Activity);
             } else if (item['type'] == 'partial_payment') {
-              return _buildPartialPaymentItem(item['payment'] as PartialPayment);
+              // This case is now handled by payment_activity above
+              return const SizedBox.shrink();
             } else {
               return const SizedBox.shrink();
             }
@@ -491,13 +470,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  List<PartialPayment> _getPartialPaymentsForDebt(String debtId) {
-    final payments = widget.partialPayments
-        .where((payment) => payment.debtId == debtId)
-        .toList()
-      ..sort((a, b) => b.paidAt.compareTo(a.paidAt));
-    return payments;
-  }
 
   Widget _buildPaymentActivityItem(Activity activity) {
     final isFullPayment = activity.isPaymentCompleted;
@@ -568,73 +540,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     );
   }
 
-  Widget _buildPartialPaymentItem(PartialPayment payment) {
-    final paymentColor = AppColors.dynamicSuccess(context);
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.dynamicBackground(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.dynamicBorder(context),
-          width: 0.5,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: paymentColor.withAlpha(26),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.payment,
-                  size: 14,
-                  color: paymentColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Partial Payment',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.dynamicTextPrimary(context),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                CurrencyFormatter.formatAmount(context, payment.amount),
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: paymentColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            _formatDateTime(payment.paidAt),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: paymentColor,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildTotalAmount(double remainingAmount, double totalPaidAmount, double totalOriginalAmount) {
     // Determine the payment status for the relevant debts
@@ -868,31 +773,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   }
   
   /// Get relevant partial payments based on the debts being shown
-  List<PartialPayment> _getRelevantPartialPayments(
-    List<PartialPayment> allPartialPayments,
-    List<Debt> relevantDebts,
-  ) {
-    // If a specific debt ID is provided, only include payments for that debt
-    if (widget.specificDebtId != null) {
-      return allPartialPayments.where((payment) => payment.debtId == widget.specificDebtId).toList();
-    }
-    
-    // If a specific date is provided, only include payments made within 1 hour of that date
-    if (widget.specificDate != null) {
-      final targetDate = widget.specificDate!;
-      final startTime = targetDate.subtract(const Duration(hours: 1));
-      final endTime = targetDate.add(const Duration(hours: 1));
-      
-      return allPartialPayments.where((payment) {
-        return payment.paidAt.isAfter(startTime) && payment.paidAt.isBefore(endTime);
-      }).toList();
-    }
-    
-    // If no specific filters, include only partial payments for the active debts being shown
-    // This excludes payments for old debts that were already paid off
-    final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
-    return allPartialPayments.where((payment) => relevantDebtIds.contains(payment.debtId)).toList();
-  }
   
   /// Get relevant payment activities based on the debts being shown
   List<Activity> _getRelevantPaymentActivities(
@@ -1111,7 +991,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -1217,7 +1097,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
         widget.customer,
         widget.customerDebts,
-        widget.partialPayments,
         widget.activities,
         widget.specificDate,
         widget.specificDebtId,
@@ -1238,7 +1117,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final success = await ReceiptSharingService.shareReceiptViaEmail(
         widget.customer,
         widget.customerDebts,
-        widget.partialPayments,
         widget.activities,
         widget.specificDate,
         widget.specificDebtId,
@@ -1260,7 +1138,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
         customer: widget.customer,
         debts: widget.customerDebts,
-        partialPayments: widget.partialPayments,
         activities: widget.activities,
         specificDate: widget.specificDate,
         specificDebtId: widget.specificDebtId,
@@ -1268,7 +1145,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       
       if (pdfFile != null) {
         // Use the existing share functionality to save to iPhone
-        await SharePlus.Share.shareXFiles([XFile(pdfFile.path)]);
+            await share_plus.Share.shareXFiles([XFile(pdfFile.path)]);
         
         if (mounted) {
           // Receipt saved successfully
@@ -1296,7 +1173,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final file = File('${directory.path}/$fileName');
       await file.writeAsBytes(pdfBytes);
       
-      await SharePlus.Share.shareXFiles([XFile(file.path)]);
+          await share_plus.Share.shareXFiles([XFile(file.path)]);
       
       if (mounted) {
         // PDF exported successfully
@@ -1330,33 +1207,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
         'debt': debt,
       });
       
-      // Add partial payments for this debt, excluding the final payment
-      final partialPayments = _getPartialPaymentsForDebt(debt.id);
-      if (partialPayments.isNotEmpty && debt.isFullyPaid) {
-        // For fully paid debts, exclude the most recent payment (the final payment)
-        for (int i = 0; i < partialPayments.length; i++) {
-          final payment = partialPayments[i];
-          // Skip the most recent payment if the debt is fully paid
-          if (!(i == 0 && debt.isFullyPaid)) {
-            allItems.add({
-              'type': 'partial_payment',
-              'description': 'Partial Payment',
-              'amount': payment.amount,
-              'date': payment.paidAt,
-            });
-          }
-        }
-      } else {
-        // For debts that are not fully paid, show all partial payments
-        for (PartialPayment payment in partialPayments) {
-          allItems.add({
-            'type': 'partial_payment',
-            'description': 'Partial Payment',
-            'amount': payment.amount,
-            'date': payment.paidAt,
-          });
-        }
-      }
+      // Note: Partial payments are now handled as payment activities above
     }
     
     allItems.sort((a, b) => b['date'].compareTo(a['date']));

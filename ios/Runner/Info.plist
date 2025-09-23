@@ -91,10 +91,7 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>NSBackgroundFetchUsageDescription</key>
-	<string>This app fetches and syncs your data in the background to keep your debt information current and secure.</string>
-	<key>NSBackgroundProcessingUsageDescription</key>
-	<string>This app performs automatic data backups in the background to ensure your financial data is always protected and up-to-date.</string>
+	<!-- Background processing descriptions removed to prevent iOS notifications -->
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>This app uses Bluetooth for device connectivity and data synchronization.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>

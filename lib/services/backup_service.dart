@@ -78,9 +78,18 @@ class BackupService {
       try {
         final isEnabled = await isAutomaticBackupEnabled();
         if (isEnabled) {
+          // CRITICAL: Only create backup if it's actually midnight (within 1 minute window)
+          final now = DateTime.now();
+          final isAtMidnight = now.hour == 0 && now.minute <= 1;
+          
+          if (!isAtMidnight) {
+            // Not midnight, don't create backup - reschedule for next midnight
+            _startPeriodicBackupCheck();
+            return;
+          }
+          
           // Only create backup if we haven't already backed up today
           final lastBackup = await getLastAutomaticBackupTime();
-          final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
           
           if (lastBackup == null) {
@@ -231,8 +240,7 @@ class BackupService {
     
     if (enabled) {
       _startPeriodicBackupCheck();
-      // Check if backup is needed immediately
-      await _checkAndCreateBackupIfNeeded();
+      // Don't create backup immediately when enabled - only at scheduled midnight time
     } else {
       _stopPeriodicBackupCheck();
     }
@@ -402,7 +410,7 @@ class BackupService {
 
       final backupId = await _dataService.createBackup(isAutomatic: false);
       
-      if (backupId != null) {
+      if (backupId.isNotEmpty) {
         // Track manual backup time separately
         await setLastManualBackupTime(DateTime.now());
         

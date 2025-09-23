@@ -5,7 +5,6 @@ import '../models/category.dart';
 import '../models/product_purchase.dart';
 import '../models/currency_settings.dart';
 import '../models/activity.dart';
-import '../models/partial_payment.dart';
 import 'firebase_data_service.dart';
 
 class DataService {
@@ -23,7 +22,7 @@ class DataService {
   Stream<List<Customer>> get customersFirebaseStream => _firebaseService.getCustomersStream();
   Stream<List<ProductCategory>> get categoriesFirebaseStream => _firebaseService.getCategoriesStream();
   Stream<List<Debt>> get debtsFirebaseStream => _firebaseService.getDebtsStream();
-  Stream<List<PartialPayment>> get partialPaymentsFirebaseStream => _firebaseService.getPartialPaymentsStream();
+  // Note: Partial payments are now handled as activities only
   Stream<List<ProductPurchase>> get productPurchasesFirebaseStream => _firebaseService.getProductPurchasesStream();
   Stream<CurrencySettings?> get currencySettingsFirebaseStream => _firebaseService.getCurrencySettingsStream();
   Stream<List<Activity>> get activitiesFirebaseStream => _firebaseService.getActivitiesStream();
@@ -117,9 +116,7 @@ class DataService {
   }
   
   // Get debt history
-  Future<List<PartialPayment>> getDebtHistory(String debtId) async {
-    return await _firebaseService.getDebtHistory(debtId);
-  }
+  // Note: Debt history is now handled by activities only
   
   // Advanced debt search
   Future<List<Debt>> advancedDebtSearch(Map<String, dynamic> filters) async {
@@ -146,16 +143,7 @@ class DataService {
     await _firebaseService.deleteCustomerDebts(customerId);
   }
 
-  // ===== PARTIAL PAYMENTS =====
-  
-  List<PartialPayment> get partialPayments {
-    // Return partial payments from Firebase service
-    return _firebaseService.partialPayments;
-  }
-  
-  Future<void> addPartialPayment(PartialPayment payment) async {
-    await _firebaseService.addOrUpdatePartialPayment(payment);
-  }
+  // Note: Partial payments are now handled as activities only
 
   
   // ===== DIRECT DATA FETCHING =====
@@ -183,15 +171,7 @@ class DataService {
   }
   
   // Fetch partial payments directly from Firebase
-  Future<List<PartialPayment>> getPartialPaymentsDirectly() async {
-    try {
-
-      return await _firebaseService.getPartialPaymentsDirectly();
-    } catch (e) {
-
-      return [];
-    }
-  }
+  // Note: Partial payments are now handled as activities only
   
   // Fetch product purchases directly from Firebase
   Future<List<ProductPurchase>> getProductPurchasesDirectly() async {
@@ -220,7 +200,7 @@ class DataService {
   }
 
   Future<void> deleteCategory(String categoryId) async {
-    await _firebaseService.delete('categories', categoryId);
+    await _firebaseService.deleteCategory(categoryId);
   }
 
   // ===== PRODUCT PURCHASE METHODS =====
@@ -323,9 +303,7 @@ class DataService {
     await _firebaseService.removePhantomActivities();
   }
 
-  Future<void> clearPartialPayments() async {
-    await _firebaseService.clearPartialPayments();
-  }
+  // Note: Partial payments are now handled as activities only
 
   // ===== BACKUP METHODS =====
   
@@ -425,27 +403,7 @@ class DataService {
     return await _firebaseService.globalSearch(query);
   }
   
-  // ===== PARTIAL PAYMENT METHODS =====
-  
-  // Get partial payments by debt
-  Future<List<PartialPayment>> getPartialPaymentsByDebt(String debtId) async {
-    return await _firebaseService.getPartialPaymentsByDebt(debtId);
-  }
-  
-  // Get partial payments by customer
-  Future<List<PartialPayment>> getPartialPaymentsByCustomer(String customerId) async {
-    return await _firebaseService.getPartialPaymentsByCustomer(customerId);
-  }
-  
-  // Get partial payments by date range
-  Future<List<PartialPayment>> getPartialPaymentsByDateRange(DateTime start, DateTime end) async {
-    return await _firebaseService.getPartialPaymentsByDateRange(start, end);
-  }
-  
-  // Search partial payments
-  Future<List<PartialPayment>> searchPartialPayments(String query) async {
-    return await _firebaseService.searchPartialPayments(query);
-  }
+  // Note: Partial payments are now handled as activities only
   
   // ===== PRODUCT PURCHASE METHODS =====
   

@@ -571,21 +571,29 @@ class _ProductsScreenState extends State<ProductsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Select Category'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Choose a category to add a subcategory to:'),
-              const SizedBox(height: 16),
-              ...categories.map((category) => ListTile(
-                title: Text(category.name),
-                subtitle: Text('${category.subcategories.length} subcategories'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showAddSubcategoryDialog(context, category.name);
-                },
-              )),
-            ],
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              // Limit dialog height to avoid overflow on small screens
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Choose a category to add a subcategory to:'),
+                  const SizedBox(height: 16),
+                  ...categories.map((category) => ListTile(
+                        title: Text(category.name),
+                        subtitle: Text('${category.subcategories.length} subcategories'),
+                        trailing: const Icon(Icons.arrow_forward_ios),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _showAddSubcategoryDialog(context, category.name);
+                        },
+                      )),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -1455,21 +1463,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Category'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Choose a category to delete:'),
-              const SizedBox(height: 16),
-              ...categories.map((category) => ListTile(
-                title: Text(category.name),
-                subtitle: Text('${category.subcategories.length} subcategories'),
-                trailing: const Icon(Icons.delete, color: Colors.red),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showDeleteCategoryConfirmationDialog(context, category);
-                },
-              )),
-            ],
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Choose a category to delete:'),
+                  const SizedBox(height: 16),
+                  ...categories.map((category) => ListTile(
+                        title: Text(category.name),
+                        subtitle: Text('${category.subcategories.length} subcategories'),
+                        trailing: const Icon(Icons.delete, color: Colors.red),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _showDeleteCategoryConfirmationDialog(context, category);
+                        },
+                      )),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -1484,18 +1499,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showDeleteSubcategorySelectionDialog(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    final allSubcategories = <Subcategory>[];
-    final categoryMap = <Subcategory, ProductCategory>{};
+    final categories = appState.categories.toList();
 
-    // Collect all subcategories with their parent categories
-    for (final category in appState.categories) {
-      for (final subcategory in category.subcategories) {
-        allSubcategories.add(subcategory);
-        categoryMap[subcategory] = category;
-      }
-    }
+    // Check if any category has subcategories
+    final hasSubcategories = categories.any((category) => category.subcategories.isNotEmpty);
 
-    if (allSubcategories.isEmpty) {
+    if (!hasSubcategories) {
       showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -1519,24 +1528,69 @@ class _ProductsScreenState extends State<ProductsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Subcategory'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Choose a subcategory to delete:'),
-              const SizedBox(height: 16),
-              ...allSubcategories.map((subcategory) {
-                final category = categoryMap[subcategory]!;
-                return ListTile(
-                  title: Text(subcategory.name),
-                  subtitle: Text('Category: ${category.name}'),
-                  trailing: const Icon(Icons.delete, color: Colors.red),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _showDeleteSubcategoryConfirmationDialog(context, subcategory, category);
-                  },
-                );
-              }),
-            ],
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Choose a category first:'),
+                  const SizedBox(height: 16),
+                  ...categories.where((category) => category.subcategories.isNotEmpty).map((category) => ListTile(
+                    title: Text(category.name),
+                    subtitle: Text('${category.subcategories.length} subcategories'),
+                    trailing: const Icon(Icons.arrow_forward_ios),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _showDeleteSubcategoryFromCategoryDialog(context, category);
+                    },
+                  )),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteSubcategoryFromCategoryDialog(BuildContext context, ProductCategory category) {
+    final subcategories = category.subcategories.toList();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete from ${category.name}'),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.6,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Choose a subcategory to delete:'),
+                  const SizedBox(height: 16),
+                  ...subcategories.map((subcategory) => ListTile(
+                    title: Text(subcategory.name),
+                    trailing: const Icon(Icons.delete, color: Colors.red),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _showDeleteSubcategoryConfirmationDialog(context, subcategory, category);
+                    },
+                  )),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
@@ -2280,10 +2334,10 @@ class _CategorySection extends StatelessWidget {
           margin: const EdgeInsets.only(top: 16, bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.3),
               width: 1,
             ),
           ),

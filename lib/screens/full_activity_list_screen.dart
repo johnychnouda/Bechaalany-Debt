@@ -143,10 +143,10 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: AppColors.dynamicSuccess(context).withOpacity(0.1),
+                            color: AppColors.dynamicSuccess(context).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: AppColors.dynamicSuccess(context).withOpacity(0.3),
+                              color: AppColors.dynamicSuccess(context).withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -158,7 +158,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
-                                      color: AppColors.dynamicSuccess(context).withOpacity(0.15),
+                                      color: AppColors.dynamicSuccess(context).withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(
@@ -201,10 +201,10 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: AppColors.dynamicPrimary(context).withOpacity(0.1),
+                            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: AppColors.dynamicPrimary(context).withOpacity(0.3),
+                              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -216,7 +216,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                   Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
-                                      color: AppColors.dynamicPrimary(context).withOpacity(0.15),
+                                      color: AppColors.dynamicPrimary(context).withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(

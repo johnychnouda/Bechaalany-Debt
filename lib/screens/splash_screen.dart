@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../utils/logo_utils.dart';
@@ -16,10 +17,14 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+  String _appVersion = '1.0.2'; // Default fallback
 
   @override
   void initState() {
     super.initState();
+    
+    // Load app version
+    _loadAppVersion();
     
     // Simplified animation controller
     _fadeController = AnimationController(
@@ -37,6 +42,17 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Start simple animation
     _startAnimation();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      PackageInfo packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _appVersion = packageInfo.version;
+      });
+    } catch (e) {
+      // Keep default version if loading fails
+    }
   }
 
   void _startAnimation() async {
@@ -229,7 +245,7 @@ class _SplashScreenState extends State<SplashScreen>
                               
                               // App version
                               Text(
-                                'Version 1.0.1',
+                                'Version $_appVersion',
                                 style: AppTheme.body.copyWith(
                                   color: Colors.grey[400],
                                   fontSize: isSmallScreen ? 11 : 13,

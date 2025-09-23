@@ -605,6 +605,9 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       // Wait a moment
       await Future.delayed(Duration(milliseconds: 1000));
       
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
+      
       // Now try to get the app state
       final appState = Provider.of<AppState>(context, listen: false);
       
@@ -613,11 +616,14 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       
       // Get basic data
       final allCustomerDebts = appState.debts.where((d) => d.customerId == customerId).toList();
-      final customerPartialPayments = appState.partialPayments.where((p) => p.debtId == specificDebt.id).toList();
+      // Note: Partial payments are now handled as activities only
       
       
       // Wait a moment
       await Future.delayed(Duration(milliseconds: 1000));
+      
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
       
       // Try to open the receipt screen with minimal navigation
       final result = await Navigator.of(context).push(
@@ -625,7 +631,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
           builder: (context) => CustomerDebtReceiptScreen(
             customer: customer,
             customerDebts: allCustomerDebts,
-            partialPayments: customerPartialPayments,
             activities: appState.activities,
             specificDebtId: specificDebt.id,
           ),
@@ -648,33 +653,7 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       
       // Include ALL partial payments for this customer, not just those linked to existing debts
       // This ensures partial payments are shown even if debts were cleared or there are ID mismatches
-      final customerPartialPayments = appState.partialPayments.where((p) {
-        // First try to find the debt this payment was made for
-        final linkedDebt = appState.debts.firstWhere(
-          (d) => d.id == p.debtId,
-          orElse: () {
-            return Debt(
-              id: p.debtId,
-              customerId: customerId,
-              customerName: customer.name,
-              amount: 0,
-              description: 'Unknown Product',
-              type: DebtType.credit,
-              status: DebtStatus.pending,
-              createdAt: p.paidAt,
-              subcategoryId: null,
-              subcategoryName: null,
-              originalSellingPrice: null,
-              originalCostPrice: null,
-              categoryName: null,
-              storedCurrency: 'USD',
-            );
-          },
-        );
-        
-        // Include the payment if it's for this customer
-        return linkedDebt.customerId == customerId;
-      }).toList();
+      // Note: Partial payments are now handled as activities only
       
       // Test with a simple dialog first to see if navigation works
       showDialog(
@@ -696,6 +675,9 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       // Wait a bit then try to open the receipt
       await Future.delayed(Duration(milliseconds: 500));
       
+      // Check if widget is still mounted before using context
+      if (!mounted) return;
+      
       // Try to open the receipt screen
       try {
         final result = await Navigator.of(context).push(
@@ -703,7 +685,6 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
             builder: (context) => CustomerDebtReceiptScreen(
               customer: customer,
               customerDebts: allCustomerDebts,
-              partialPayments: customerPartialPayments,
               activities: appState.activities,
               specificDebtId: specificDebt.id,
             ),
