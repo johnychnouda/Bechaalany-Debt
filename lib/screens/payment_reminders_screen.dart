@@ -516,39 +516,21 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       int successCount = 0;
       int totalCount = _selectedCustomerIds.length;
       
-      // Show progress dialog with proper state management
-      if (mounted && context.mounted) {
-        _showProgressDialogWithState(context, totalCount);
-      }
-      
-      int currentIndex = 0;
+      // Send reminders to all selected customers
       for (final customerId in _selectedCustomerIds) {
         try {
-          // Update progress in the dialog
-          if (mounted && context.mounted) {
-            _updateProgressInDialog(context, 'Sending to customer ${currentIndex + 1} of $totalCount...', currentIndex, totalCount);
-          }
-          
           await appState.sendWhatsAppPaymentReminder(customerId, customMessage: message);
           successCount++;
           
           // Add delay between customers to allow user to send message
-          if (currentIndex < totalCount - 1) {
-            await Future.delayed(const Duration(seconds: 2));
-          }
-          
-          currentIndex++;
+          await Future.delayed(const Duration(seconds: 2));
         } catch (e) {
           // Continue with other customers even if one fails
-          currentIndex++;
         }
       }
 
-      // Close progress dialog
+      // Show success feedback
       if (mounted && context.mounted) {
-        Navigator.pop(context); // Close progress dialog
-        
-        // Show success feedback via dialog instead of notification
         if (successCount == totalCount) {
           _showSuccessDialog(context, 'All reminders sent successfully!');
         } else {
@@ -563,11 +545,6 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       }
     } catch (e) {
       if (mounted && context.mounted) {
-        // Close progress dialog if open
-        try {
-          Navigator.pop(context);
-        } catch (_) {}
-        
         _showErrorDialog(context, 'Failed to send batch payment reminders: $e');
       }
     }
@@ -621,48 +598,6 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
     );
   }
 
-  // Global variables to track progress dialog state
-  String _currentProgressMessage = '';
-  int _currentProgress = 0;
-  int _totalProgress = 0;
-
-  void _showProgressDialogWithState(BuildContext context, int total) {
-    _currentProgressMessage = 'Sending reminders...';
-    _currentProgress = 0;
-    _totalProgress = total;
-    
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => CupertinoAlertDialog(
-          title: const Text('Sending Reminders'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 16),
-              Text(_currentProgressMessage),
-              const SizedBox(height: 16),
-              const CupertinoActivityIndicator(),
-              const SizedBox(height: 16),
-              Text('$_currentProgress of $_totalProgress completed'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _updateProgressInDialog(BuildContext context, String message, int current, int total) {
-    _currentProgressMessage = message;
-    _currentProgress = current;
-    _totalProgress = total;
-    
-    // Trigger a rebuild of the dialog by showing it again with updated state
-    // This is a simple approach that works reliably
-    Navigator.pop(context);
-    _showProgressDialogWithState(context, total);
-  }
 }
 
 class _CustomerReminderTile extends StatelessWidget {

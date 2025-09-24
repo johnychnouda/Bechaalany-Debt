@@ -44,13 +44,13 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     
     // Ensure filtered customers are always in sync with app state
     final appState = Provider.of<AppState>(context, listen: false);
-    if (_filteredCustomers.isEmpty && appState.customers.isNotEmpty) {
-      _filteredCustomers = List.from(appState.customers);
-    }
     
-    // Refresh filtered customers when app state changes (e.g., new customer added)
-    if (_filteredCustomers.length != appState.customers.length && _searchController.text.isEmpty) {
+    // Always refresh filtered customers when app state changes
+    // This ensures we have the latest data from Firebase streams
+    if (appState.customers.isNotEmpty) {
       _filteredCustomers = List.from(appState.customers);
+    } else if (appState.customers.isEmpty) {
+      _filteredCustomers = [];
     }
     
     _filterCustomers();
@@ -85,12 +85,12 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     final customers = appState.customers;
     final query = _searchController.text.toLowerCase();
     
-    // Safety check: don't filter if no customers available
-    if (customers.isEmpty) {
-      return;
-    }
-    
     setState(() {
+      if (customers.isEmpty) {
+        _filteredCustomers = [];
+        return;
+      }
+      
       if (query.isEmpty) {
         _filteredCustomers = List.from(customers); // Create a new list to avoid reference issues
       } else {
@@ -103,28 +103,51 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
   }
 
   Map<String, List<Customer>> _groupCustomersByFirstLetter() {
-    final grouped = <String, List<Customer>>{};
-    
-    for (final customer in _filteredCustomers) {
-      final firstLetter = customer.name.isNotEmpty 
-          ? customer.name[0].toUpperCase() 
-          : '#';
+    try {
+      final grouped = <String, List<Customer>>{};
       
-      if (!grouped.containsKey(firstLetter)) {
-        grouped[firstLetter] = [];
+      // Safety check: return empty map if no customers
+      if (_filteredCustomers.isEmpty) {
+        return grouped;
       }
-      grouped[firstLetter]!.add(customer);
+      
+      for (final customer in _filteredCustomers) {
+        try {
+          final firstLetter = customer.name.isNotEmpty 
+              ? customer.name[0].toUpperCase() 
+              : '#';
+          
+          if (!grouped.containsKey(firstLetter)) {
+            grouped[firstLetter] = [];
+          }
+          grouped[firstLetter]!.add(customer);
+        } catch (e) {
+          // Skip invalid customers
+          continue;
+        }
+      }
+      
+      // Sort the groups alphabetically
+      final sortedKeys = grouped.keys.toList()..sort();
+      final sortedMap = <String, List<Customer>>{};
+      
+      for (final key in sortedKeys) {
+        try {
+          final customers = grouped[key];
+          if (customers != null && customers.isNotEmpty) {
+            sortedMap[key] = List.from(customers)..sort((a, b) => a.name.compareTo(b.name));
+          }
+        } catch (e) {
+          // Skip invalid groups
+          continue;
+        }
+      }
+      
+      return sortedMap;
+    } catch (e) {
+      // Return empty map if any error occurs
+      return <String, List<Customer>>{};
     }
-    
-    // Sort the groups alphabetically
-    final sortedKeys = grouped.keys.toList()..sort();
-    final sortedMap = <String, List<Customer>>{};
-    
-    for (final key in sortedKeys) {
-      sortedMap[key] = grouped[key]!..sort((a, b) => a.name.compareTo(b.name));
-    }
-    
-    return sortedMap;
   }
 
   Future<void> _deleteCustomer(Customer customer) async {
@@ -165,6 +188,13 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
       body: SafeArea(
         child: Consumer<AppState>(
           builder: (context, appState, child) {
+            // Show loading state while data is being loaded
+            if (appState.isLoading) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+            
             final groupedCustomers = _groupCustomersByFirstLetter();
             final totalCustomers = appState.customers.length;
 
@@ -245,7 +275,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                 
                 // Customers List
                 Expanded(
-                  child: _filteredCustomers.isEmpty
+                  child: _filteredCustomers.isEmpty || groupedCustomers.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -291,39 +321,103 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: groupedCustomers.length,
-                          itemBuilder: (context, index) {
-                            final letter = groupedCustomers.keys.elementAt(index);
-                            final customers = groupedCustomers[letter]!;
-                            
-                            return Column(
-                              children: [
-                                // iOS 18.6 Style Section Header
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-                                  child: Text(
-                                    letter,
-                                    style: TextStyle(
-                                      color: AppColors.dynamicPrimary(context),
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.5,
+                      : groupedCustomers.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.dynamicSurface(context),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: AppColors.dynamicBorder(context).withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.people_outline_rounded,
+                                      size: 36,
+                                      color: AppColors.dynamicTextSecondary(context),
                                     ),
                                   ),
-                                ),
-                                // Customers in this section
-                                ...customers.map((customer) => _CustomerListTile(
-                                  customer: customer,
-                                  onDelete: () => _deleteCustomer(customer),
-                                  onView: () => _viewCustomerDetails(customer),
-                                )),
-                              ],
-                            );
-                          },
+                                  const SizedBox(height: 20),
+                                  Text(
+                                    'No customers found',
+                                    style: TextStyle(
+                                      color: AppColors.dynamicTextPrimary(context),
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try adjusting your search criteria',
+                                    style: TextStyle(
+                                      color: AppColors.dynamicTextSecondary(context),
+                                      fontSize: 16,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              itemCount: groupedCustomers.length,
+                              itemBuilder: (context, index) {
+                                try {
+                                  // Additional safety checks to prevent RangeError
+                                  if (groupedCustomers.isEmpty || 
+                                      index < 0 || 
+                                      index >= groupedCustomers.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  
+                                  final keys = groupedCustomers.keys.toList();
+                                  if (index >= keys.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  
+                                  final letter = keys[index];
+                                  final customers = groupedCustomers[letter];
+                                  
+                                  if (customers == null || customers.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+                            
+                                  return Column(
+                                    children: [
+                                      // iOS 18.6 Style Section Header
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                                        child: Text(
+                                          letter,
+                                          style: TextStyle(
+                                            color: AppColors.dynamicPrimary(context),
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                      // Customers in this section
+                                      ...customers.map((customer) => _CustomerListTile(
+                                        customer: customer,
+                                        onDelete: () => _deleteCustomer(customer),
+                                        onView: () => _viewCustomerDetails(customer),
+                                      )),
+                                    ],
+                                  );
+                                } catch (e) {
+                                  // If any error occurs, return empty widget
+                                  return const SizedBox.shrink();
+                                }
+                              },
                         ),
                 ),
               ],
@@ -412,20 +506,28 @@ class _CustomerListTile extends StatelessWidget {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
             leading: Container(
-              width: 20,
-              height: 20,
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 color: AppColors.dynamicPrimary(context).withAlpha(26),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
-                  customer.name.split(' ').map((e) => e[0]).join(''),
+                  () {
+                    final initials = customer.name.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).join('');
+                    // Ensure we always show at least 2 characters, pad with first letter if needed
+                    if (initials.isEmpty) return '?';
+                    if (initials.length == 1) return initials + initials;
+                    return initials.length > 2 ? initials.substring(0, 2) : initials;
+                  }(),
                   style: TextStyle(
                     color: AppColors.dynamicPrimary(context),
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),

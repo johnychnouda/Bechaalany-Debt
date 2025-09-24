@@ -1138,6 +1138,9 @@ class AppState extends ChangeNotifier {
         await backfillActivitiesForExistingDebts();
       }
       
+      // Clean up any existing duplicate activities
+      removeDuplicateActivitiesById();
+      
       // Migration already handled above - no need for duplicate calls
       // This prevents infinite loops and startup deadlocks
       
@@ -1270,17 +1273,18 @@ class AppState extends ChangeNotifier {
           // Sort by date (keep the earliest one)
           activities.sort((a, b) => a.date.compareTo(b.date));
           
-          // For each group, check if there are activities with the same timestamp (exact duplicates)
+          // For each group, check if there are activities with the same or very close timestamp
           final Map<String, List<Activity>> timestampGroups = {};
           for (final activity in activities) {
-            final timestampKey = '${activity.date.millisecondsSinceEpoch}';
+            // Group by timestamp with 1-second tolerance to catch near-duplicates
+            final timestampKey = '${(activity.date.millisecondsSinceEpoch / 1000).floor()}';
             if (!timestampGroups.containsKey(timestampKey)) {
               timestampGroups[timestampKey] = [];
             }
             timestampGroups[timestampKey]!.add(activity);
           }
           
-          // Remove exact timestamp duplicates (keep only the first one)
+          // Remove timestamp duplicates (keep only the first one)
           for (final timestampActivities in timestampGroups.values) {
             if (timestampActivities.length > 1) {
               // Keep the first one, mark the rest for removal
@@ -1381,6 +1385,25 @@ class AppState extends ChangeNotifier {
   /// Manually trigger duplicate removal for testing
   Future<void> cleanupDuplicatePayments() async {
     await removeDuplicatePaymentActivities();
+    _clearCache();
+    notifyListeners();
+  }
+  
+  /// Remove duplicate activities by ID (immediate fix)
+  void removeDuplicateActivitiesById() {
+    final seenIds = <String>{};
+    final uniqueActivities = <Activity>[];
+    
+    for (final activity in _activities) {
+      if (!seenIds.contains(activity.id)) {
+        seenIds.add(activity.id);
+        uniqueActivities.add(activity);
+      }
+    }
+    
+    _activities.clear();
+    _activities.addAll(uniqueActivities);
+    
     _clearCache();
     notifyListeners();
   }
@@ -1701,6 +1724,10 @@ class AppState extends ChangeNotifier {
 
   Future<void> _addActivity(Activity activity) async {
     try {
+      // CRITICAL FIX: Always remove any existing activities with the same ID first
+      final removedCount = _activities.length;
+      _activities.removeWhere((a) => a.id == activity.id);
+      final afterRemovalCount = _activities.length;
       // Check if activity already exists to prevent duplicates
       final existingActivity = _activities.any((a) => a.id == activity.id);
       if (existingActivity) {
@@ -1712,6 +1739,16 @@ class AppState extends ChangeNotifier {
       
       // Only add to local list after successful Firebase save
       _activities.add(activity);
+      
+      // CRITICAL FIX: Check for duplicates and remove them immediately
+      if (activity.type == ActivityType.payment) {
+        final paymentActivities = _activities.where((a) => a.type == ActivityType.payment).toList();
+        final activityIds = paymentActivities.map((a) => a.id).toList();
+        final uniqueIds = activityIds.toSet();
+        if (activityIds.length != uniqueIds.length) {
+          removeDuplicateActivitiesById();
+        }
+      }
       
       // Clear cache and notify listeners
       _clearCache();
@@ -3020,6 +3057,22 @@ class AppState extends ChangeNotifier {
       
       if (pendingDebts.isEmpty) return;
       
+      // Check for duplicate payments within the last 5 seconds to prevent double-tapping
+      final now = DateTime.now();
+      final fiveSecondsAgo = now.subtract(const Duration(seconds: 5));
+      
+      final recentPayments = _activities.where((activity) => 
+        activity.type == ActivityType.payment &&
+        activity.customerId == pendingDebts.first.customerId &&
+        activity.paymentAmount == paymentAmount &&
+        activity.date.isAfter(fiveSecondsAgo)
+      ).toList();
+      
+      if (recentPayments.isNotEmpty) {
+        // Duplicate payment detected, don't create another one
+        return;
+      }
+      
       // Sort debts by creation date (oldest first) for fair distribution
       pendingDebts.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       
@@ -3080,6 +3133,9 @@ class AppState extends ChangeNotifier {
         );
         
         await _addActivity(consolidatedActivity);
+        
+        // Clean up any duplicates that might have been created
+        await removeDuplicatePaymentActivities();
       }
       
       // Check if all customer debts are now paid and trigger settlement automation
@@ -3116,6 +3172,22 @@ class AppState extends ChangeNotifier {
       ).toList();
       
       if (pendingDebts.isEmpty) {
+        return;
+      }
+      
+      // Check for duplicate payments within the last 5 seconds to prevent double-tapping
+      final now = DateTime.now();
+      final fiveSecondsAgo = now.subtract(const Duration(seconds: 5));
+      
+      final recentPayments = _activities.where((activity) => 
+        activity.type == ActivityType.payment &&
+        activity.customerId == customerId &&
+        activity.paymentAmount == paymentAmount &&
+        activity.date.isAfter(fiveSecondsAgo)
+      ).toList();
+      
+      if (recentPayments.isNotEmpty) {
+        // Duplicate payment detected, don't create another one
         return;
       }
       
@@ -3210,6 +3282,9 @@ class AppState extends ChangeNotifier {
         );
         
         await _addActivity(activity);
+        
+        // Clean up any duplicates that might have been created
+        await removeDuplicatePaymentActivities();
       }
       
       // Check if all customer debts are now paid and trigger settlement automation

@@ -44,6 +44,11 @@ class CustomerDebtReceiptScreen extends StatefulWidget {
 
 class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
+  @override
+  void initState() {
+    super.initState();
+  }
+  
   List<Debt> _getRelevantDebts(List<Debt> allCustomerDebts) {
     // If a specific debt ID is provided, show all debts until partial payment
     if (widget.specificDebtId != null) {
@@ -80,7 +85,6 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   
   @override
   Widget build(BuildContext context) {
-    
     // Filter debts to only include those relevant to the payment being viewed
     // This excludes new debts that were created after the payment was completed
     final relevantDebts = _getRelevantDebts(widget.customerDebts);
@@ -805,6 +809,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     // If no specific filters, include only payment activities for the active debts being shown
     // This excludes payments for old debts that were already paid off
     final relevantDebtIds = relevantDebts.map((debt) => debt.id).toSet();
+    
     return customerPaymentActivities.where((activity) {
       // If activity has a specific debt ID, check if it matches
       if (activity.debtId != null) {

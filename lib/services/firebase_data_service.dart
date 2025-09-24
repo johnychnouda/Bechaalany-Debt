@@ -397,9 +397,13 @@ class FirebaseDataService {
         .collection('activities')
         .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
-            .toList());
+        .map((snapshot) {
+          final activities = snapshot.docs
+              .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
+              .toList();
+          
+          return activities;
+        });
   }
 
   // ===== DATA MIGRATION METHODS =====
