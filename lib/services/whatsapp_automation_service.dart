@@ -84,39 +84,39 @@ class WhatsAppAutomationService {
     StringBuffer message = StringBuffer();
     
     // 1. English greeting
-    message.writeln('Hello ${customer.name},');
+    message.writeln('👋 Hello ${customer.name},');
     message.writeln();
     
     // 2. English settlement details
-    message.writeln('*Settlement Details:*');
-    message.writeln('Date/time: ${_formatDateTime(settlementDate)}');
+    message.writeln('✅ *Settlement Details:*');
+    message.writeln('📅 Date/time: ${_formatDateTime(settlementDate)}');
     
     if (actualPaymentAmount != null && actualPaymentAmount > 0) {
-      message.writeln('Amount Paid: \$${actualPaymentAmount.toStringAsFixed(2)} ✅');
+      message.writeln('Amount Paid: ${actualPaymentAmount.toStringAsFixed(2)}\$ 💰');
     }
     
     message.writeln();
     
     // 3. English footer
-    message.writeln('If you have any questions, please don\'t hesitate to contact us.');
+    message.writeln('📞 If you have any questions, please don\'t hesitate to contact us.');
     message.writeln();
     
     // 4. Arabic greeting
-    message.writeln('مرحباً ${customer.name}،');
+    message.writeln('👋 مرحباً ${customer.name}،');
     message.writeln();
     
     // 5. Arabic settlement details
-    message.writeln('*تفاصيل التسوية:*');
-    message.writeln('التاريخ/الوقت: ${_formatDateTimeArabic(settlementDate)}');
+    message.writeln('✅ *تفاصيل التسوية:*');
+    message.writeln('📅 التاريخ/الوقت: ${_formatDateTimeArabic(settlementDate)}');
     
     if (actualPaymentAmount != null && actualPaymentAmount > 0) {
-      message.writeln('المبلغ المدفوع: \$${_convertToEasternArabicNumerals(actualPaymentAmount.toStringAsFixed(2))} ✅');
+      message.writeln('المبلغ المدفوع: \$${_convertToEasternArabicNumerals(actualPaymentAmount.toStringAsFixed(2))} 💰');
     }
     
     message.writeln();
     
     // 6. Arabic footer
-    message.writeln('إذا كان لديك أي أسئلة، فلا تتردد في التواصل معنا.');
+    message.writeln('📞 إذا كان لديك أي أسئلة، فلا تتردد في التواصل معنا.');
     
     return message.toString();
   }
@@ -140,17 +140,17 @@ class WhatsAppAutomationService {
       }
       
       // 2. English amount
-      message.writeln('*Total Outstanding: ${totalAmount.toStringAsFixed(2)}\$* 💰');
+      message.writeln('💳 *Total Outstanding: ${totalAmount.toStringAsFixed(2)}\$* 💰');
       
       // 3. English contact instruction
-      message.writeln('📞 Please contact us to arrange payment at your earliest convenience.');
+      message.writeln('📞💬 Please contact us to arrange payment at your earliest convenience.');
       message.writeln();
       
       // 4. Arabic amount
-      message.writeln('*\$المبلغ المستحق: ${_convertToEasternArabicNumerals(totalAmount.toStringAsFixed(2))}* 💳');
+      message.writeln('💳 *المبلغ المستحق: \$${_convertToEasternArabicNumerals(totalAmount.toStringAsFixed(2))}* 💰');
       
       // 5. Arabic contact instruction
-      message.writeln('📱 تواصل معنا لترتيب الدفع في أقرب وقت ممكن');
+      message.writeln('📱💬 تواصل معنا لترتيب الدفع في أقرب وقت ممكن');
     }
     
     return message.toString();
