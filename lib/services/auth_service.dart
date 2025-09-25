@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class AuthService {
@@ -61,12 +60,8 @@ class AuthService {
   /// Sign in with Apple
   Future<UserCredential?> signInWithApple() async {
     try {
-      if (Platform.isIOS) {
-        // iOS implementation using native package
-        return await _signInWithAppleIOS();
-      } else {
-        throw Exception('Apple Sign-In is not supported on this platform.');
-      }
+      // iOS implementation using native package
+      return await _signInWithAppleIOS();
     } catch (e) {
       // Provide more user-friendly error messages
       if (e.toString().contains('1001') || e.toString().contains('canceled')) {

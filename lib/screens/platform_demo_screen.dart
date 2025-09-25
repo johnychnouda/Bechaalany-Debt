@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'dart:io';
 import '../constants/platform_theme.dart';
 import '../widgets/platform_scaffold.dart';
 
@@ -14,7 +13,7 @@ class PlatformDemoScreen extends StatelessWidget {
       actions: [
         IconButton(
           icon: Icon(
-            Platform.isIOS ? CupertinoIcons.info_circle : Icons.info_outline,
+            CupertinoIcons.info_circle,
             color: PlatformTheme.getPrimary(context),
           ),
           onPressed: () => _showPlatformInfo(context),
@@ -34,13 +33,13 @@ class PlatformDemoScreen extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Platform.isIOS ? CupertinoIcons.device_phone_portrait : Icons.phone_android,
+                    CupertinoIcons.device_phone_portrait,
                     color: PlatformTheme.getPrimary(context),
                     size: 24,
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Running on: ${Platform.isIOS ? 'iOS' : 'Android'}',
+                    'Running on: iOS',
                     style: PlatformTheme.getBodyLarge(context),
                   ),
                 ],
@@ -49,13 +48,13 @@ class PlatformDemoScreen extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Platform.isIOS ? CupertinoIcons.paintbrush : Icons.palette,
+                    CupertinoIcons.paintbrush,
                     color: PlatformTheme.getSecondary(context),
                     size: 24,
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Theme: ${Platform.isIOS ? 'iOS 18+ Design' : 'Android 16 Material You'}',
+                    'Theme: iOS 18+ Design',
                     style: PlatformTheme.getBodyMedium(context),
                   ),
                 ],
@@ -157,12 +156,6 @@ class PlatformDemoScreen extends StatelessWidget {
                     type: ButtonType.tertiary,
                     onPressed: () => _showSnackBar(context, 'Tertiary button tapped'),
                   ),
-                  if (Platform.isAndroid)
-                    PlatformButton(
-                      text: 'Tonal',
-                      type: ButtonType.tonal,
-                      onPressed: () => _showSnackBar(context, 'Tonal button tapped'),
-                    ),
                 ],
               ),
             ],
@@ -231,7 +224,7 @@ class PlatformDemoScreen extends StatelessWidget {
       height: 80,
       decoration: BoxDecoration(
         color: color,
-        borderRadius: BorderRadius.circular(Platform.isIOS ? 12 : 8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: PlatformTheme.getOutline(context),
           width: 1,
@@ -252,22 +245,13 @@ class PlatformDemoScreen extends StatelessWidget {
   }
   
   void _showPlatformInfo(BuildContext context) {
-    final platformInfo = Platform.isIOS 
-      ? '''
+    final platformInfo = '''
 iOS 18+ Design System
 • CupertinoPageScaffold navigation
 • iOS typography (San Francisco)
 • iOS color palette (#007AFF, #34C759)
 • iOS spacing and radius values
 • iOS-style buttons and inputs
-      '''
-      : '''
-Android 16 Material You Design System
-• Material 3 AppBar and Scaffold
-• Roboto typography
-• Material You color palette (#6750A4, #625B71)
-• Material spacing and radius values
-• Material Design buttons and inputs
       ''';
     
     showDialog(
@@ -293,7 +277,7 @@ Android 16 Material You Design System
         backgroundColor: PlatformTheme.getSurface(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(Platform.isIOS ? 12 : 8),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );

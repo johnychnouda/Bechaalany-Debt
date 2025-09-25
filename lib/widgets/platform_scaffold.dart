@@ -1,9 +1,6 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../constants/platform_theme.dart';
-import '../constants/android_colors.dart';
-import '../constants/android_theme.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 
@@ -33,63 +30,30 @@ class PlatformScaffold extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return CupertinoPageScaffold(
-        backgroundColor: backgroundColor ?? AppColors.dynamicBackground(context),
-        navigationBar: CupertinoNavigationBar(
-          middle: Text(
-            title,
-            style: TextStyle(
-              color: AppColors.dynamicTextPrimary(context),
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.41,
-            ),
-          ),
-          backgroundColor: AppColors.dynamicSurface(context),
-          border: null,
-          leading: leading,
-          trailing: actions != null 
-            ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: actions!,
-              )
-            : null,
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              if (bottom != null) bottom!,
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: children,
-                ),
-              ),
-            ],
+    return CupertinoPageScaffold(
+      backgroundColor: backgroundColor ?? AppColors.dynamicBackground(context),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          title,
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.41,
           ),
         ),
-      );
-    } else {
-      return Scaffold(
-        backgroundColor: backgroundColor ?? AndroidColors.dynamicBackground(context),
-        appBar: AppBar(
-          title: Text(
-            title,
-            style: AndroidTheme.titleLarge.copyWith(
-              color: AndroidColors.dynamicOnSurface(context),
-            ),
-          ),
-          backgroundColor: AndroidColors.dynamicSurface(context),
-          foregroundColor: AndroidColors.dynamicOnSurface(context),
-          elevation: 0,
-          centerTitle: centerTitle,
-          leading: leading,
-          actions: actions,
-          automaticallyImplyLeading: automaticallyImplyLeading,
-          bottom: bottom,
-        ),
-        body: Column(
+        backgroundColor: AppColors.dynamicSurface(context),
+        border: null,
+        leading: leading,
+        trailing: actions != null 
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: actions!,
+            )
+          : null,
+      ),
+      child: SafeArea(
+        child: Column(
           children: [
             if (bottom != null) bottom!,
             Expanded(
@@ -100,9 +64,8 @@ class PlatformScaffold extends StatelessWidget {
             ),
           ],
         ),
-        floatingActionButton: floatingActionButton,
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -130,45 +93,26 @@ class PlatformAppBar extends StatelessWidget implements PreferredSizeWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return CupertinoNavigationBar(
-        middle: Text(
-          title,
-          style: TextStyle(
-            color: foregroundColor ?? AppColors.dynamicTextPrimary(context),
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.41,
-          ),
+    return CupertinoNavigationBar(
+      middle: Text(
+        title,
+        style: TextStyle(
+          color: foregroundColor ?? AppColors.dynamicTextPrimary(context),
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.41,
         ),
-        backgroundColor: backgroundColor ?? AppColors.dynamicSurface(context),
-        border: null,
-        leading: leading,
-        trailing: actions != null 
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: actions!,
-            )
-          : null,
-      );
-    } else {
-      return AppBar(
-        title: Text(
-          title,
-          style: AndroidTheme.titleLarge.copyWith(
-            color: foregroundColor ?? AndroidColors.dynamicOnSurface(context),
-          ),
-        ),
-        backgroundColor: backgroundColor ?? AndroidColors.dynamicSurface(context),
-        foregroundColor: foregroundColor ?? AndroidColors.dynamicOnSurface(context),
-        elevation: 0,
-        centerTitle: centerTitle,
-        leading: leading,
-        actions: actions,
-        automaticallyImplyLeading: automaticallyImplyLeading,
-        bottom: bottom,
-      );
-    }
+      ),
+      backgroundColor: backgroundColor ?? AppColors.dynamicSurface(context),
+      border: null,
+      leading: leading,
+      trailing: actions != null 
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: actions!,
+          )
+        : null,
+    );
   }
   
   @override
@@ -197,43 +141,23 @@ class PlatformCard extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return Container(
-        margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Material(
-          color: color ?? AppColors.dynamicSurface(context),
-          borderRadius: borderRadius ?? BorderRadius.circular(AppTheme.radius16),
-          elevation: 0,
-          shadowColor: Colors.black.withValues(alpha: 0.08),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: borderRadius ?? BorderRadius.circular(AppTheme.radius16),
-            child: Container(
-              padding: padding ?? const EdgeInsets.all(16),
-              child: child,
-            ),
-          ),
-        ),
-      );
-    } else {
-      return Card(
-        margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: color ?? AndroidColors.dynamicSurface(context),
-        elevation: elevation ?? 1,
-        shadowColor: AndroidColors.shadow.withValues(alpha: 0.05),
-        shape: RoundedRectangleBorder(
-          borderRadius: borderRadius ?? BorderRadius.circular(AndroidTheme.radius12),
-        ),
+    return Container(
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Material(
+        color: color ?? AppColors.dynamicSurface(context),
+        borderRadius: borderRadius ?? BorderRadius.circular(AppTheme.radius16),
+        elevation: 0,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
         child: InkWell(
           onTap: onTap,
-          borderRadius: borderRadius ?? BorderRadius.circular(AndroidTheme.radius12),
+          borderRadius: borderRadius ?? BorderRadius.circular(AppTheme.radius16),
           child: Container(
             padding: padding ?? const EdgeInsets.all(16),
             child: child,
           ),
         ),
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -255,11 +179,7 @@ class PlatformButton extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return _buildIOSButton(context);
-    } else {
-      return _buildAndroidButton(context);
-    }
+    return _buildIOSButton(context);
   }
   
   Widget _buildIOSButton(BuildContext context) {
@@ -308,46 +228,12 @@ class PlatformButton extends StatelessWidget {
     );
   }
   
-  Widget _buildAndroidButton(BuildContext context) {
-    switch (type) {
-      case ButtonType.primary:
-        return FilledButton(
-          onPressed: isLoading ? null : onPressed,
-          child: _buildButtonContent(context),
-        );
-      case ButtonType.secondary:
-        return OutlinedButton(
-          onPressed: isLoading ? null : onPressed,
-          child: _buildButtonContent(context),
-        );
-      case ButtonType.tertiary:
-        return TextButton(
-          onPressed: isLoading ? null : onPressed,
-          child: _buildButtonContent(context),
-        );
-      case ButtonType.tonal:
-        // Note: TonalButton not available in current Flutter version
-        // Using FilledButton with secondary colors instead
-        return FilledButton(
-          onPressed: isLoading ? null : onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: AndroidColors.secondaryContainer,
-            foregroundColor: AndroidColors.onSecondaryContainer,
-          ),
-          child: _buildButtonContent(context),
-        );
-    }
-  }
-  
   Widget _buildButtonContent(BuildContext context) {
     if (isLoading) {
       return const SizedBox(
         width: 16,
         height: 16,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-        ),
+        child: CupertinoActivityIndicator(),
       );
     }
     
@@ -449,120 +335,61 @@ class PlatformTextField extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (label != null) ...[
-            Text(
-              label!,
-              style: TextStyle(
-                color: AppColors.dynamicTextPrimary(context),
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.41,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null) ...[
+          Text(
+            label!,
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.41,
             ),
-            const SizedBox(height: 8),
-          ],
-          CupertinoTextField(
-            controller: controller,
-            placeholder: hint,
-            keyboardType: keyboardType,
-            obscureText: obscureText,
-            readOnly: readOnly,
-            onTap: onTap,
-            onChanged: onChanged,
-            enabled: enabled,
-            maxLines: maxLines,
-            minLines: minLines,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: AppColors.dynamicSurface(context),
-              border: Border.all(
-                color: errorText != null 
-                  ? AppColors.error 
-                  : AppColors.dynamicBorder(context),
-              ),
-              borderRadius: BorderRadius.circular(AppTheme.radius12),
-            ),
-            prefix: prefixIcon,
-            suffix: suffixIcon,
           ),
-          if (helperText != null || errorText != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              errorText ?? helperText!,
-              style: TextStyle(
-                color: errorText != null 
-                  ? AppColors.error 
-                  : AppColors.dynamicTextSecondary(context),
-                fontSize: 13,
-                fontWeight: FontWeight.normal,
-                letterSpacing: -0.08,
-              ),
-            ),
-          ],
+          const SizedBox(height: 8),
         ],
-      );
-    } else {
-      return TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        readOnly: readOnly,
-        onTap: onTap,
-        onChanged: onChanged,
-        validator: validator,
-        enabled: enabled,
-        maxLines: maxLines,
-        minLines: minLines,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          helperText: helperText,
-          errorText: errorText,
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
-          filled: true,
-          fillColor: AndroidColors.dynamicSurface(context),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AndroidTheme.radius4),
-            borderSide: BorderSide(
+        CupertinoTextField(
+          controller: controller,
+          placeholder: hint,
+          keyboardType: keyboardType,
+          obscureText: obscureText,
+          readOnly: readOnly,
+          onTap: onTap,
+          onChanged: onChanged,
+          enabled: enabled,
+          maxLines: maxLines,
+          minLines: minLines,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            border: Border.all(
               color: errorText != null 
-                ? AndroidColors.error 
-                : AndroidColors.dynamicOutline(context),
+                ? AppColors.error 
+                : AppColors.dynamicBorder(context),
             ),
+            borderRadius: BorderRadius.circular(AppTheme.radius12),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AndroidTheme.radius4),
-            borderSide: BorderSide(
-              color: errorText != null 
-                ? AndroidColors.error 
-                : AndroidColors.dynamicOutline(context),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AndroidTheme.radius4),
-            borderSide: BorderSide(
-              color: errorText != null 
-                ? AndroidColors.error 
-                : AndroidColors.dynamicPrimary(context),
-              width: 2,
-            ),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AndroidTheme.radius4),
-            borderSide: const BorderSide(color: AndroidColors.error),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AndroidTheme.radius4),
-            borderSide: const BorderSide(color: AndroidColors.error, width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          prefix: prefixIcon,
+          suffix: suffixIcon,
         ),
-      );
-    }
+        if (helperText != null || errorText != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            errorText ?? helperText!,
+            style: TextStyle(
+              color: errorText != null 
+                ? AppColors.error 
+                : AppColors.dynamicTextSecondary(context),
+              fontSize: 13,
+              fontWeight: FontWeight.normal,
+              letterSpacing: -0.08,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -580,39 +407,29 @@ class PlatformSwitch extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return Row(
-        children: [
-          if (label != null) ...[
-            Expanded(
-              child: Text(
-                label!,
-                style: TextStyle(
-                  color: AppColors.dynamicTextPrimary(context),
-                  fontSize: 17,
-                  fontWeight: FontWeight.normal,
-                  letterSpacing: -0.41,
-                ),
+    return Row(
+      children: [
+        if (label != null) ...[
+          Expanded(
+            child: Text(
+              label!,
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 17,
+                fontWeight: FontWeight.normal,
+                letterSpacing: -0.41,
               ),
             ),
-            const SizedBox(width: 16),
-          ],
-          CupertinoSwitch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
           ),
+          const SizedBox(width: 16),
         ],
-      );
-    } else {
-      return SwitchListTile(
-        title: label != null ? Text(label!) : null,
-        value: value,
-        onChanged: onChanged,
-        activeColor: AndroidColors.primary,
-        contentPadding: EdgeInsets.zero,
-      );
-    }
+        CupertinoSwitch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.primary,
+        ),
+      ],
+    );
   }
 }
 
@@ -632,19 +449,10 @@ class PlatformDialog extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    if (Platform.isIOS) {
-      return CupertinoAlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: actions,
-      );
-    } else {
-      return AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: actions,
-        icon: icon,
-      );
-    }
+    return CupertinoAlertDialog(
+      title: Text(title),
+      content: Text(content),
+      actions: actions,
+    );
   }
 }

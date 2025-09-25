@@ -652,28 +652,29 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       case ActivityView.weekly:
         // Show activities created this week (Monday to Sunday)
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final endOfWeek = startOfWeek.add(const Duration(days: 7)).subtract(const Duration(milliseconds: 1));
         activities = _getActivitiesForPeriod(appState, startOfWeek, endOfWeek);
         break;
         
       case ActivityView.monthly:
         // Show activities created this month
         final startOfMonth = DateTime(now.year, now.month, 1);
-        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        final endOfMonth = DateTime(now.year, now.month + 1, 1).subtract(const Duration(milliseconds: 1));
         activities = _getActivitiesForPeriod(appState, startOfMonth, endOfMonth);
         break;
         
       case ActivityView.yearly:
         // Show activities created this year
         final startOfYear = DateTime(now.year, 1, 1);
-        final endOfYear = DateTime(now.year, 12, 31);
+        final endOfYear = DateTime(now.year + 1, 1, 1).subtract(const Duration(milliseconds: 1));
         activities = _getActivitiesForPeriod(appState, startOfYear, endOfYear);
         break;
     }
     
     // FALLBACK: If no activities found for the specific period, show all activities
     // This ensures activities are visible even if there are date filtering issues
-    if (activities.isEmpty && appState.activities.isNotEmpty) {
+    // EXCEPT for daily view - it should only show today's activities
+    if (activities.isEmpty && appState.activities.isNotEmpty && view != ActivityView.daily) {
       activities = List.from(appState.activities);
       activities.sort((a, b) => b.date.compareTo(a.date));
     }
@@ -700,7 +701,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       final startTimestamp = bufferedStartDate.millisecondsSinceEpoch;
       final endTimestamp = bufferedEndDate.millisecondsSinceEpoch;
       
-      // Enhanced inclusive comparison with buffer
+      // Enhanced inclusive comparison - start inclusive, end inclusive
       final isWithinPeriod = activityTimestamp >= startTimestamp && activityTimestamp <= endTimestamp;
       
       
