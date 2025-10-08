@@ -1160,9 +1160,9 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ],
                                         ),
                                         Text(
-                                          'Created ${_formatDate(debt.createdAt)}',
+                                          _formatDate(debt.createdAt),
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 11,
                                             color: AppColors.dynamicTextSecondary(context),
                                           ),
                                         ),
