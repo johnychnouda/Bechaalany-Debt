@@ -632,8 +632,9 @@ class AppState extends ChangeNotifier {
         break;
       case 'weekly':
         final daysFromMonday = today.weekday - 1;
+        final daysToSunday = 7 - today.weekday;
         startDate = DateTime(today.year, today.month, today.day - daysFromMonday);
-        endDate = DateTime(today.year, today.month, today.day, 23, 59, 59);
+        endDate = DateTime(today.year, today.month, today.day + daysToSunday, 23, 59, 59);
         break;
       case 'monthly':
         startDate = DateTime(now.year, now.month, 1);
@@ -649,7 +650,43 @@ class AppState extends ChangeNotifier {
         endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
     }
     
-    // Get relevant debts for the period
+    // Get activities within the period
+    final periodActivities = _activities.where((activity) {
+      return (activity.date.isAtSameMomentAs(startDate) || 
+              activity.date.isAtSameMomentAs(endDate) ||
+              (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)));
+    }).toList();
+    
+    // Calculate total paid directly from payment activities in the period
+    double periodPaid = 0.0;
+    final relevantDebtIds = <String>{};
+    
+    for (final activity in periodActivities) {
+      if (activity.type == ActivityType.payment && activity.paymentAmount != null) {
+        periodPaid += activity.paymentAmount!;
+        // Track debt IDs that had payments in this period
+        if (activity.debtId != null) {
+          relevantDebtIds.add(activity.debtId!);
+        } else {
+          // FALLBACK: If debtId is null, find debt by customer name and recent payment amount
+          // This handles cases where payment activities weren't properly linked to debts
+          final matchingDebts = _debts.where((debt) => 
+            debt.customerId == activity.customerId && 
+            debt.paidAmount > 0 &&
+            (debt.paidAmount - activity.paymentAmount!).abs() < 0.01 // Allow for small floating point differences
+          ).toList();
+          
+          if (matchingDebts.isNotEmpty) {
+            // Use the most recently updated debt for this customer
+            final mostRecentDebt = matchingDebts.reduce((a, b) => 
+              a.createdAt.isAfter(b.createdAt) ? a : b);
+            relevantDebtIds.add(mostRecentDebt.id);
+          }
+        }
+      }
+    }
+    
+    // Get all debts that had activities (payments or creation) within the period
     final relevantDebts = <String>{};
     
     // Add debts created within the period
@@ -662,27 +699,10 @@ class AppState extends ChangeNotifier {
     }
     
     // Add debts that had payments within the period
-    for (final activity in _activities) {
-      if (activity.type == ActivityType.payment) {
-        if ((activity.date.isAtSameMomentAs(startDate) || 
-             activity.date.isAtSameMomentAs(endDate) ||
-             (activity.date.isAfter(startDate) && activity.date.isBefore(endDate))) &&
-            activity.debtId != null) {
-          relevantDebts.add(activity.debtId!);
-        }
-      }
-    }
+    relevantDebts.addAll(relevantDebtIds);
     
-    // Filter debts for the period and use the same calculation logic as dashboard
+    // Filter debts for the period
     final periodDebts = _debts.where((debt) => relevantDebts.contains(debt.id)).toList();
-    final periodActivities = _activities.where((activity) {
-      if (activity.type == ActivityType.payment) {
-        return (activity.date.isAtSameMomentAs(startDate) || 
-                activity.date.isAtSameMomentAs(endDate) ||
-                (activity.date.isAfter(startDate) && activity.date.isBefore(endDate)));
-      }
-      return false;
-    }).toList();
     
     // Use the same RevenueCalculationService as the dashboard for consistency
     final revenue = RevenueCalculationService().calculateTotalRevenue(
@@ -690,12 +710,6 @@ class AppState extends ChangeNotifier {
       activities: periodActivities, 
       appState: this
     );
-    
-    // Calculate total paid amount from debt records' paidAmount field
-    double periodPaid = 0.0;
-    for (final debt in periodDebts) {
-      periodPaid += debt.paidAmount;
-    }
     
     // Round to 2 decimal places (same as dashboard)
     final periodRevenue = (revenue * 100).round() / 100;

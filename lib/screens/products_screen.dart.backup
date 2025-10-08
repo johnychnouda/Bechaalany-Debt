@@ -2014,15 +2014,55 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Dismissible(
+      key: Key('product_${subcategory.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.delete_rounded,
+              color: AppColors.error,
+              size: 24,
+            ),
+          ],
+        ),
       ),
-      child: InkWell(
-        onTap: () => _showProductActionSheet(context),
-        borderRadius: BorderRadius.circular(12),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.endToStart) {
+          // Delete action
+          return await _showDeleteConfirmation(context);
+        }
+        return false;
+      },
+      onDismissed: (direction) {
+        if (direction == DismissDirection.endToStart) {
+          onDelete();
+        }
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -2076,6 +2116,18 @@ class _ProductCard extends StatelessWidget {
                         ],
                         const SizedBox(height: 4),
                       ],
+                    ),
+                  ),
+                  // Add tap area for edit functionality
+                  GestureDetector(
+                    onTap: onEdit,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.edit_rounded,
+                        color: AppColors.dynamicTextSecondary(context),
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -2174,49 +2226,31 @@ class _ProductCard extends StatelessWidget {
               },
             ),
 
-            ],
-          ),
+          ],
         ),
       ),
     );
-  }
+    );  }
 
-  void _showProductActionSheet(BuildContext context) {
-    showCupertinoModalPopup<void>(
+  Future<bool> _showDeleteConfirmation(BuildContext context) async {
+    return await showCupertinoDialog<bool>(
       context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: Text(
-          subcategory.name,
-          style: const TextStyle(
-            fontSize: 13,
-            color: CupertinoColors.systemGrey,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Delete Product'),
+        content: Text('Are you sure you want to delete ${subcategory.name}? This action cannot be undone.'),
+        actions: <CupertinoDialogAction>[
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
-        ),
-        actions: <CupertinoActionSheetAction>[
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              onEdit();
-            },
-            child: const Text('Edit'),
-          ),
-          CupertinoActionSheetAction(
+          CupertinoDialogAction(
             isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(context);
-              onDelete();
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text('Cancel'),
-        ),
       ),
-    );
+    ) ?? false;
   }
 
   Widget _buildExchangeRateChip(BuildContext context, CurrencySettings settings) {

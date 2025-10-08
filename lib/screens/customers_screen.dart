@@ -503,141 +503,131 @@ class _CustomerListTile extends StatelessWidget {
               width: 1,
             ),
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-            leading: Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: AppColors.dynamicPrimary(context).withAlpha(26),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  () {
-                    final initials = customer.name.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).join('');
-                    // Ensure we always show at least 2 characters, pad with first letter if needed
-                    if (initials.isEmpty) return '?';
-                    if (initials.length == 1) return initials + initials;
-                    return initials.length > 2 ? initials.substring(0, 2) : initials;
-                  }(),
-                  style: TextStyle(
-                    color: AppColors.dynamicPrimary(context),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
-                    letterSpacing: 0.5,
-                  ),
-                  textAlign: TextAlign.center,
+          child: InkWell(
+            onTap: () => _showCustomerActionSheet(context),
+            borderRadius: BorderRadius.circular(12),
+            child: ListTile(
+              contentPadding: const EdgeInsets.only(left: 8, right: 16, top: 0, bottom: 0),
+              leading: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.dynamicPrimary(context).withAlpha(26),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        customer.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                          color: AppColors.dynamicTextPrimary(context),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.phone_rounded,
-                            size: 8,
-                            color: AppColors.dynamicTextSecondary(context),
-                          ),
-                          const SizedBox(width: 1),
-                          Text(
-                            customer.phone,
-                            style: TextStyle(
-                              color: AppColors.dynamicTextSecondary(context),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                child: Center(
+                  child: Text(
+                    () {
+                      final initials = customer.name.split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).join('');
+                      // Ensure we always show at least 2 characters, pad with first letter if needed
+                      if (initials.isEmpty) return '?';
+                      if (initials.length == 1) return initials + initials;
+                      return initials.length > 2 ? initials.substring(0, 2) : initials;
+                    }(),
+                    style: TextStyle(
+                      color: AppColors.dynamicPrimary(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(width: 4),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.tag_rounded,
-                          size: 8,
-                          color: AppColors.dynamicTextSecondary(context),
-                        ),
-                        const SizedBox(width: 1),
                         Text(
-                          'ID: ${customer.id}',
+                          customer.name,
                           style: TextStyle(
-                            color: AppColors.dynamicTextSecondary(context),
+                            fontWeight: FontWeight.w600,
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            color: AppColors.dynamicTextPrimary(context),
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.phone_rounded,
+                              size: 8,
+                              color: AppColors.dynamicTextSecondary(context),
+                            ),
+                            const SizedBox(width: 1),
+                            Text(
+                              customer.phone,
+                              style: TextStyle(
+                                color: AppColors.dynamicTextSecondary(context),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    if (roundedTotalRemainingDebt > 0) ...[
-                      const SizedBox(height: 8),
+                  ),
+                  const SizedBox(width: 4),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.attach_money_rounded,
+                            Icons.tag_rounded,
                             size: 8,
-                            color: AppColors.error,
+                            color: AppColors.dynamicTextSecondary(context),
                           ),
                           const SizedBox(width: 1),
                           Text(
-                            CurrencyFormatter.formatAmount(context, roundedTotalRemainingDebt),
+                            'ID: ${customer.id}',
                             style: TextStyle(
-                              color: AppColors.error,
+                              color: AppColors.dynamicTextSecondary(context),
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
                       ),
+                      if (roundedTotalRemainingDebt > 0) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.attach_money_rounded,
+                              size: 8,
+                              color: AppColors.error,
+                            ),
+                            const SizedBox(width: 1),
+                            Text(
+                              CurrencyFormatter.formatAmount(context, roundedTotalRemainingDebt),
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
-            ),
-            trailing: IconButton(
-              onPressed: () => _showActionSheet(context),
-              icon: Icon(
-                Icons.more_vert_rounded,
-                color: AppColors.dynamicTextSecondary(context),
-                size: 16,
-              ),
-              padding: const EdgeInsets.all(2),
-              constraints: const BoxConstraints(
-                minWidth: 20,
-                minHeight: 20,
+                  ),
+                ],
               ),
             ),
-            onTap: onView,
           ),
         );
       },
     );
   }
   
-  void _showActionSheet(BuildContext context) {
+  void _showCustomerActionSheet(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
@@ -658,9 +648,12 @@ class _CustomerListTile extends StatelessWidget {
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              onDelete();
+              final confirmed = await _showDeleteConfirmation(context);
+              if (confirmed) {
+                onDelete();
+              }
             },
             child: const Text('Delete'),
           ),
@@ -673,5 +666,26 @@ class _CustomerListTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<bool> _showDeleteConfirmation(BuildContext context) async {
+    return await showCupertinoDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => CupertinoAlertDialog(
+        title: const Text('Delete Customer'),
+        content: Text('Are you sure you want to delete ${customer.name}? This action cannot be undone.'),
+        actions: <CupertinoDialogAction>[
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 }

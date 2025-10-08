@@ -221,7 +221,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
             'CUSTOMER INFORMATION',
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w900,
               color: AppColors.dynamicTextSecondary(context),
               letterSpacing: 1,
             ),
@@ -254,6 +254,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                     widget.customer.phone,
                     style: TextStyle(
                       fontSize: 13,
+                      fontWeight: FontWeight.w900,
                       color: AppColors.dynamicTextSecondary(context),
                     ),
                   ),
@@ -514,7 +515,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.dynamicTextPrimary(context),
+                    color: paymentColor,
                   ),
                 ),
               ),

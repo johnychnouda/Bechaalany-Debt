@@ -18,12 +18,18 @@ class RevenueCalculationService {
     // Calculate revenue as profit from payments received
     // Revenue = profit margin on the amount actually paid by customers
     for (final debt in debts) {
-      if (debt.paidAmount > 0 && debt.originalCostPrice != null && debt.originalSellingPrice != null) {
-        // Calculate profit margin on the paid amount
-        final profitMargin = (debt.originalSellingPrice! - debt.originalCostPrice!) / debt.originalSellingPrice!;
-        final profitFromPaidAmount = debt.paidAmount * profitMargin;
-        totalRevenue += profitFromPaidAmount;
-        
+      if (debt.paidAmount > 0) {
+        if (debt.originalCostPrice != null && debt.originalSellingPrice != null) {
+          // Calculate profit margin on the paid amount using actual cost/selling prices
+          final profitMargin = (debt.originalSellingPrice! - debt.originalCostPrice!) / debt.originalSellingPrice!;
+          final profitFromPaidAmount = debt.paidAmount * profitMargin;
+          totalRevenue += profitFromPaidAmount;
+        } else {
+          // Fallback: Use conservative 30% profit margin for debts without cost/selling prices
+          // This ensures revenue is calculated even for manually created debts
+          final estimatedProfitFromPaidAmount = debt.paidAmount * 0.30; // 30% profit margin
+          totalRevenue += estimatedProfitFromPaidAmount;
+        }
       }
     }
     
@@ -252,8 +258,9 @@ class RevenueCalculationService {
           totalPotentialRevenue += remainingRevenue;
           
         } else {
-          // Fallback: use remaining debt amount as potential revenue when cost prices aren't set
-          totalPotentialRevenue += debt.remainingAmount;
+          // Fallback: use 30% profit margin on remaining debt amount when cost prices aren't set
+          final estimatedPotentialRevenue = debt.remainingAmount * 0.30; // 30% profit margin
+          totalPotentialRevenue += estimatedPotentialRevenue;
         }
       }
       

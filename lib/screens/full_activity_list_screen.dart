@@ -5,6 +5,8 @@ import '../constants/app_theme.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
+import '../services/receipt_sharing_service.dart';
+import 'pdf_viewer_screen.dart';
 
 enum ActivityView { daily, weekly, monthly, yearly }
 
@@ -68,6 +70,20 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
+        actions: [
+          // Show PDF button only when monthly filter is selected
+          if (_currentView == ActivityView.monthly)
+            Consumer<AppState>(
+              builder: (context, appState, child) {
+                return IconButton(
+                  icon: const Icon(Icons.assessment, size: 32),
+                  onPressed: () => _generateMonthlyPDF(context, appState),
+                  tooltip: 'Generate Monthly Report',
+                  iconSize: 32,
+                );
+              },
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
@@ -772,6 +788,86 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       return activitiesToKeep;
     } catch (e) {
       return activities; // Return original list if error occurs
+    }
+  }
+
+  /// Generate monthly activity PDF report
+  Future<void> _generateMonthlyPDF(BuildContext context, AppState appState) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
+
+      // Get monthly activities and data
+      final now = DateTime.now();
+      final monthlyActivities = _getActivitiesForView(appState, ActivityView.monthly);
+      final monthlyDebts = appState.debts.where((debt) {
+        final debtDate = DateTime(debt.createdAt.year, debt.createdAt.month, debt.createdAt.day);
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+        return debtDate.isAtSameMomentAs(startOfMonth) || 
+               debtDate.isAtSameMomentAs(endOfMonth) ||
+               (debtDate.isAfter(startOfMonth) && debtDate.isBefore(endOfMonth));
+      }).toList();
+
+      // Get monthly financial data
+      final monthlyData = appState.getPeriodFinancialData('monthly');
+      final totalRevenue = monthlyData['totalRevenue'] ?? 0.0;
+      final totalPaid = monthlyData['totalPaid'] ?? 0.0;
+
+      // Generate PDF
+      final pdfFile = await ReceiptSharingService.generateMonthlyActivityPDF(
+        monthlyActivities: monthlyActivities,
+        monthlyDebts: monthlyDebts,
+        totalRevenue: totalRevenue,
+        totalPaid: totalPaid,
+        monthDate: now,
+      );
+
+      // Hide loading indicator
+      Navigator.of(context).pop();
+
+      if (pdfFile != null) {
+        // Open PDF directly in the app
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => PDFViewerScreen(
+              pdfFile: pdfFile,
+              title: 'Monthly Activity Report',
+            ),
+          ),
+        );
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate monthly report. Please try again.'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Hide loading indicator if it's still showing
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating report: ${e.toString()}'),
+          backgroundColor: AppColors.error,
+          duration: const Duration(seconds: 3),
+        ),
+      );
     }
   }
 

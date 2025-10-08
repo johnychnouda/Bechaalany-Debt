@@ -3,11 +3,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:share_plus/share_plus.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
 import '../utils/pdf_font_utils.dart';
-import '../utils/debt_description_utils.dart';
 
 class ReceiptSharingService {
   static const String _whatsappBaseUrl = 'https://wa.me/';
@@ -149,8 +149,8 @@ class ReceiptSharingService {
       final sortedDebts = List<Debt>.from(relevantDebts);
       sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
-      // Check if customer has pending debts
-      final hasPendingDebts = sortedDebts.any((debt) => !debt.isFullyPaid);
+      // Check if customer has pending debts (for future use)
+      // final hasPendingDebts = sortedDebts.any((debt) => !debt.isFullyPaid);
       
       // Create PDF document
       final pdf = pw.Document();
@@ -232,12 +232,11 @@ class ReceiptSharingService {
       
       // Verify file was created
       if (await file.exists()) {
-        final fileSize = await file.length();
         return file;
       } else {
         return null;
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       return null;
     }
   }
@@ -257,309 +256,370 @@ class ReceiptSharingService {
     return pw.Container(
       width: double.infinity,
       height: double.infinity,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-      margin: pw.EdgeInsets.zero,
+      color: PdfColors.white,
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          // Header
+          // Ultra Compact Header
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.all(6),
+            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
             decoration: pw.BoxDecoration(
-              color: PdfColors.white,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                bottom: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 0.5,
+                ),
+              ),
             ),
             child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
-                pw.Center(
-                  child: PdfFontUtils.createGracefulText(
-                    'Bechaalany Connect',
-                    fontSize: 18,
+                // App name
+                pw.Text(
+                  'Bechaalany Connect',
+                  style: pw.TextStyle(
+                    fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.black,
+                    color: PdfColor.fromInt(0xFF64748B),
                   ),
                 ),
-                pw.SizedBox(height: 2),
-                pw.Center(
-                  child: PdfFontUtils.createGracefulText(
-                    _formatDateTime(DateTime.now()),
-                    fontSize: 10,
-                    color: PdfColor.fromInt(0xFF666666),
+                pw.SizedBox(height: 4),
+                
+                // Main title
+                pw.Text(
+                  'Customer Receipt',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF1E293B),
                   ),
                 ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 2),
-          
-          // Customer Information
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(4),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.white,
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                PdfFontUtils.createGracefulText(
-                  'CUSTOMER INFORMATION',
-                  fontSize: 10,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.grey,
-                ),
-                pw.SizedBox(height: 2),
-                PdfFontUtils.createGracefulText(
-                  sanitizedCustomerName,
-                  fontSize: 14,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.black,
-                ),
-                if (sanitizedCustomerPhone.isNotEmpty) ...[
-                  pw.SizedBox(height: 1),
-                  PdfFontUtils.createGracefulText(
-                    sanitizedCustomerPhone,
-                    fontSize: 12,
-                    color: PdfColor.fromInt(0xFF424242),
-                  ),
-                ],
                 pw.SizedBox(height: 1),
-                PdfFontUtils.createGracefulText(
-                  'ID: $sanitizedCustomerId',
-                  fontSize: 12,
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColors.black,
+                
+                // Generation date
+                pw.Text(
+                  'Generated on ${_formatDateTime(DateTime.now())}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColor.fromInt(0xFF94A3B8),
+                  ),
                 ),
               ],
             ),
           ),
-          pw.SizedBox(height: 2),
           
-          // Date filter info if applicable
-          if (specificDate != null) ...[
-            pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.all(4),
-              decoration: pw.BoxDecoration(
-                color: PdfColor.fromInt(0xFFE3F2FD),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-              ),
-              child: PdfFontUtils.createGracefulText(
-                'Receipt for: ${_formatDateTime(specificDate)}',
-                fontSize: 11,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF1976D2),
-              ),
-            ),
-            pw.SizedBox(height: 2),
-          ],
-          
-          // All Transactions Header
+          // Compact Customer Information Section
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(vertical: 2),
-            child: PdfFontUtils.createGracefulText(
-              'TRANSACTION HISTORY',
-              fontSize: 14,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColor.fromInt(0xFF424242),
-            ),
-          ),
-          pw.SizedBox(height: 2),
-          
-          // All transactions (debts and payments)
-          ...allItems.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-            final isLastItem = index == allItems.length - 1;
-            final isPayment = item['type'] == 'partial_payment' || item['type'] == 'payment_activity';
-            
-            return pw.Container(
-              width: double.infinity,
-              margin: pw.EdgeInsets.only(
-                bottom: isLastItem ? 0 : 8,
-              ),
-              padding: const pw.EdgeInsets.all(8),
+            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: pw.Container(
+              padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
-                color: isPayment 
-                    ? PdfColor.fromInt(0xFFE8F5E8) // Light green for payments
-                    : PdfColor.fromInt(0xFFE3F2FD), // Light blue for products/debts
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                color: PdfColor.fromInt(0xFFF8FAFC),
+                borderRadius: pw.BorderRadius.circular(8),
                 border: pw.Border.all(
-                  color: isPayment 
-                      ? PdfColor.fromInt(0xFF4CAF50) // Green border for payments
-                      : PdfColor.fromInt(0xFF3B82F6), // Blue border for debts
+                  color: PdfColor.fromInt(0xFFE2E8F0),
                   width: 0.5,
                 ),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: PdfFontUtils.createGracefulText(
-                          item['description'],
-                          fontSize: 14, // Increased from 13px
-                          fontWeight: pw.FontWeight.bold,
-                          color: isPayment 
-                              ? PdfColor.fromInt(0xFF2E7D32) // Green for payments
-                              : PdfColor.fromInt(0xFF1E40AF), // Blue for products/debts
-                        ),
-                      ),
-                      pw.SizedBox(width: 4),
-                      PdfFontUtils.createGracefulText(
-                        _formatCurrency(item['amount']),
-                        fontSize: 14, // Increased from 13px
-                        fontWeight: pw.FontWeight.bold,
-                        color: isPayment 
-                            ? PdfColor.fromInt(0xFF2E7D32) // Green for payments
-                            : PdfColor.fromInt(0xFF1E40AF), // Dark blue for debts
-                      ),
-                    ],
+                  pw.Text(
+                    'CUSTOMER INFORMATION',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF64748B),
+                      letterSpacing: 0.3,
+                    ),
                   ),
-                  pw.SizedBox(height: 4),
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: PdfFontUtils.createGracefulText(
-                          _formatDateTime(item['date']),
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.normal,
-                          color: isPayment 
-                              ? PdfColor.fromInt(0xFF2E7D32) // Green for payments
-                              : PdfColor.fromInt(0xFF3B82F6), // Blue for debts
-                        ),
+                  pw.SizedBox(height: 6),
+                  pw.Text(
+                    sanitizedCustomerName,
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF1E293B),
+                    ),
+                  ),
+                  if (sanitizedCustomerPhone.isNotEmpty) ...[
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      sanitizedCustomerPhone,
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.normal,
+                        color: PdfColor.fromInt(0xFF475569),
                       ),
-                    ],
+                    ),
+                  ],
+                  pw.SizedBox(height: 3),
+                  pw.Text(
+                    'ID: $sanitizedCustomerId',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.normal,
+                      color: PdfColor.fromInt(0xFF64748B),
+                    ),
                   ),
                 ],
               ),
-            );
-          }).toList(),
+            ),
+          ),
           
-          // Summary Section
-          pw.SizedBox(height: 8),
+          // Date filter info if applicable
+          if (specificDate != null) ...[
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFFEFF6FF),
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(
+                    color: PdfColor.fromInt(0xFF3B82F6),
+                    width: 1,
+                  ),
+                ),
+                child: pw.Text(
+                  'Receipt for: ${_formatDateTime(specificDate)}',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF3B82F6),
+                  ),
+                ),
+              ),
+            ),
+          ],
           
-          // Summary Header
+          // Transactions Header
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFF1F5F9), // Very light grey background
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-            ),
-            child: pw.Center(
-              child: PdfFontUtils.createGracefulText(
-                'ACCOUNT SUMMARY',
-                fontSize: 13,
+            padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
+            child: pw.Text(
+              'TRANSACTION HISTORY',
+              style: pw.TextStyle(
+                fontSize: 18,
                 fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF475569), // Slate color
+                color: PdfColor.fromInt(0xFF1E293B),
+                letterSpacing: -0.3,
               ),
             ),
           ),
           
-          pw.SizedBox(height: 6),
-          
-          // Total Original Amount
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFF3F4F6), // Light grey background
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              border: pw.Border.all(
-                color: PdfColor.fromInt(0xFFE0E0E0),
-                width: 0.5,
+          // All transactions (debts and payments) with modern design
+          pw.Expanded(
+            child: pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 0),
+              child: pw.ListView.builder(
+                itemCount: allItems.length,
+                itemBuilder: (context, index) {
+                  final item = allItems[index];
+                  final isPayment = item['type'] == 'partial_payment' || item['type'] == 'payment_activity';
+                  
+                  PdfColor backgroundColor;
+                  PdfColor borderColor;
+                  PdfColor textColor;
+                  PdfColor amountColor;
+                  
+                  if (isPayment) {
+                    backgroundColor = PdfColor.fromInt(0xFFFFFBEB); // Light orange for payments
+                    borderColor = PdfColor.fromInt(0xFFF59E0B); // Orange border
+                    textColor = PdfColor.fromInt(0xFF92400E); // Dark orange text
+                    amountColor = PdfColor.fromInt(0xFFF59E0B); // Orange amount
+                  } else {
+                    backgroundColor = PdfColor.fromInt(0xFFF0F4FF); // Light blue for debts
+                    borderColor = PdfColor.fromInt(0xFF6366F1); // Blue border
+                    textColor = PdfColor.fromInt(0xFF1E40AF); // Dark blue text
+                    amountColor = PdfColor.fromInt(0xFF6366F1); // Blue amount
+                  }
+                  
+                  return pw.Container(
+                    width: double.infinity,
+                    margin: const pw.EdgeInsets.only(bottom: 8),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: pw.BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(
+                        color: borderColor,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: pw.Row(
+                      children: [
+                        // Status indicator dot
+                        pw.Container(
+                          width: 6,
+                          height: 6,
+                          decoration: pw.BoxDecoration(
+                            color: borderColor,
+                            shape: pw.BoxShape.circle,
+                          ),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                item['description'],
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                _formatDateTime(item['date']),
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  color: PdfColor.fromInt(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        pw.Text(
+                          _formatCurrency(item['amount']),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: amountColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
-            child: pw.Row(
+          ),
+          
+          // Clean Summary Section
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                bottom: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: pw.Column(
               children: [
-                pw.Expanded(
-                  child: PdfFontUtils.createGracefulText(
-                    'TOTAL ORIGINAL AMOUNT',
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.normal, // Changed from bold to normal
-                    color: PdfColor.fromInt(0xFF6B7280), // Lighter grey
+                // Summary title
+                pw.Text(
+                  'Account Summary',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF1E293B),
                   ),
                 ),
-                PdfFontUtils.createGracefulText(
-                  _formatCurrency(totalOriginalAmount),
-                  fontSize: 15, // Increased from 14px
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromInt(0xFF374151), // Darker grey
+                pw.SizedBox(height: 8),
+                
+                // Clean summary layout - no cards, just clean rows
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Total Original',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          _formatCurrency(totalOriginalAmount),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Total Paid',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          _formatCurrency(totalPaidAmount),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Remaining',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          _formatCurrency(remainingAmount),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
           
-          pw.SizedBox(height: 6),
-          
-          // Total Paid Amount
+          // Clean Footer
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.all(10),
+            padding: const pw.EdgeInsets.fromLTRB(20, 16, 20, 16),
             decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFE8F5E8), // Light green background for paid amount
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              border: pw.Border.all(
-                color: PdfColor.fromInt(0xFFE0E0E0),
-                width: 0.5,
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                top: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 0.5,
+                ),
               ),
             ),
-            child: pw.Row(
-              children: [
-                pw.Expanded(
-                  child: PdfFontUtils.createGracefulText(
-                    'TOTAL PAID AMOUNT',
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.normal, // Changed from bold to normal
-                    color: PdfColor.fromInt(0xFF059669), // Lighter green
-                  ),
-                ),
-                PdfFontUtils.createGracefulText(
-                  _formatCurrency(totalPaidAmount),
-                  fontSize: 15, // Increased from 14px
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromInt(0xFF047857), // Darker green
-                ),
-              ],
-            ),
-          ),
-          
-          pw.SizedBox(height: 6),
-          
-          // Total Remaining Amount
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFFFEBEE), // Light red background for remaining amount
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              border: pw.Border.all(
-                color: PdfColor.fromInt(0xFFE0E0E0),
-                width: 0.5,
+            child: pw.Text(
+              'Generated by Bechaalany Connect',
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColor.fromInt(0xFF94A3B8),
+                letterSpacing: 0.3,
               ),
-            ),
-            child: pw.Row(
-              children: [
-                pw.Expanded(
-                  child: PdfFontUtils.createGracefulText(
-                    'TOTAL REMAINING AMOUNT',
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.normal, // Changed from bold to normal
-                    color: PdfColor.fromInt(0xFFDC2626), // Lighter red
-                  ),
-                ),
-                PdfFontUtils.createGracefulText(
-                  _formatCurrency(remainingAmount),
-                  fontSize: 16, // Increased from 14px to emphasize this important amount
-                  fontWeight: pw.FontWeight.bold,
-                  color: PdfColor.fromInt(0xFFB91C1C), // Darker red
-                ),
-              ],
+              textAlign: pw.TextAlign.center,
             ),
           ),
         ],
@@ -746,5 +806,723 @@ This is an automated receipt. Please contact us for any account-related inquirie
       // check if the activity date is after any of the relevant debts
       return relevantDebts.any((debt) => activity.date.isAfter(debt.createdAt));
     }).toList();
+  }
+
+  /// Generate monthly activity PDF report
+  static Future<File?> generateMonthlyActivityPDF({
+    required List<Activity> monthlyActivities,
+    required List<Debt> monthlyDebts,
+    required double totalRevenue,
+    required double totalPaid,
+    required DateTime monthDate,
+  }) async {
+    try {
+      // Create PDF document
+      final pdf = pw.Document();
+      
+      // Build PDF content
+      final allItems = <Map<String, dynamic>>[];
+      
+      // Add all activities for the month
+      for (Activity activity in monthlyActivities) {
+        allItems.add({
+          'type': activity.type.toString().split('.').last,
+          'description': activity.description,
+          'amount': activity.paymentAmount ?? activity.amount,
+          'date': activity.date,
+          'activity': activity,
+          'customerName': activity.customerName,
+          'customerId': activity.customerId,
+        });
+      }
+      
+      // Sort by date (newest first)
+      allItems.sort((a, b) => b['date'].compareTo(a['date']));
+      
+      final monthName = _getMonthName(monthDate.month);
+      final year = monthDate.year;
+      
+      // Add PDF page
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          margin: pw.EdgeInsets.zero,
+          build: (pw.Context context) {
+            return buildMonthlyActivityPDFPage(
+              pageItems: allItems,
+              totalRevenue: totalRevenue,
+              totalPaid: totalPaid,
+              monthName: monthName,
+              year: year,
+              totalTransactions: monthlyActivities.length,
+            );
+          },
+        ),
+      );
+      
+      // Save PDF to temporary directory
+      final directory = await getTemporaryDirectory();
+      final fileName = 'Monthly_Activity_Report_${monthName}_${year}.pdf';
+      final file = File('${directory.path}/$fileName');
+      
+      final pdfBytes = await pdf.save();
+      await file.writeAsBytes(pdfBytes);
+      
+      // Verify file was created
+      if (await file.exists()) {
+        return file;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Build monthly activity PDF page content
+  static pw.Widget buildMonthlyActivityPDFPage({
+    required List<Map<String, dynamic>> pageItems,
+    required double totalRevenue,
+    required double totalPaid,
+    required String monthName,
+    required int year,
+    required int totalTransactions,
+  }) {
+    return pw.Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: PdfColors.white,
+      child: pw.Column(
+        children: [
+          // Ultra Compact Header
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                bottom: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                // App name
+                pw.Text(
+                  'Bechaalany Connect',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF64748B),
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+                
+                // Main title
+                pw.Text(
+                  'Monthly Activity Report',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF1E293B),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                
+                // Month and year
+                pw.Text(
+                  '$monthName $year',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.normal,
+                    color: PdfColor.fromInt(0xFF475569),
+                  ),
+                ),
+                pw.SizedBox(height: 1),
+                
+                // Generation date
+                pw.Text(
+                  'Generated on ${_formatDateForPDF(DateTime.now())}',
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColor.fromInt(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Clean Summary Section
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                bottom: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 0.5,
+                ),
+              ),
+            ),
+            child: pw.Column(
+              children: [
+                // Summary title
+                pw.Text(
+                  'Summary',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF1E293B),
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+                
+                // Clean summary layout - no cards, just clean rows
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Total Revenue',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          '\$${totalRevenue.toStringAsFixed(2)}',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Total Paid',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          '\$${totalPaid.toStringAsFixed(2)}',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF3B82F6),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'Transactions',
+                          style: pw.TextStyle(
+                            fontSize: 12,
+                            color: PdfColor.fromInt(0xFF64748B),
+                          ),
+                        ),
+                        pw.Text(
+                          '$totalTransactions',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromInt(0xFF6366F1),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Activities Section with clean design
+          pw.Expanded(
+            child: pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 0),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Activity Details',
+                    style: pw.TextStyle(
+                      fontSize: 20,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF1E293B),
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  pw.SizedBox(height: 16),
+                  pw.Expanded(
+                    child: pw.ListView.builder(
+                      itemCount: pageItems.length,
+                      itemBuilder: (context, index) {
+                        final item = pageItems[index];
+                        return _buildModernActivityPDFItem(item);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Clean Footer
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.fromLTRB(32, 20, 32, 20),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFF8FAFC),
+              border: pw.Border(
+                top: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFE2E8F0),
+                  width: 1,
+                ),
+              ),
+            ),
+            child: pw.Text(
+              'Generated by Bechaalany Connect',
+              style: pw.TextStyle(
+                fontSize: 11,
+                color: PdfColor.fromInt(0xFF94A3B8),
+                letterSpacing: 0.3,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build modern summary card for PDF
+  static pw.Widget _buildSummaryCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromInt(0xFFF8FAFC),
+        borderRadius: pw.BorderRadius.circular(12),
+        border: pw.Border.all(
+          color: PdfColor.fromInt(0xFFE2E8F0),
+          width: 1,
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.normal,
+              color: PdfColor.fromInt(0xFF64748B),
+              letterSpacing: 0.3,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 18,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build compact summary card for PDF
+  static pw.Widget _buildCompactSummaryCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromInt(0xFFF8FAFC),
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(
+          color: PdfColor.fromInt(0xFFE2E8F0),
+          width: 0.5,
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.normal,
+              color: PdfColor.fromInt(0xFF64748B),
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build customer summary card for PDF
+  static pw.Widget _buildCustomerSummaryCard(String title, String value, PdfColor color) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(16),
+      decoration: pw.BoxDecoration(
+        color: PdfColor.fromInt(0xFFF8FAFC),
+        borderRadius: pw.BorderRadius.circular(12),
+        border: pw.Border.all(
+          color: PdfColor.fromInt(0xFFE2E8F0),
+          width: 1,
+        ),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.normal,
+              color: PdfColor.fromInt(0xFF64748B),
+              letterSpacing: 0.3,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+              color: color,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build modern activity item for PDF
+  static pw.Widget _buildModernActivityPDFItem(Map<String, dynamic> item) {
+    final activity = item['activity'] as Activity;
+    final amount = item['amount'] as double;
+    final date = item['date'] as DateTime;
+    final customerName = item['customerName'] as String;
+    final description = item['description'] as String;
+    
+    PdfColor statusColor;
+    String statusText;
+    PdfColor backgroundColor;
+    
+    switch (activity.type) {
+      case ActivityType.payment:
+        if (activity.isPaymentCompleted) {
+          if (description.startsWith('Fully paid:')) {
+            statusColor = PdfColor.fromInt(0xFF10B981);
+            statusText = 'Fully Paid';
+            backgroundColor = PdfColor.fromInt(0xFFECFDF5);
+          } else {
+            statusColor = PdfColor.fromInt(0xFF3B82F6);
+            statusText = 'Debt Paid';
+            backgroundColor = PdfColor.fromInt(0xFFEFF6FF);
+          }
+        } else {
+          statusColor = PdfColor.fromInt(0xFFF59E0B);
+          statusText = 'Partial Payment';
+          backgroundColor = PdfColor.fromInt(0xFFFFFBEB);
+        }
+        break;
+      case ActivityType.newDebt:
+        statusColor = PdfColor.fromInt(0xFF6366F1);
+        statusText = 'New Debt';
+        backgroundColor = PdfColor.fromInt(0xFFF0F4FF);
+        break;
+      case ActivityType.debtCleared:
+        statusColor = PdfColor.fromInt(0xFF3B82F6);
+        statusText = 'Debt Paid';
+        backgroundColor = PdfColor.fromInt(0xFFEFF6FF);
+        break;
+      default:
+        statusColor = PdfColor.fromInt(0xFF64748B);
+        statusText = 'Activity';
+        backgroundColor = PdfColor.fromInt(0xFFF8FAFC);
+    }
+    
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 8),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: pw.BoxDecoration(
+        color: backgroundColor,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(
+          color: PdfColor.fromInt(0xFFE2E8F0),
+          width: 0.5,
+        ),
+      ),
+      child: pw.Row(
+        children: [
+          // Status indicator dot
+          pw.Container(
+            width: 6,
+            height: 6,
+            decoration: pw.BoxDecoration(
+              color: statusColor,
+              shape: pw.BoxShape.circle,
+            ),
+          ),
+          pw.SizedBox(width: 10),
+          
+          // Main content
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              mainAxisSize: pw.MainAxisSize.min,
+              children: [
+                // Customer name and description in one line
+                pw.Text(
+                  '$customerName - $description',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF1E293B),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                
+                // Date
+                pw.Text(
+                  _formatActivityDate(date),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromInt(0xFF94A3B8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Amount and status in one column
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              pw.Text(
+                '\$${amount.toStringAsFixed(2)}',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+              pw.SizedBox(height: 1),
+              pw.Text(
+                statusText,
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  fontWeight: pw.FontWeight.normal,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build individual activity item for PDF (legacy method for compatibility)
+  static pw.Widget _buildActivityPDFItem(Map<String, dynamic> item) {
+    final activity = item['activity'] as Activity;
+    final amount = item['amount'] as double;
+    final date = item['date'] as DateTime;
+    final customerName = item['customerName'] as String;
+    final description = item['description'] as String;
+    
+    PdfColor iconColor;
+    String statusText;
+    
+    switch (activity.type) {
+      case ActivityType.payment:
+        if (activity.isPaymentCompleted) {
+          if (description.startsWith('Fully paid:')) {
+            iconColor = PdfColors.green;
+            statusText = 'Fully Paid';
+          } else {
+            iconColor = PdfColors.blue;
+            statusText = 'Debt Paid';
+          }
+        } else {
+          iconColor = PdfColors.orange;
+          statusText = 'Partial Payment';
+        }
+        break;
+      case ActivityType.newDebt:
+        iconColor = PdfColors.blue;
+        statusText = 'New Debt';
+        break;
+      case ActivityType.debtCleared:
+        iconColor = PdfColors.blue;
+        statusText = 'Debt Paid';
+        break;
+      default:
+        iconColor = PdfColors.grey;
+        statusText = 'Activity';
+    }
+    
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(bottom: 8),
+      padding: const pw.EdgeInsets.all(12),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey200),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 8,
+            height: 8,
+            decoration: pw.BoxDecoration(
+              color: iconColor,
+              shape: pw.BoxShape.circle,
+            ),
+          ),
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  customerName,
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Text(
+                  description,
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColors.grey600,
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                '$statusText: \$${amount.toStringAsFixed(2)}',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                  color: iconColor,
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text(
+                _formatActivityDate(date),
+                style: pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get month name from month number
+  static String _getMonthName(int month) {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1];
+  }
+
+  /// Format date for PDF
+  static String _formatDateForPDF(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  /// Format activity date for PDF
+  static String _formatActivityDate(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final activityDate = DateTime(date.year, date.month, date.day);
+
+    if (activityDate == today) {
+      return 'Today at ${_formatTime12Hour(date)}';
+    } else if (activityDate == yesterday) {
+      return 'Yesterday at ${_formatTime12Hour(date)}';
+    } else {
+      return '${_formatDateForPDF(date)} at ${_formatTime12Hour(date)}';
+    }
+  }
+
+  /// Format time in 12-hour format for PDF
+  static String _formatTime12Hour(DateTime date) {
+    int hour = date.hour;
+    String period = 'am';
+    
+    if (hour >= 12) {
+      period = 'pm';
+      if (hour > 12) {
+        hour -= 12;
+      }
+    }
+    if (hour == 0) {
+      hour = 12;
+    }
+    
+    final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
+    return '$hour:$minute:$second $period';
+  }
+
+  /// Share a PDF file using the system share dialog
+  static Future<void> sharePDFFile(File pdfFile) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(pdfFile.path)],
+        text: 'Monthly Activity Report from Bechaalany Connect',
+      );
+    } catch (e) {
+      // Handle error silently
+    }
   }
 }
