@@ -2270,16 +2270,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteDebt(String debtId) async {
-    print('DEBUG [AppState]: deleteDebt called with debtId: $debtId');
     try {
       // Check if debt exists before trying to delete
       final debtIndex = _debts.indexWhere((d) => d.id == debtId);
-      print('DEBUG [AppState]: Debt index: $debtIndex');
-      
       if (debtIndex == -1) {
         // Debt not found in local list, but still try to delete from Firebase
         // This handles cases where local state might be out of sync
-        print('DEBUG [AppState]: Debt not in local list, deleting from Firebase directly');
         await _dataService.deleteDebt(debtId);
         _clearCache();
         notifyListeners();
@@ -2289,12 +2285,9 @@ class AppState extends ChangeNotifier {
       final debt = _debts[debtIndex];
       final customerName = debt.customerName;
       final amount = debt.amount;
-      print('DEBUG [AppState]: Found debt in local list. Customer: $customerName, Amount: $amount');
       
       // Delete from Firebase first
-      print('DEBUG [AppState]: Calling _dataService.deleteDebt...');
       await _dataService.deleteDebt(debtId);
-      print('DEBUG [AppState]: _dataService.deleteDebt completed successfully');
       
       // Remove from local lists
       _debts.removeWhere((d) => d.id == debtId);

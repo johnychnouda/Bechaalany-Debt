@@ -52,6 +52,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   String _selectedCategory = 'All';
   String _sortBy = 'Name';
   bool _sortAscending = true;
+  bool _isReorderMode = false;
 
   @override
   void initState() {
@@ -289,6 +290,168 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
+  Widget _buildReorderableFilterChips(BuildContext context, AppState appState) {
+    // Get categories in saved order
+    final orderedCategories = appState.getCategoriesInOrder();
+    
+    return SizedBox(
+      height: 50,
+      child: Row(
+        children: [
+          // All filter (non-reorderable, always first)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(
+                'All',
+                style: TextStyle(
+                  color: _selectedCategory == 'All' 
+                      ? Colors.white 
+                      : AppColors.dynamicTextPrimary(context),
+                  fontWeight: _selectedCategory == 'All' ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+              selected: _selectedCategory == 'All',
+              onSelected: (selected) {
+                setState(() {
+                  _selectedCategory = 'All';
+                });
+                _filterProducts();
+              },
+              backgroundColor: _selectedCategory == 'All' 
+                  ? AppColors.dynamicPrimary(context)
+                  : AppColors.dynamicSurface(context),
+              selectedColor: AppColors.dynamicPrimary(context),
+              checkmarkColor: Colors.white,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          // Reorderable category filters
+          Expanded(
+            child: ReorderableListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: orderedCategories.length,
+              proxyDecorator: (child, index, animation) {
+                return Material(
+                  elevation: 6,
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  child: child,
+                );
+              },
+              onReorder: (oldIndex, newIndex) async {
+                // Only allow reordering when in reorder mode
+                if (!_isReorderMode) return;
+                
+                if (newIndex > oldIndex) {
+                  newIndex -= 1;
+                }
+                
+                setState(() {
+                  final category = orderedCategories.removeAt(oldIndex);
+                  orderedCategories.insert(newIndex, category);
+                });
+                
+                // Save the new order
+                final appState = Provider.of<AppState>(context, listen: false);
+                final categoryIds = orderedCategories.map((c) => c.id).toList();
+                await appState.updateCategoryOrder(categoryIds);
+              },
+              itemBuilder: (context, index) {
+                final category = orderedCategories[index];
+                final isSelected = _selectedCategory == category.name;
+                return Padding(
+                  key: Key(category.id),
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _isReorderMode
+                      ? FilterChip(
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.drag_handle,
+                                size: 14,
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                category.name,
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextPrimary(context),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          selected: false,
+                          onSelected: null,
+                          backgroundColor: AppColors.dynamicSurface(context),
+                          selectedColor: AppColors.dynamicPrimary(context),
+                          checkmarkColor: Colors.white,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                        )
+                      : GestureDetector(
+                          onLongPress: () {
+                            _showCategoryActionSheet(context, category);
+                          },
+                          child: FilterChip(
+                            label: Text(
+                              category.name,
+                              style: TextStyle(
+                                color: isSelected 
+                                    ? Colors.white 
+                                    : AppColors.dynamicTextPrimary(context),
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCategory = category.name;
+                              });
+                              _filterProducts();
+                            },
+                            backgroundColor: isSelected 
+                                ? AppColors.dynamicPrimary(context)
+                                : AppColors.dynamicSurface(context),
+                            selectedColor: AppColors.dynamicPrimary(context),
+                            checkmarkColor: Colors.white,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                );
+              },
+            ),
+          ),
+          // Done button when in reorder mode
+          if (_isReorderMode)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isReorderMode = false;
+                  });
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.dynamicPrimary(context),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                child: const Text('Done'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -333,75 +496,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
                       ),
                       const SizedBox(height: 12),
-                      // Filter Chips
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            // All filter
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: FilterChip(
-                                label: Text(
-                                  'All',
-                                  style: TextStyle(
-                                    color: _selectedCategory == 'All' 
-                                        ? Colors.white 
-                                        : AppColors.dynamicTextPrimary(context),
-                                    fontWeight: _selectedCategory == 'All' ? FontWeight.w600 : FontWeight.normal,
-                                  ),
-                                ),
-                                selected: _selectedCategory == 'All',
-                                onSelected: (selected) {
-                                  setState(() {
-                                    _selectedCategory = 'All';
-                                  });
-                                  _filterProducts();
-                                },
-                                backgroundColor: _selectedCategory == 'All' 
-                                    ? AppColors.dynamicPrimary(context)
-                                    : AppColors.dynamicSurface(context),
-                                selectedColor: AppColors.dynamicPrimary(context),
-                                checkmarkColor: Colors.white,
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-                            // Category filters
-                            ...appState.categories.map((category) {
-                              final isSelected = _selectedCategory == category.name;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: FilterChip(
-                                  label: Text(
-                                    category.name,
-                                    style: TextStyle(
-                                      color: isSelected 
-                                          ? Colors.white 
-                                          : AppColors.dynamicTextPrimary(context),
-                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                                    ),
-                                  ),
-                                  selected: isSelected,
-                                  onSelected: (selected) {
-                                    setState(() {
-                                      _selectedCategory = category.name;
-                                    });
-                                    _filterProducts();
-                                  },
-                                  backgroundColor: isSelected 
-                                      ? AppColors.dynamicPrimary(context)
-                                      : AppColors.dynamicSurface(context),
-                                  selectedColor: AppColors.dynamicPrimary(context),
-                                  checkmarkColor: Colors.white,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              );
-                            }).toList(),
-                          ],
-                        ),
-                      ),
+                      // Filter Chips with Reorderable Support
+                      _buildReorderableFilterChips(context, appState),
                     ],
                   ),
                 ),
@@ -1601,6 +1697,153 @@ class _ProductsScreenState extends State<ProductsScreen> {
         );
       },
     );
+  }
+
+  void _showCategoryActionSheet(BuildContext context, ProductCategory category) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (BuildContext context) => CupertinoActionSheet(
+        title: Text(
+          category.name,
+          style: const TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.systemGrey,
+          ),
+        ),
+        actions: <CupertinoActionSheetAction>[
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showEditCategoryNameDialog(context, category);
+            },
+            child: const Text('Edit Name'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {
+                _isReorderMode = true;
+              });
+            },
+            child: const Text('Reorder Categories'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  void _showEditCategoryNameDialog(BuildContext context, ProductCategory category) {
+    final nameController = TextEditingController(text: category.name);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Category Name'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Category Name',
+                  hintText: 'e.g., Electronics',
+                ),
+                autofocus: true,
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    _updateCategoryName(context, category, value.trim());
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.trim().isNotEmpty) {
+                  _updateCategoryName(context, category, nameController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.dynamicPrimary(context),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _updateCategoryName(BuildContext context, ProductCategory category, String newName) async {
+    // Check if name already exists (excluding current category)
+    final appState = Provider.of<AppState>(context, listen: false);
+    final nameExists = appState.categories.any(
+      (cat) => cat.name.toLowerCase() == newName.toLowerCase() && cat.id != category.id
+    );
+
+    if (nameExists) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Category Name Exists'),
+          content: Text('A category with the name "$newName" already exists. Please choose a different name.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('OK'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    try {
+      final updatedCategory = category.copyWith(name: newName);
+      await appState.updateCategory(updatedCategory);
+      
+      if (mounted) {
+        Navigator.of(context).pop(); // Close edit dialog
+        
+        // Update selected category if it was the one being edited
+        if (_selectedCategory == category.name) {
+          setState(() {
+            _selectedCategory = newName;
+          });
+        }
+        
+        _filterProducts();
+      }
+    } catch (e) {
+      if (mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Error'),
+            content: const Text('Failed to update category name. Please try again.'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('OK'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _showDeleteCategoryConfirmationDialog(BuildContext context, ProductCategory category) {

@@ -2216,40 +2216,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       }
       
       // Delete the debt from Firebase and locally
-      // First, let's verify authentication and user ID
-      final authUser = FirebaseAuth.instance.currentUser;
-      if (authUser == null) {
-        throw Exception('No authenticated user found. Please sign in again.');
-      }
+      await appState.deleteDebt(debt.id);
       
-      // Log for debugging (this will help identify the issue)
-      print('DEBUG: Attempting to delete debt');
-      print('DEBUG: Current User ID: ${authUser.uid}');
-      print('DEBUG: Debt ID: ${debt.id}');
-      print('DEBUG: Debt Customer ID: ${debt.customerId}');
-      print('DEBUG: Expected path: /users/${authUser.uid}/debts/${debt.id}');
-      print('DEBUG: Calling appState.deleteDebt...');
-      
-      try {
-        await appState.deleteDebt(debt.id);
-        print('DEBUG: appState.deleteDebt completed successfully');
-      } catch (deleteError) {
-        print('DEBUG: Error in appState.deleteDebt: $deleteError');
-        print('DEBUG: Error type: ${deleteError.runtimeType}');
-        print('DEBUG: Error toString: ${deleteError.toString()}');
-        rethrow;
-      }
-      
-      // Show success message
+      // Trigger rebuild to show updated data
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debt deleted successfully'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        // Trigger rebuild to show updated data
         setState(() {});
       }
     } catch (e) {
