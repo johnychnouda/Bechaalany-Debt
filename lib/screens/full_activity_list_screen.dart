@@ -6,7 +6,7 @@ import '../providers/app_state.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
 import '../services/receipt_sharing_service.dart';
-import 'pdf_viewer_screen.dart';
+import '../widgets/pdf_viewer_popup.dart';
 
 enum ActivityView { daily, weekly, monthly, yearly }
 
@@ -838,9 +838,9 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         // Open PDF directly in the app
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => PDFViewerScreen(
+            builder: (context) => PDFViewerPopup(
               pdfFile: pdfFile,
-              title: 'Monthly Activity Report',
+              customerName: 'Monthly Activity Report',
             ),
           ),
         );
