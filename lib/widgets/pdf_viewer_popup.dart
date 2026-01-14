@@ -360,44 +360,100 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
   Widget _buildStablePdfViewer() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return Container(
-          width: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
-          height: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
-          constraints: BoxConstraints(
-            minWidth: 200,
-            minHeight: 200,
-            maxWidth: constraints.maxWidth > 0 ? constraints.maxWidth : double.infinity,
-            maxHeight: constraints.maxHeight > 0 ? constraints.maxHeight : double.infinity,
-          ),
-          child: SfPdfViewer.memory(
-            _pdfBytes!,
-            enableDoubleTapZooming: true,
-            enableTextSelection: false,
-            canShowScrollHead: false,
-            canShowScrollStatus: false,
-            pageSpacing: 0,
-            enableDocumentLinkAnnotation: false,
-            enableHyperlinkNavigation: false,
-            canShowPaginationDialog: false,
-            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-              if (mounted) {
-                setState(() {
-                  _totalPages = details.document.pages.count;
-                });
-              }
-            },
-            onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-              if (mounted) {
-                setState(() {
-                  _errorMessage = details.error.toString();
-                });
-              }
-            },
-            onPageChanged: (PdfPageChangedDetails details) {
-              if (mounted) {
-                setState(() {
-                  _currentPage = details.newPageNumber;
-                });
+        // Ensure we have valid constraints before rendering
+        if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
+        
+        // Use explicit bounded constraints to prevent layout errors
+        final boundedWidth = constraints.maxWidth.isFinite 
+            ? constraints.maxWidth 
+            : MediaQuery.of(context).size.width;
+        final boundedHeight = constraints.maxHeight.isFinite 
+            ? constraints.maxHeight 
+            : MediaQuery.of(context).size.height;
+        
+        return SizedBox(
+          width: boundedWidth,
+          height: boundedHeight,
+          child: Builder(
+            builder: (context) {
+              // Use a try-catch wrapper to handle any rendering errors gracefully
+              try {
+                return SfPdfViewer.memory(
+                  _pdfBytes!,
+                  enableDoubleTapZooming: true,
+                  enableTextSelection: false,
+                  canShowScrollHead: false,
+                  canShowScrollStatus: false,
+                  pageSpacing: 0,
+                  enableDocumentLinkAnnotation: false,
+                  enableHyperlinkNavigation: false,
+                  canShowPaginationDialog: false,
+                  onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                    if (mounted) {
+                      setState(() {
+                        _totalPages = details.document.pages.count;
+                      });
+                    }
+                  },
+                  onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+                    if (mounted) {
+                      setState(() {
+                        _errorMessage = details.error.toString();
+                        _hasRenderingError = true;
+                      });
+                    }
+                  },
+                  onPageChanged: (PdfPageChangedDetails details) {
+                    if (mounted) {
+                      setState(() {
+                        _currentPage = details.newPageNumber;
+                      });
+                    }
+                  },
+                );
+              } catch (e) {
+                // If rendering fails, show error state
+                if (mounted) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        _errorMessage = 'PDF rendering error: $e';
+                        _hasRenderingError = true;
+                      });
+                    }
+                  });
+                }
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.exclamationmark_triangle,
+                        color: CupertinoColors.systemRed,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'PDF Rendering Error',
+                        style: TextStyle(
+                          color: CupertinoColors.label.resolveFrom(context),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please try sharing the PDF instead',
+                        style: TextStyle(
+                          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               }
             },
           ),

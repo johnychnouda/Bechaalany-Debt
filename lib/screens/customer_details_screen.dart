@@ -2094,15 +2094,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.of(dialogContext).pop();
-                    // Show loading indicator
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Deleting...'),
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                    }
                     await _deleteSingleDebt(debt);
                   },
                   style: ElevatedButton.styleFrom(

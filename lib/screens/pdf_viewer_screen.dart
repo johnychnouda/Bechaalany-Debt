@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:path_provider/path_provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -41,37 +42,96 @@ class PDFViewerScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // Ensure we have valid constraints before rendering
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return const SizedBox.shrink();
+          }
+          
+          // Use explicit bounded constraints to prevent layout errors
+          final boundedWidth = constraints.maxWidth.isFinite 
+              ? constraints.maxWidth 
+              : MediaQuery.of(context).size.width;
+          final boundedHeight = constraints.maxHeight.isFinite 
+              ? constraints.maxHeight 
+              : MediaQuery.of(context).size.height;
+          
+          return Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SfPdfViewer.file(
-            pdfFile,
-            enableDoubleTapZooming: true,
-            enableTextSelection: true,
-            canShowScrollHead: true,
-            canShowScrollStatus: true,
-            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-              // Document loaded successfully
-            },
-            onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-              // Handle document load failure
-            },
-            onPageChanged: (PdfPageChangedDetails details) {
-              // Handle page change
-            },
-          ),
-        ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: boundedWidth - 16, // Account for margin
+                height: boundedHeight - 16, // Account for margin
+                child: Builder(
+                  builder: (context) {
+                    try {
+                      return SfPdfViewer.file(
+                        pdfFile,
+                        enableDoubleTapZooming: true,
+                        enableTextSelection: true,
+                        canShowScrollHead: true,
+                        canShowScrollStatus: true,
+                        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
+                          // Document loaded successfully
+                        },
+                        onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
+                          // Handle document load failure
+                        },
+                        onPageChanged: (PdfPageChangedDetails details) {
+                          // Handle page change
+                        },
+                      );
+                    } catch (e) {
+                      // If rendering fails, show error message
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: AppColors.error,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'PDF Rendering Error',
+                                style: AppTheme.title3.copyWith(
+                                  color: AppColors.dynamicTextPrimary(context),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please try downloading the PDF instead',
+                                style: AppTheme.body.copyWith(
+                                  color: AppColors.dynamicTextSecondary(context),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

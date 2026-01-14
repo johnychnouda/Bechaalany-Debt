@@ -823,42 +823,134 @@ This is an automated receipt. Please contact us for any account-related inquirie
       // Build PDF content
       final allItems = <Map<String, dynamic>>[];
       
-      // Add all activities for the month
+      // Add all activities for the month - ensure ALL activities are included
       for (Activity activity in monthlyActivities) {
-        allItems.add({
-          'type': activity.type.toString().split('.').last,
-          'description': activity.description,
-          'amount': activity.paymentAmount ?? activity.amount,
-          'date': activity.date,
-          'activity': activity,
-          'customerName': activity.customerName,
-          'customerId': activity.customerId,
-        });
+        try {
+          // Calculate amount - use paymentAmount if available, otherwise amount, default to 0.0
+          final amount = activity.paymentAmount ?? activity.amount ?? 0.0;
+          
+          // Include ALL activities regardless of amount (some might have 0 amount)
+          allItems.add({
+            'type': activity.type.toString().split('.').last,
+            'description': activity.description ?? '',
+            'amount': amount,
+            'date': activity.date,
+            'activity': activity,
+            'customerName': activity.customerName ?? '',
+            'customerId': activity.customerId ?? '',
+          });
+        } catch (e) {
+          // If there's an error adding an activity, try to add it with minimal data
+          // This ensures we don't lose any transactions
+          try {
+            allItems.add({
+              'type': 'activity',
+              'description': activity.description ?? 'Activity',
+              'amount': 0.0,
+              'date': activity.date,
+              'activity': activity,
+              'customerName': activity.customerName ?? '',
+              'customerId': activity.customerId ?? '',
+            });
+          } catch (_) {
+            // Skip this activity only if we can't add it at all
+            // This should rarely happen
+          }
+        }
       }
       
       // Sort by date (newest first)
       allItems.sort((a, b) => b['date'].compareTo(a['date']));
       
+      // Verify we have the correct number of items
+      // If not, it means some activities couldn't be added
+      // The PDF will still generate with available items
+      
       final monthName = _getMonthName(monthDate.month);
       final year = monthDate.year;
       
-      // Add PDF page
+      // Pagination constants - items per page (adjusted based on actual fit)
+      const int itemsPerFirstPage = 10; // Items that fit on first page (with header, summary, footer)
+      const int itemsPerPage = 14; // Items that fit on subsequent pages (with header, footer)
+      
+      // Calculate total pages needed
+      int totalPages;
+      if (allItems.length <= itemsPerFirstPage) {
+        totalPages = 1;
+      } else {
+        final remainingItems = allItems.length - itemsPerFirstPage;
+        // Calculate how many additional pages we need for remaining items
+        final additionalPages = (remainingItems / itemsPerPage).ceil();
+        totalPages = 1 + additionalPages;
+      }
+      
+      // Generate first page with summary
+      final firstPageItems = allItems.take(itemsPerFirstPage).toList();
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: pw.EdgeInsets.zero,
           build: (pw.Context context) {
             return buildMonthlyActivityPDFPage(
-              pageItems: allItems,
+              pageItems: firstPageItems,
               totalRevenue: totalRevenue,
               totalPaid: totalPaid,
               monthName: monthName,
               year: year,
-              totalTransactions: monthlyActivities.length,
+              totalTransactions: allItems.length, // Use actual allItems length, not monthlyActivities
+              pageIndex: 0,
+              totalPages: totalPages,
+              isFirstPage: true,
+              showSummary: true,
             );
           },
         ),
       );
+      
+      // Generate additional pages if needed
+      if (allItems.length > itemsPerFirstPage) {
+        int currentIndex = itemsPerFirstPage;
+        
+        // Calculate how many additional pages we need
+        final remainingItems = allItems.length - itemsPerFirstPage;
+        final additionalPagesNeeded = (remainingItems / itemsPerPage).ceil();
+        
+        // Create exactly the number of additional pages needed
+        for (int i = 0; i < additionalPagesNeeded && currentIndex < allItems.length; i++) {
+          final pageItems = allItems.skip(currentIndex).take(itemsPerPage).toList();
+          
+          // Only create a page if there are items to show
+          if (pageItems.isEmpty) {
+            break;
+          }
+          
+          // pageIndex for additional pages: i + 1 (since page 0 is the first page)
+          final pageIndex = i + 1;
+          
+          pdf.addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat.a4,
+              margin: pw.EdgeInsets.zero,
+              build: (pw.Context context) {
+                return buildMonthlyActivityPDFPage(
+                  pageItems: pageItems,
+                  totalRevenue: totalRevenue,
+                  totalPaid: totalPaid,
+                  monthName: monthName,
+                  year: year,
+                  totalTransactions: allItems.length, // Use actual allItems length
+                  pageIndex: pageIndex,
+                  totalPages: totalPages,
+                  isFirstPage: false,
+                  showSummary: false,
+                );
+              },
+            ),
+          );
+          
+          currentIndex += pageItems.length;
+        }
+      }
       
       // Save PDF to temporary directory
       final directory = await getTemporaryDirectory();
@@ -887,6 +979,10 @@ This is an automated receipt. Please contact us for any account-related inquirie
     required String monthName,
     required int year,
     required int totalTransactions,
+    int pageIndex = 0,
+    int totalPages = 1,
+    bool isFirstPage = true,
+    bool showSummary = true,
   }) {
     return pw.Container(
       width: double.infinity,
@@ -894,162 +990,163 @@ This is an automated receipt. Please contact us for any account-related inquirie
       color: PdfColors.white,
       child: pw.Column(
         children: [
-          // Ultra Compact Header
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFF8FAFC),
-              border: pw.Border(
-                bottom: pw.BorderSide(
-                  color: PdfColor.fromInt(0xFFE2E8F0),
-                  width: 0.5,
+          // Ultra Compact Header (only on first page)
+          if (isFirstPage)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFF8FAFC),
+                border: pw.Border(
+                  bottom: pw.BorderSide(
+                    color: PdfColor.fromInt(0xFFE2E8F0),
+                    width: 0.5,
+                  ),
                 ),
               ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  // App name
+                  pw.Text(
+                    'Bechaalany Connect',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF64748B),
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  
+                  // Main title
+                  pw.Text(
+                    'Monthly Activity Report',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF1E293B),
+                    ),
+                  ),
+                  pw.SizedBox(height: 2),
+                  
+                  // Month and year
+                  pw.Text(
+                    '$monthName $year',
+                    style: pw.TextStyle(
+                      fontSize: 12,
+                      fontWeight: pw.FontWeight.normal,
+                      color: PdfColor.fromInt(0xFF475569),
+                    ),
+                  ),
+                  pw.SizedBox(height: 1),
+                  // Generation date (only on first page)
+                  pw.Text(
+                    'Generated on ${_formatDateForPDF(DateTime.now())}',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColor.fromInt(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                // App name
-                pw.Text(
-                  'Bechaalany Connect',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF64748B),
-                  ),
-                ),
-                pw.SizedBox(height: 4),
-                
-                // Main title
-                pw.Text(
-                  'Monthly Activity Report',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF1E293B),
-                  ),
-                ),
-                pw.SizedBox(height: 2),
-                
-                // Month and year
-                pw.Text(
-                  '$monthName $year',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.normal,
-                    color: PdfColor.fromInt(0xFF475569),
-                  ),
-                ),
-                pw.SizedBox(height: 1),
-                
-                // Generation date
-                pw.Text(
-                  'Generated on ${_formatDateForPDF(DateTime.now())}',
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    color: PdfColor.fromInt(0xFF94A3B8),
-                  ),
-                ),
-              ],
-            ),
-          ),
           
-          // Clean Summary Section
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFF8FAFC),
-              border: pw.Border(
-                bottom: pw.BorderSide(
-                  color: PdfColor.fromInt(0xFFE2E8F0),
-                  width: 0.5,
-                ),
-              ),
-            ),
-            child: pw.Column(
-              children: [
-                // Summary title
-                pw.Text(
-                  'Summary',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF1E293B),
+          // Clean Summary Section (only on first page)
+          if (showSummary)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFF8FAFC),
+                border: pw.Border(
+                  bottom: pw.BorderSide(
+                    color: PdfColor.fromInt(0xFFE2E8F0),
+                    width: 0.5,
                   ),
                 ),
-                pw.SizedBox(height: 8),
-                
-                // Clean summary layout - no cards, just clean rows
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(
-                          'Total Revenue',
-                          style: pw.TextStyle(
-                            fontSize: 12,
-                            color: PdfColor.fromInt(0xFF64748B),
-                          ),
-                        ),
-                        pw.Text(
-                          '\$${totalRevenue.toStringAsFixed(2)}',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromInt(0xFF10B981),
-                          ),
-                        ),
-                      ],
+              ),
+              child: pw.Column(
+                children: [
+                  // Summary title
+                  pw.Text(
+                    'Summary',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF1E293B),
                     ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(
-                          'Total Paid',
-                          style: pw.TextStyle(
-                            fontSize: 12,
-                            color: PdfColor.fromInt(0xFF64748B),
+                  ),
+                  pw.SizedBox(height: 8),
+                  
+                  // Clean summary layout - no cards, just clean rows
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Text(
+                            'Total Revenue',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              color: PdfColor.fromInt(0xFF64748B),
+                            ),
                           ),
-                        ),
-                        pw.Text(
-                          '\$${totalPaid.toStringAsFixed(2)}',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromInt(0xFF3B82F6),
+                          pw.Text(
+                            '\$${totalRevenue.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromInt(0xFF10B981),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
-                      children: [
-                        pw.Text(
-                          'Transactions',
-                          style: pw.TextStyle(
-                            fontSize: 12,
-                            color: PdfColor.fromInt(0xFF64748B),
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Text(
+                            'Total Paid',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              color: PdfColor.fromInt(0xFF64748B),
+                            ),
                           ),
-                        ),
-                        pw.Text(
-                          '$totalTransactions',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColor.fromInt(0xFF6366F1),
+                          pw.Text(
+                            '\$${totalPaid.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromInt(0xFF3B82F6),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                        ],
+                      ),
+                      pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Text(
+                            'Transactions',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              color: PdfColor.fromInt(0xFF64748B),
+                            ),
+                          ),
+                          pw.Text(
+                            '$totalTransactions',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromInt(0xFF6366F1),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
           
           // Activities Section with clean design
           pw.Expanded(
@@ -1059,16 +1156,19 @@ This is an automated receipt. Please contact us for any account-related inquirie
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(
-                    'Activity Details',
-                    style: pw.TextStyle(
-                      fontSize: 20,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromInt(0xFF1E293B),
-                      letterSpacing: -0.3,
+                  // Activity Details header (only on first page)
+                  if (isFirstPage) ...[
+                    pw.Text(
+                      'Activity Details',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromInt(0xFF1E293B),
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                  ),
-                  pw.SizedBox(height: 16),
+                    pw.SizedBox(height: 16),
+                  ],
                   pw.Expanded(
                     child: pw.ListView.builder(
                       itemCount: pageItems.length,
@@ -1096,14 +1196,33 @@ This is an automated receipt. Please contact us for any account-related inquirie
                 ),
               ),
             ),
-            child: pw.Text(
-              'Generated by Bechaalany Connect',
-              style: pw.TextStyle(
-                fontSize: 11,
-                color: PdfColor.fromInt(0xFF94A3B8),
-                letterSpacing: 0.3,
-              ),
-              textAlign: pw.TextAlign.center,
+            child: pw.Column(
+              mainAxisSize: pw.MainAxisSize.min,
+              children: [
+                pw.Text(
+                  'Generated by Bechaalany Connect',
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    color: PdfColor.fromInt(0xFF94A3B8),
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+                // Page number at bottom (if multiple pages)
+                if (totalPages > 1) ...[
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'Page ${pageIndex + 1} of $totalPages',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF64748B),
+                      letterSpacing: 0.3,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
