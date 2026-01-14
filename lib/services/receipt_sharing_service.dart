@@ -201,26 +201,96 @@ class ReceiptSharingService {
       final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(customer.phone);
       final sanitizedCustomerId = PdfFontUtils.sanitizeText(customer.id);
       
-      // Add PDF page
+      // Pagination constants - items per page
+      const int itemsPerFirstPage = 10; // Items that fit on first page (with header, customer info, summary, footer)
+      const int itemsPerPage = 15; // Items that fit on subsequent pages (with header, footer)
+      
+      // Calculate total pages needed
+      int totalPages;
+      if (allItems.length <= itemsPerFirstPage) {
+        totalPages = 1;
+      } else {
+        final remainingItems = allItems.length - itemsPerFirstPage;
+        final additionalPages = (remainingItems / itemsPerPage).ceil();
+        totalPages = 1 + additionalPages;
+      }
+      
+      final remainingAmount = totalOriginalAmount - totalPaidAmount;
+      
+      // Generate first page with header, customer info, and summary
+      final firstPageItems = allItems.take(itemsPerFirstPage).toList();
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
           margin: pw.EdgeInsets.zero,
           build: (pw.Context context) {
             return buildPDFPage(
-              pageItems: allItems,
+              pageItems: firstPageItems,
               allItems: allItems,
-              remainingAmount: totalOriginalAmount - totalPaidAmount, // Calculate remaining amount
+              remainingAmount: remainingAmount,
               totalPaidAmount: totalPaidAmount,
               totalOriginalAmount: totalOriginalAmount,
               sanitizedCustomerName: sanitizedCustomerName,
               sanitizedCustomerPhone: sanitizedCustomerPhone,
               sanitizedCustomerId: sanitizedCustomerId,
               specificDate: specificDate,
+              pageIndex: 0,
+              totalPages: totalPages,
+              isFirstPage: true,
+              showSummary: totalPages == 1, // Show summary on first page only if it's the only page
             );
           },
         ),
       );
+      
+      // Generate additional pages if needed
+      if (allItems.length > itemsPerFirstPage) {
+        int currentIndex = itemsPerFirstPage;
+        
+        // Calculate how many additional pages we need
+        final remainingItems = allItems.length - itemsPerFirstPage;
+        final additionalPagesNeeded = (remainingItems / itemsPerPage).ceil();
+        
+        // Create exactly the number of additional pages needed
+        for (int i = 0; i < additionalPagesNeeded && currentIndex < allItems.length; i++) {
+          final pageItems = allItems.skip(currentIndex).take(itemsPerPage).toList();
+          
+          // Only create a page if there are items to show
+          if (pageItems.isEmpty) {
+            break;
+          }
+          
+          // pageIndex for additional pages: i + 1 (since page 0 is the first page)
+          final pageIndex = i + 1;
+          final isLastPage = (currentIndex + pageItems.length >= allItems.length);
+          
+          pdf.addPage(
+            pw.Page(
+              pageFormat: PdfPageFormat.a4,
+              margin: pw.EdgeInsets.zero,
+              build: (pw.Context context) {
+                return buildPDFPage(
+                  pageItems: pageItems,
+                  allItems: allItems,
+                  remainingAmount: remainingAmount,
+                  totalPaidAmount: totalPaidAmount,
+                  totalOriginalAmount: totalOriginalAmount,
+                  sanitizedCustomerName: sanitizedCustomerName,
+                  sanitizedCustomerPhone: sanitizedCustomerPhone,
+                  sanitizedCustomerId: sanitizedCustomerId,
+                  specificDate: specificDate,
+                  pageIndex: pageIndex,
+                  totalPages: totalPages,
+                  isFirstPage: false,
+                  showSummary: isLastPage, // Show summary only on the last page
+                );
+              },
+            ),
+          );
+          
+          currentIndex += pageItems.length;
+        }
+      }
       
       // Save PDF to temporary directory
       final directory = await getTemporaryDirectory();
@@ -252,6 +322,10 @@ class ReceiptSharingService {
     required String sanitizedCustomerPhone,
     required String sanitizedCustomerId,
     DateTime? specificDate,
+    int pageIndex = 0,
+    int totalPages = 1,
+    bool isFirstPage = true,
+    bool showSummary = true,
   }) {
     return pw.Container(
       width: double.infinity,
@@ -259,58 +333,60 @@ class ReceiptSharingService {
       color: PdfColors.white,
       child: pw.Column(
         children: [
-          // Ultra Compact Header
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(0xFFF8FAFC),
-              border: pw.Border(
-                bottom: pw.BorderSide(
-                  color: PdfColor.fromInt(0xFFE2E8F0),
-                  width: 0.5,
+          // Ultra Compact Header (only on first page)
+          if (isFirstPage)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 8),
+              decoration: pw.BoxDecoration(
+                color: PdfColor.fromInt(0xFFF8FAFC),
+                border: pw.Border(
+                  bottom: pw.BorderSide(
+                    color: PdfColor.fromInt(0xFFE2E8F0),
+                    width: 0.5,
+                  ),
                 ),
               ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  // App name
+                  pw.Text(
+                    'Bechaalany Connect',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF64748B),
+                    ),
+                  ),
+                  pw.SizedBox(height: 4),
+                  
+                  // Main title
+                  pw.Text(
+                    'Customer Receipt',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF1E293B),
+                    ),
+                  ),
+                  pw.SizedBox(height: 1),
+                  
+                  // Generation date
+                  pw.Text(
+                    'Generated on ${_formatDateTime(DateTime.now())}',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColor.fromInt(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                // App name
-                pw.Text(
-                  'Bechaalany Connect',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF64748B),
-                  ),
-                ),
-                pw.SizedBox(height: 4),
-                
-                // Main title
-                pw.Text(
-                  'Customer Receipt',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF1E293B),
-                  ),
-                ),
-                pw.SizedBox(height: 1),
-                
-                // Generation date
-                pw.Text(
-                  'Generated on ${_formatDateTime(DateTime.now())}',
-                  style: pw.TextStyle(
-                    fontSize: 9,
-                    color: PdfColor.fromInt(0xFF94A3B8),
-                  ),
-                ),
-              ],
-            ),
-          ),
           
-          // Compact Customer Information Section
-          pw.Container(
+          // Compact Customer Information Section (only on first page)
+          if (isFirstPage)
+            pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
             child: pw.Container(
@@ -369,142 +445,9 @@ class ReceiptSharingService {
             ),
           ),
           
-          // Date filter info if applicable
-          if (specificDate != null) ...[
+          // Clean Summary Section (only on first page)
+          if (isFirstPage)
             pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
-              child: pw.Container(
-                padding: const pw.EdgeInsets.all(12),
-                decoration: pw.BoxDecoration(
-                  color: PdfColor.fromInt(0xFFEFF6FF),
-                  borderRadius: pw.BorderRadius.circular(8),
-                  border: pw.Border.all(
-                    color: PdfColor.fromInt(0xFF3B82F6),
-                    width: 1,
-                  ),
-                ),
-                child: pw.Text(
-                  'Receipt for: ${_formatDateTime(specificDate)}',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF3B82F6),
-                  ),
-                ),
-              ),
-            ),
-          ],
-          
-          // Transactions Header
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
-            child: pw.Text(
-              'TRANSACTION HISTORY',
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-                color: PdfColor.fromInt(0xFF1E293B),
-                letterSpacing: -0.3,
-              ),
-            ),
-          ),
-          
-          // All transactions (debts and payments) with modern design
-          pw.Expanded(
-            child: pw.Container(
-              width: double.infinity,
-              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 0),
-              child: pw.ListView.builder(
-                itemCount: allItems.length,
-                itemBuilder: (context, index) {
-                  final item = allItems[index];
-                  final isPayment = item['type'] == 'partial_payment' || item['type'] == 'payment_activity';
-                  
-                  PdfColor backgroundColor;
-                  PdfColor borderColor;
-                  PdfColor textColor;
-                  PdfColor amountColor;
-                  
-                  if (isPayment) {
-                    backgroundColor = PdfColor.fromInt(0xFFFFFBEB); // Light orange for payments
-                    borderColor = PdfColor.fromInt(0xFFF59E0B); // Orange border
-                    textColor = PdfColor.fromInt(0xFF92400E); // Dark orange text
-                    amountColor = PdfColor.fromInt(0xFFF59E0B); // Orange amount
-                  } else {
-                    backgroundColor = PdfColor.fromInt(0xFFF0F4FF); // Light blue for debts
-                    borderColor = PdfColor.fromInt(0xFF6366F1); // Blue border
-                    textColor = PdfColor.fromInt(0xFF1E40AF); // Dark blue text
-                    amountColor = PdfColor.fromInt(0xFF6366F1); // Blue amount
-                  }
-                  
-                  return pw.Container(
-                    width: double.infinity,
-                    margin: const pw.EdgeInsets.only(bottom: 8),
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: pw.BoxDecoration(
-                      color: backgroundColor,
-                      borderRadius: pw.BorderRadius.circular(8),
-                      border: pw.Border.all(
-                        color: borderColor,
-                        width: 0.5,
-                      ),
-                    ),
-                    child: pw.Row(
-                      children: [
-                        // Status indicator dot
-                        pw.Container(
-                          width: 6,
-                          height: 6,
-                          decoration: pw.BoxDecoration(
-                            color: borderColor,
-                            shape: pw.BoxShape.circle,
-                          ),
-                        ),
-                        pw.SizedBox(width: 10),
-                        pw.Expanded(
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            mainAxisSize: pw.MainAxisSize.min,
-                            children: [
-                              pw.Text(
-                                item['description'],
-                                style: pw.TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: pw.FontWeight.bold,
-                                  color: textColor,
-                                ),
-                              ),
-                              pw.SizedBox(height: 2),
-                              pw.Text(
-                                _formatDateTime(item['date']),
-                                style: pw.TextStyle(
-                                  fontSize: 12,
-                                  color: PdfColor.fromInt(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        pw.Text(
-                          _formatCurrency(item['amount']),
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: amountColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          
-          // Clean Summary Section
-          pw.Container(
             width: double.infinity,
             padding: const pw.EdgeInsets.fromLTRB(20, 12, 20, 12),
             decoration: pw.BoxDecoration(
@@ -599,6 +542,141 @@ class ReceiptSharingService {
             ),
           ),
           
+          // Date filter info if applicable (only on first page)
+          if (specificDate != null && isFirstPage) ...[
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  color: PdfColor.fromInt(0xFFEFF6FF),
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(
+                    color: PdfColor.fromInt(0xFF3B82F6),
+                    width: 1,
+                  ),
+                ),
+                child: pw.Text(
+                  'Receipt for: ${_formatDateTime(specificDate)}',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromInt(0xFF3B82F6),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          
+          // Transactions Header (only on first page)
+          if (isFirstPage)
+            pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
+              child: pw.Text(
+                'TRANSACTION HISTORY',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColor.fromInt(0xFF1E293B),
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+          
+          // All transactions (debts and payments) with modern design
+          pw.Expanded(
+            child: pw.Container(
+              width: double.infinity,
+              padding: pw.EdgeInsets.fromLTRB(32, isFirstPage ? 0 : 24, 32, 0),
+              child: pw.ListView.builder(
+                itemCount: pageItems.length,
+                itemBuilder: (context, index) {
+                  final item = pageItems[index];
+                  final isPayment = item['type'] == 'partial_payment' || item['type'] == 'payment_activity';
+                  
+                  PdfColor backgroundColor;
+                  PdfColor borderColor;
+                  PdfColor textColor;
+                  PdfColor amountColor;
+                  
+                  if (isPayment) {
+                    backgroundColor = PdfColor.fromInt(0xFFFFFBEB); // Light orange for payments
+                    borderColor = PdfColor.fromInt(0xFFF59E0B); // Orange border
+                    textColor = PdfColor.fromInt(0xFF92400E); // Dark orange text
+                    amountColor = PdfColor.fromInt(0xFFF59E0B); // Orange amount
+                  } else {
+                    backgroundColor = PdfColor.fromInt(0xFFF0F4FF); // Light blue for debts
+                    borderColor = PdfColor.fromInt(0xFF6366F1); // Blue border
+                    textColor = PdfColor.fromInt(0xFF1E40AF); // Dark blue text
+                    amountColor = PdfColor.fromInt(0xFF6366F1); // Blue amount
+                  }
+                  
+                  return pw.Container(
+                    width: double.infinity,
+                    margin: const pw.EdgeInsets.only(bottom: 8),
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: pw.BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: pw.BorderRadius.circular(8),
+                      border: pw.Border.all(
+                        color: borderColor,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: pw.Row(
+                      children: [
+                        // Status indicator dot
+                        pw.Container(
+                          width: 6,
+                          height: 6,
+                          decoration: pw.BoxDecoration(
+                            color: borderColor,
+                            shape: pw.BoxShape.circle,
+                          ),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            mainAxisSize: pw.MainAxisSize.min,
+                            children: [
+                              pw.Text(
+                                item['description'],
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                              pw.SizedBox(height: 2),
+                              pw.Text(
+                                _formatDateTime(item['date']),
+                                style: pw.TextStyle(
+                                  fontSize: 12,
+                                  color: PdfColor.fromInt(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        pw.Text(
+                          _formatCurrency(item['amount']),
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: amountColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          
           // Clean Footer
           pw.Container(
             width: double.infinity,
@@ -612,14 +690,33 @@ class ReceiptSharingService {
                 ),
               ),
             ),
-            child: pw.Text(
-              'Generated by Bechaalany Connect',
-              style: pw.TextStyle(
-                fontSize: 10,
-                color: PdfColor.fromInt(0xFF94A3B8),
-                letterSpacing: 0.3,
-              ),
-              textAlign: pw.TextAlign.center,
+            child: pw.Column(
+              mainAxisSize: pw.MainAxisSize.min,
+              children: [
+                pw.Text(
+                  'Generated by Bechaalany Connect',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    color: PdfColor.fromInt(0xFF94A3B8),
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: pw.TextAlign.center,
+                ),
+                // Page number at bottom (if multiple pages)
+                if (totalPages > 1) ...[
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'Page ${pageIndex + 1} of $totalPages',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromInt(0xFF64748B),
+                      letterSpacing: 0.3,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
