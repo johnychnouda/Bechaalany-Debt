@@ -5,7 +5,8 @@ service cloud.firestore {
     // User-specific data structure - each user has their own private subcollections
     match /users/{userId} {
       // Only allow access to authenticated user's own data
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
       
       // Customers subcollection - private to each user
       match /customers/{customerId} {
@@ -14,7 +15,8 @@ service cloud.firestore {
       
       // Debts subcollection - private to each user
       match /debts/{debtId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
       }
       
       // Categories subcollection - private to each user
@@ -24,7 +26,8 @@ service cloud.firestore {
       
       // Product purchases subcollection - private to each user
       match /product_purchases/{purchaseId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
       }
       
       // Partial payments subcollection - private to each user
@@ -44,7 +47,8 @@ service cloud.firestore {
       
       // Activities subcollection - private to each user
       match /activities/{activityId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
     

@@ -3,7 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart' as share_plus;
-import 'package:cross_file/cross_file.dart';import '../constants/app_theme.dart';
+import 'package:cross_file/cross_file.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../constants/app_theme.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
@@ -12,6 +14,7 @@ import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
 import '../services/receipt_sharing_service.dart';
+import '../services/firebase_data_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
 import 'add_debt_from_product_screen.dart';
 import 'add_customer_screen.dart';
@@ -2091,6 +2094,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 ElevatedButton(
                   onPressed: () async {
                     Navigator.of(dialogContext).pop();
+                    // Show loading indicator
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Deleting...'),
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                    }
                     await _deleteSingleDebt(debt);
                   },
                   style: ElevatedButton.styleFrom(
@@ -2119,13 +2131,153 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   // Delete a single debt
   Future<void> _deleteSingleDebt(Debt debt) async {
     final appState = Provider.of<AppState>(context, listen: false);
+    final firebaseService = FirebaseDataService();
+    
+    // Verify authentication before attempting deletion
+    if (!firebaseService.isAuthenticated) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: You are not authenticated. Please sign in again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Debug: Log user ID and debt ID for troubleshooting
+    final currentUserId = firebaseService.currentUserId;
+    if (currentUserId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Unable to get user ID. Please sign out and sign back in.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+    
+    // Verify the debt belongs to the current user before attempting deletion
+    if (debt.customerId != _currentCustomer.id) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: This debt does not belong to the current customer.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
     
     try {
-      await appState.deleteDebt(debt.id);
-      _loadCustomerDebts(); // Re-load after deletion
-    } catch (e) {
+      // Find matching product purchases for this debt
+      // Match by customerId, subcategoryId/subcategoryName, and similar date/amount
+      try {
+        final matchingPurchases = appState.productPurchases.where((purchase) {
+          // Match customer
+          if (purchase.customerId != debt.customerId) return false;
+          
+          // Match subcategory (by ID if available, otherwise by name)
+          if (debt.subcategoryId != null) {
+            if (purchase.subcategoryId != debt.subcategoryId) return false;
+          } else if (debt.subcategoryName != null) {
+            if (purchase.subcategoryName != debt.subcategoryName) return false;
+          }
+          
+          // Match amount (allow small difference for floating point precision)
+          final amountDifference = (purchase.sellingPrice - debt.amount).abs();
+          if (amountDifference > 0.01) return false;
+          
+          // Match date (within 1 hour to account for timing differences)
+          final timeDifference = purchase.purchaseDate.difference(debt.createdAt).abs();
+          if (timeDifference.inHours > 1) return false;
+          
+          return true;
+        }).toList();
+        
+        // Delete matching product purchases from Firebase and locally
+        for (final purchase in matchingPurchases) {
+          try {
+            await appState.deleteProductPurchase(purchase.id);
+          } catch (e) {
+            // Continue even if product purchase deletion fails
+            // The debt deletion should still proceed
+          }
+        }
+      } catch (e) {
+        // If product purchase matching/deletion fails, continue with debt deletion
+      }
+      
+      // Delete the debt from Firebase and locally
+      // First, let's verify authentication and user ID
+      final authUser = FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        throw Exception('No authenticated user found. Please sign in again.');
+      }
+      
+      // Log for debugging (this will help identify the issue)
+      print('DEBUG: Attempting to delete debt');
+      print('DEBUG: Current User ID: ${authUser.uid}');
+      print('DEBUG: Debt ID: ${debt.id}');
+      print('DEBUG: Debt Customer ID: ${debt.customerId}');
+      print('DEBUG: Expected path: /users/${authUser.uid}/debts/${debt.id}');
+      print('DEBUG: Calling appState.deleteDebt...');
+      
+      try {
+        await appState.deleteDebt(debt.id);
+        print('DEBUG: appState.deleteDebt completed successfully');
+      } catch (deleteError) {
+        print('DEBUG: Error in appState.deleteDebt: $deleteError');
+        print('DEBUG: Error type: ${deleteError.runtimeType}');
+        print('DEBUG: Error toString: ${deleteError.toString()}');
+        rethrow;
+      }
+      
+      // Show success message
       if (mounted) {
-        // Error deleting debt
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debt deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        // Trigger rebuild to show updated data
+        setState(() {});
+      }
+    } catch (e) {
+      // Show error to user with detailed message
+      if (mounted) {
+        String errorMessage = 'Error deleting debt: ${e.toString()}';
+        
+        // Provide helpful guidance for permission errors
+        if (e.toString().contains('permission-denied')) {
+          final authUser = FirebaseAuth.instance.currentUser;
+          errorMessage = 'Permission Denied Error\n\n';
+          errorMessage += 'User ID: ${authUser?.uid ?? "Unknown"}\n';
+          errorMessage += 'Debt ID: ${debt.id}\n';
+          errorMessage += 'Expected Path: /users/${authUser?.uid ?? "YOUR_USER_ID"}/debts/${debt.id}\n\n';
+          errorMessage += 'Please verify:\n';
+          errorMessage += '1. You are signed in with the correct account\n';
+          errorMessage += '2. The debt exists at the path above\n';
+          errorMessage += '3. Firestore rules allow delete for your user ID\n\n';
+          errorMessage += 'Check rules: https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/firestore/rules';
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 8),
+          ),
+        );
       }
     }
   }

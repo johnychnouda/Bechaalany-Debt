@@ -59,6 +59,9 @@ class AppState extends ChangeNotifier {
   // Business Settings (Only implemented ones)
   String _defaultCurrency = 'USD';
   
+  // Category filter order (list of category IDs in display order)
+  List<String> _categoryOrder = [];
+  
   // Constructor to load settings immediately for theme persistence
   AppState() {
     _loadSettingsSync();
@@ -134,6 +137,9 @@ class AppState extends ChangeNotifier {
   
   // Business Settings Getters (Only implemented ones)
   String get defaultCurrency => _defaultCurrency;
+  
+  // Category order getter
+  List<String> get categoryOrder => List.from(_categoryOrder);
   
   // Accessibility Settings Getters (Needed for theme service)
   String get textSize => 'Medium'; // Default value
@@ -221,9 +227,27 @@ class AppState extends ChangeNotifier {
       (categories) {
         if (categories.isNotEmpty) {
           _categories = List.from(categories); // Create a new list to prevent reference issues
+          
+          // Initialize category order if it's empty or has missing categories
+          if (_categoryOrder.isEmpty || 
+              _categoryOrder.length != categories.length ||
+              !categories.every((cat) => _categoryOrder.contains(cat.id))) {
+            // Build order: existing order first, then new categories
+            final existingOrder = _categoryOrder.where((id) => 
+              categories.any((cat) => cat.id == id)
+            ).toList();
+            final newCategoryIds = categories
+                .where((cat) => !existingOrder.contains(cat.id))
+                .map((cat) => cat.id)
+                .toList();
+            _categoryOrder = [...existingOrder, ...newCategoryIds];
+            _saveSettings(); // Save updated order
+          }
         } else {
           // If Firebase returns empty, set to empty (allows real-time removal)
           _categories = [];
+          _categoryOrder = [];
+          _saveSettings();
         }
         
         
@@ -1209,12 +1233,14 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = data['whatsappAutomationEnabled'] ?? true;
           _whatsappCustomMessage = data['whatsappCustomMessage'] ?? '';
           _defaultCurrency = data['defaultCurrency'] ?? 'USD';
+          _categoryOrder = List<String>.from(data['categoryOrder'] ?? []);
         } else {
           // Use default values if document doesn't exist
           _isDarkMode = false;
           _whatsappAutomationEnabled = true;
           _whatsappCustomMessage = '';
           _defaultCurrency = 'USD';
+          _categoryOrder = [];
         }
       } else {
         // Use default values if user is not authenticated
@@ -1222,6 +1248,7 @@ class AppState extends ChangeNotifier {
         _whatsappAutomationEnabled = true;
         _whatsappCustomMessage = '';
         _defaultCurrency = 'USD';
+        _categoryOrder = [];
       }
       notifyListeners();
     } catch (e) {
@@ -1230,6 +1257,7 @@ class AppState extends ChangeNotifier {
       _whatsappAutomationEnabled = true;
       _whatsappCustomMessage = '';
       _defaultCurrency = 'USD';
+      _categoryOrder = [];
       notifyListeners();
     }
   }
@@ -1241,6 +1269,7 @@ class AppState extends ChangeNotifier {
     _whatsappAutomationEnabled = true; // Default to enabled
     _whatsappCustomMessage = '';
     _defaultCurrency = 'USD';
+    _categoryOrder = [];
     notifyListeners();
     
     // Load actual settings from Firebase asynchronously
@@ -2241,13 +2270,31 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> deleteDebt(String debtId) async {
+    print('DEBUG [AppState]: deleteDebt called with debtId: $debtId');
     try {
-      // Get the debt before deleting to clean up related data
-      final debt = _debts.firstWhere((d) => d.id == debtId);
+      // Check if debt exists before trying to delete
+      final debtIndex = _debts.indexWhere((d) => d.id == debtId);
+      print('DEBUG [AppState]: Debt index: $debtIndex');
+      
+      if (debtIndex == -1) {
+        // Debt not found in local list, but still try to delete from Firebase
+        // This handles cases where local state might be out of sync
+        print('DEBUG [AppState]: Debt not in local list, deleting from Firebase directly');
+        await _dataService.deleteDebt(debtId);
+        _clearCache();
+        notifyListeners();
+        return;
+      }
+      
+      final debt = _debts[debtIndex];
       final customerName = debt.customerName;
       final amount = debt.amount;
+      print('DEBUG [AppState]: Found debt in local list. Customer: $customerName, Amount: $amount');
       
+      // Delete from Firebase first
+      print('DEBUG [AppState]: Calling _dataService.deleteDebt...');
       await _dataService.deleteDebt(debtId);
+      print('DEBUG [AppState]: _dataService.deleteDebt completed successfully');
       
       // Remove from local lists
       _debts.removeWhere((d) => d.id == debtId);
@@ -2256,7 +2303,11 @@ class AppState extends ChangeNotifier {
       // Remove all activities associated with this debt
       final activitiesToDelete = _activities.where((activity) => activity.debtId == debtId).toList();
       for (final activity in activitiesToDelete) {
-        await _dataService.deleteActivity(activity.id);
+        try {
+          await _dataService.deleteActivity(activity.id);
+        } catch (e) {
+          // Continue even if activity deletion fails
+        }
       }
       _activities.removeWhere((activity) => activity.debtId == debtId);
       
@@ -2544,6 +2595,9 @@ class AppState extends ChangeNotifier {
     try {
       await _dataService.addCategory(category);
       _categories.add(category);
+      // Add new category to the end of the order list
+      _categoryOrder.add(category.id);
+      await _saveSettings();
       _clearCache();
       notifyListeners();
       
@@ -2574,6 +2628,9 @@ class AppState extends ChangeNotifier {
       
       await _dataService.deleteCategory(categoryId);
       _categories.removeWhere((c) => c.id == categoryId);
+      // Remove from order list
+      _categoryOrder.removeWhere((id) => id == categoryId);
+      await _saveSettings();
       _clearCache();
       notifyListeners();
       
@@ -3037,6 +3094,7 @@ class AppState extends ChangeNotifier {
           'whatsappAutomationEnabled': _whatsappAutomationEnabled,
           'whatsappCustomMessage': _whatsappCustomMessage,
           'defaultCurrency': _defaultCurrency,
+          'categoryOrder': _categoryOrder,
         }, SetOptions(merge: true));
       }
     } catch (e) {
@@ -3055,6 +3113,41 @@ class AppState extends ChangeNotifier {
     _whatsappCustomMessage = message;
     await _saveSettings();
     notifyListeners();
+  }
+
+  // Category order settings
+  Future<void> updateCategoryOrder(List<String> categoryIds) async {
+    _categoryOrder = List.from(categoryIds);
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  // Get categories in the saved order (or default order if not set)
+  List<ProductCategory> getCategoriesInOrder() {
+    if (_categoryOrder.isEmpty) {
+      // If no order is saved, return categories in their current order
+      return List.from(_categories);
+    }
+    
+    // Create a map for quick lookup
+    final categoryMap = {for (var cat in _categories) cat.id: cat};
+    
+    // Build ordered list based on saved order
+    final orderedCategories = <ProductCategory>[];
+    for (final id in _categoryOrder) {
+      if (categoryMap.containsKey(id)) {
+        orderedCategories.add(categoryMap[id]!);
+      }
+    }
+    
+    // Add any categories that aren't in the saved order (new categories)
+    for (final category in _categories) {
+      if (!_categoryOrder.contains(category.id)) {
+        orderedCategories.add(category);
+      }
+    }
+    
+    return orderedCategories;
   }
 
   // Apply payment across multiple debts with proportional distribution

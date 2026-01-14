@@ -132,7 +132,8 @@ class DataService {
   }
 
   Future<void> deleteDebt(String debtId) async {
-    await _firebaseService.delete('debts', debtId);
+    // Use the specific deleteDebt method that uses the correct path: /users/{userId}/debts/{debtId}
+    await _firebaseService.deleteDebt(debtId);
   }
 
   Future<void> clearDebts() async {

@@ -308,14 +308,115 @@ class FirebaseDataService {
 
   // Delete debt
   Future<void> deleteDebt(String debtId) async {
-    if (!isAuthenticated) throw Exception('User not authenticated');
+    print('DEBUG [FirebaseDataService]: deleteDebt called with debtId: $debtId');
+    print('DEBUG [FirebaseDataService]: isAuthenticated: $isAuthenticated');
+    print('DEBUG [FirebaseDataService]: currentUserId: $currentUserId');
     
-    await _firestore
+    if (!isAuthenticated) {
+      print('DEBUG [FirebaseDataService]: Not authenticated!');
+      throw Exception('User not authenticated');
+    }
+    
+    // Get the current user and verify authentication
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found. Please sign in again.');
+    }
+    
+    // Force get a fresh ID token to ensure auth is current
+    String? idToken;
+    try {
+      idToken = await user.getIdToken(true); // Force refresh
+      print('DEBUG: Got fresh ID token. Token length: ${idToken?.length ?? 0}');
+    } catch (e) {
+      print('DEBUG: Error getting ID token: $e');
+      throw Exception('Failed to refresh authentication token. Please sign out and sign back in.');
+    }
+    
+    // Reload user to ensure auth token is fresh
+    try {
+      await user.reload();
+      // Get fresh user after reload
+      final freshUser = _auth.currentUser;
+      if (freshUser == null) {
+        throw Exception('User authentication lost after reload. Please sign in again.');
+      }
+      print('DEBUG: User reloaded successfully. UID: ${freshUser.uid}');
+    } catch (e) {
+      print('DEBUG: Error reloading user: $e');
+      // If reload fails, check if user still exists
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        throw Exception('User authentication failed. Please sign in again.');
+      }
+    }
+    
+    final userId = currentUserId;
+    if (userId == null) {
+      throw Exception('User ID is null. Please sign out and sign back in.');
+    }
+    
+    // Verify the userId matches the authenticated user's UID
+    if (userId != user.uid) {
+      throw Exception('User ID mismatch. Expected: ${user.uid}, Got: $userId. Please sign out and sign back in.');
+    }
+    
+    print('DEBUG: Authentication verified. User ID: $userId, Auth UID: ${user.uid}, Match: ${userId == user.uid}');
+    
+    // Verify the path matches the rules: /users/{userId}/debts/{debtId}
+    final debtRef = _firestore
         .collection('users')
-        .doc(currentUserId!)
+        .doc(userId)
         .collection('debts')
-        .doc(debtId)
-        .delete();
+        .doc(debtId);
+    
+    // First verify we can read the document (this tests read permissions)
+    print('DEBUG: Attempting to read debt document at path: /users/$userId/debts/$debtId');
+    print('DEBUG: Auth user UID: ${user.uid}');
+    print('DEBUG: Auth user email: ${user.email}');
+    print('DEBUG: Auth user isEmailVerified: ${user.emailVerified}');
+    
+    try {
+      final doc = await debtRef.get();
+      print('DEBUG: Document read successful. Exists: ${doc.exists}');
+      
+      if (!doc.exists) {
+        throw Exception('Debt document does not exist at path: /users/$userId/debts/$debtId\n\nPlease check Firebase Console to verify the document exists.');
+      }
+      
+      // Verify the document data contains expected fields
+      final data = doc.data();
+      if (data == null) {
+        throw Exception('Debt document exists but has no data. Debt ID: $debtId');
+      }
+      
+      print('DEBUG: Successfully read debt document');
+      print('DEBUG: Document data keys: ${data.keys.toList()}');
+    } catch (e) {
+      print('DEBUG: Error reading document: ${e.toString()}');
+      if (e.toString().contains('permission-denied')) {
+        // Check if it's a read permission issue
+        throw Exception('Permission denied: Cannot read debt document.\n\nThis means Firestore rules are blocking READ access.\n\nUser ID: $userId\nAuth UID: ${user.uid}\nDebt ID: $debtId\nPath: /users/$userId/debts/$debtId\n\nPlease verify in Firebase Console:\n1. Document exists at: https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/firestore/data/users/$userId/debts/$debtId\n2. Rules allow read: https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/firestore/rules\n\nRule should be: allow read: if request.auth != null && request.auth.uid == userId;');
+      }
+      rethrow;
+    }
+    
+    // Attempt deletion with better error handling
+    print('DEBUG: Attempting to delete debt document...');
+    try {
+      await debtRef.delete();
+      print('DEBUG: Debt document deleted successfully!');
+    } catch (e) {
+      print('DEBUG: Error deleting document: ${e.toString()}');
+      print('DEBUG: Error type: ${e.runtimeType}');
+      
+      // Check if it's a permission error and provide helpful message
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('Permission denied: Cannot delete debt.\n\nUser ID: $userId\nAuth UID: ${user.uid}\nDebt ID: $debtId\nPath: /users/$userId/debts/$debtId\n\nPlease verify:\n1. User ID matches Auth UID (should both be: $userId)\n2. Document exists at the path above\n3. Firestore rules allow delete operations:\nhttps://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/firestore/rules\n\nRule should be: allow delete: if request.auth != null && request.auth.uid == userId;');
+      }
+      // Re-throw with more context
+      throw Exception('Failed to delete debt: ${e.toString()}. User ID: $userId, Debt ID: $debtId');
+    }
   }
 
   // Note: Partial payments are now handled as activities only
