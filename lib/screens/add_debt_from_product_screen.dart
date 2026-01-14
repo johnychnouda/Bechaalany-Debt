@@ -857,7 +857,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         final quantityText = quantity.truncateToDouble() == quantity 
             ? quantity.toInt().toString() 
             : quantity.toStringAsFixed(2);
-        description = '${_selectedSubcategory!.name} (Qty: $quantityText)';
+        description = '${_selectedSubcategory!.name} x $quantityText';
       }
       
       // Create a single debt entry with the total amount
