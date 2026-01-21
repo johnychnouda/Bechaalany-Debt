@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
@@ -201,14 +202,18 @@ class _SignInScreenState extends State<SignInScreen> {
                 
                 // Subtitle with Elegant Styling
                 Text(
-                  'Sign in with your Google or Apple account to get started',
+                  Platform.isIOS
+                      ? 'Sign in with your Google or Apple account to get started'
+                      : 'Sign in with your Google account to get started',
                   style: AppTheme.body.copyWith(
                     color: AppColors.textSecondary,
-                    fontSize: isSmallScreen ? 16 : 18,
+                    fontSize: isSmallScreen ? 15 : 17,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.2,
                   ),
                   textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing48 : AppTheme.spacing56),
@@ -319,9 +324,9 @@ class _SignInScreenState extends State<SignInScreen> {
                       
                       const SizedBox(height: AppTheme.spacing16),
                       
-                      // Apple Sign In Button - iOS 18.6 Native Style
-                      // Show Apple Sign-In for iOS
-                      Container(
+                      // Apple Sign In Button - iOS only
+                      if (Platform.isIOS)
+                        Container(
                           width: double.infinity,
                           height: 56,
                           decoration: BoxDecoration(
