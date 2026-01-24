@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../services/admin_service.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
 import 'products_screen.dart';
 import 'full_activity_list_screen.dart';
+import 'admin/admin_dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,12 +17,40 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  bool _isAdmin = false;
+  bool _isCheckingAdmin = true;
 
-  final List<Widget> _screens = [
+  final List<Widget> _regularScreens = [
     const HomeScreen(),
     const CustomersScreen(),
     const ProductsScreen(),
   ];
+
+  List<Widget> get _screens {
+    if (_isAdmin) {
+      return [
+        ..._regularScreens,
+        const AdminDashboardScreen(),
+      ];
+    }
+    return _regularScreens;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final adminService = AdminService();
+    // Force refresh to get latest admin status from Firestore
+    final isAdmin = await adminService.refreshAdminStatus();
+    setState(() {
+      _isAdmin = isAdmin;
+      _isCheckingAdmin = false;
+    });
+  }
 
   Widget _buildNavigationItem({
     required int index,
@@ -29,13 +60,11 @@ class _MainScreenState extends State<MainScreen> {
   }) {
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-        // Force refresh when switching tabs
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {});
-        });
+        if (_currentIndex != index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -119,6 +148,8 @@ class _MainScreenState extends State<MainScreen> {
         body: IndexedStack(
           index: _currentIndex,
           children: _screens,
+          // Use lazy loading - only build visible screen initially
+          sizing: StackFit.expand,
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
@@ -141,30 +172,39 @@ class _MainScreenState extends State<MainScreen> {
             child: Container(
               height: 88,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavigationItem(
-                    index: 0,
-                    icon: Icons.dashboard_rounded,
-                    label: 'Dashboard',
-                    isSelected: _currentIndex == 0,
-                  ),
-                  _buildNavigationItem(
-                    index: 1,
-                    icon: Icons.people_rounded,
-                    label: 'Customers',
-                    isSelected: _currentIndex == 1,
-                  ),
-                  _buildNavigationItem(
-                    index: 2,
-                    icon: Icons.inventory_2_rounded,
-                    label: 'Products',
-                    isSelected: _currentIndex == 2,
-                  ),
-                  _buildActivitiesNavigationItem(),
-                ],
-              ),
+              child: _isCheckingAdmin
+                  ? const Center(child: CircularProgressIndicator())
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildNavigationItem(
+                          index: 0,
+                          icon: Icons.dashboard_rounded,
+                          label: 'Dashboard',
+                          isSelected: _currentIndex == 0,
+                        ),
+                        _buildNavigationItem(
+                          index: 1,
+                          icon: Icons.people_rounded,
+                          label: 'Customers',
+                          isSelected: _currentIndex == 1,
+                        ),
+                        _buildNavigationItem(
+                          index: 2,
+                          icon: Icons.inventory_2_rounded,
+                          label: 'Products',
+                          isSelected: _currentIndex == 2,
+                        ),
+                        _buildActivitiesNavigationItem(),
+                        if (_isAdmin)
+                          _buildNavigationItem(
+                            index: 3,
+                            icon: Icons.admin_panel_settings,
+                            label: 'Admin',
+                            isSelected: _currentIndex == 3,
+                          ),
+                      ],
+                    ),
             ),
           ),
         ),

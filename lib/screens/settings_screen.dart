@@ -12,6 +12,9 @@ import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'payment_reminders_screen.dart';
 import 'sign_in_screen.dart';
+import 'subscription_status_screen.dart';
+import '../services/admin_service.dart';
+import '../services/business_name_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -21,14 +24,26 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _appVersion = '1.0.2'; // Default fallback
+  String _appVersion = '1.1.1'; // Default fallback
+  bool _isAdmin = false;
+  bool _isCheckingAdmin = true;
+  final AdminService _adminService = AdminService();
 
   @override
   void initState() {
     super.initState();
     _loadAppVersion();
+    _checkAdminStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       setState(() {});
+    });
+  }
+
+  Future<void> _checkAdminStatus() async {
+    final isAdmin = await _adminService.isAdmin();
+    setState(() {
+      _isAdmin = isAdmin;
+      _isCheckingAdmin = false;
     });
   }
 
@@ -68,6 +83,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'Account',
                 [
+                  // Subscription Status (hidden for admins)
+                  if (!_isCheckingAdmin && !_isAdmin)
+                    _buildNavigationRow(
+                      'Subscription Status',
+                      'View your subscription and trial information',
+                      CupertinoIcons.calendar,
+                      () => Navigator.push(
+                        context,
+                        CupertinoPageRoute(
+                          builder: (context) => const SubscriptionStatusScreen(),
+                        ),
+                      ),
+                    ),
                   _buildNavigationRow(
                     'Sign Out',
                     'Sign out of your account',
@@ -99,6 +127,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'Business Settings',
                 [
+                  // Business Name (only for non-admin users)
+                  if (!_isCheckingAdmin && !_isAdmin)
+                    _buildNavigationRow(
+                      'Business Name',
+                      'Set your business name for receipts and messages',
+                      CupertinoIcons.building_2_fill,
+                      () => _showBusinessNameDialog(),
+                    ),
                   _buildNavigationRow(
                     'Currency & Exchange Rates',
                     'Configure currency settings and rates',
@@ -359,6 +395,196 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => const CurrencySettingsScreen(),
+      ),
+    );
+  }
+
+  void _showBusinessNameDialog() async {
+    final businessNameService = BusinessNameService();
+    String currentBusinessName = '';
+    bool isLoading = true;
+
+    // Load current business name
+    try {
+      currentBusinessName = await businessNameService.getBusinessName();
+    } catch (e) {
+      // Keep empty if error
+    }
+    isLoading = false;
+
+    final TextEditingController controller = TextEditingController(text: currentBusinessName);
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => CupertinoAlertDialog(
+          title: Text(
+            'Business Name',
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: isLoading
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: CupertinoActivityIndicator(),
+                )
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your business name will appear on receipts, payment reminders, and all customer communications.',
+                      style: TextStyle(
+                        color: AppColors.dynamicTextSecondary(context),
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    CupertinoTextField(
+                      controller: controller,
+                      placeholder: 'Enter your business name',
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.dynamicSurface(context),
+                        border: Border.all(
+                          color: AppColors.dynamicBorder(context),
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      style: TextStyle(
+                        color: AppColors.dynamicTextPrimary(context),
+                        fontSize: 16,
+                      ),
+                      onChanged: (value) {
+                        setDialogState(() {});
+                      },
+                    ),
+                    if (controller.text.trim().isEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Business name is required',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            CupertinoDialogAction(
+              onPressed: controller.text.trim().isEmpty
+                  ? null
+                  : () async {
+                      try {
+                        await businessNameService.setBusinessName(controller.text);
+                        Navigator.pop(context);
+                        
+                        // Show success message
+                        if (context.mounted) {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (successContext) => CupertinoAlertDialog(
+                              title: Text(
+                                'Success',
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextPrimary(successContext),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              content: Text(
+                                'Business name has been updated successfully.',
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextSecondary(successContext),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              actions: [
+                                CupertinoDialogAction(
+                                  onPressed: () => Navigator.pop(successContext),
+                                  child: Text(
+                                    'OK',
+                                    style: TextStyle(
+                                      color: AppColors.dynamicPrimary(successContext),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        Navigator.pop(context);
+                        
+                        // Show error message
+                        if (context.mounted) {
+                          showCupertinoDialog(
+                            context: context,
+                            builder: (errorContext) => CupertinoAlertDialog(
+                              title: Text(
+                                'Error',
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextPrimary(errorContext),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              content: Text(
+                                'Failed to update business name: ${e.toString().replaceAll('Exception: ', '')}',
+                                style: TextStyle(
+                                  color: AppColors.dynamicTextSecondary(errorContext),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              actions: [
+                                CupertinoDialogAction(
+                                  onPressed: () => Navigator.pop(errorContext),
+                                  child: Text(
+                                    'OK',
+                                    style: TextStyle(
+                                      color: AppColors.dynamicTextPrimary(errorContext),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: Text(
+                'Save',
+                style: TextStyle(
+                  color: controller.text.trim().isEmpty
+                      ? AppColors.dynamicTextSecondary(context)
+                      : AppColors.dynamicPrimary(context),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -787,21 +1013,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () async {
+              // Close the dialog first
               Navigator.pop(context);
               
-              // Sign out immediately using AuthService
+              // Sign out - AuthWrapper will automatically handle navigation
               final authService = AuthService();
               await authService.signOut();
               
-              // Force navigation to sign-in screen after a short delay
-              await Future.delayed(const Duration(milliseconds: 200));
-              
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  CupertinoPageRoute(builder: (context) => const SignInScreen()),
-                  (route) => false,
-                );
-              }
+              // No need for manual navigation - AuthWrapper listens to authStateChanges
+              // and will automatically redirect to SignInScreen when user is null
             },
             child: const Text('Sign Out'),
           ),

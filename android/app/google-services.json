@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "908856160324",
+    "project_id": "bechaalany-debt-app-e1bb0",
+    "storage_bucket": "bechaalany-debt-app-e1bb0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:908856160324:android:1a848127d23fd5c59f8c11",
+        "android_client_info": {
+          "package_name": "com.bechaalany.debt.bechaalanyDebtApp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJD7jdtZO-cHnDaUku7gHCvZZHp_3xXA4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bechaalany.debt.bechaalanyDebtApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -329,43 +329,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
           ),
           // Reorderable category filters
           Expanded(
-            child: ReorderableListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: orderedCategories.length,
-              proxyDecorator: (child, index, animation) {
-                return Material(
-                  elevation: 6,
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  child: child,
-                );
-              },
-              onReorder: (oldIndex, newIndex) async {
-                // Only allow reordering when in reorder mode
-                if (!_isReorderMode) return;
-                
-                if (newIndex > oldIndex) {
-                  newIndex -= 1;
-                }
-                
-                setState(() {
-                  final category = orderedCategories.removeAt(oldIndex);
-                  orderedCategories.insert(newIndex, category);
-                });
-                
-                // Save the new order
-                final appState = Provider.of<AppState>(context, listen: false);
-                final categoryIds = orderedCategories.map((c) => c.id).toList();
-                await appState.updateCategoryOrder(categoryIds);
-              },
-              itemBuilder: (context, index) {
-                final category = orderedCategories[index];
-                final isSelected = _selectedCategory == category.name;
-                return Padding(
-                  key: Key(category.id),
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _isReorderMode
-                      ? FilterChip(
+            child: _isReorderMode
+                ? ReorderableListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: orderedCategories.length,
+                    proxyDecorator: (child, index, animation) {
+                      return Material(
+                        elevation: 6,
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(20),
+                        child: child,
+                      );
+                    },
+                    onReorder: (oldIndex, newIndex) async {
+                      if (newIndex > oldIndex) {
+                        newIndex -= 1;
+                      }
+                      
+                      setState(() {
+                        final category = orderedCategories.removeAt(oldIndex);
+                        orderedCategories.insert(newIndex, category);
+                      });
+                      
+                      // Save the new order
+                      final appState = Provider.of<AppState>(context, listen: false);
+                      final categoryIds = orderedCategories.map((c) => c.id).toList();
+                      await appState.updateCategoryOrder(categoryIds);
+                    },
+                    itemBuilder: (context, index) {
+                      final category = orderedCategories[index];
+                      return Padding(
+                        key: Key(category.id),
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
                           label: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -391,40 +387,55 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           checkmarkColor: Colors.white,
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           visualDensity: VisualDensity.compact,
-                        )
-                      : GestureDetector(
-                          onLongPress: () {
-                            _showCategoryActionSheet(context, category);
-                          },
-                          child: FilterChip(
-                            label: Text(
-                              category.name,
-                              style: TextStyle(
-                                color: isSelected 
-                                    ? Colors.white 
-                                    : AppColors.dynamicTextPrimary(context),
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                            ),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedCategory = category.name;
-                              });
-                              _filterProducts();
-                            },
-                            backgroundColor: isSelected 
-                                ? AppColors.dynamicPrimary(context)
-                                : AppColors.dynamicSurface(context),
-                            selectedColor: AppColors.dynamicPrimary(context),
-                            checkmarkColor: Colors.white,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
                         ),
-                );
-              },
-            ),
+                      );
+                    },
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const ClampingScrollPhysics(),
+                    child: Row(
+                      children: orderedCategories.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final category = entry.value;
+                        final isSelected = _selectedCategory == category.name;
+                        return Padding(
+                          key: Key('${category.id}_$index'),
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onLongPress: () {
+                              _showCategoryActionSheet(context, category);
+                            },
+                            child: FilterChip(
+                              label: Text(
+                                category.name,
+                                style: TextStyle(
+                                  color: isSelected 
+                                      ? Colors.white 
+                                      : AppColors.dynamicTextPrimary(context),
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSelected,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedCategory = category.name;
+                                });
+                                _filterProducts();
+                              },
+                              backgroundColor: isSelected 
+                                  ? AppColors.dynamicPrimary(context)
+                                  : AppColors.dynamicSurface(context),
+                              selectedColor: AppColors.dynamicPrimary(context),
+                              checkmarkColor: Colors.white,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
           ),
           // Done button when in reorder mode
           if (_isReorderMode)
@@ -570,15 +581,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   String _getEmptyStateMessage() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    // If there's a search query, always show "No products found"
+    if (_searchQuery.isNotEmpty) {
+      return 'No products found';
+    }
+    
     if (_selectedCategory == 'All') {
-      return 'No categories found';
+      // Check if categories exist
+      if (appState.categories.isEmpty) {
+        return 'No categories found';
+      } else {
+        // Categories exist but no products
+        return 'No products found';
+      }
     }
     return 'No products in $_selectedCategory';
   }
 
   String _getEmptyStateSubMessage() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    
+    // If there's a search query, suggest adjusting search terms
+    if (_searchQuery.isNotEmpty) {
+      return 'Try adjusting your search terms';
+    }
+    
     if (_selectedCategory == 'All') {
-      return 'Add categories to get started';
+      // Check if categories exist
+      if (appState.categories.isEmpty) {
+        return 'Add categories to get started';
+      } else {
+        // Categories exist but no products
+        return 'Add products to get started';
+      }
     }
     return 'Add products to $_selectedCategory to get started';
   }
@@ -777,34 +814,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final currentExchangeRate = appState.currencySettings?.exchangeRate;
     
-    // Check if exchange rate is set (only required for LBP products)
-    if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) => CupertinoAlertDialog(
-          title: const Text('Exchange Rate Required'),
-          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP pricing.'),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(context),
-            ),
-            CupertinoDialogAction(
-              child: const Text('Go to Settings'),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.of(context).push(
-                  CupertinoPageRoute(
-                    builder: (context) => const CurrencySettingsScreen(),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-      return;
-    }
+    // Note: We allow editing even without exchange rate - validation happens on save
     
     // Set initial values based on currency
     if (selectedCurrency == 'LBP') {
@@ -1024,6 +1034,35 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           return ElevatedButton(
                             onPressed: isEnabled
                                 ? () async {
+                                    // Check if exchange rate is required for LBP currency
+                                    if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
+                                      showCupertinoDialog(
+                                        context: context,
+                                        builder: (context) => CupertinoAlertDialog(
+                                          title: const Text('Exchange Rate Required'),
+                                          content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP pricing.'),
+                                          actions: [
+                                            CupertinoDialogAction(
+                                              child: const Text('Cancel'),
+                                              onPressed: () => Navigator.pop(context),
+                                            ),
+                                            CupertinoDialogAction(
+                                              child: const Text('Go to Settings'),
+                                              onPressed: () {
+                                                Navigator.pop(context);
+                                                Navigator.of(context).push(
+                                                  CupertinoPageRoute(
+                                                    builder: (context) => const CurrencySettingsScreen(),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    
                                     final appState = Provider.of<AppState>(context, listen: false);
                                     // Notification service removed
                                     final category = appState.categories.firstWhere(

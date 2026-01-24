@@ -15,11 +15,20 @@
           "fileOutput": "ios/Runner/GoogleService-Info.plist"
         }
       },
+      "android": {
+        "default": {
+          "projectId": "bechaalany-debt-app-e1bb0",
+          "appId": "1:908856160324:android:1a848127d23fd5c59f8c11",
+          "uploadDebugSymbols": false,
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
       "dart": {
         "lib/firebase_options.dart": {
           "projectId": "bechaalany-debt-app-e1bb0",
           "configurations": {
-            "ios": "1:908856160324:ios:08460e3562c039349f8c11"
+            "ios": "1:908856160324:ios:08460e3562c039349f8c11",
+            "android": "1:908856160324:android:1a848127d23fd5c59f8c11"
           }
         }
       }

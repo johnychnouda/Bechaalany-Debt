@@ -34,8 +34,9 @@ lib/
 ### Prerequisites
 
 - Flutter SDK (latest stable version)
-- iOS Simulator or physical iOS device
-- Xcode (for iOS development)
+- iOS Simulator or physical iOS device (for iOS development)
+- Android Studio or Android SDK (for Android development)
+- Xcode (for iOS development on macOS)
 
 ### Installation
 
@@ -50,7 +51,13 @@ lib/
    flutter pub get
    ```
 
-4. Run the app:
+4. **Firebase Setup** (Required):
+   - The app is configured for Firebase on both iOS and Android
+   - For Android: You need to add an Android app to your Firebase project and update `lib/firebase_options.dart` with the Android app ID
+   - Replace `YOUR_ANDROID_APP_ID` in `lib/firebase_options.dart` with your actual Android app ID from Firebase Console
+   - Download `google-services.json` and place it in `android/app/` directory
+
+5. Run the app:
    ```bash
    flutter run
    ```
@@ -89,7 +96,7 @@ The app is designed to integrate seamlessly with your Bechaalany Connect brand:
 - Use clean architecture principles
 - Maintain consistent code formatting
 - Write comprehensive documentation
-- Test thoroughly on iOS devices
+- Test thoroughly on both iOS and Android devices
 
 ## Support
 

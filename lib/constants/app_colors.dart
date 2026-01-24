@@ -82,6 +82,12 @@ class AppColors {
         : surface;
   }
   
+  static Color dynamicAppBar(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark 
+        ? const Color(0xFF1C1C1E) 
+        : surface;
+  }
+  
   static Color dynamicTextPrimary(BuildContext context) {
     return Theme.of(context).brightness == Brightness.dark 
         ? const Color(0xFFFFFFFF) 

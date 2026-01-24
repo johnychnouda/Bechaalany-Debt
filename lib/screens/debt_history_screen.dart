@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../models/debt.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/subscription_checker.dart';
 import 'add_debt_from_product_screen.dart';
 import 'customer_debt_receipt_screen.dart';
 
@@ -578,14 +579,17 @@ class _DebtHistoryScreenState extends State<DebtHistoryScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: 'debts_fab_hero',
-        onPressed: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddDebtFromProductScreen(),
-            ),
-          );
-        },
+            onPressed: () async {
+              final hasAccess = await SubscriptionChecker.checkAccess(context);
+              if (hasAccess && mounted) {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddDebtFromProductScreen(),
+                  ),
+                );
+              }
+            },
         backgroundColor: AppColors.dynamicPrimary(context),
         child: const Icon(
           Icons.add,

@@ -13,6 +13,7 @@ import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
+import '../utils/subscription_checker.dart';
 import '../services/receipt_sharing_service.dart';
 import '../services/firebase_data_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
@@ -832,15 +833,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           backgroundColor: AppColors.dynamicBackground(context),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddDebtFromProductScreen(customer: _currentCustomer),
-                ),
-              );
-              // Refresh the debt list if a debt was added
-              if (result == true) {
-                _loadCustomerDebts();
+              final hasAccess = await SubscriptionChecker.checkAccess(context);
+              if (hasAccess && mounted) {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddDebtFromProductScreen(customer: _currentCustomer),
+                  ),
+                );
+                // Refresh the debt list if a debt was added
+                if (result == true) {
+                  _loadCustomerDebts();
+                }
               }
             },
             backgroundColor: AppColors.dynamicPrimary(context),

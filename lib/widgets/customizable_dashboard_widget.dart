@@ -34,11 +34,17 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
     // Ensure preferences are saved after a short delay to handle any initialization issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 100), () {
-        if (_enabledWidgets.isNotEmpty) {
+        if (mounted && _enabledWidgets.isNotEmpty) {
           _saveWidgetPreferences();
         }
       });
     });
+  }
+
+  @override
+  void dispose() {
+    // Cleanup is handled by mounted checks in async methods
+    super.dispose();
   }
 
   void _initializeWidgets() {
@@ -135,27 +141,35 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
               }
             }
             
-            setState(() {
-              _enabledWidgets = orderedWidgets;
-              _isLoading = false;
-            });
+            if (mounted) {
+              setState(() {
+                _enabledWidgets = orderedWidgets;
+                _isLoading = false;
+              });
+            }
           } else {
             // First time installation - use default order and save it
-            setState(() {
-              _enabledWidgets = _getDefaultWidgetOrder();
-              _isLoading = false;
-            });
+            if (mounted) {
+              setState(() {
+                _enabledWidgets = _getDefaultWidgetOrder();
+                _isLoading = false;
+              });
+            }
             
             // Save the default order so it's preserved
-            _saveWidgetPreferences();
+            if (mounted) {
+              _saveWidgetPreferences();
+            }
           }
         }
       } catch (e) {
         // Error loading preferences, use defaults
-        setState(() {
-          _enabledWidgets = _getDefaultWidgetOrder();
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _enabledWidgets = _getDefaultWidgetOrder();
+            _isLoading = false;
+          });
+        }
       }
     }
 
@@ -177,6 +191,8 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
   }
 
   void _reorderWidgets(int oldIndex, int newIndex) {
+    if (!mounted) return;
+    
     setState(() {
       if (oldIndex < newIndex) {
         newIndex -= 1;

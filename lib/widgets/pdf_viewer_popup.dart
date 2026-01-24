@@ -101,23 +101,28 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                 CupertinoButton(
                   padding: EdgeInsets.zero,
                   onPressed: () {
-                    // Close the PDF viewer
-                    Navigator.of(context).pop();
                     widget.onClose?.call();
                     
-                    // Navigate directly to customer details page if customer info is available
+                    // Navigate to customer details if needed, then pop
+                    // This prevents navigation conflicts that cause WindowOnBackDispatcher spam
                     if (widget.customer != null) {
+                      // Pop first, then navigate after frame completes
+                      Navigator.of(context).pop();
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        // Use push instead of pushReplacement to preserve navigation stack
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => CustomerDetailsScreen(
-                              customer: widget.customer!,
-                              showDebtsSection: true,
+                        if (mounted && Navigator.of(context).canPop()) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => CustomerDetailsScreen(
+                                customer: widget.customer!,
+                                showDebtsSection: true,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       });
+                    } else {
+                      // Simple pop if no customer navigation needed
+                      Navigator.of(context).pop();
                     }
                   },
                   child: Row(

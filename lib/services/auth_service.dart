@@ -2,6 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io' show Platform;
+import 'admin_service.dart';
+import 'business_name_service.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -20,30 +23,55 @@ class AuthService {
 
   /// Initialize Google Sign-In
   Future<void> initialize() async {
-    await _googleSignIn.initialize(
-      clientId: '908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com',
-    );
+    // Use platform-specific client IDs
+    if (Platform.isAndroid) {
+      // Android OAuth client ID from google-services.json
+      // serverClientId is the Web OAuth client ID (needed for Firebase Auth)
+      await _googleSignIn.initialize(
+        clientId: '908856160324-0n5oi3n60e2mj09nogg0998lj54sfajq.apps.googleusercontent.com',
+        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com', // Web client ID
+      );
+    } else if (Platform.isIOS) {
+      // iOS OAuth client ID
+      await _googleSignIn.initialize(
+        clientId: '908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com',
+      );
+    }
   }
 
-  /// Sign in with Google (Native iOS)
+  /// Sign in with Google (Cross-platform)
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Sign out any existing Google session to ensure fresh authentication
-      await _googleSignIn.signOut();
+      // Check if authenticate is supported
+      if (!_googleSignIn.supportsAuthenticate()) {
+        throw Exception('Google Sign-In is not supported on this device');
+      }
       
-      // Trigger the native iOS authentication flow
+      // Use authenticate() for both platforms (v7 API)
+      // Credential Manager is disabled via AndroidManifest metadata
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
       
       if (googleUser == null) {
-        return null;
+        throw Exception('Google Sign-In was cancelled by user');
       }
 
       // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
+      // Get access token via authorization client (v7 API)
+      String? accessToken;
+      if (googleUser.authorizationClient != null) {
+        try {
+          final authorization = await googleUser.authorizationClient!.authorizeScopes(['openid', 'email', 'profile']);
+          accessToken = authorization.accessToken;
+        } catch (e) {
+          // Access token not critical for Firebase Auth if we have idToken
+        }
+      }
+
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
-        accessToken: null, // Not available in new API
+        accessToken: accessToken,
         idToken: googleAuth.idToken,
       );
 
@@ -52,8 +80,16 @@ class AuthService {
       final result = await _auth.signInWithCredential(credential);
       
       return result;
+    } on GoogleSignInException catch (e) {
+      // Handle specific error codes
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        throw Exception('Google Sign-In was cancelled');
+      }
+      
+      throw Exception('Google Sign-In failed: ${e.toString()} (Code: ${e.code})');
     } catch (e) {
-      return null;
+      // Re-throw to see the actual error
+      throw e;
     }
   }
 
@@ -110,6 +146,22 @@ class AuthService {
   /// Sign out
   Future<void> signOut() async {
     try {
+      // Clear admin cache before signing out
+      try {
+        final adminService = AdminService();
+        adminService.clearCache();
+      } catch (e) {
+        // Ignore admin service errors
+      }
+      
+      // Clear business name cache before signing out
+      try {
+        final businessNameService = BusinessNameService();
+        businessNameService.clearCache();
+      } catch (e) {
+        // Ignore business name service errors
+      }
+      
       // Sign out from Firebase first
       await _auth.signOut();
       

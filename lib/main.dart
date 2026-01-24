@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io' show Platform;
 import 'firebase_options.dart';
 import 'constants/platform_theme.dart';
 import 'providers/app_state.dart';
@@ -16,7 +19,10 @@ import 'services/app_update_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Configure status bar for iOS
+  // Disable debug paint to remove yellow lines and other debug visuals
+  debugPaintSizeEnabled = false;
+  
+  // Configure status bar for both iOS and Android
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -28,56 +34,86 @@ void main() async {
     ),
   );
   
+  // Suppress system warnings on Android
+  if (Platform.isAndroid) {
+    // Suppress verbose logging from Google Play Services
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+  
   try {
-    // Initialize Firebase
+    // Initialize Firebase with proper locale configuration
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Set Firebase Auth language and locale to avoid "X-Firebase-Locale null" warnings
+    try {
+      final auth = FirebaseAuth.instance;
+      // Get system locale or default to 'en'
+      final localeCode = Platform.localeName.split('_').first;
+      await auth.setLanguageCode(localeCode.isNotEmpty ? localeCode : 'en');
+    } catch (e) {
+      // Fallback to English if locale setting fails
+      try {
+        await FirebaseAuth.instance.setLanguageCode('en');
+      } catch (_) {
+        // Ignore if setting language fails - warnings are acceptable
+      }
+    }
     
     // Firebase initialized - authentication will be handled by sign-in screens
     
     
   } catch (e) {
-    // Handle initialization error silently
+    // Handle initialization error silently - Google Play Services errors are expected on emulators
   }
     
-    // Initialize Firebase service
-    try {
-      await FirebaseService.instance.initialize();
-      // Firebase service initialized - authentication handled by sign-in screens
-    } catch (e) {
-      // Handle Firebase initialization error silently
-    }
+    // Initialize services asynchronously to reduce frame skipping
+    // Run non-critical initializations in parallel after app starts
+    _initializeServicesAsync();
     
-    // Initialize Google Sign-In
-    try {
-      await AuthService().initialize();
-    } catch (e) {
-      // Handle Google Sign-In initialization error silently
-    }
-    
-    
-    // Initialize automatic daily backup service
-    try {
-      final backupService = BackupService();
-      await backupService.initializeDailyBackup();
-    } catch (e) {
-      // Handle backup service initialization error silently
-    }
-    
-    // Background services disabled to prevent iOS notifications
-    // Background backup service disabled
-    // Background App Refresh service disabled
-    
-    // Check for app updates
-    try {
-      final appUpdateService = AppUpdateService();
-      await appUpdateService.checkForUpdates();
-    } catch (e) {
-      // Handle app update check error silently
-    }
-    
+    // Start the app immediately to reduce startup time
     runApp(const BechaalanyDebtApp());
+}
+
+// Initialize services asynchronously to prevent blocking the main thread
+void _initializeServicesAsync() async {
+  // Initialize Firebase service
+  try {
+    await FirebaseService.instance.initialize();
+    // Firebase service initialized - authentication handled by sign-in screens
+  } catch (e) {
+    // Handle Firebase initialization error silently
+  }
+  
+  // Initialize Google Sign-In
+  try {
+    await AuthService().initialize();
+  } catch (e) {
+    // Handle Google Sign-In initialization error silently
+    // Google Play Services errors are expected on emulators without full GMS
+  }
+  
+  
+  // Initialize automatic daily backup service
+  try {
+    final backupService = BackupService();
+    await backupService.initializeDailyBackup();
+  } catch (e) {
+    // Handle backup service initialization error silently
+  }
+  
+  // Background services disabled to prevent iOS notifications
+  // Background backup service disabled
+  // Background App Refresh service disabled
+  
+  // Check for app updates
+  try {
+    final appUpdateService = AppUpdateService();
+    await appUpdateService.checkForUpdates();
+  } catch (e) {
+    // Handle app update check error silently
+  }
 }
 
 class BechaalanyDebtApp extends StatefulWidget {
@@ -137,7 +173,7 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
   }
 
   SystemUiOverlayStyle _getSystemUIOverlayStyle(bool isDarkMode) {
-    // iOS 18+ specific settings
+    // Cross-platform UI overlay settings for iOS and Android
     return isDarkMode 
       ? const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,

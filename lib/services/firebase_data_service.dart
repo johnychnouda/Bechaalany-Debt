@@ -1109,19 +1109,17 @@ class FirebaseDataService {
   
   // ===== ADVANCED SEARCH METHODS =====
   
-  // Global search across all collections
+  // Global search across all collections (user-specific subcollections)
   Future<Map<String, List<dynamic>>> globalSearch(String query) async {
     if (!isAuthenticated) return {};
     
     try {
       final queryLower = query.toLowerCase();
       final results = <String, List<dynamic>>{};
+      final userRef = _firestore.collection('users').doc(currentUserId!);
       
       // Search customers
-      final customersSnapshot = await _firestore
-          .collection('customers')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
+      final customersSnapshot = await userRef.collection('customers').get();
       final customers = customersSnapshot.docs
           .map((doc) => Customer.fromJson({...doc.data(), 'id': doc.id}))
           .where((customer) => 
@@ -1131,10 +1129,7 @@ class FirebaseDataService {
       results['customers'] = customers;
       
       // Search debts
-      final debtsSnapshot = await _firestore
-          .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
+      final debtsSnapshot = await userRef.collection('debts').get();
       final debts = debtsSnapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
           .where((debt) => 
@@ -1144,10 +1139,7 @@ class FirebaseDataService {
       results['debts'] = debts;
       
       // Search products
-      final productsSnapshot = await _firestore
-          .collection('product_purchases')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
+      final productsSnapshot = await userRef.collection('product_purchases').get();
       final products = productsSnapshot.docs
           .map((doc) => ProductPurchase.fromJson({...doc.data(), 'id': doc.id}))
           .where((product) => 
@@ -1157,10 +1149,7 @@ class FirebaseDataService {
       results['products'] = products;
       
       // Search activities
-      final activitiesSnapshot = await _firestore
-          .collection('activities')
-          .where('userId', isEqualTo: currentUserId)
-          .get();
+      final activitiesSnapshot = await userRef.collection('activities').get();
       final activities = activitiesSnapshot.docs
           .map((doc) => Activity.fromJson({...doc.data(), 'id': doc.id}))
           .where((activity) => 
@@ -1175,14 +1164,15 @@ class FirebaseDataService {
     }
   }
   
-  // Advanced search with multiple criteria
+  // Advanced search with multiple criteria (user-specific debts)
   Future<List<Debt>> advancedDebtSearch(Map<String, dynamic> filters) async {
     if (!isAuthenticated) return [];
     
     try {
       final snapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
-          .where('userId', isEqualTo: currentUserId)
           .get();
       List<Debt> debts = snapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))
@@ -1628,17 +1618,18 @@ class FirebaseDataService {
     }
   }
   
-  // Export data
+  // Export data (user-specific subcollections)
   Future<Map<String, dynamic>> exportData(String format) async {
     if (!isAuthenticated) throw Exception('User not authenticated');
     
     try {
-      final customersSnapshot = await _firestore.collection('customers').get();
-      final debtsSnapshot = await _firestore.collection('debts').get();
-      final categoriesSnapshot = await _firestore.collection('categories').get();
-      final purchasesSnapshot = await _firestore.collection('product_purchases').get();
-      final paymentsSnapshot = await _firestore.collection('partial_payments').get();
-      final activitiesSnapshot = await _firestore.collection('activities').get();
+      final userRef = _firestore.collection('users').doc(currentUserId!);
+      final customersSnapshot = await userRef.collection('customers').get();
+      final debtsSnapshot = await userRef.collection('debts').get();
+      final categoriesSnapshot = await userRef.collection('categories').get();
+      final purchasesSnapshot = await userRef.collection('product_purchases').get();
+      final paymentsSnapshot = await userRef.collection('partial_payments').get();
+      final activitiesSnapshot = await userRef.collection('activities').get();
       
       final exportData = <String, dynamic>{
         'exportDate': DateTime.now().toIso8601String(),
@@ -1688,12 +1679,14 @@ class FirebaseDataService {
     }
   }
   
-  // Get customer debt summary
+  // Get customer debt summary (user-specific debts)
   Future<Map<String, dynamic>> getCustomerDebtSummary(String customerId) async {
     if (!isAuthenticated) return {};
     
     try {
       final debtsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUserId!)
           .collection('debts')
           .where('customerId', isEqualTo: customerId)
           .get();
@@ -1813,18 +1806,19 @@ class FirebaseDataService {
   
   // ===== DATA VALIDATION & INTEGRITY =====
   
-  // Validate data integrity
+  // Validate data integrity (user-specific subcollections)
   Future<Map<String, dynamic>> validateDataIntegrity() async {
     if (!isAuthenticated) return {};
     
     try {
       final issues = <String, List<String>>{};
+      final userRef = _firestore.collection('users').doc(currentUserId!);
       
       // Check for orphaned debts (debts without customers)
-      final customersSnapshot = await _firestore.collection('customers').get();
+      final customersSnapshot = await userRef.collection('customers').get();
       final customerIds = customersSnapshot.docs.map((doc) => doc.id).toSet();
       
-      final debtsSnapshot = await _firestore.collection('debts').get();
+      final debtsSnapshot = await userRef.collection('debts').get();
       final orphanedDebts = debtsSnapshot.docs
           .where((doc) => !customerIds.contains(doc.data()['customerId']))
           .map((doc) => doc.id)
@@ -1836,7 +1830,7 @@ class FirebaseDataService {
       
       // Check for orphaned payments (payments without debts)
       final debtIds = debtsSnapshot.docs.map((doc) => doc.id).toSet();
-      final paymentsSnapshot = await _firestore.collection('partial_payments').get();
+      final paymentsSnapshot = await userRef.collection('partial_payments').get();
       final orphanedPayments = paymentsSnapshot.docs
           .where((doc) => !debtIds.contains(doc.data()['debtId']))
           .map((doc) => doc.id)
@@ -1879,18 +1873,19 @@ class FirebaseDataService {
       
       final issues = validation['issues'] as Map<String, List<String>>;
       final batch = _firestore.batch();
+      final userRef = _firestore.collection('users').doc(currentUserId!);
       
       // Fix orphaned payments
       if (issues.containsKey('orphanedPayments')) {
         for (final paymentId in issues['orphanedPayments']!) {
-          batch.delete(_firestore.collection('partial_payments').doc(paymentId));
+          batch.delete(userRef.collection('partial_payments').doc(paymentId));
         }
       }
       
       // Fix orphaned debts
       if (issues.containsKey('orphanedDebts')) {
         for (final debtId in issues['orphanedDebts']!) {
-          batch.delete(_firestore.collection('debts').doc(debtId));
+          batch.delete(userRef.collection('debts').doc(debtId));
         }
       }
       
@@ -1901,16 +1896,17 @@ class FirebaseDataService {
     }
   }
   
-  // Get data statistics
+  // Get data statistics (user-specific subcollections)
   Future<Map<String, dynamic>> getDataStatistics() async {
     if (!isAuthenticated) return {};
     
     try {
-      final customersSnapshot = await _firestore.collection('customers').get();
-      final debtsSnapshot = await _firestore.collection('debts').get();
-      final categoriesSnapshot = await _firestore.collection('categories').get();
-      final purchasesSnapshot = await _firestore.collection('product_purchases').get();
-      final activitiesSnapshot = await _firestore.collection('activities').get();
+      final userRef = _firestore.collection('users').doc(currentUserId!);
+      final customersSnapshot = await userRef.collection('customers').get();
+      final debtsSnapshot = await userRef.collection('debts').get();
+      final categoriesSnapshot = await userRef.collection('categories').get();
+      final purchasesSnapshot = await userRef.collection('product_purchases').get();
+      final activitiesSnapshot = await userRef.collection('activities').get();
       
       final totalDebt = debtsSnapshot.docs
           .map((doc) => Debt.fromJson({...doc.data(), 'id': doc.id}))

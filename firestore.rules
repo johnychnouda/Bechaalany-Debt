@@ -2,11 +2,32 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function to check if current user is admin.
+    // Uses exists() before get() since get() can fail when document doesn't exist.
+    // Uses .get('isAdmin', false) to handle missing or malformed field.
+    function isAdmin() {
+      let userDoc = /databases/$(database)/documents/users/$(request.auth.uid);
+      return request.auth != null && 
+             exists(userDoc) &&
+             get(userDoc).data.get('isAdmin', false) == true;
+    }
+    
     // User-specific data structure - each user has their own private subcollections
     match /users/{userId} {
-      // Only allow access to authenticated user's own data
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+      // Allow access to own data OR if user is admin
+      // For collection queries, isAdmin() is evaluated per document
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      // Users can create their own data
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Users can update their own data (but not subscription fields), OR admins can update any user
+      allow update: if request.auth != null && 
+                     ((request.auth.uid == userId &&
+                       // Prevent users from modifying their own subscription status
+                       !request.resource.data.diff(resource.data).affectedKeys()
+                         .hasAny(['subscriptionStatus', 'subscriptionType', 'subscriptionStartDate', 'subscriptionEndDate', 'trialStartDate', 'trialEndDate', 'isAdmin'])) ||
+                      // Admins can update any user, including subscription fields
+                      (isAdmin() && request.auth.uid != userId));
+      allow delete: if request.auth != null && request.auth.uid == userId;
       
       // Customers subcollection - private to each user
       match /customers/{customerId} {
@@ -72,6 +93,26 @@ service cloud.firestore {
         && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null 
         && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Admin configuration collection - only accessible via Admin SDK or admin users
+    match /admin/{document=**} {
+      // Deny all client-side access - admin operations should use Admin SDK
+      allow read, write: if false;
+    }
+    
+    // Subscription pricing - users can read, admins can write
+    match /subscription_pricing/config {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // User settings collection - users can only access their own settings
+    // Supports both document access and collection queries
+    match /user_settings/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
     // Deny all other collections and documents

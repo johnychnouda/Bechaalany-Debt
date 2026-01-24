@@ -12,7 +12,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.1.0+2
+version: 1.1.1+3
 
 environment:
   sdk: ^3.8.1
@@ -41,17 +41,13 @@ dependencies:
   share_plus: ^12.0.0
   intl: ^0.20.2
   syncfusion_flutter_pdfviewer: ^32.1.23
-  # background_fetch: ^1.4.0  # Disabled to prevent iOS notifications
-  
-  # Removed unnecessary packages for iOS-only:
-  # - connectivity_plus: Not needed for iOS-only
-  # - country_code_picker: Not used in your code
-  # - file_picker: Commented out anyway
+  # background_fetch: ^1.4.0  # Disabled to prevent background notifications
   
   # Firebase dependencies
   firebase_core: ^4.0.0
   firebase_auth: ^6.0.1
   cloud_firestore: ^6.0.0
+  cloud_functions: ^6.0.6
   
   # Authentication providers
   google_sign_in: ^7.1.1
@@ -109,6 +105,7 @@ flutter:
 
 # Flutter Launcher Icons configuration
 flutter_launcher_icons:
+  android: true
   ios: true
   image_path: "assets/images/app_icon.png"
   remove_alpha_ios: true

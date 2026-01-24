@@ -72,21 +72,26 @@ class AppState extends ChangeNotifier {
     // Listen to authentication state changes to handle user switching
     _setupAuthListener();
     
-    // Initialize Firebase streams immediately for all platforms
-    _initializeFirebaseStreams();
+    // Initialize Firebase streams asynchronously to avoid blocking main thread
+    // Use microtask to defer initialization until after current frame
+    Future.microtask(() {
+      _initializeFirebaseStreams();
+    });
     
     // Simple initialization - no complex synchronization needed
     
     // Migration will run during _loadData() - no need for separate startup call
     // This prevents infinite loops and startup deadlocks
     
-    // Clean up duplicate activities on startup
-    Future.delayed(const Duration(seconds: 2), () {
+    // Clean up duplicate activities on startup - delayed to avoid blocking
+    // Increased delay to reduce startup impact
+    Future.delayed(const Duration(seconds: 5), () {
       removeDuplicatePaymentActivities();
     });
     
     // Fix floating-point precision issues in existing debt amounts
-    Future.delayed(const Duration(seconds: 3), () {
+    // Increased delay to reduce startup impact
+    Future.delayed(const Duration(seconds: 6), () {
       fixDebtAmountPrecision();
     });
   }
@@ -104,6 +109,15 @@ class AppState extends ChangeNotifier {
   int? _cachedPendingCount;
   List<Debt>? _cachedRecentDebts;
   List<Customer>? _cachedTopDebtors;
+  
+  // Helper method to check if two lists are equal (by ID)
+  bool _listsEqual<T>(List<T> list1, List<T> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
+  }
   
         // Getters
   List<Customer> get customers {
@@ -203,22 +217,21 @@ class AppState extends ChangeNotifier {
     // Listen to customers stream FIRST (most important)
     _dataService.customersFirebaseStream.listen(
       (customers) {
-        
         // CRITICAL FIX: Never overwrite existing customers with an empty list
         // This prevents the issue where customers disappear after being loaded
-        if (customers.isNotEmpty) {
-          _customers = List.from(customers); // Create a new list to prevent reference issues
-        } else if (_customers.isEmpty) {
-          // Only set to empty if we didn't have any customers before
-          // This prevents overwriting existing customers with empty data
-          _customers = [];
+        final List<Customer> newCustomers = customers.isNotEmpty 
+            ? List<Customer>.from(customers) 
+            : (_customers.isEmpty ? <Customer>[] : _customers);
+        
+        // Only update and notify if data actually changed
+        if (newCustomers.length != _customers.length ||
+            !_listsEqual(newCustomers, _customers)) {
+          _customers = newCustomers;
+          notifyListeners();
         }
-        
-        
-        notifyListeners();
       },
       onError: (error) {
-        // Handle error silently
+        // Handle error silently - don't notify on error to avoid unnecessary rebuilds
       },
     );
     
@@ -233,11 +246,17 @@ class AppState extends ChangeNotifier {
               _categoryOrder.length != categories.length ||
               !categories.every((cat) => _categoryOrder.contains(cat.id))) {
             // Build order: existing order first, then new categories
-            final existingOrder = _categoryOrder.where((id) => 
-              categories.any((cat) => cat.id == id)
-            ).toList();
+            // Remove duplicates from existing order first
+            final existingOrderSet = <String>{};
+            final existingOrder = _categoryOrder.where((id) {
+              if (categories.any((cat) => cat.id == id) && !existingOrderSet.contains(id)) {
+                existingOrderSet.add(id);
+                return true;
+              }
+              return false;
+            }).toList();
             final newCategoryIds = categories
-                .where((cat) => !existingOrder.contains(cat.id))
+                .where((cat) => !existingOrderSet.contains(cat.id))
                 .map((cat) => cat.id)
                 .toList();
             _categoryOrder = [...existingOrder, ...newCategoryIds];
@@ -1233,7 +1252,16 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = data['whatsappAutomationEnabled'] ?? true;
           _whatsappCustomMessage = data['whatsappCustomMessage'] ?? '';
           _defaultCurrency = data['defaultCurrency'] ?? 'USD';
-          _categoryOrder = List<String>.from(data['categoryOrder'] ?? []);
+          // Load category order and remove duplicates (preserve order)
+          final loadedOrder = List<String>.from(data['categoryOrder'] ?? []);
+          final seen = <String>{};
+          _categoryOrder = loadedOrder.where((id) {
+            if (seen.contains(id)) {
+              return false; // Skip duplicate
+            }
+            seen.add(id);
+            return true;
+          }).toList();
         } else {
           // Use default values if document doesn't exist
           _isDarkMode = false;
@@ -2588,8 +2616,10 @@ class AppState extends ChangeNotifier {
     try {
       await _dataService.addCategory(category);
       _categories.add(category);
-      // Add new category to the end of the order list
-      _categoryOrder.add(category.id);
+      // Add new category to the end of the order list (only if not already present)
+      if (!_categoryOrder.contains(category.id)) {
+        _categoryOrder.add(category.id);
+      }
       await _saveSettings();
       _clearCache();
       notifyListeners();
@@ -3110,7 +3140,15 @@ class AppState extends ChangeNotifier {
 
   // Category order settings
   Future<void> updateCategoryOrder(List<String> categoryIds) async {
-    _categoryOrder = List.from(categoryIds);
+    // Remove duplicates while preserving order
+    final seen = <String>{};
+    _categoryOrder = categoryIds.where((id) {
+      if (seen.contains(id)) {
+        return false; // Skip duplicate
+      }
+      seen.add(id);
+      return true;
+    }).toList();
     await _saveSettings();
     notifyListeners();
   }
@@ -3125,18 +3163,22 @@ class AppState extends ChangeNotifier {
     // Create a map for quick lookup
     final categoryMap = {for (var cat in _categories) cat.id: cat};
     
-    // Build ordered list based on saved order
+    // Build ordered list based on saved order (use Set to track added IDs and prevent duplicates)
     final orderedCategories = <ProductCategory>[];
+    final addedIds = <String>{};
+    
     for (final id in _categoryOrder) {
-      if (categoryMap.containsKey(id)) {
+      if (categoryMap.containsKey(id) && !addedIds.contains(id)) {
         orderedCategories.add(categoryMap[id]!);
+        addedIds.add(id);
       }
     }
     
     // Add any categories that aren't in the saved order (new categories)
     for (final category in _categories) {
-      if (!_categoryOrder.contains(category.id)) {
+      if (!addedIds.contains(category.id)) {
         orderedCategories.add(category);
+        addedIds.add(category.id);
       }
     }
     
