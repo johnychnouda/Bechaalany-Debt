@@ -5,6 +5,24 @@
       "npm --prefix \"$RESOURCE_DIR\" run build"
     ]
   },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/privacy-policy",
+        "destination": "/privacy-policy.html"
+      },
+      {
+        "source": "**",
+        "destination": "/privacy-policy.html"
+      }
+    ]
+  },
   "flutter": {
     "platforms": {
       "ios": {

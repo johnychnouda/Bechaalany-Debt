@@ -34,7 +34,7 @@ dependencies:
 
   # Core Flutter packages
   provider: ^6.1.1
-  local_auth: ^3.0.0
+  # local_auth: ^3.0.0  # Removed - not used in the app
   url_launcher: ^6.2.5
   path_provider: ^2.1.2
   pdf: ^3.10.7
@@ -107,7 +107,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/app_icon.png"
+  image_path: "assets/images/app_icon_rgb.png"
   remove_alpha_ios: true
   #       - asset: fonts/Schyler-Regular.ttf
   #       - asset: fonts/Schyler-Italic.ttf

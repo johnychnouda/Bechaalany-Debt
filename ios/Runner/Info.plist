@@ -84,25 +84,8 @@
 			</dict>
 		</dict>
 	</dict>
-	<!-- Background processing descriptions removed to prevent iOS notifications -->
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>This app uses Bluetooth for device connectivity and data synchronization.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>This app uses Bluetooth for device connectivity and data synchronization.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>This app accesses calendar to set debt due date reminders and payment schedules.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>This app uses camera to scan documents, capture receipts, and take photos for debt documentation.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>This app accesses contacts to import customer information and manage debt relationships.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>This app uses Face ID to securely access your debt data and protect sensitive financial information.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app uses location services to provide location-based debt tracking and customer management features.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app uses location services to provide location-based debt tracking and customer management features.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>This app uses microphone for voice notes, audio recordings, and voice-to-text features for debt documentation.</string>
+	<!-- Removed unused permission descriptions to avoid App Store rejections -->
+	<!-- Only keeping permissions that are actually used by the app -->
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app saves debt documents and receipts to your photo library for backup and sharing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -126,8 +109,7 @@
 			</array>
 		</dict>
 	</array>
-	<key>NSSiriUsageDescription</key>
-	<string>This app integrates with Siri to provide voice commands for debt management and quick actions.</string>
+	<!-- Removed NSSiriUsageDescription - not used -->
 	<key>UIAccessibilityIsAssistiveTouchRunning</key>
 	<true/>
 	<key>UIAccessibilityIsBoldTextEnabled</key>
