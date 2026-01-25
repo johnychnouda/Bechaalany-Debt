@@ -41,28 +41,29 @@ void main() async {
   }
   
   try {
-    // Initialize Firebase with proper locale configuration
+    // Initialize Firebase - this must complete before app can use Firebase services
+    // However, we optimize by deferring non-critical operations
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     
-    // Set Firebase Auth language and locale to avoid "X-Firebase-Locale null" warnings
-    try {
-      final auth = FirebaseAuth.instance;
-      // Get system locale or default to 'en'
-      final localeCode = Platform.localeName.split('_').first;
-      await auth.setLanguageCode(localeCode.isNotEmpty ? localeCode : 'en');
-    } catch (e) {
-      // Fallback to English if locale setting fails
+    // Set Firebase Auth language asynchronously after initialization
+    // This doesn't block the app from starting
+    Future.microtask(() async {
       try {
-        await FirebaseAuth.instance.setLanguageCode('en');
-      } catch (_) {
-        // Ignore if setting language fails - warnings are acceptable
+        final auth = FirebaseAuth.instance;
+        // Get system locale or default to 'en'
+        final localeCode = Platform.localeName.split('_').first;
+        await auth.setLanguageCode(localeCode.isNotEmpty ? localeCode : 'en');
+      } catch (e) {
+        // Fallback to English if locale setting fails
+        try {
+          await FirebaseAuth.instance.setLanguageCode('en');
+        } catch (_) {
+          // Ignore if setting language fails - warnings are acceptable
+        }
       }
-    }
-    
-    // Firebase initialized - authentication will be handled by sign-in screens
-    
+    });
     
   } catch (e) {
     // Handle initialization error silently - Google Play Services errors are expected on emulators

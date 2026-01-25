@@ -1016,12 +1016,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Close the dialog first
               Navigator.pop(context);
               
-              // Sign out - AuthWrapper will automatically handle navigation
+              // Sign out immediately using AuthService
               final authService = AuthService();
               await authService.signOut();
               
-              // No need for manual navigation - AuthWrapper listens to authStateChanges
-              // and will automatically redirect to SignInScreen when user is null
+              // Force navigation to sign-in screen after a short delay
+              await Future.delayed(const Duration(milliseconds: 200));
+              
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  CupertinoPageRoute(builder: (context) => const SignInScreen()),
+                  (route) => false,
+                );
+              }
             },
             child: const Text('Sign Out'),
           ),

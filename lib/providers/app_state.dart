@@ -64,18 +64,27 @@ class AppState extends ChangeNotifier {
   
   // Constructor to load settings immediately for theme persistence
   AppState() {
-    _loadSettingsSync();
+    // Load settings synchronously but DON'T notify listeners yet
+    // This prevents frame skipping during app initialization
+    _loadSettingsSyncWithoutNotify();
     
     // Reset flags on app initialization
     _hasLoadedActivities = false;
     
-    // Listen to authentication state changes to handle user switching
-    _setupAuthListener();
-    
-    // Initialize Firebase streams asynchronously to avoid blocking main thread
+    // Defer all heavy operations to avoid blocking main thread
     // Use microtask to defer initialization until after current frame
     Future.microtask(() {
+      // Listen to authentication state changes to handle user switching
+      _setupAuthListener();
+      
+      // Initialize Firebase streams asynchronously to avoid blocking main thread
       _initializeFirebaseStreams();
+      
+      // Now notify listeners after initialization is deferred
+      // This allows the UI to render first before updating
+      Future.microtask(() {
+        notifyListeners();
+      });
     });
     
     // Simple initialization - no complex synchronization needed
@@ -1293,15 +1302,22 @@ class AppState extends ChangeNotifier {
   void _loadSettingsSync() {
     // SharedPreferences removed - using Firebase only
     // Use default values for synchronous loading (Firebase loading is async)
+    _loadSettingsSyncWithoutNotify();
+    
+    // Load actual settings from Firebase asynchronously
+    _loadSettings();
+  }
+  
+  // Load settings without notifying listeners (for constructor use)
+  void _loadSettingsSyncWithoutNotify() {
+    // SharedPreferences removed - using Firebase only
+    // Use default values for synchronous loading (Firebase loading is async)
     _isDarkMode = false;
     _whatsappAutomationEnabled = true; // Default to enabled
     _whatsappCustomMessage = '';
     _defaultCurrency = 'USD';
     _categoryOrder = [];
-    notifyListeners();
-    
-    // Load actual settings from Firebase asynchronously
-    _loadSettings();
+    // DON'T call notifyListeners() here - it will be called after initialization
   }
 
   void _clearCache() {
