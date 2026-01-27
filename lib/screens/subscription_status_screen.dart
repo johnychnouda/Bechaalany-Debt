@@ -3,9 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_colors.dart';
 import '../services/subscription_service.dart';
-import '../services/subscription_pricing_service.dart';
 import '../models/subscription.dart';
-import '../models/subscription_pricing.dart';
 import '../utils/admin_contact.dart';
 import 'contact_owner_screen.dart';
 
@@ -45,21 +43,18 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
     }
   }
 
-  /// Status card shows only: "Free Trial" | "Monthly Plan" | "Yearly Plan" | "Expired" | "Cancelled"
+  /// Status card shows only: "Free Trial" | "Active Access" | "Expired" | "Cancelled"
   String _getStatusCardTitle() {
     final status = _subscription!.status;
-    final type = _subscription!.type;
     switch (status) {
       case SubscriptionStatus.trial:
         return 'Free Trial';
       case SubscriptionStatus.active:
-        if (type == SubscriptionType.yearly) return 'Yearly Plan';
-        if (type == SubscriptionType.monthly) return 'Monthly Plan';
-        return 'Active';
+        return 'Active Access';
       case SubscriptionStatus.expired:
-        return 'Expired';
+        return 'Access Expired';
       case SubscriptionStatus.cancelled:
-        return 'Cancelled';
+        return 'Access Cancelled';
     }
   }
 
@@ -98,7 +93,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          'Subscription',
+          'Request Access',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
@@ -112,38 +107,28 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
       child: SafeArea(
         child: _isLoading
             ? const Center(child: CupertinoActivityIndicator())
-            : _subscription == null
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No subscription data found',
-                        style: _textStyle(
-                          context,
-                          fontSize: 16,
-                          color: AppColors.dynamicTextSecondary(context),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  )
-                : SingleChildScrollView(
+            : SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 8),
-                        _buildStatusCard(context),
-                        const SizedBox(height: 16),
-                        if (_subscription!.status == SubscriptionStatus.trial)
-                          _buildTrialSection(context),
-                        if (_subscription!.status == SubscriptionStatus.active)
-                          _buildActiveSection(context),
-                        if (_subscription!.status == SubscriptionStatus.expired ||
-                            _subscription!.status == SubscriptionStatus.cancelled)
-                          _buildExpiredSection(context),
-                        const SizedBox(height: 16),
-                        _buildPricingSection(context),
+                        if (_subscription != null) ...[
+                          _buildStatusCard(context),
+                          const SizedBox(height: 16),
+                          if (_subscription!.status == SubscriptionStatus.trial)
+                            _buildTrialSection(context),
+                          if (_subscription!.status == SubscriptionStatus.active)
+                            _buildActiveSection(context),
+                          if (_subscription!.status == SubscriptionStatus.expired ||
+                              _subscription!.status == SubscriptionStatus.cancelled)
+                            _buildExpiredSection(context),
+                          const SizedBox(height: 16),
+                        ] else ...[
+                          _buildNoDataSection(context),
+                          const SizedBox(height: 16),
+                        ],
+                        _buildRequestAccessSection(context),
                         const SizedBox(height: 16),
                         _buildContactAdminSection(context),
                         const SizedBox(height: 16),
@@ -205,6 +190,56 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
     );
   }
 
+  Widget _buildNoDataSection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context),
+        ),
+        boxShadow: AppColors.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              CupertinoIcons.person_circle,
+              color: AppColors.primary,
+              size: 40,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Welcome to Bechaalany Connect',
+            style: _textStyle(
+              context,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The app is completely free. Contact the administrator to request access and start managing your business.',
+            style: _textStyle(
+              context,
+              fontSize: 14,
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTrialSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +289,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Subscription details',
+            'Access details',
             style: _textStyle(
               context,
               fontSize: 15,
@@ -265,7 +300,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         ),
         _buildInfoCard(
           context,
-          title: 'Subscription period',
+          title: 'Access period',
           value: _subscription!.subscriptionDaysRemaining != null
               ? '${_subscription!.subscriptionDaysRemaining} days remaining'
               : 'Active',
@@ -274,14 +309,14 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         if (_subscription!.subscriptionStartDate != null)
           _buildInfoCard(
             context,
-            title: 'Subscription started',
+            title: 'Access started',
             value: _formatDate(_subscription!.subscriptionStartDate!),
             icon: CupertinoIcons.time,
           ),
         if (_subscription!.subscriptionEndDate != null)
           _buildInfoCard(
             context,
-            title: 'Subscription ends',
+            title: 'Access ends',
             value: _formatDate(_subscription!.subscriptionEndDate!),
             icon: CupertinoIcons.calendar_today,
           ),
@@ -311,8 +346,8 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
           const SizedBox(height: 16),
           Text(
             isExpired
-                ? 'Your subscription has expired'
-                : 'Your subscription has been cancelled',
+                ? 'Your access has expired'
+                : 'Your access has been cancelled',
             style: _textStyle(
               context,
               fontSize: 17,
@@ -322,7 +357,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Contact the owner to renew and restore access.',
+            'Contact the administrator to request continued access.',
             style: _textStyle(
               context,
               fontSize: 14,
@@ -340,37 +375,21 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                 ),
               );
             },
-            child: const Text('Contact owner'),
+            child: const Text('Contact Administrator'),
           ),
         ],
       ),
     );
   }
 
-  /// Calculate savings percentage when choosing yearly over monthly
-  double? _calculateSavings(SubscriptionPricing pricing) {
-    final monthly = pricing.monthlyPrice;
-    final yearly = pricing.yearlyPrice;
-    
-    if (monthly <= 0) {
-      return null;
-    }
-    
-    final monthlyYearlyTotal = monthly * 12;
-    if (monthlyYearlyTotal <= 0) return null;
-    
-    final savings = ((monthlyYearlyTotal - yearly) / monthlyYearlyTotal) * 100;
-    return savings > 0 ? savings : null;
-  }
-
-  Widget _buildPricingSection(BuildContext context) {
+  Widget _buildRequestAccessSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Plans & pricing',
+            'Request Access',
             style: _textStyle(
               context,
               fontSize: 15,
@@ -379,168 +398,85 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
             ),
           ),
         ),
-        StreamBuilder<SubscriptionPricing>(
-          stream: SubscriptionPricingService().getPricingStream(),
-          builder: (context, snapshot) {
-            final pricing = snapshot.data ?? SubscriptionPricing.defaults;
-            final savings = _calculateSavings(pricing);
-            
-            return Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.dynamicSurface(context),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.dynamicBorder(context),
-                ),
-                boxShadow: AppColors.cardShadow,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.dynamicBorder(context),
+            ),
+            boxShadow: AppColors.cardShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildPricingCard(
-                          context,
-                          'Monthly',
-                          pricing.formatMonthly(),
-                          subtitle: 'per month',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildPricingCard(
-                          context,
-                          'Yearly',
-                          pricing.formatYearly(),
-                          subtitle: 'per year',
-                          savings: savings,
-                        ),
-                      ),
-                    ],
+                  Icon(
+                    CupertinoIcons.info_circle_fill,
+                    color: AppColors.dynamicPrimary(context),
+                    size: 20,
                   ),
-                  if (savings != null && savings > 0) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Access is granted by the administrator',
+                      style: _textStyle(
+                        context,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                       ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            CupertinoIcons.star_fill,
-                            size: 12,
-                            color: AppColors.success,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Users save ${savings.toStringAsFixed(1)}% with yearly plan',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.success,
-                                decoration: TextDecoration.none,
-                                decorationColor: Colors.transparent,
-                              ),
-                            ),
-                          ),
-                        ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'After your free trial ends, contact the administrator to request continued access. Access is granted manually - no payment or subscription required.',
+                style: _textStyle(
+                  context,
+                  fontSize: 13,
+                  color: AppColors.dynamicTextSecondary(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.success.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.check_mark_circled_solid,
+                      color: AppColors.success,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'The app is completely free. No payment required.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.success,
+                          decoration: TextDecoration.none,
+                          decorationColor: Colors.transparent,
+                        ),
                       ),
                     ),
                   ],
-                ],
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPricingCard(
-    BuildContext context,
-    String label,
-    String value, {
-    String? subtitle,
-    double? savings,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-      decoration: BoxDecoration(
-        color: AppColors.dynamicPrimary(context).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: savings != null && savings > 0
-            ? Border.all(
-                color: AppColors.success.withValues(alpha: 0.3),
-                width: 1,
-              )
-            : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  style: _textStyle(
-                    context,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.dynamicTextSecondary(context),
-                  ),
                 ),
               ),
-              if (savings != null && savings > 0) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    'Best Value',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.success,
-                      decoration: TextDecoration.none,
-                      decorationColor: Colors.transparent,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: _textStyle(
-              context,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 1),
-            Text(
-              subtitle,
-              style: _textStyle(
-                context,
-                fontSize: 10,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -553,7 +489,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Contact admin',
+            'Contact Administrator',
             style: _textStyle(
               context,
               fontSize: 15,
@@ -608,7 +544,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Message on WhatsApp',
+                    'Request Access via WhatsApp',
                     style: _textStyle(
                       context,
                       fontSize: 16,
@@ -670,7 +606,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Call admin',
+                    'Request Access via Phone',
                     style: _textStyle(
                       context,
                       fontSize: 16,

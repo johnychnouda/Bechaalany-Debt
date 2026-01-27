@@ -83,12 +83,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'Account',
                 [
-                  // Subscription Status (hidden for admins)
+                  // Request Access (hidden for admins)
                   if (!_isCheckingAdmin && !_isAdmin)
                     _buildNavigationRow(
-                      'Subscription Status',
-                      'View your subscription and trial information',
-                      CupertinoIcons.calendar,
+                      'Request Access',
+                      'View your trial status and request continued access',
+                      CupertinoIcons.person_circle,
                       () => Navigator.push(
                         context,
                         CupertinoPageRoute(

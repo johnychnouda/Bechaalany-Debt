@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
 import '../../services/subscription_service.dart';
 import 'user_management_screen.dart';
-import 'subscription_pricing_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -224,44 +223,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 32),
                       _buildSectionLabel(context, 'Quick Actions'),
                       const SizedBox(height: 16),
-                      IntrinsicHeight(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _buildActionCard(
-                                context,
-                                title: 'Manage Users',
-                                subtitle: 'View & manage all users',
-                                icon: CupertinoIcons.person_3_fill,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                      builder: (context) => const UserManagementScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
+                      _buildActionCard(
+                        context,
+                        title: 'Manage Users',
+                        subtitle: 'View & manage all users',
+                        icon: CupertinoIcons.person_3_fill,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (context) => const UserManagementScreen(),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildActionCard(
-                                context,
-                                title: 'Subscription Pricing',
-                                subtitle: 'Set monthly & yearly prices',
-                                icon: CupertinoIcons.money_dollar,
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                      builder: (context) => const SubscriptionPricingScreen(),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 24),
                     ]),
@@ -539,7 +513,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       onPressed: onTap,
       child: Container(
         width: double.infinity,
-        height: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: AppColors.dynamicSurface(context),
@@ -551,7 +524,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           boxShadow: AppColors.cardShadow,
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.max,
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -584,16 +557,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Expanded(
-              child: Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.dynamicTextSecondary(context),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.dynamicTextSecondary(context),
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
