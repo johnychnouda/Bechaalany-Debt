@@ -6,7 +6,7 @@ import '../models/customer.dart';
 import '../providers/app_state.dart';
 
 import '../utils/currency_formatter.dart';
-import '../utils/subscription_checker.dart';
+import '../utils/access_checker.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -441,7 +441,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
         child: FloatingActionButton(
           heroTag: 'customers_fab_hero',
           onPressed: () async {
-            final hasAccess = await SubscriptionChecker.checkAccess(context);
+            final hasAccess = await AccessChecker.checkAccess(context);
             if (hasAccess && mounted) {
               await Navigator.push(
                 context,

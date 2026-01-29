@@ -3,14 +3,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
-import '../services/subscription_pricing_service.dart';
-import '../models/subscription_pricing.dart';
 import '../utils/admin_contact.dart';
 
 enum AccessDeniedReason {
   trialExpired,
-  subscriptionExpired,
-  subscriptionCancelled,
+  accessExpired,
+  accessRevoked,
 }
 
 class ContactOwnerScreen extends StatelessWidget {
@@ -27,21 +25,21 @@ class ContactOwnerScreen extends StatelessWidget {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
         return 'Trial Expired';
-      case AccessDeniedReason.subscriptionExpired:
-        return 'Subscription Expired';
-      case AccessDeniedReason.subscriptionCancelled:
-        return 'Subscription Revoked';
+      case AccessDeniedReason.accessExpired:
+        return 'Access Expired';
+      case AccessDeniedReason.accessRevoked:
+        return 'Access Revoked';
     }
   }
   
   String get _description {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
-        return 'Your free trial has ended. To continue using the app, please contact the app owner to subscribe.';
-      case AccessDeniedReason.subscriptionExpired:
-        return 'Your subscription has expired. To continue using the app, please contact the app owner to renew your subscription.';
-      case AccessDeniedReason.subscriptionCancelled:
-        return 'Your subscription has been revoked. To continue using the app, please contact the app owner to reactivate your subscription.';
+        return 'Your free trial has ended. To continue using the app, please contact the administrator to request access.';
+      case AccessDeniedReason.accessExpired:
+        return 'Your access has expired. To continue using the app, please contact the administrator to request access.';
+      case AccessDeniedReason.accessRevoked:
+        return 'Your access has been revoked. To continue using the app, please contact the administrator to request access.';
     }
   }
   
@@ -49,9 +47,9 @@ class ContactOwnerScreen extends StatelessWidget {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
         return Colors.orange;
-      case AccessDeniedReason.subscriptionExpired:
+      case AccessDeniedReason.accessExpired:
         return Colors.red;
-      case AccessDeniedReason.subscriptionCancelled:
+      case AccessDeniedReason.accessRevoked:
         return Colors.red;
     }
   }
@@ -123,9 +121,6 @@ class ContactOwnerScreen extends StatelessWidget {
                 overflow: TextOverflow.visible,
               ),
               const SizedBox(height: 40),
-              // Subscription pricing
-              _buildPricingSection(context),
-              const SizedBox(height: 24),
               // WhatsApp
               _buildWhatsAppCard(context),
               const SizedBox(height: 16),
@@ -154,7 +149,7 @@ class ContactOwnerScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'After contacting the owner, your subscription will be activated and you\'ll be able to use the app again.',
+                        'After contacting the administrator, your access will be granted and you\'ll be able to use the app again.',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.dynamicTextSecondary(context),
@@ -170,100 +165,6 @@ class ContactOwnerScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildPricingSection(BuildContext context) {
-    return StreamBuilder<SubscriptionPricing>(
-      stream: SubscriptionPricingService().getPricingStream(),
-      builder: (context, snapshot) {
-        final pricing = snapshot.data ?? SubscriptionPricing.defaults;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.dynamicSurface(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.dynamicBorder(context),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Subscription plans',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.dynamicTextPrimary(context),
-                  decoration: TextDecoration.none,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Monthly',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.dynamicTextSecondary(context),
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          pricing.formatMonthly(),
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.dynamicTextPrimary(context),
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 32,
-                    color: AppColors.dynamicBorder(context),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Yearly',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: AppColors.dynamicTextSecondary(context),
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          pricing.formatYearly(),
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.dynamicTextPrimary(context),
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -306,7 +207,7 @@ class ContactOwnerScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Message on WhatsApp',
+                    'Bechaalany Connect',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -375,7 +276,7 @@ class ContactOwnerScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Call owner',
+                    'Bechaalany Connect',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,

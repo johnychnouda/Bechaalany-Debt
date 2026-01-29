@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:flutter/foundation.dart';
 import 'dart:io' show Platform;
 import 'admin_service.dart';
 import 'business_name_service.dart';
@@ -14,6 +13,9 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
+  /// Single init future; initialize() must be called exactly once per plugin docs.
+  Future<void>? _initFuture;
+
   // Current user
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => currentUser != null;
@@ -21,28 +23,34 @@ class AuthService {
   // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  /// Initialize Google Sign-In
+  /// Initialize Google Sign-In (platform-specific client IDs).
+  /// Must be called exactly once; use ensureInitialized() to await safely.
   Future<void> initialize() async {
-    // Use platform-specific client IDs
     if (Platform.isAndroid) {
-      // Android OAuth client ID from google-services.json
-      // serverClientId is the Web OAuth client ID (needed for Firebase Auth)
       await _googleSignIn.initialize(
         clientId: '908856160324-0n5oi3n60e2mj09nogg0998lj54sfajq.apps.googleusercontent.com',
-        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com', // Web client ID
+        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com',
       );
     } else if (Platform.isIOS) {
-      // iOS OAuth client ID
       await _googleSignIn.initialize(
         clientId: '908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com',
+        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com',
       );
     }
+  }
+
+  /// Ensures Google Sign-In is initialized before use. Idempotent; safe to call from
+  /// main() and from signInWithGoogle(). Prevents "No credential available" / unknownError
+  /// when user taps sign-in before async init completes.
+  Future<void> ensureInitialized() async {
+    _initFuture ??= initialize();
+    await _initFuture!;
   }
 
   /// Sign in with Google (Cross-platform)
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // Check if authenticate is supported
+      await ensureInitialized();
       if (!_googleSignIn.supportsAuthenticate()) {
         throw Exception('Google Sign-In is not supported on this device');
       }
@@ -60,13 +68,11 @@ class AuthService {
 
       // Get access token via authorization client (v7 API)
       String? accessToken;
-      if (googleUser.authorizationClient != null) {
-        try {
-          final authorization = await googleUser.authorizationClient!.authorizeScopes(['openid', 'email', 'profile']);
-          accessToken = authorization.accessToken;
-        } catch (e) {
-          // Access token not critical for Firebase Auth if we have idToken
-        }
+      try {
+        final authorization = await googleUser.authorizationClient.authorizeScopes(['openid', 'email', 'profile']);
+        accessToken = authorization.accessToken;
+      } catch (e) {
+        // Access token not critical for Firebase Auth if we have idToken
       }
 
       // Create a new credential
@@ -88,8 +94,7 @@ class AuthService {
       
       throw Exception('Google Sign-In failed: ${e.toString()} (Code: ${e.code})');
     } catch (e) {
-      // Re-throw to see the actual error
-      throw e;
+      rethrow;
     }
   }
 

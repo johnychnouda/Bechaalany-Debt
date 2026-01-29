@@ -3,7 +3,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../utils/logo_utils.dart';
-import 'main_screen.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -58,25 +57,11 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _startAnimation() async {
-    // Simple fade in
+  void _startAnimation() {
+    // Simple fade in only. Do NOT navigate — AuthWrapper shows this as a loading
+    // state and will replace it with MainScreen or ContactOwnerScreen when the
+    // access check completes.
     _fadeController.forward();
-    
-    // Reduced delay - only wait for animation to complete (1s) + minimal buffer (500ms)
-    // Total: 1.5s instead of 4s for faster app startup
-    await Future.delayed(const Duration(milliseconds: 1500));
-    
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const MainScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          transitionDuration: const Duration(milliseconds: 200), // Faster transition
-        ),
-      );
-    }
   }
 
   @override

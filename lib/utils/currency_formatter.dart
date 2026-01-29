@@ -142,7 +142,7 @@ class CurrencyFormatter {
   }
 
   /// Gets the original amount in its stored currency
-  /// This preserves the original pricing context
+  /// This preserves the original cost/selling context
   static double getOriginalAmount(double amount, {String? storedCurrency}) {
     // Always return the original amount as stored
     return amount;

@@ -12,7 +12,7 @@ import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'payment_reminders_screen.dart';
 import 'sign_in_screen.dart';
-import 'subscription_status_screen.dart';
+import 'request_access_screen.dart';
 import '../services/admin_service.dart';
 import '../services/business_name_service.dart';
 
@@ -83,16 +83,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSection(
                 'Account',
                 [
-                  // Request Access (hidden for admins)
+                  // Access Status (hidden for admins)
                   if (!_isCheckingAdmin && !_isAdmin)
                     _buildNavigationRow(
-                      'Request Access',
-                      'View your trial status and request continued access',
+                      'Access Status',
+                      'View your access and request continued access',
                       CupertinoIcons.person_circle,
                       () => Navigator.push(
                         context,
                         CupertinoPageRoute(
-                          builder: (context) => const SubscriptionStatusScreen(),
+                          builder: (context) => const RequestAccessScreen(),
                         ),
                       ),
                     ),
@@ -802,7 +802,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         content: Text(
-          'This will fix the alfa debt to match the correct product pricing. The debt amount will be set to 4.50\$ with a cost of 2.00\$ to give 2.50\$ revenue, matching the product settings.\n\nDo you want to proceed?',
+          'This will fix the alfa debt to match the correct product cost/selling. The debt amount will be set to 4.50\$ with a cost of 2.00\$ to give 2.50\$ revenue, matching the product settings.\n\nDo you want to proceed?',
           style: TextStyle(
             color: AppColors.dynamicTextSecondary(context),
             fontSize: 14,
@@ -872,7 +872,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                             content: Text(
-          'Alfa debt has been fixed successfully! The debt amount now matches the product pricing: 4.50\$ debt with 2.50\$ revenue.',
+          'Alfa debt has been fixed successfully! The debt amount now matches the product cost/selling: 4.50\$ debt with 2.50\$ revenue.',
                       style: TextStyle(
                         color: AppColors.dynamicTextSecondary(context),
                         fontSize: 14,

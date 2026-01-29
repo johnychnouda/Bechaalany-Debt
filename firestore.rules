@@ -19,13 +19,13 @@ service cloud.firestore {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
       // Users can create their own data
       allow create: if request.auth != null && request.auth.uid == userId;
-      // Users can update their own data (but not subscription fields), OR admins can update any user
-      allow update: if request.auth != null && 
+      // Users can update their own data (but not access fields), OR admins can update any user
+      allow update: if request.auth != null &&
                      ((request.auth.uid == userId &&
-                       // Prevent users from modifying their own subscription status
+                       // Prevent users from modifying their own access status
                        !request.resource.data.diff(resource.data).affectedKeys()
-                         .hasAny(['subscriptionStatus', 'subscriptionType', 'subscriptionStartDate', 'subscriptionEndDate', 'trialStartDate', 'trialEndDate', 'isAdmin'])) ||
-                      // Admins can update any user, including subscription fields
+                         .hasAny(['accessStatus', 'accessType', 'accessStartDate', 'accessEndDate', 'trialStartDate', 'trialEndDate', 'isAdmin'])) ||
+                      // Admins can update any user, including access fields
                       (isAdmin() && request.auth.uid != userId));
       allow delete: if request.auth != null && request.auth.uid == userId;
       
@@ -99,12 +99,6 @@ service cloud.firestore {
     match /admin/{document=**} {
       // Deny all client-side access - admin operations should use Admin SDK
       allow read, write: if false;
-    }
-    
-    // Subscription pricing - users can read, admins can write
-    match /subscription_pricing/config {
-      allow read: if request.auth != null;
-      allow create, update, delete: if isAdmin();
     }
     
     // User settings collection - users can only access their own settings

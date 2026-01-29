@@ -7,9 +7,9 @@ import '../screens/splash_screen.dart';
 import '../screens/contact_owner_screen.dart';
 import '../services/auth_service.dart';
 import '../services/user_state_service.dart';
-import '../services/subscription_service.dart';
+import '../services/access_service.dart';
 import '../services/admin_service.dart';
-import '../models/subscription.dart';
+import '../models/access.dart';
 
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
@@ -22,7 +22,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _isLoading = true;
   final AuthService _authService = AuthService();
   final UserStateService _userStateService = UserStateService();
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  final AccessService _accessService = AccessService();
   final AdminService _adminService = AdminService();
 
   @override
@@ -87,42 +87,40 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     }
   }
 
-  /// Ensure user document exists, get user status, and check subscription access.
+  /// Ensure user document exists, get user status, and check access.
   /// Used to decide: MainScreen (has access or admin) vs ContactOwnerScreen (revoked/expired).
   Future<Map<String, dynamic>> _ensureUserDocumentAndGetStatus() async {
     try {
-      await _userStateService.initializeUserSubscription();
+      await _userStateService.initializeUserAccess();
       final userStatus = await _userStateService.getUserStatus();
       final userDeleted = userStatus['userDeleted'] == true;
       if (userDeleted) {
         return {...userStatus, 'hasAccess': false, 'isAdmin': false, 'accessDeniedReason': null};
       }
-      final hasAccess = await _subscriptionService.hasActiveAccess();
+      final hasAccess = await _accessService.hasActiveAccess();
       final isAdmin = await _adminService.isAdmin();
       
       // Determine the reason for access denial if user doesn't have access
       AccessDeniedReason? accessDeniedReason;
       if (!hasAccess && !isAdmin) {
-        final subscription = await _subscriptionService.getCurrentUserSubscription();
-        if (subscription != null) {
-          if (subscription.status == SubscriptionStatus.cancelled) {
-            accessDeniedReason = AccessDeniedReason.subscriptionCancelled;
-          } else if (subscription.status == SubscriptionStatus.expired) {
-            accessDeniedReason = AccessDeniedReason.subscriptionExpired;
-          } else if (subscription.status == SubscriptionStatus.active && 
-                     subscription.subscriptionEndDate != null &&
-                     DateTime.now().isAfter(subscription.subscriptionEndDate!)) {
-            accessDeniedReason = AccessDeniedReason.subscriptionExpired;
-          } else if (subscription.status == SubscriptionStatus.trial &&
-                     subscription.trialEndDate != null &&
-                     DateTime.now().isAfter(subscription.trialEndDate!)) {
+        final access = await _accessService.getCurrentUserAccess();
+        if (access != null) {
+          if (access.status == AccessStatus.cancelled) {
+            accessDeniedReason = AccessDeniedReason.accessRevoked;
+          } else if (access.status == AccessStatus.expired) {
+            accessDeniedReason = AccessDeniedReason.accessExpired;
+          } else if (access.status == AccessStatus.active &&
+                     access.accessEndDate != null &&
+                     DateTime.now().isAfter(access.accessEndDate!)) {
+            accessDeniedReason = AccessDeniedReason.accessExpired;
+          } else if (access.status == AccessStatus.trial &&
+                     access.trialEndDate != null &&
+                     DateTime.now().isAfter(access.trialEndDate!)) {
             accessDeniedReason = AccessDeniedReason.trialExpired;
           } else {
-            // Default to trial expired if we can't determine
             accessDeniedReason = AccessDeniedReason.trialExpired;
           }
         } else {
-          // No subscription data, default to trial expired
           accessDeniedReason = AccessDeniedReason.trialExpired;
         }
       }
@@ -135,8 +133,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       };
     } catch (e) {
       try {
-        await _userStateService.initializeUserSubscription();
+        await _userStateService.initializeUserAccess();
       } catch (_) {}
+      // Fail closed: on error, deny access so revoked/expired users are never let through
       return {
         'isNewUser': false,
         'isVerified': false,
@@ -145,9 +144,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
         'userId': null,
         'needsOnboarding': false,
         'needsVerification': false,
-        'hasAccess': true,
+        'hasAccess': false,
         'isAdmin': false,
-        'accessDeniedReason': null,
+        'accessDeniedReason': AccessDeniedReason.trialExpired,
       };
     }
   }
@@ -184,8 +183,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
               }
               
               if (userStatusSnapshot.hasError) {
-                // If there's an error checking user state, show main screen
-                return const MainScreen();
+                // Fail closed: on error, show contact owner instead of granting access
+                return ContactOwnerScreen(
+                  reason: AccessDeniedReason.trialExpired,
+                );
               }
               
               final userStatus = userStatusSnapshot.data ?? {};
@@ -199,7 +200,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
                 return const SignInScreen();
               }
 
-              // Admins always have access. Others need active subscription (trial or paid).
+              // Admins always have access. Others need active access (trial or granted).
               if (isAdmin || hasAccess) {
                 return const MainScreen();
               }

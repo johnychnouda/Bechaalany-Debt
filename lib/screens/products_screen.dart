@@ -1040,7 +1040,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         context: context,
                                         builder: (context) => CupertinoAlertDialog(
                                           title: const Text('Exchange Rate Required'),
-                                          content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP pricing.'),
+                                          content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP.'),
                                           actions: [
                                             CupertinoDialogAction(
                                               child: const Text('Cancel'),
@@ -1301,7 +1301,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         context: context,
         builder: (context) => CupertinoAlertDialog(
           title: const Text('Exchange Rate Required'),
-          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP pricing.'),
+          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP.'),
           actions: [
             CupertinoDialogAction(
               child: const Text('Cancel'),

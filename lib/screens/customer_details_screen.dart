@@ -13,7 +13,7 @@ import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
-import '../utils/subscription_checker.dart';
+import '../utils/access_checker.dart';
 import '../services/receipt_sharing_service.dart';
 import '../services/firebase_data_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
@@ -833,7 +833,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
           backgroundColor: AppColors.dynamicBackground(context),
           floatingActionButton: FloatingActionButton(
             onPressed: () async {
-              final hasAccess = await SubscriptionChecker.checkAccess(context);
+              final hasAccess = await AccessChecker.checkAccess(context);
               if (hasAccess && mounted) {
                 final result = await Navigator.push(
                   context,

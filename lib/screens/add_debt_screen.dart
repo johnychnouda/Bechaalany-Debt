@@ -428,7 +428,7 @@ class _AddDebtScreenState extends State<AddDebtScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Please select a category and product above to see product details and pricing information.',
+                        'Please select a category and product above to see product details and cost/selling information.',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.dynamicTextSecondary(context),

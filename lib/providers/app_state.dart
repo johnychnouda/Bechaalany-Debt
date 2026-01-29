@@ -39,7 +39,7 @@ class AppState extends ChangeNotifier {
   bool _streamsInitialized = false;
   
   // Auth listener to handle user switching
-  StreamSubscription<User?>? _authSubscription;
+  dynamic _authListener;
   
   // Connectivity
   bool _isOnline = true;
@@ -107,8 +107,8 @@ class AppState extends ChangeNotifier {
   
   @override
   void dispose() {
-    // Clean up auth subscription
-    _authSubscription?.cancel();
+    // Clean up auth listener
+    _authListener?.cancel();
     super.dispose();
   }
   
@@ -170,7 +170,7 @@ class AppState extends ChangeNotifier {
   
   // Setup authentication state listener to handle user switching
   void _setupAuthListener() {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    _authListener = FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user == null) {
         // User signed out - clear all local data
         _clearAllLocalData();
@@ -1138,7 +1138,7 @@ class AppState extends ChangeNotifier {
       for (final debt in _debts) {
         if (debt.description.toLowerCase().contains('alfa')) {
           // Update the debt with correct values to match the product
-          // Product pricing: Cost: 2.00$, Selling: 4.50$, Revenue: 2.50$
+          // Product: Cost 2.00$, Selling 4.50$, Revenue 2.50$
           // Debt amount should match product selling price: 4.50$
           final updatedDebt = debt.copyWith(
             amount: 4.50, // Match product selling price
@@ -2831,7 +2831,7 @@ class AppState extends ChangeNotifier {
   }
 
   /// Gets the original amount in its stored currency
-  /// This preserves the original pricing context for historical records
+  /// This preserves the original cost/selling context for historical records
   double getOriginalAmount(double amount, String storedCurrency) {
     // Always return the original amount as stored
     // This is used for historical debt records and calculations
@@ -2888,8 +2888,8 @@ class AppState extends ChangeNotifier {
   }
 
 
-  /// Manually fix alfa product pricing to correct values
-  Future<void> fixAlfaProductPricing() async {
+  /// Manually fix alfa product cost/selling to correct values
+  Future<void> fixAlfaProductValues() async {
     try {
       _clearCache();
       notifyListeners();
@@ -2898,7 +2898,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Fix alfa product currency and pricing to show correct USD values
+  /// Fix alfa product currency and cost/selling to show correct USD values
   /// This fixes the issue where LBP currency is set but USD values are stored
   Future<void> fixAlfaProductCurrency() async {
     try {
@@ -2948,8 +2948,8 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Check and fix any debts with suspicious pricing (like 100000.0 instead of 1.00)
-  Future<void> fixSuspiciousPricing() async {
+  /// Check and fix any debts with suspicious cost/selling (e.g. 100000.0 instead of 1.00)
+  Future<void> fixSuspiciousValues() async {
     try {
 
       
@@ -2978,7 +2978,7 @@ class AppState extends ChangeNotifier {
         if (needsFix) {
 
           
-          // Fix the pricing by converting from LBP to USD or setting reasonable defaults
+          // Fix by converting from LBP to USD or setting reasonable defaults
           double newAmount = debt.amount;
           double? newCostPrice = debt.originalCostPrice;
           double? newSellingPrice = debt.originalSellingPrice;

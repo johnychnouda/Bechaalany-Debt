@@ -827,7 +827,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
       
       if (_selectedSubcategory!.sellingPriceCurrency == 'LBP') {
-        // LBP PRODUCT: Use current exchange rate for dynamic USD pricing
+        // LBP PRODUCT: Use current exchange rate for dynamic USD value
         final currencySettings = appState.currencySettings;
         if (currencySettings != null && currencySettings.exchangeRate != null) {
           // Convert LBP to current USD using live exchange rate

@@ -1,7 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
-import '../../services/subscription_service.dart';
+import '../../constants/firestore_access_keys.dart';
+import '../../services/access_service.dart';
 import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -12,7 +13,7 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  final AccessService _accessService = AccessService();
   bool _isRefreshing = false;
 
   Map<String, int> _calculateStatistics(List<Map<String, dynamic>> allUsers) {
@@ -28,55 +29,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     int expired = 0;
 
     for (var user in users) {
-      final status = user['subscriptionStatus'] as String? ?? 'trial';
-      final subscriptionType = user['subscriptionType'];
-      final subscriptionEndDate = user['subscriptionEndDate'] as Timestamp?;
+      final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+      final accessType = user[FirestoreAccessKeys.type];
+      final accessEndDate = user[FirestoreAccessKeys.endDate] as Timestamp?;
       final trialEndDate = user['trialEndDate'] as Timestamp?;
       
-      // Priority 1: Check status first - if cancelled or expired, count as expired/cancelled
       if (status == 'cancelled' || status == 'expired') {
         expired++;
       }
-      // Priority 2: If status is 'active', they have an active subscription
       else if (status == 'active') {
-        if (subscriptionEndDate != null) {
-          final endDateTime = subscriptionEndDate.toDate();
+        if (accessEndDate != null) {
+          final endDateTime = accessEndDate.toDate();
           if (DateTime.now().isBefore(endDateTime)) {
-            // Active subscription
             active++;
           } else {
-            // Subscription expired (date passed but status still active)
             expired++;
           }
         } else {
-          // Status is active but no end date - count as active
           active++;
         }
       }
-      // Priority 3: Check if user has subscription type (even if status is not 'active')
       else {
-        final hasSubscriptionType = subscriptionType != null && 
-                                     subscriptionType.toString().trim().isNotEmpty &&
-                                     (subscriptionType.toString().toLowerCase() == 'monthly' || 
-                                      subscriptionType.toString().toLowerCase() == 'yearly');
-        
-        if (hasSubscriptionType) {
-          // User has a subscription (monthly or yearly)
-          if (subscriptionEndDate != null) {
-            final endDateTime = subscriptionEndDate.toDate();
+        final hasAccessType = accessType != null &&
+            accessType.toString().trim().isNotEmpty &&
+            (accessType.toString().toLowerCase() == 'monthly' ||
+                accessType.toString().toLowerCase() == 'yearly');
+
+        if (hasAccessType) {
+          if (accessEndDate != null) {
+            final endDateTime = accessEndDate.toDate();
             if (DateTime.now().isBefore(endDateTime)) {
-              // Active subscription
               active++;
             } else {
-              // Subscription expired
               expired++;
             }
           } else {
-            // Has subscription type but no end date - count as active
             active++;
           }
         }
-        // Priority 4: User is on trial (no subscription type)
+        // Priority 4: User is on trial (no access type)
         else if (status == 'trial') {
           if (trialEndDate != null) {
             final trialEndDateTime = trialEndDate.toDate();
@@ -135,7 +126,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       child: SafeArea(
         child: StreamBuilder<List<Map<String, dynamic>>>(
-          stream: _subscriptionService.getAllUsersWithSubscriptionsStream(),
+          stream: _accessService.getAllUsersWithAccessStream(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
               return _buildLoadingState(context);
@@ -189,7 +180,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               value: stats['active'].toString(),
                               icon: CupertinoIcons.check_mark_circled_solid,
                               color: AppColors.success,
-                              description: 'Active subscriptions',
+                              description: 'Active access',
                             ),
                           ),
                         ],
@@ -215,7 +206,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               value: stats['expired'].toString(),
                               icon: CupertinoIcons.exclamationmark_circle_fill,
                               color: AppColors.error,
-                              description: 'Expired subscriptions',
+                              description: 'Expired access',
                             ),
                           ),
                         ],

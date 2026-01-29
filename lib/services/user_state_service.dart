@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'subscription_service.dart';
+import 'access_service.dart';
+import '../constants/firestore_access_keys.dart';
 
 class UserStateService {
   static final UserStateService _instance = UserStateService._internal();
@@ -9,7 +10,7 @@ class UserStateService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  final AccessService _accessService = AccessService();
 
   // All user state is now Firebase-based, no local storage needed
 
@@ -97,8 +98,9 @@ class UserStateService {
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         
         // If user doesn't exist, initialize trial
-        if (!userDoc.exists || userDoc.data()?['subscriptionStatus'] == null) {
-          await _subscriptionService.initializeTrial(user.uid);
+        final ud = userDoc.data();
+        if (!userDoc.exists || ud?[FirestoreAccessKeys.status] == null) {
+          await _accessService.initializeTrial(user.uid);
         }
         
         // Create a user document in Firestore to mark them as verified
@@ -137,9 +139,9 @@ class UserStateService {
     }
   }
 
-  /// Initialize subscription for new user (called on first sign-in)
+  /// Initialize access for new user (called on first sign-in)
   /// Always ensures user document exists in Firestore with basic info
-  Future<void> initializeUserSubscription() async {
+  Future<void> initializeUserAccess() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -154,7 +156,9 @@ class UserStateService {
         // If reload fails, continue with current user data
       }
 
-      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final userDoc = await _firestore.collection('users').doc(user.uid).get(
+        const GetOptions(source: Source.server),
+      );
       final userData = userDoc.exists ? userDoc.data() : null;
       final isAdmin = userData?['isAdmin'] == true;
       
@@ -176,10 +180,10 @@ class UserStateService {
           await _firestore.collection('users').doc(user.uid).update({
             'displayName': FieldValue.delete(),
             'lastUpdated': FieldValue.delete(),
-            'subscriptionStatus': FieldValue.delete(),
-            'subscriptionType': FieldValue.delete(),
-            'subscriptionStartDate': FieldValue.delete(),
-            'subscriptionEndDate': FieldValue.delete(),
+            FirestoreAccessKeys.status: FieldValue.delete(),
+            FirestoreAccessKeys.type: FieldValue.delete(),
+            FirestoreAccessKeys.startDate: FieldValue.delete(),
+            FirestoreAccessKeys.endDate: FieldValue.delete(),
             'trialStartDate': FieldValue.delete(),
             'trialEndDate': FieldValue.delete(),
             'createdAt': FieldValue.delete(),
@@ -188,6 +192,10 @@ class UserStateService {
             'emailVerified': FieldValue.delete(),
             'onboardingCompleted': FieldValue.delete(),
             'onboardingCompletedAt': FieldValue.delete(),
+            'subscriptionStatus': FieldValue.delete(),
+            'subscriptionType': FieldValue.delete(),
+            'subscriptionStartDate': FieldValue.delete(),
+            'subscriptionEndDate': FieldValue.delete(),
           });
         } catch (e) {
           // If update fails (e.g., fields don't exist), that's fine
@@ -196,10 +204,10 @@ class UserStateService {
         return; // Skip rest of initialization for admins
       }
       
-      // If user document doesn't exist or doesn't have subscription data, initialize trial
-      if (!userDoc.exists || userData?['subscriptionStatus'] == null) {
+      // If user document doesn't exist or doesn't have access data, initialize trial
+      if (!userDoc.exists || userData?[FirestoreAccessKeys.status] == null) {
         // This will create the document with all required fields
-        await _subscriptionService.initializeTrial(user.uid);
+        await _accessService.initializeTrial(user.uid);
       } else {
         // Even if document exists, ensure it has basic user info (email, displayName)
         // This ensures admin dashboard can always see user information
@@ -250,7 +258,7 @@ class UserStateService {
             // If update fails, try to at least ensure document exists
             // This is a fallback to ensure user appears in admin dashboard
             try {
-              // Only set subscriptionStatus if user is not admin
+              // Only set access status if user is not admin
               final updateData = {
                 'email': currentEmail ?? 'No email',
                 'displayName': currentDisplayName ?? 'No name',
@@ -259,9 +267,10 @@ class UserStateService {
                 if (data?['isAdmin'] != null) 'isAdmin': data!['isAdmin'],
               };
               
-              // Only add subscriptionStatus for non-admin users
+              // Only add access status for non-admin users
               if (data?['isAdmin'] != true) {
-                updateData['subscriptionStatus'] = data?['subscriptionStatus'] ?? 'trial';
+                updateData[FirestoreAccessKeys.status] =
+                data?[FirestoreAccessKeys.status] ?? 'trial';
               }
               
               await _firestore.collection('users').doc(user.uid).set(
@@ -274,6 +283,16 @@ class UserStateService {
           }
         }
       }
+
+      // Remove legacy subscription fields (unused; app uses accessStatus only)
+      try {
+        await _firestore.collection('users').doc(user.uid).update({
+          'subscriptionStatus': FieldValue.delete(),
+          'subscriptionType': FieldValue.delete(),
+          'subscriptionStartDate': FieldValue.delete(),
+          'subscriptionEndDate': FieldValue.delete(),
+        });
+      } catch (_) {}
     } catch (e) {
       // Last resort: try to create a minimal user document
       try {
@@ -302,10 +321,15 @@ class UserStateService {
               // Ignore if fields don't exist
             }
           } else {
+            // Preserve cancelled/expired status — never overwrite with trial
+            final existingStatus = existingData?[FirestoreAccessKeys.status] as String?;
+            final preservedStatus = (existingStatus == 'cancelled' || existingStatus == 'expired')
+                ? existingStatus
+                : (existingStatus ?? 'trial');
             final minimalData = {
               'email': user.email ?? 'No email',
               'displayName': user.displayName ?? 'No name',
-              'subscriptionStatus': 'trial',
+              FirestoreAccessKeys.status: preservedStatus,
               'createdAt': FieldValue.serverTimestamp(),
               'lastUpdated': FieldValue.serverTimestamp(),
             };

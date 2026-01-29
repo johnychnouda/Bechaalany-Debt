@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
-import '../../services/subscription_service.dart';
+import '../../constants/firestore_access_keys.dart';
+import '../../services/access_service.dart';
 import '../../services/admin_service.dart';
 import 'user_details_screen.dart';
 
@@ -22,7 +23,7 @@ enum UserFilter {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  final AccessService _accessService = AccessService();
   final AdminService _adminService = AdminService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -58,13 +59,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   String _getStatusText(String? status, Map<String, dynamic> user) {
-    // Check if trial has expired but no subscription was started
+    // Check if trial has expired but no access was granted
     if (status == 'trial') {
       final trialEndDate = user['trialEndDate'] as Timestamp?;
-      final subscriptionType = user['subscriptionType'] as String?;
+      final accessType = user[FirestoreAccessKeys.type] as String?;
       
-      // If trial has ended and no subscription was started, show "Trial Expired"
-      if (trialEndDate != null && subscriptionType == null) {
+      // If trial has ended and no access was granted, show "Trial Expired"
+      if (trialEndDate != null && accessType == null) {
         final now = DateTime.now();
         final trialEnd = trialEndDate.toDate();
         if (now.isAfter(trialEnd)) {
@@ -107,14 +108,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
   
   bool _isTrialExpired(Map<String, dynamic> user) {
-    final status = user['subscriptionStatus'] as String? ?? 'trial';
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
     if (status != 'trial') return false;
     
     final trialEndDate = user['trialEndDate'] as Timestamp?;
-    final subscriptionType = user['subscriptionType'] as String?;
+    final accessType = user[FirestoreAccessKeys.type] as String?;
     
-    // Trial expired if: status is trial, trialEndDate exists and is past, and no subscription started
-    if (trialEndDate != null && subscriptionType == null) {
+    // Trial expired if: status is trial, trialEndDate exists and is past, and no access granted
+    if (trialEndDate != null && accessType == null) {
       final now = DateTime.now();
       final trialEnd = trialEndDate.toDate();
       return now.isAfter(trialEnd);
@@ -145,8 +146,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   bool _matchesFilter(Map<String, dynamic> user, UserFilter filter) {
-    final status = user['subscriptionStatus'] as String? ?? 'trial';
-    final subscriptionType = user['subscriptionType'] as String?;
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    final accessType = user[FirestoreAccessKeys.type] as String?;
     final isTrialExpired = _isTrialExpired(user);
 
     switch (filter) {
@@ -156,11 +157,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         // Show only active trials (exclude expired trials)
         return status == 'trial' && !isTrialExpired;
       case UserFilter.monthly:
-        return status == 'active' && subscriptionType?.toLowerCase() == 'monthly';
+        return status == 'active' && accessType?.toLowerCase() == 'monthly';
       case UserFilter.yearly:
-        return status == 'active' && subscriptionType?.toLowerCase() == 'yearly';
+        return status == 'active' && accessType?.toLowerCase() == 'yearly';
       case UserFilter.expired:
-        // Include both expired subscriptions and expired trials
+        // Include both expired access and expired trials
         return status == 'expired' || isTrialExpired;
     }
   }
@@ -309,7 +310,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                         )
                       : StreamBuilder<List<Map<String, dynamic>>>(
-                          stream: _subscriptionService.getAllUsersWithSubscriptionsStream(),
+                          stream: _accessService.getAllUsersWithAccessStream(),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Center(child: CupertinoActivityIndicator());
@@ -377,13 +378,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     );
                   }
 
-                  // Filter out admin users, apply search query, and apply subscription filter
+                  // Filter out admin users, apply search query, and apply access filter
                   final users = snapshot.data!.where((user) {
                     // Exclude admin users
                     final isAdmin = user['isAdmin'] == true;
                     if (isAdmin) return false;
                     
-                    // Apply subscription filter
+                    // Apply access filter
                     if (!_matchesFilter(user, _selectedFilter)) return false;
                     
                     // Apply search filter
@@ -417,7 +418,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     itemCount: users.length,
                     itemBuilder: (context, index) {
                       final user = users[index];
-                      final status = user['subscriptionStatus'] as String? ?? 'trial';
+                      final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
                       final isTrialExpired = _isTrialExpired(user);
                       final statusColor = _getStatusColor(status, isTrialExpired: isTrialExpired);
                       
@@ -504,10 +505,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               ),
                                             ),
                                           ),
-                                          if (user['subscriptionType'] != null) ...[
+                                          if (user[FirestoreAccessKeys.type] != null) ...[
                                             const SizedBox(width: 8),
                                             Text(
-                                              '• ${user['subscriptionType']}',
+                                              '• ${user[FirestoreAccessKeys.type]}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: AppColors.dynamicTextSecondary(context),

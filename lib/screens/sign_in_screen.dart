@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:async';
 import 'dart:io' show Platform;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../utils/logo_utils.dart';
-import 'main_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({Key? key}) : super(key: key);
@@ -22,28 +18,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
-  StreamSubscription<User?>? _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthState();
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    super.dispose();
-  }
-
-  void _checkAuthState() {
-    _authSubscription = _authService.authStateChanges.listen((user) {
-      if (user != null && mounted) {
-        // User is signed in, navigate to main screen
-        _navigateToMainScreen();
-      }
-    });
-  }
 
   Future<void> _signInWithGoogle() async {
     if (!mounted) return;
@@ -55,7 +29,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       final result = await _authService.signInWithGoogle();
       if (result != null) {
-        // Success - navigation will be handled by auth state listener
+        // Success — AuthWrapper will run access check and show MainScreen or ContactOwnerScreen
       } else {
         if (mounted) {
           setState(() {
@@ -88,7 +62,7 @@ class _SignInScreenState extends State<SignInScreen> {
     try {
       final result = await _authService.signInWithApple();
       if (result != null) {
-        // Success - navigation will be handled by auth state listener
+        // Success — AuthWrapper will run access check and show MainScreen or ContactOwnerScreen
       } else {
         if (mounted) {
           setState(() {
@@ -117,16 +91,6 @@ class _SignInScreenState extends State<SignInScreen> {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  void _navigateToMainScreen() {
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        CupertinoPageRoute(
-          builder: (context) => const MainScreen(),
-        ),
-      );
     }
   }
 

@@ -2,38 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_colors.dart';
-import '../services/subscription_service.dart';
-import '../models/subscription.dart';
+import '../services/access_service.dart';
+import '../models/access.dart';
 import '../utils/admin_contact.dart';
 import 'contact_owner_screen.dart';
 
-class SubscriptionStatusScreen extends StatefulWidget {
-  const SubscriptionStatusScreen({super.key});
+class RequestAccessScreen extends StatefulWidget {
+  const RequestAccessScreen({super.key});
 
   @override
-  State<SubscriptionStatusScreen> createState() => _SubscriptionStatusScreenState();
+  State<RequestAccessScreen> createState() => _RequestAccessScreenState();
 }
 
-class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
-  Subscription? _subscription;
+class _RequestAccessScreenState extends State<RequestAccessScreen> {
+  final AccessService _accessService = AccessService();
+  Access? _access;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadSubscription();
+    _loadAccess();
   }
 
-  Future<void> _loadSubscription() async {
+  Future<void> _loadAccess() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final subscription = await _subscriptionService.getCurrentUserSubscription();
+      final access = await _accessService.getCurrentUserAccess();
       setState(() {
-        _subscription = subscription;
+        _access = access;
         _isLoading = false;
       });
     } catch (e) {
@@ -43,35 +43,33 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
     }
   }
 
-  /// Status card shows only: "Free Trial" | "Active Access" | "Expired" | "Cancelled"
   String _getStatusCardTitle() {
-    final status = _subscription!.status;
+    final status = _access!.status;
     switch (status) {
-      case SubscriptionStatus.trial:
+      case AccessStatus.trial:
         return 'Free Trial';
-      case SubscriptionStatus.active:
+      case AccessStatus.active:
         return 'Active Access';
-      case SubscriptionStatus.expired:
+      case AccessStatus.expired:
         return 'Access Expired';
-      case SubscriptionStatus.cancelled:
+      case AccessStatus.cancelled:
         return 'Access Cancelled';
     }
   }
 
-  Color _getStatusColor(SubscriptionStatus status) {
+  Color _getStatusColor(AccessStatus status) {
     switch (status) {
-      case SubscriptionStatus.trial:
+      case AccessStatus.trial:
         return AppColors.primary;
-      case SubscriptionStatus.active:
+      case AccessStatus.active:
         return AppColors.success;
-      case SubscriptionStatus.expired:
+      case AccessStatus.expired:
         return AppColors.error;
-      case SubscriptionStatus.cancelled:
+      case AccessStatus.cancelled:
         return AppColors.textSecondary;
     }
   }
 
-  /// Text styles with explicit no-decoration to prevent spell-check/theme underlines.
   TextStyle _textStyle(
     BuildContext context, {
     required double fontSize,
@@ -108,39 +106,41 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         child: _isLoading
             ? const Center(child: CupertinoActivityIndicator())
             : SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 8),
-                        if (_subscription != null) ...[
-                          _buildStatusCard(context),
-                          const SizedBox(height: 16),
-                          if (_subscription!.status == SubscriptionStatus.trial)
-                            _buildTrialSection(context),
-                          if (_subscription!.status == SubscriptionStatus.active)
-                            _buildActiveSection(context),
-                          if (_subscription!.status == SubscriptionStatus.expired ||
-                              _subscription!.status == SubscriptionStatus.cancelled)
-                            _buildExpiredSection(context),
-                          const SizedBox(height: 16),
-                        ] else ...[
-                          _buildNoDataSection(context),
-                          const SizedBox(height: 16),
-                        ],
-                        _buildRequestAccessSection(context),
-                        const SizedBox(height: 16),
-                        _buildContactAdminSection(context),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 8),
+                    if (_access != null) ...[
+                      _buildStatusCard(context),
+                      const SizedBox(height: 16),
+                      if (_access!.status == AccessStatus.trial)
+                        _buildTrialSection(context),
+                      if (_access!.status == AccessStatus.active)
+                        _buildActiveSection(context),
+                      if (_access!.status == AccessStatus.expired ||
+                          _access!.status == AccessStatus.cancelled)
+                        _buildExpiredSection(context),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      _buildNoDataSection(context),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_access != null && _access!.status == AccessStatus.trial) ...[
+                      _buildRequestAccessSection(context),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildContactAdminSection(context),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
       ),
     );
   }
 
   Widget _buildStatusCard(BuildContext context) {
-    final status = _subscription!.status;
+    final status = _access!.status;
     final statusColor = _getStatusColor(status);
 
     return Container(
@@ -165,9 +165,9 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              status == SubscriptionStatus.active
+              status == AccessStatus.active
                   ? CupertinoIcons.check_mark_circled_solid
-                  : status == SubscriptionStatus.trial
+                  : status == AccessStatus.trial
                       ? CupertinoIcons.clock_fill
                       : CupertinoIcons.exclamationmark_circle_fill,
               color: statusColor,
@@ -259,23 +259,23 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         _buildInfoCard(
           context,
           title: 'Trial period',
-          value: _subscription!.trialDaysRemaining != null
-              ? '${_subscription!.trialDaysRemaining} days remaining'
+          value: _access!.trialDaysRemaining != null
+              ? '${_access!.trialDaysRemaining} days remaining'
               : 'Active',
           icon: CupertinoIcons.calendar,
         ),
-        if (_subscription!.trialStartDate != null)
+        if (_access!.trialStartDate != null)
           _buildInfoCard(
             context,
             title: 'Trial started',
-            value: _formatDate(_subscription!.trialStartDate!),
+            value: _formatDate(_access!.trialStartDate!),
             icon: CupertinoIcons.time,
           ),
-        if (_subscription!.trialEndDate != null)
+        if (_access!.trialEndDate != null)
           _buildInfoCard(
             context,
             title: 'Trial ends',
-            value: _formatDate(_subscription!.trialEndDate!),
+            value: _formatDate(_access!.trialEndDate!),
             icon: CupertinoIcons.calendar_today,
           ),
       ],
@@ -301,23 +301,23 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         _buildInfoCard(
           context,
           title: 'Access period',
-          value: _subscription!.subscriptionDaysRemaining != null
-              ? '${_subscription!.subscriptionDaysRemaining} days remaining'
+          value: _access!.accessDaysRemaining != null
+              ? '${_access!.accessDaysRemaining} days remaining'
               : 'Active',
           icon: CupertinoIcons.calendar,
         ),
-        if (_subscription!.subscriptionStartDate != null)
+        if (_access!.accessStartDate != null)
           _buildInfoCard(
             context,
             title: 'Access started',
-            value: _formatDate(_subscription!.subscriptionStartDate!),
+            value: _formatDate(_access!.accessStartDate!),
             icon: CupertinoIcons.time,
           ),
-        if (_subscription!.subscriptionEndDate != null)
+        if (_access!.accessEndDate != null)
           _buildInfoCard(
             context,
             title: 'Access ends',
-            value: _formatDate(_subscription!.subscriptionEndDate!),
+            value: _formatDate(_access!.accessEndDate!),
             icon: CupertinoIcons.calendar_today,
           ),
       ],
@@ -325,7 +325,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
   }
 
   Widget _buildExpiredSection(BuildContext context) {
-    final isExpired = _subscription!.status == SubscriptionStatus.expired;
+    final isExpired = _access!.status == AccessStatus.expired;
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -433,44 +433,11 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'After your free trial ends, contact the administrator to request continued access. Access is granted manually - no payment or subscription required.',
+                'After your free trial ends, contact the administrator to request continued access. Access is granted manually - no payment required.',
                 style: _textStyle(
                   context,
                   fontSize: 13,
                   color: AppColors.dynamicTextSecondary(context),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.check_mark_circled_solid,
-                      color: AppColors.success,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'The app is completely free. No payment required.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.success,
-                          decoration: TextDecoration.none,
-                          decorationColor: Colors.transparent,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -544,7 +511,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Request Access via WhatsApp',
+                    'WhatsApp',
                     style: _textStyle(
                       context,
                       fontSize: 16,
@@ -606,7 +573,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Request Access via Phone',
+                    'Phone',
                     style: _textStyle(
                       context,
                       fontSize: 16,

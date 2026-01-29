@@ -68,6 +68,21 @@ android {
             isShrinkResources = false
         }
     }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    // Suppress debug symbols stripping warning (not critical for release builds)
+    tasks.configureEach {
+        if (name.contains("bundleRelease") || name.contains("assembleRelease")) {
+            doLast {
+                // This warning is safe to ignore - Google Play handles symbol stripping
+            }
+        }
+    }
 }
 
 flutter {

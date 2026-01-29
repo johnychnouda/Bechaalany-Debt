@@ -87,9 +87,8 @@ void _initializeServicesAsync() async {
     // Handle Firebase initialization error silently
   }
   
-  // Initialize Google Sign-In
   try {
-    await AuthService().initialize();
+    await AuthService().ensureInitialized();
   } catch (e) {
     // Handle Google Sign-In initialization error silently
     // Google Play Services errors are expected on emulators without full GMS

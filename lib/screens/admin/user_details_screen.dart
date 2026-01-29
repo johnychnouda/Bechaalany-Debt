@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../constants/app_colors.dart';
-import '../../services/subscription_service.dart';
-import '../../models/subscription.dart';
+import '../../services/access_service.dart';
+import '../../models/access.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   final String userId;
@@ -21,8 +21,8 @@ class UserDetailsScreen extends StatefulWidget {
 }
 
 class _UserDetailsScreenState extends State<UserDetailsScreen> {
-  final SubscriptionService _subscriptionService = SubscriptionService();
-  Subscription? _subscription;
+  final AccessService _accessService = AccessService();
+  Access? _access;
   bool _isLoading = true;
   bool _isUpdating = false;
 
@@ -30,19 +30,19 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSubscription();
+      _loadAccess();
     });
   }
 
-  Future<void> _loadSubscription() async {
+  Future<void> _loadAccess() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final subscription = await _subscriptionService.getUserSubscription(widget.userId);
+      final access = await _accessService.getUserAccess(widget.userId);
       setState(() {
-        _subscription = subscription;
+        _access = access;
         _isLoading = false;
       });
     } catch (e) {
@@ -52,14 +52,14 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     }
   }
 
-  Future<void> _grantSubscription(SubscriptionType type) async {
+  Future<void> _grantAccess(AccessType type) async {
     setState(() {
       _isUpdating = true;
     });
 
     try {
-      await _subscriptionService.grantSubscription(widget.userId, type);
-      await _loadSubscription();
+      await _accessService.grantAccess(widget.userId, type);
+      await _loadAccess();
       
       if (mounted) {
         showCupertinoDialog(
@@ -67,7 +67,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Success'),
             content: Text(
-              '${type == SubscriptionType.monthly ? "Monthly" : "Yearly"} subscription granted successfully!',
+              'Access granted successfully (${type == AccessType.monthly ? "1 month" : "1 year"})!',
             ),
             actions: [
               CupertinoDialogAction(
@@ -84,7 +84,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Error'),
-            content: Text('Failed to grant subscription: $e'),
+            content: Text('Failed to grant access: $e'),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
@@ -101,12 +101,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     }
   }
 
-  Future<void> _revokeSubscription() async {
+  Future<void> _revokeAccess() async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Revoke Subscription'),
-        content: const Text('Are you sure you want to revoke this subscription?'),
+        title: const Text('Revoke Access'),
+        content: const Text('Are you sure you want to revoke this user\'s access?'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
@@ -128,15 +128,15 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     });
 
     try {
-      await _subscriptionService.revokeSubscription(widget.userId);
-      await _loadSubscription();
+      await _accessService.revokeAccess(widget.userId);
+      await _loadAccess();
       
       if (mounted) {
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Success'),
-            content: const Text('Subscription revoked successfully!'),
+            content: const Text('Access revoked successfully!'),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
@@ -152,7 +152,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Error'),
-            content: Text('Failed to revoke subscription: $e'),
+            content: Text('Failed to revoke access: $e'),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
@@ -182,14 +182,14 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     return '$dateStr ($daysRemaining days left)';
   }
 
-  Color _statusColor(SubscriptionStatus status) {
+  Color _statusColor(AccessStatus status) {
     switch (status) {
-      case SubscriptionStatus.active:
+      case AccessStatus.active:
         return AppColors.dynamicSuccess(context);
-      case SubscriptionStatus.trial:
+      case AccessStatus.trial:
         return AppColors.dynamicPrimary(context);
-      case SubscriptionStatus.expired:
-      case SubscriptionStatus.cancelled:
+      case AccessStatus.expired:
+      case AccessStatus.cancelled:
         return AppColors.dynamicError(context);
     }
   }
@@ -340,17 +340,17 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                             ),
                           _buildActionGroup(
                             context,
-                            icon: CupertinoIcons.gift,
-                            title: 'Grant Subscription',
-                            description: 'Activate a paid plan for this user.',
+                            icon: CupertinoIcons.checkmark_circle,
+                            title: 'Grant Access',
+                            description: 'Grant continued access to this user. Choose duration.',
                             child: Row(
                               children: [
                                 Expanded(
                                   child: CupertinoButton.filled(
                                     onPressed: _isUpdating
                                         ? null
-                                        : () => _grantSubscription(SubscriptionType.monthly),
-                                    child: const Text('Monthly'),
+                                        : () => _grantAccess(AccessType.monthly),
+                                    child: const Text('1 Month'),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -358,26 +358,26 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                   child: CupertinoButton.filled(
                                     onPressed: _isUpdating
                                         ? null
-                                        : () => _grantSubscription(SubscriptionType.yearly),
-                                    child: const Text('Yearly'),
+                                        : () => _grantAccess(AccessType.yearly),
+                                    child: const Text('1 Year'),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          if (_isSubscriptionActuallyActive(_subscription)) ...[
+                          if (_isAccessActuallyActive(_access)) ...[
                             const SizedBox(height: 24),
                             _buildActionGroup(
                               context,
                               icon: CupertinoIcons.xmark_circle_fill,
-                              title: 'Revoke Subscription',
-                              description: 'Remove paid access. The user will lose subscription benefits.',
+                              title: 'Revoke Access',
+                              description: 'Remove access. The user will need to request access again.',
                               isDestructive: true,
                               child: _buildDestructiveOutlineButton(
                                 context,
-                                label: 'Revoke Subscription',
+                                label: 'Revoke Access',
                                 icon: CupertinoIcons.xmark_circle,
-                                onPressed: _isUpdating ? null : _revokeSubscription,
+                                onPressed: _isUpdating ? null : _revokeAccess,
                               ),
                             ),
                           ],
@@ -484,7 +484,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
 
   Widget _buildStatusCard(BuildContext context) {
-    final sub = _subscription;
+    final sub = _access;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -508,7 +508,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'No subscription data',
+                    'No access data',
                     style: TextStyle(
                       fontSize: 15,
                       color: AppColors.dynamicTextSecondary(context),
@@ -536,20 +536,20 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                     ),
                   ),
                 ],
-                if (sub.subscriptionStartDate != null) ...[
+                if (sub.accessStartDate != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Subscription Started',
-                    _formatDate(sub.subscriptionStartDate!),
+                    'Access Started',
+                    _formatDate(sub.accessStartDate!),
                   ),
                 ],
-                if (sub.subscriptionEndDate != null) ...[
+                if (sub.accessEndDate != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Subscription Ends',
+                    'Access Ends',
                     _formatDateWithContext(
-                      sub.subscriptionEndDate!,
-                      sub.subscriptionDaysRemaining,
+                      sub.accessEndDate!,
+                      sub.accessDaysRemaining,
                       isEndDate: true,
                     ),
                   ),
@@ -557,8 +557,8 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 if (sub.type != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Plan',
-                    sub.type == SubscriptionType.monthly ? 'Monthly' : 'Yearly',
+                    'Access Period',
+                    sub.type == AccessType.monthly ? '1 month' : '1 year',
                     valueColor: AppColors.dynamicPrimary(context),
                   ),
                 ],
@@ -589,118 +589,66 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  String _statusLabel(SubscriptionStatus s) {
+  String _statusLabel(AccessStatus s) {
     switch (s) {
-      case SubscriptionStatus.trial:
+      case AccessStatus.trial:
         return 'Trial';
-      case SubscriptionStatus.active:
+      case AccessStatus.active:
         return 'Active';
-      case SubscriptionStatus.expired:
+      case AccessStatus.expired:
         return 'Expired';
-      case SubscriptionStatus.cancelled:
+      case AccessStatus.cancelled:
         return 'Cancelled';
     }
   }
 
-  /// Get the actual status label based on both status and dates
-  String _getActualStatusLabel(Subscription subscription) {
-    // If status is cancelled, always show cancelled
-    if (subscription.status == SubscriptionStatus.cancelled) {
-      return 'Cancelled';
-    }
-    
-    // If status is expired, always show expired
-    if (subscription.status == SubscriptionStatus.expired) {
-      return 'Expired';
-    }
-    
-    // If status is active, check if subscription has actually expired
-    if (subscription.status == SubscriptionStatus.active) {
-      if (subscription.subscriptionEndDate != null) {
-        final now = DateTime.now();
-        if (now.isAfter(subscription.subscriptionEndDate!)) {
-          return 'Expired';
-        }
+  String _getActualStatusLabel(Access access) {
+    if (access.status == AccessStatus.cancelled) return 'Cancelled';
+    if (access.status == AccessStatus.expired) return 'Expired';
+    if (access.status == AccessStatus.active) {
+      if (access.accessEndDate != null) {
+        if (DateTime.now().isAfter(access.accessEndDate!)) return 'Expired';
       }
       return 'Active';
     }
-    
-    // If status is trial, check if trial has expired
-    if (subscription.status == SubscriptionStatus.trial) {
-      if (subscription.trialEndDate != null) {
-        final now = DateTime.now();
-        if (now.isAfter(subscription.trialEndDate!)) {
-          return 'Trial Expired';
-        }
+    if (access.status == AccessStatus.trial) {
+      if (access.trialEndDate != null) {
+        if (DateTime.now().isAfter(access.trialEndDate!)) return 'Trial Expired';
       }
       return 'Trial';
     }
-    
-    // Default to status label
-    return _statusLabel(subscription.status);
+    return _statusLabel(access.status);
   }
 
-  /// Check if subscription is actually active (not expired)
-  bool _isSubscriptionActuallyActive(Subscription? subscription) {
-    if (subscription == null) return false;
-    
-    // If status is cancelled or expired, it's not active
-    if (subscription.status == SubscriptionStatus.cancelled || 
-        subscription.status == SubscriptionStatus.expired) {
-      return false;
-    }
-    
-    // If status is active, check if subscription end date has passed
-    if (subscription.status == SubscriptionStatus.active) {
-      if (subscription.subscriptionEndDate != null) {
-        final now = DateTime.now();
-        if (now.isAfter(subscription.subscriptionEndDate!)) {
-          return false; // Subscription has expired
-        }
+  bool _isAccessActuallyActive(Access? access) {
+    if (access == null) return false;
+    if (access.status == AccessStatus.cancelled ||
+        access.status == AccessStatus.expired) return false;
+    if (access.status == AccessStatus.active) {
+      if (access.accessEndDate != null) {
+        if (DateTime.now().isAfter(access.accessEndDate!)) return false;
       }
-      return true; // Active and not expired
+      return true;
     }
-    
-    // Trial status is not considered an active subscription for revoke purposes
     return false;
   }
 
-  /// Get the actual status color based on both status and dates
-  Color _getActualStatusColor(Subscription subscription) {
-    // If status is cancelled, always show cancelled color
-    if (subscription.status == SubscriptionStatus.cancelled) {
-      return AppColors.dynamicError(context);
-    }
-    
-    // If status is expired, always show expired color
-    if (subscription.status == SubscriptionStatus.expired) {
-      return AppColors.dynamicError(context);
-    }
-    
-    // If status is active, check if subscription has actually expired
-    if (subscription.status == SubscriptionStatus.active) {
-      if (subscription.subscriptionEndDate != null) {
-        final now = DateTime.now();
-        if (now.isAfter(subscription.subscriptionEndDate!)) {
-          return AppColors.dynamicError(context);
-        }
+  Color _getActualStatusColor(Access access) {
+    if (access.status == AccessStatus.cancelled) return AppColors.dynamicError(context);
+    if (access.status == AccessStatus.expired) return AppColors.dynamicError(context);
+    if (access.status == AccessStatus.active) {
+      if (access.accessEndDate != null) {
+        if (DateTime.now().isAfter(access.accessEndDate!)) return AppColors.dynamicError(context);
       }
       return AppColors.dynamicSuccess(context);
     }
-    
-    // If status is trial, check if trial has expired
-    if (subscription.status == SubscriptionStatus.trial) {
-      if (subscription.trialEndDate != null) {
-        final now = DateTime.now();
-        if (now.isAfter(subscription.trialEndDate!)) {
-          return Colors.orange;
-        }
+    if (access.status == AccessStatus.trial) {
+      if (access.trialEndDate != null) {
+        if (DateTime.now().isAfter(access.trialEndDate!)) return Colors.orange;
       }
       return AppColors.dynamicPrimary(context);
     }
-    
-    // Default to status color
-    return _statusColor(subscription.status);
+    return _statusColor(access.status);
   }
 
   Widget _buildStatusDivider() {
