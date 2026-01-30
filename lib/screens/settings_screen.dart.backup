@@ -638,7 +638,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         content: Text(
-          'This will fix the alfa debt to match the correct product pricing. The debt amount will be set to 4.50\$ with a cost of 2.00\$ to give 2.50\$ revenue, matching the product settings.\n\nDo you want to proceed?',
+          'This will fix the alfa debt to match the correct product cost/selling. The debt amount will be set to 4.50\$ with a cost of 2.00\$ to give 2.50\$ revenue, matching the product settings.\n\nDo you want to proceed?',
           style: TextStyle(
             color: AppColors.dynamicTextSecondary(context),
             fontSize: 14,
@@ -706,7 +706,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                             content: Text(
-          'Alfa debt has been fixed successfully! The debt amount now matches the product pricing: 4.50\$ debt with 2.50\$ revenue.',
+          'Alfa debt has been fixed successfully! The debt amount now matches the product cost/selling: 4.50\$ debt with 2.50\$ revenue.',
                       style: TextStyle(
                         color: AppColors.dynamicTextSecondary(context),
                         fontSize: 14,
