@@ -14,6 +14,46 @@
       },
       "oauth_client": [
         {
+          "client_id": "908856160324-0n5oi3n60e2mj09nogg0998lj54sfajq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bechaalany.debt.bechaalanyDebtApp",
+            "certificate_hash": "88b432bd2d89d5eaa221e349886f17f683b8a5f2"
+          }
+        },
+        {
+          "client_id": "908856160324-4poloaqrtff5tibnaih1s4bbh8bqrtmo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bechaalany.debt.bechaalanyDebtApp",
+            "certificate_hash": "94d53e3259abe048d513337d9dd1e0c0c36e920c"
+          }
+        },
+        {
+          "client_id": "908856160324-5vauguls36rft1g8am5e8rm16ff7tvp5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bechaalany.debt.bechaalanyDebtApp",
+            "certificate_hash": "62f7b09d94b86abbb1ed7142112598736c3bdda5"
+          }
+        },
+        {
+          "client_id": "908856160324-emrmtt8pgr5evnr4huj0aaceu8v1u9e1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bechaalany.debt.bechaalanyDebtApp",
+            "certificate_hash": "4c45d033ff2700d3fdee8084a8e59f2d7e1373b8"
+          }
+        },
+        {
+          "client_id": "908856160324-l4e4lqsa28tdmu5ra170o7jpqs7a02de.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.bechaalany.debt.bechaalanyDebtApp",
+            "certificate_hash": "fe7824d1d29e1aad76422a75e05656aab47849d0"
+          }
+        },
+        {
           "client_id": "908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com",
           "client_type": 3
         }
