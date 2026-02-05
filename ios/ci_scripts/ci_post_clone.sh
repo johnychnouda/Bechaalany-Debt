@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Xcode Cloud post-clone script for Flutter
-# This script runs after the repository is cloned
+# Based on working examples from Flutter community
 # Location: ios/ci_scripts/ci_post_clone.sh (required for Xcode Cloud)
 
 set -e
@@ -11,59 +11,104 @@ echo "==========================================="
 echo "CI_WORKSPACE: ${CI_WORKSPACE:-not set}"
 echo "PWD: $(pwd)"
 
-# Use CI_WORKSPACE if available, otherwise navigate from script location
+# Determine repository root
 if [ -n "$CI_WORKSPACE" ]; then
     REPO_ROOT="$CI_WORKSPACE"
 else
-    # Script runs from ios/ directory, go up to project root
+    # Script runs from ios/ directory in Xcode Cloud
     REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
 
 cd "$REPO_ROOT"
 echo "Working directory: $(pwd)"
+echo "Repository root: $REPO_ROOT"
 
-# Find Flutter - check common locations
+# Install Flutter if not available
 FLUTTER_PATH=""
 if command -v flutter &> /dev/null; then
     FLUTTER_PATH=$(which flutter)
-elif [ -d "$HOME/flutter/bin" ]; then
-    FLUTTER_PATH="$HOME/flutter/bin/flutter"
-    export PATH="$HOME/flutter/bin:$PATH"
-elif [ -d "/usr/local/flutter/bin" ]; then
-    FLUTTER_PATH="/usr/local/flutter/bin/flutter"
-    export PATH="/usr/local/flutter/bin:$PATH"
+    echo "✅ Flutter found in PATH: $FLUTTER_PATH"
+else
+    echo "📦 Installing Flutter..."
+    
+    # Try Homebrew first
+    if command -v brew &> /dev/null; then
+        echo "Installing Flutter via Homebrew..."
+        brew install --cask flutter || {
+            echo "Homebrew installation failed, trying git clone..."
+            if [ ! -d "$HOME/flutter" ]; then
+                git clone https://github.com/flutter/flutter.git -b stable "$HOME/flutter" --depth 1
+            fi
+            export PATH="$HOME/flutter/bin:$PATH"
+            FLUTTER_PATH="$HOME/flutter/bin/flutter"
+        }
+    else
+        # Clone Flutter directly
+        echo "Installing Flutter via git clone..."
+        if [ ! -d "$HOME/flutter" ]; then
+            git clone https://github.com/flutter/flutter.git -b stable "$HOME/flutter" --depth 1
+        fi
+        export PATH="$HOME/flutter/bin:$PATH"
+        FLUTTER_PATH="$HOME/flutter/bin/flutter"
+    fi
+    
+    # Verify Flutter installation
+    if [ ! -f "$FLUTTER_PATH" ]; then
+        echo "❌ ERROR: Flutter installation failed"
+        echo "Please configure Flutter in Xcode Cloud workflow settings"
+        exit 1
+    fi
 fi
 
-if [ -z "$FLUTTER_PATH" ] || [ ! -f "$FLUTTER_PATH" ]; then
-    echo "⚠️  WARNING: Flutter not found in standard locations"
-    echo "Xcode Cloud may need Flutter configured in workflow settings"
-    echo "Attempting to continue - Flutter dependencies will be handled in pre-xcodebuild script"
-    exit 0
+# Verify Flutter is accessible
+if ! command -v flutter &> /dev/null; then
+    echo "❌ ERROR: Flutter command not found after installation"
+    exit 1
 fi
 
+FLUTTER_PATH=$(which flutter)
 echo "✅ Flutter found: $FLUTTER_PATH"
-"$FLUTTER_PATH" --version | head -1
+flutter --version | head -1
+
+# Precache iOS artifacts
+echo ""
+echo "📦 Precaching Flutter iOS artifacts..."
+flutter precache --ios || {
+    echo "⚠️  Warning: flutter precache failed, continuing..."
+}
 
 # Install CocoaPods if not available
 if ! command -v pod &> /dev/null; then
+    echo ""
     echo "📦 Installing CocoaPods..."
     if command -v brew &> /dev/null; then
-        brew install cocoapods || gem install cocoapods
+        brew install cocoapods || {
+            echo "Trying gem install..."
+            sudo gem install cocoapods
+        }
     else
-        gem install cocoapods
+        sudo gem install cocoapods
     fi
 fi
+
+# Verify CocoaPods
+if ! command -v pod &> /dev/null; then
+    echo "❌ ERROR: CocoaPods installation failed"
+    exit 1
+fi
+echo "✅ CocoaPods found: $(which pod)"
 
 # Get Flutter dependencies (generates Generated.xcconfig)
 echo ""
 echo "📦 Step 1: Getting Flutter dependencies..."
-"$FLUTTER_PATH" pub get
+cd "$REPO_ROOT"
+flutter pub get
 
 IOS_FLUTTER_DIR="$REPO_ROOT/ios/Flutter"
 if [ ! -f "$IOS_FLUTTER_DIR/Generated.xcconfig" ]; then
     echo "❌ ERROR: Generated.xcconfig was not created!"
-    echo "Flutter pub get output:"
-    "$FLUTTER_PATH" pub get --verbose || true
+    echo "Checking Flutter configuration..."
+    flutter doctor -v
     exit 1
 fi
 echo "✅ Generated.xcconfig created successfully at: $IOS_FLUTTER_DIR/Generated.xcconfig"
@@ -72,15 +117,30 @@ echo "✅ Generated.xcconfig created successfully at: $IOS_FLUTTER_DIR/Generated
 echo ""
 echo "📦 Step 2: Installing CocoaPods dependencies..."
 cd "$REPO_ROOT/ios"
-pod install
-cd "$REPO_ROOT"
+pod install --repo-update
 
 if [ ! -d "$REPO_ROOT/ios/Pods" ]; then
     echo "❌ ERROR: Pods directory was not created!"
+    echo "Pod install output:"
+    pod install --verbose || true
     exit 1
 fi
 echo "✅ CocoaPods dependencies installed successfully"
 
+# Verify critical files exist
+echo ""
+echo "📋 Verifying build requirements..."
+if [ ! -f "$IOS_FLUTTER_DIR/Generated.xcconfig" ]; then
+    echo "❌ ERROR: Generated.xcconfig missing!"
+    exit 1
+fi
+
+if [ ! -d "$REPO_ROOT/ios/Pods/Target Support Files/Pods-Runner" ]; then
+    echo "❌ ERROR: Pods-Runner target support files missing!"
+    exit 1
+fi
+
+echo "✅ All build requirements verified"
 echo ""
 echo "✅ Post-clone script completed successfully!"
 echo "Ready to proceed with build..."
