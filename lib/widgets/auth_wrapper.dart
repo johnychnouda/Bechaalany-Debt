@@ -11,6 +11,70 @@ import '../services/access_service.dart';
 import '../services/admin_service.dart';
 import '../models/access.dart';
 
+/// Caches the access-check future in initState to prevent FutureBuilder from
+/// recreating it on every rebuild. Without this, parent rebuilds (e.g. from
+/// AppState.notifyListeners) would restart the future repeatedly, causing
+/// the app to appear unresponsive—especially on iPad.
+class _SignedInAccessChecker extends StatefulWidget {
+  final AuthService authService;
+  final Future<Map<String, dynamic>> Function() ensureUserDocumentAndGetStatus;
+
+  const _SignedInAccessChecker({
+    super.key,
+    required this.authService,
+    required this.ensureUserDocumentAndGetStatus,
+  });
+
+  @override
+  State<_SignedInAccessChecker> createState() => _SignedInAccessCheckerState();
+}
+
+class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
+  late final Future<Map<String, dynamic>> _accessFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _accessFuture = widget.ensureUserDocumentAndGetStatus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _accessFuture,
+      builder: (context, userStatusSnapshot) {
+        if (userStatusSnapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        if (userStatusSnapshot.hasError) {
+          return ContactOwnerScreen(
+            reason: AccessDeniedReason.trialExpired,
+          );
+        }
+
+        final userStatus = userStatusSnapshot.data ?? {};
+        final userDeleted = userStatus['userDeleted'] ?? false;
+        final hasAccess = userStatus['hasAccess'] ?? false;
+        final isAdmin = userStatus['isAdmin'] ?? false;
+        final accessDeniedReason = userStatus['accessDeniedReason'] as AccessDeniedReason?;
+
+        if (userDeleted) {
+          widget.authService.signOut();
+          return const SignInScreen();
+        }
+
+        if (isAdmin || hasAccess) {
+          return const MainScreen();
+        }
+        return ContactOwnerScreen(
+          reason: accessDeniedReason ?? AccessDeniedReason.trialExpired,
+        );
+      },
+    );
+  }
+}
+
 class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
@@ -173,42 +237,16 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
           return const SignInScreen();
         }
         
-        // If user is signed in, check their state
+        // If user is signed in, check their state.
+        // CRITICAL: Use a dedicated widget that caches the future in initState.
+        // Passing future: _ensureUserDocumentAndGetStatus() inline would recreate
+        // the future on every parent rebuild (e.g. from AppState.notifyListeners),
+        // causing infinite re-fetches and an unresponsive app—especially on iPad.
         if (snapshot.hasData && snapshot.data != null) {
-          return FutureBuilder<Map<String, dynamic>>(
-            future: _ensureUserDocumentAndGetStatus(),
-            builder: (context, userStatusSnapshot) {
-              if (userStatusSnapshot.connectionState == ConnectionState.waiting) {
-                return const SplashScreen();
-              }
-              
-              if (userStatusSnapshot.hasError) {
-                // Fail closed: on error, show contact owner instead of granting access
-                return ContactOwnerScreen(
-                  reason: AccessDeniedReason.trialExpired,
-                );
-              }
-              
-              final userStatus = userStatusSnapshot.data ?? {};
-              final userDeleted = userStatus['userDeleted'] ?? false;
-              final hasAccess = userStatus['hasAccess'] ?? false;
-              final isAdmin = userStatus['isAdmin'] ?? false;
-              final accessDeniedReason = userStatus['accessDeniedReason'] as AccessDeniedReason?;
-
-              if (userDeleted) {
-                _authService.signOut();
-                return const SignInScreen();
-              }
-
-              // Admins always have access. Others need active access (trial or granted).
-              if (isAdmin || hasAccess) {
-                return const MainScreen();
-              }
-              // Revoked or expired: block app features, show contact owner screen with appropriate reason
-              return ContactOwnerScreen(
-                reason: accessDeniedReason ?? AccessDeniedReason.trialExpired,
-              );
-            },
+          return _SignedInAccessChecker(
+            key: ValueKey(snapshot.data!.uid),
+            authService: _authService,
+            ensureUserDocumentAndGetStatus: _ensureUserDocumentAndGetStatus,
           );
         }
         

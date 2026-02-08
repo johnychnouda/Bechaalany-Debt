@@ -52,9 +52,17 @@ void main() async {
     Future.microtask(() async {
       try {
         final auth = FirebaseAuth.instance;
-        // Get system locale or default to 'en'
-        final localeCode = Platform.localeName.split('_').first;
-        await auth.setLanguageCode(localeCode.isNotEmpty ? localeCode : 'en');
+        // Get system locale or default to 'en'. Defensive: localeName can
+        // behave differently on iPad/multitasking; wrap in try to avoid startup issues.
+        String localeCode = 'en';
+        try {
+          final name = Platform.localeName;
+          localeCode = name.split('_').first.trim();
+          if (localeCode.isEmpty) localeCode = 'en';
+        } catch (_) {
+          localeCode = 'en';
+        }
+        await auth.setLanguageCode(localeCode);
       } catch (e) {
         // Fallback to English if locale setting fails
         try {
