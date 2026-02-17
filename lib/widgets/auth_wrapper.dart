@@ -64,12 +64,8 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
           return const SignInScreen();
         }
 
-        if (isAdmin || hasAccess) {
-          return const MainScreen();
-        }
-        return ContactOwnerScreen(
-          reason: accessDeniedReason ?? AccessDeniedReason.trialExpired,
-        );
+        // Allow all authenticated users to access the app (removed admin approval requirement per App Store guidelines)
+        return const MainScreen();
       },
     );
   }

@@ -7,6 +7,7 @@ import '../providers/app_state.dart';
 import '../services/firebase_data_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/auth_service.dart';
+import '../services/account_deletion_service.dart';
 
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
@@ -101,6 +102,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Sign out of your account',
                     CupertinoIcons.square_arrow_right,
                     () => _showSignOutDialog(),
+                  ),
+                  _buildNavigationRow(
+                    'Delete Account',
+                    'Permanently delete your account and all data',
+                    CupertinoIcons.delete,
+                    () => _showDeleteAccountDialog(),
+                    isDestructive: true,
                   ),
                 ],
               ),
@@ -307,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildNavigationRow(String title, String subtitle, IconData icon, VoidCallback onTap) {
+  Widget _buildNavigationRow(String title, String subtitle, IconData icon, VoidCallback onTap, {bool isDestructive = false}) {
     return Container(
       decoration: BoxDecoration(
         border: Border(
@@ -321,17 +329,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+            color: isDestructive 
+                ? Colors.red.withValues(alpha: 0.1)
+                : AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: AppColors.dynamicPrimary(context), size: 20),
+          child: Icon(icon, color: isDestructive ? Colors.red : AppColors.dynamicPrimary(context), size: 20),
         ),
         title: Text(
           title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: AppColors.dynamicTextPrimary(context),
+            color: isDestructive ? Colors.red : AppColors.dynamicTextPrimary(context),
           ),
         ),
         subtitle: Text(
@@ -1031,6 +1041,245 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(
+          'Delete Account',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        message: Text(
+          'This will permanently delete your account and all associated data including:\n\n• All customers and debts\n• All activities and payment records\n• All backups\n• All settings and preferences\n\nThis action cannot be undone.',
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 13,
+          ),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(context);
+              await _confirmDeleteAccount();
+            },
+            child: const Text(
+              'Delete Account',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: AppColors.dynamicPrimary(context),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    // Show second confirmation action sheet
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(
+          'Final Confirmation',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        message: Text(
+          'This is your last chance to cancel. Your account and all data will be permanently deleted. This cannot be undone.',
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 13,
+          ),
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text(
+            'Cancel',
+            style: TextStyle(
+              color: AppColors.dynamicPrimary(context),
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) {
+      return; // User cancelled
+    }
+
+    // Show loading dialog
+    if (!context.mounted) return;
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CupertinoAlertDialog(
+        content: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CupertinoActivityIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Deleting account...',
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      final accountDeletionService = AccountDeletionService();
+      
+      if (!accountDeletionService.canDeleteAccount()) {
+        if (context.mounted) {
+          Navigator.pop(context); // Close loading dialog
+          _showErrorDialog('No user is currently signed in.');
+        }
+        return;
+      }
+
+      // Delete the account
+      await accountDeletionService.deleteAccount();
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show success message and navigate to sign-in screen
+      if (context.mounted) {
+        showCupertinoDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text(
+              'Account Deleted',
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'Your account and all associated data have been permanently deleted.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                fontSize: 14,
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // Navigate to sign-in screen
+                  Navigator.of(context).pushAndRemoveUntil(
+                    CupertinoPageRoute(builder: (context) => const SignInScreen()),
+                    (route) => false,
+                  );
+                },
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: AppColors.dynamicPrimary(context),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show error message
+      if (context.mounted) {
+        _showErrorDialog('Failed to delete account: ${e.toString().replaceAll('Exception: ', '')}');
+      }
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(
+          'Error',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: AppColors.dynamicTextSecondary(context),
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: AppColors.dynamicPrimary(context),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
