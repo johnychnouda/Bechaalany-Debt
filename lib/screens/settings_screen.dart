@@ -88,7 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (!_isCheckingAdmin && !_isAdmin)
                     _buildNavigationRow(
                       'Access Status',
-                      'View your access and request continued access',
+                      'View your access status and contact support if needed',
                       CupertinoIcons.person_circle,
                       () => Navigator.push(
                         context,

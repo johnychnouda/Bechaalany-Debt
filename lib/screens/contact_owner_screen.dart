@@ -35,11 +35,11 @@ class ContactOwnerScreen extends StatelessWidget {
   String get _description {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
-        return 'Your free trial has ended. To continue using the app, please contact the administrator to request access.';
+        return 'We could not verify your trial status. The app is free to use, but there may be an issue with your account. Please contact the administrator so we can restore your access.';
       case AccessDeniedReason.accessExpired:
-        return 'Your access has expired. To continue using the app, please contact the administrator to request access.';
+        return 'We could not verify your access status. The app is free to use for all signed-in users. Please contact the administrator so we can fix your account.';
       case AccessDeniedReason.accessRevoked:
-        return 'Your access has been revoked. To continue using the app, please contact the administrator to request access.';
+        return 'There is an issue with your account. Please contact the administrator so we can review and restore your access if appropriate.';
     }
   }
   
@@ -149,7 +149,7 @@ class ContactOwnerScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'After contacting the administrator, your access will be granted and you\'ll be able to use the app again.',
+                        'After you contact the administrator, we will review and fix any technical issues with your account so you can continue using the app.',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.dynamicTextSecondary(context),

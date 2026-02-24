@@ -14,12 +14,16 @@
     ],
     "rewrites": [
       {
+        "source": "/",
+        "destination": "/privacy-policy.html"
+      },
+      {
         "source": "/privacy-policy",
         "destination": "/privacy-policy.html"
       },
       {
-        "source": "**",
-        "destination": "/privacy-policy.html"
+        "source": "/support",
+        "destination": "/support.html"
       }
     ]
   },

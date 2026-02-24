@@ -217,7 +217,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Welcome to Bechaalany Connect',
+            'Welcome to Bechaalany Debt App',
             style: _textStyle(
               context,
               fontSize: 18,
@@ -227,7 +227,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'The app is completely free. Contact the administrator to request access and start managing your business.',
+            'The app is completely free and available to all signed-in users. If you ever have trouble accessing your data, you can contact the administrator for technical support.',
             style: _textStyle(
               context,
               fontSize: 14,
@@ -357,7 +357,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Contact the administrator to request continued access.',
+            'If you believe this is a mistake or need help with your account, contact the administrator for support.',
             style: _textStyle(
               context,
               fontSize: 14,
@@ -421,7 +421,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Access is granted by the administrator',
+                      'Access status and renewals',
                       style: _textStyle(
                         context,
                         fontSize: 15,
@@ -433,7 +433,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'After your free trial ends, contact the administrator to request continued access. Access is granted manually - no payment required.',
+                'Your access is free. If your trial or access period ends and you still cannot use the app, you can contact the administrator for help fixing your account. There is no approval process or payment required to keep using the app.',
                 style: _textStyle(
                   context,
                   fontSize: 13,

@@ -4,4 +4,4 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// App is free; no prices or purchases. Access is granted by admin only.
+// App is free; no prices or purchases. All authenticated users can access the app; admins only help with technical support and account management.

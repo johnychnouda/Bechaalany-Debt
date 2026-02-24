@@ -371,7 +371,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                               context,
                               icon: CupertinoIcons.xmark_circle_fill,
                               title: 'Revoke Access',
-                              description: 'Remove access. The user will need to request access again.',
+                              description: 'Temporarily suspend this account. The user can contact you if there is an issue.',
                               isDestructive: true,
                               child: _buildDestructiveOutlineButton(
                                 context,

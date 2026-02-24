@@ -6,7 +6,6 @@ import '../models/customer.dart';
 import '../providers/app_state.dart';
 
 import '../utils/currency_formatter.dart';
-import '../utils/access_checker.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -441,15 +440,13 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
         child: FloatingActionButton(
           heroTag: 'customers_fab_hero',
           onPressed: () async {
-            final hasAccess = await AccessChecker.checkAccess(context);
-            if (hasAccess && mounted) {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddCustomerScreen(),
-                ),
-              );
-            }
+            if (!mounted) return;
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AddCustomerScreen(),
+              ),
+            );
           },
           backgroundColor: AppColors.dynamicPrimary(context),
           elevation: 0,
