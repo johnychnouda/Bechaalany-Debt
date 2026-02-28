@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
 
@@ -157,15 +158,16 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
     return showDialog(
       context: context,
       builder: (BuildContext context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: Text('Delete Customer', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+          title: Text(l10n.deleteCustomer, style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
           content: debts.isNotEmpty
-              ? Text('This customer has ${debts.length} debt(s). Deleting the customer will also delete all associated debts. Are you sure?', style: TextStyle(color: AppColors.dynamicTextSecondary(context)))
-              : Text('Are you sure you want to delete this customer?', style: TextStyle(color: AppColors.dynamicTextSecondary(context))),
+              ? Text(l10n.deleteCustomerConfirmWithDebts(debts.length.toString()), style: TextStyle(color: AppColors.dynamicTextSecondary(context)))
+              : Text(l10n.deleteCustomerConfirm, style: TextStyle(color: AppColors.dynamicTextSecondary(context))),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: AppColors.dynamicPrimary(context))),
+              child: Text(l10n.cancel, style: TextStyle(color: AppColors.dynamicPrimary(context))),
             ),
             TextButton(
               onPressed: () async {
@@ -173,7 +175,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                 await appState.deleteCustomer(customer.id);
                 _filterCustomers();
               },
-              child: Text('Delete', style: TextStyle(color: AppColors.error)),
+              child: Text(l10n.delete, style: TextStyle(color: AppColors.error)),
             ),
           ],
         );
@@ -212,7 +214,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Customers',
+                            AppLocalizations.of(context)!.customersTitle,
                             style: TextStyle(
                               color: AppColors.dynamicTextPrimary(context),
                               fontSize: 28,
@@ -224,7 +226,9 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '$totalCustomers customer${totalCustomers == 1 ? '' : 's'}',
+                        totalCustomers == 1
+                            ? AppLocalizations.of(context)!.customerCountOne
+                            : AppLocalizations.of(context)!.customersCount(totalCustomers.toString()),
                         style: TextStyle(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 15,
@@ -250,7 +254,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search by name or ID',
+                        hintText: AppLocalizations.of(context)!.searchByNameOrId,
                         hintStyle: TextStyle(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 16,
@@ -299,7 +303,9 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                appState.customers.isEmpty ? 'No customers yet' : 'No customers found',
+                                appState.customers.isEmpty
+                                    ? AppLocalizations.of(context)!.noCustomersYet
+                                    : AppLocalizations.of(context)!.noCustomersFound,
                                 style: TextStyle(
                                   color: AppColors.dynamicTextPrimary(context),
                                   fontSize: 20,
@@ -308,9 +314,9 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                appState.customers.isEmpty 
-                                    ? 'Start by adding your first customer'
-                                    : 'Try adjusting your search criteria',
+                                appState.customers.isEmpty
+                                    ? AppLocalizations.of(context)!.startByAddingFirstCustomer
+                                    : AppLocalizations.of(context)!.tryAdjustingSearchCriteria,
                                 style: TextStyle(
                                   color: AppColors.dynamicTextSecondary(context),
                                   fontSize: 16,
@@ -345,7 +351,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                   ),
                                   const SizedBox(height: 20),
                                   Text(
-                                    'No customers found',
+                                    AppLocalizations.of(context)!.noCustomersFound,
                                     style: TextStyle(
                                       color: AppColors.dynamicTextPrimary(context),
                                       fontSize: 20,
@@ -354,7 +360,7 @@ class _CustomersScreenState extends State<CustomersScreen> with WidgetsBindingOb
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Try adjusting your search criteria',
+                                    AppLocalizations.of(context)!.tryAdjustingSearchCriteria,
                                     style: TextStyle(
                                       color: AppColors.dynamicTextSecondary(context),
                                       fontSize: 16,
@@ -629,6 +635,7 @@ class _CustomerListTile extends StatelessWidget {
   }
   
   void _showCustomerActionSheet(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
@@ -645,7 +652,7 @@ class _CustomerListTile extends StatelessWidget {
               Navigator.pop(context);
               onView();
             },
-            child: const Text('View Details'),
+            child: Text(l10n.viewDetails),
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
@@ -656,34 +663,35 @@ class _CustomerListTile extends StatelessWidget {
                 onDelete();
               }
             },
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () {
             Navigator.pop(context);
           },
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
       ),
     );
   }
 
   Future<bool> _showDeleteConfirmation(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
     return await showCupertinoDialog<bool>(
       context: context,
       builder: (BuildContext context) => CupertinoAlertDialog(
-        title: const Text('Delete Customer'),
-        content: Text('Are you sure you want to delete ${customer.name}? This action cannot be undone.'),
+        title: Text(l10n.deleteCustomer),
+        content: Text(l10n.deleteCustomerConfirmWithName(customer.name)),
         actions: <CupertinoDialogAction>[
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(l10n.delete),
           ),
         ],
       ),

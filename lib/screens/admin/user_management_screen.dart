@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/firestore_access_keys.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import '../../services/admin_service.dart';
 import 'user_details_screen.dart';
@@ -58,7 +59,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
-  String _getStatusText(String? status, Map<String, dynamic> user) {
+  String _getStatusText(BuildContext context, String? status, Map<String, dynamic> user) {
+    final l10n = AppLocalizations.of(context)!;
     // Check if trial has expired but no access was granted
     if (status == 'trial') {
       final trialEndDate = user['trialEndDate'] as Timestamp?;
@@ -69,21 +71,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final now = DateTime.now();
         final trialEnd = trialEndDate.toDate();
         if (now.isAfter(trialEnd)) {
-          return 'Trial Expired';
+          return l10n.trialExpired;
         }
       }
-      return 'Trial';
+      return l10n.trial;
     }
     
     switch (status) {
       case 'active':
-        return 'Active';
+        return l10n.activeStatus;
       case 'expired':
-        return 'Expired';
+        return l10n.expired;
       case 'cancelled':
-        return 'Cancelled';
+        return l10n.cancelled;
       default:
-        return 'Trial';
+        return l10n.trial;
     }
   }
 
@@ -130,19 +132,40 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  String _getFilterLabel(UserFilter filter) {
+  String _localizeAccessType(BuildContext context, String type) {
+    final t = type.toLowerCase();
+    final l10n = AppLocalizations.of(context)!;
+    if (t == 'monthly') return l10n.monthlyFilter;
+    if (t == 'yearly') return l10n.yearlyFilter;
+    return type;
+  }
+
+  String _getFilterLabel(BuildContext context, UserFilter filter) {
+    final l10n = AppLocalizations.of(context)!;
     switch (filter) {
       case UserFilter.all:
-        return 'All';
+        return l10n.filterAll;
       case UserFilter.trial:
-        return 'Trial';
+        return l10n.trial;
       case UserFilter.monthly:
-        return 'Monthly';
+        return l10n.monthlyFilter;
       case UserFilter.yearly:
-        return 'Yearly';
+        return l10n.yearlyFilter;
       case UserFilter.expired:
-        return 'Expired';
+        return l10n.expired;
     }
+  }
+
+  /// Count non-admin users that match each filter. Call only when user list is available.
+  Map<UserFilter, int> _getFilterCounts(List<Map<String, dynamic>> allUsers) {
+    final nonAdmin = allUsers.where((u) => u['isAdmin'] != true).toList();
+    return {
+      UserFilter.all: nonAdmin.length,
+      UserFilter.trial: nonAdmin.where((u) => _matchesFilter(u, UserFilter.trial)).length,
+      UserFilter.monthly: nonAdmin.where((u) => _matchesFilter(u, UserFilter.monthly)).length,
+      UserFilter.yearly: nonAdmin.where((u) => _matchesFilter(u, UserFilter.yearly)).length,
+      UserFilter.expired: nonAdmin.where((u) => _matchesFilter(u, UserFilter.expired)).length,
+    };
   }
 
   bool _matchesFilter(Map<String, dynamic> user, UserFilter filter) {
@@ -166,22 +189,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  String _getEmptyStateMessage() {
+  String _getEmptyStateMessage(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_searchQuery.isNotEmpty) {
-      return 'No users match your search';
+      return l10n.noUsersMatchSearch;
     }
-    
     switch (_selectedFilter) {
       case UserFilter.all:
-        return 'No users found';
+        return l10n.noUsersFound;
       case UserFilter.trial:
-        return 'No trial users found';
+        return l10n.noTrialUsersFound;
       case UserFilter.monthly:
-        return 'No monthly users found';
+        return l10n.noMonthlyUsersFound;
       case UserFilter.yearly:
-        return 'No yearly users found';
+        return l10n.noYearlyUsersFound;
       case UserFilter.expired:
-        return 'No expired users found';
+        return l10n.noExpiredUsersFound;
     }
   }
 
@@ -196,7 +219,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       child: CupertinoPageScaffold(
         backgroundColor: AppColors.dynamicBackground(context),
         navigationBar: CupertinoNavigationBar(
-          middle: const Text('User Management'),
+          middle: Text(AppLocalizations.of(context)!.userManagement),
           backgroundColor: AppColors.dynamicSurface(context),
           border: null,
         ),
@@ -208,7 +231,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               padding: const EdgeInsets.all(16),
               child: CupertinoSearchTextField(
                 controller: _searchController,
-                placeholder: 'Search by email or name...',
+                placeholder: AppLocalizations.of(context)!.searchByEmailOrName,
                 onChanged: (value) {
                   setState(() {
                     _searchQuery = value.toLowerCase();
@@ -217,61 +240,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ),
             ),
             
-            // Filter Chips
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: UserFilter.values.map((filter) {
-                    final isSelected = _selectedFilter == filter;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: () {
-                          setState(() {
-                            _selectedFilter = filter;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.dynamicPrimary(context)
-                                : AppColors.dynamicSurface(context),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.dynamicPrimary(context)
-                                  : AppColors.dynamicBorder(context),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            _getFilterLabel(filter),
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              color: isSelected
-                                  ? Colors.white
-                                  : AppColors.dynamicTextPrimary(context),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            
             const SizedBox(height: 8),
             
-            // Users List
+            // Users List (StreamBuilder wraps filter chips + list so we can show counts)
             Expanded(
               child: _isCheckingAdmin
                   ? const Center(child: CupertinoActivityIndicator())
@@ -289,7 +260,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Access Denied',
+                                  AppLocalizations.of(context)!.accessDenied,
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -298,7 +269,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'You do not have admin permissions to view this page.',
+                                  AppLocalizations.of(context)!.noAdminPermissions,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 14,
@@ -316,65 +287,161 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               return const Center(child: CupertinoActivityIndicator());
                             }
 
+                            // Build filter chips row (labels only) and a small counts summary below.
+                            final allUsers = snapshot.hasData ? snapshot.data! : <Map<String, dynamic>>[];
+                            final counts = allUsers.isNotEmpty ? _getFilterCounts(allUsers) : null;
+                            final filterChips = Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: UserFilter.values.map((filter) {
+                                        final isSelected = _selectedFilter == filter;
+                                        return Padding(
+                                          padding: const EdgeInsets.only(right: 8),
+                                          child: CupertinoButton(
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedFilter = filter;
+                                              });
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: isSelected
+                                                    ? AppColors.dynamicPrimary(context)
+                                                    : AppColors.dynamicSurface(context),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                  color: isSelected
+                                                      ? AppColors.dynamicPrimary(context)
+                                                      : AppColors.dynamicBorder(context),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                _getFilterLabel(context, filter),
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                                  color: isSelected
+                                                      ? Colors.white
+                                                      : AppColors.dynamicTextPrimary(context),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                                ),
+                                if (counts != null) ...[
+                                  const SizedBox(height: 4),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Text(
+                                      AppLocalizations.of(context)!.userSummaryCounts(
+                                        (counts[UserFilter.all] ?? 0).toString(),
+                                        (counts[UserFilter.trial] ?? 0).toString(),
+                                        (counts[UserFilter.monthly] ?? 0).toString(),
+                                        (counts[UserFilter.yearly] ?? 0).toString(),
+                                        (counts[UserFilter.expired] ?? 0).toString(),
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.dynamicTextSecondary(context),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+
                             if (snapshot.hasError) {
                               final error = snapshot.error.toString();
                               final isPermissionError = error.contains('permission-denied');
                               
-                              return Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        CupertinoIcons.exclamationmark_triangle,
-                                        size: 64,
-                                        color: AppColors.dynamicTextSecondary(context),
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        isPermissionError 
-                                            ? 'Permission Denied'
-                                            : 'Error',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.dynamicTextPrimary(context),
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  filterChips,
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: Center(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              CupertinoIcons.exclamationmark_triangle,
+                                              size: 64,
+                                              color: AppColors.dynamicTextSecondary(context),
+                                            ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              isPermissionError
+                                                  ? AppLocalizations.of(context)!.permissionDenied
+                                                  : AppLocalizations.of(context)!.error,
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppColors.dynamicTextPrimary(context),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              isPermissionError
+                                                  ? AppLocalizations.of(context)!.permissionDeniedMessage
+                                                  : '${AppLocalizations.of(context)!.error}: $error',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: AppColors.dynamicTextSecondary(context),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        isPermissionError
-                                            ? 'You do not have permission to access user data. Please ensure your account is marked as admin in Firestore.'
-                                            : 'Error: $error',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.dynamicTextSecondary(context),
-                                        ),
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               );
                             }
 
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            text: 'No users found',
-                            style: TextStyle(
-                              color: AppColors.dynamicTextSecondary(context),
-                              fontSize: 16,
-                              decoration: TextDecoration.none,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        filterChips,
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  text: AppLocalizations.of(context)!.noUsersFound,
+                                  style: TextStyle(
+                                    color: AppColors.dynamicTextSecondary(context),
+                                    fontSize: 16,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     );
                   }
 
@@ -395,25 +462,40 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   }).toList();
 
                   if (users.isEmpty) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            text: _getEmptyStateMessage(),
-                            style: TextStyle(
-                              color: AppColors.dynamicTextSecondary(context),
-                              fontSize: 16,
-                              decoration: TextDecoration.none,
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        filterChips,
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: RichText(
+                                textAlign: TextAlign.center,
+                                text: TextSpan(
+                                  text: _getEmptyStateMessage(context),
+                                  style: TextStyle(
+                                    color: AppColors.dynamicTextSecondary(context),
+                                    fontSize: 16,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     );
                   }
 
-                  return ListView.builder(
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      filterChips,
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: users.length,
                     itemBuilder: (context, index) {
@@ -497,7 +579,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               borderRadius: BorderRadius.circular(6),
                                             ),
                                             child: Text(
-                                              _getStatusText(status, user),
+                                              _getStatusText(context, status, user),
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
@@ -508,7 +590,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                           if (user[FirestoreAccessKeys.type] != null) ...[
                                             const SizedBox(width: 8),
                                             Text(
-                                              '• ${user[FirestoreAccessKeys.type]}',
+                                              '• ${_localizeAccessType(context, user[FirestoreAccessKeys.type].toString())}',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 color: AppColors.dynamicTextSecondary(context),
@@ -531,6 +613,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                       );
                     },
+                        ),
+                      ),
+                    ],
                   );
                           },
                         ),

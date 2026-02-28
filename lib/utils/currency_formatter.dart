@@ -17,10 +17,9 @@ class CurrencyFormatter {
 
   /// Formats product price for display in the Products screen
   /// Always shows USD values for LBP products (following user preferences)
-  /// USD products: Show USD values with $ symbol
+  /// USD: amount with $ symbol on the right (e.g. 24.10$)
   static String formatProductPrice(BuildContext context, double amount, {String? storedCurrency}) {
     if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
-      // USD products: just show the USD amount
       return '${amount.toStringAsFixed(2)}\$';
     }
     
@@ -29,25 +28,20 @@ class CurrencyFormatter {
       final settings = appState.currencySettings;
       
       if (settings != null && settings.exchangeRate != null) {
-        // Calculate current USD equivalent and show only USD
         final usdEquivalent = amount / settings.exchangeRate!;
         return '${usdEquivalent.toStringAsFixed(2)}\$';
       } else {
-        // No exchange rate set, show 0.00 USD
         return '0.00\$';
       }
     }
     
-    // Fallback
     return '${amount.toStringAsFixed(2)}\$';
   }
 
-  /// Formats amount for display based on stored currency
-  /// Always shows USD values for LBP products (following user preferences)
-  /// USD products: Always show same USD amount regardless of exchange rate
+  /// Formats amount for display based on stored currency.
+  /// Dollar sign is always on the right (e.g. 24.10$).
   static String formatAmount(BuildContext context, double amount, {String? storedCurrency}) {
     if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
-      // USD products: just show the USD amount
       return '${amount.toStringAsFixed(2)}\$';
     }
     
@@ -56,16 +50,13 @@ class CurrencyFormatter {
       final settings = appState.currencySettings;
       
       if (settings != null && settings.exchangeRate != null) {
-        // Calculate current USD equivalent and show only USD
         final usdEquivalent = amount / settings.exchangeRate!;
         return '${usdEquivalent.toStringAsFixed(2)}\$';
       } else {
-        // No exchange rate set, show 0.00 USD
         return '${amount.toStringAsFixed(2)}\$';
       }
     }
     
-    // Fallback to USD with dollar sign on the right side
     return '${amount.toStringAsFixed(2)}\$';
   }
 
@@ -93,7 +84,6 @@ class CurrencyFormatter {
   /// Shows both LBP amount and current USD equivalent for LBP products
   static String getFormattedCurrentUSDEquivalent(BuildContext context, double amount, {String? storedCurrency}) {
     if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
-      // USD products: just show the USD amount
       return '${amount.toStringAsFixed(2)}\$';
     }
     
@@ -102,24 +92,20 @@ class CurrencyFormatter {
       final settings = appState.currencySettings;
       
       if (settings != null && settings.exchangeRate != null) {
-        // Calculate current USD equivalent
         final usdEquivalent = amount / settings.exchangeRate!;
         return '${NumberFormat('#,###').format(amount.toInt())} LBP (≈ ${usdEquivalent.toStringAsFixed(2)}\$)';
       } else {
-        // No exchange rate set, just show LBP
         return '${NumberFormat('#,###').format(amount.toInt())} LBP';
       }
     }
     
-    // Fallback
     return '${amount.toStringAsFixed(2)}\$';
   }
 
   /// Gets the formatted USD equivalent for product display
-  /// Always shows USD values for LBP products (following user preferences)
+  /// Always shows USD values for LBP products; $ symbol on the right
   static String getFormattedUSDForProductDisplay(BuildContext context, double amount, {String? storedCurrency}) {
     if (storedCurrency == null || storedCurrency.toUpperCase() == 'USD') {
-      // USD products: just show the USD amount
       return '${amount.toStringAsFixed(2)}\$';
     }
     
@@ -128,16 +114,13 @@ class CurrencyFormatter {
       final settings = appState.currencySettings;
       
       if (settings != null && settings.exchangeRate != null) {
-        // Calculate current USD equivalent and show only USD
         final usdEquivalent = amount / settings.exchangeRate!;
         return '${usdEquivalent.toStringAsFixed(2)}\$';
       } else {
-        // No exchange rate set, show 0.00 USD
         return '0.00\$';
       }
     }
     
-    // Fallback
     return '${amount.toStringAsFixed(2)}\$';
   }
 

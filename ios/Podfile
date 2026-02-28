@@ -41,6 +41,17 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+
+      # gRPC-Core / gRPC-C++: ensure Abseil and address_sorting headers are found.
+      if target.name.include?('gRPC-Core') || target.name.include?('gRPC-C++')
+        paths = config.build_settings['HEADER_SEARCH_PATHS']
+        paths = paths.is_a?(Array) ? paths.dup : (paths.to_s.split)
+        paths << '"${PODS_ROOT}/abseil"'
+        # address_sorting/address_sorting.h lives in third_party/address_sorting/include
+        grpc_root = target.name.include?('gRPC-C++') ? 'gRPC-C++' : 'gRPC-Core'
+        paths << '"${PODS_ROOT}/' + grpc_root + '/third_party/address_sorting/include"'
+        config.build_settings['HEADER_SEARCH_PATHS'] = paths
+      end
     end
 
     # BoringSSL-GRPC: remove -GCC_WARN_INHIBIT_ALL_WARNINGS only (Xcode 16+ clang rejects it).

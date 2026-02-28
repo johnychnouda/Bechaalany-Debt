@@ -143,10 +143,9 @@ class Subcategory {
       return costPrice > 0 && costPrice < 100000000 && 
              sellingPrice > 0 && sellingPrice < 100000000;
     } else if (costPriceCurrency == 'USD') {
-      // USD prices should typically be reasonable amounts
-      // Very high amounts (> 10,000) might indicate corruption
-      return costPrice > 0 && costPrice < 10000 && 
-             sellingPrice > 0 && sellingPrice < 10000;
+      // USD prices: allow up to 1,000,000 to support high-value products
+      return costPrice > 0 && costPrice <= 1000000 &&
+             sellingPrice > 0 && sellingPrice <= 1000000;
     }
     return costPrice > 0 && sellingPrice > 0;
   }
@@ -156,8 +155,8 @@ class Subcategory {
     if (!hasValidPrices) {
       if (costPriceCurrency == 'LBP' && (costPrice > 100000000 || sellingPrice > 100000000)) {
         return 'LBP prices seem unusually high (over 100,000,000 LBP). Please verify the amounts.';
-      } else if (costPriceCurrency == 'USD' && (costPrice > 10000 || sellingPrice > 10000)) {
-        return 'USD prices seem unusually high (over 10,000 USD). Please verify the amounts.';
+      } else if (costPriceCurrency == 'USD' && (costPrice > 1000000 || sellingPrice > 1000000)) {
+        return 'USD prices seem unusually high (over 1,000,000 USD). Please verify the amounts.';
       }
       return 'Product prices seem invalid. Please check the amounts.';
     }

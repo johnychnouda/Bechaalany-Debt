@@ -9,6 +9,7 @@ import '../utils/currency_formatter.dart';
 // Notification service import removed
 import '../widgets/expandable_chip_dropdown.dart';
 import '../widgets/searchable_customer_field.dart';
+import '../l10n/app_localizations.dart';
 
 class AddDebtFromProductScreen extends StatefulWidget {
   final Customer? customer; // Optional customer parameter
@@ -49,7 +50,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     return Scaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
-        title: Text('Add Debt from Product', style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+        title: Text(AppLocalizations.of(context)!.addDebtFromProduct, style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
         backgroundColor: AppColors.dynamicSurface(context),
         elevation: 0,
         iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
@@ -70,7 +71,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 if (widget.customer != null) ...[
                   // Show pre-selected customer (read-only)
                   Text(
-                    'Customer',
+                    AppLocalizations.of(context)!.customerLabel,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -89,8 +90,8 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                         _selectedCustomer = customer;
                       });
                     },
-                    label: 'Customer',
-                    placeholder: 'Search by name or ID',
+                    label: AppLocalizations.of(context)!.customerLabel,
+                    placeholder: AppLocalizations.of(context)!.searchByNameOrId,
                   ),
                 ],
                 
@@ -193,7 +194,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     }
 
     return ExpandableChipDropdown<ProductCategory>(
-      label: 'Category',
+      label: AppLocalizations.of(context)!.categoryLabel,
       value: _selectedCategory,
       items: categories,
       itemToString: (category) => category.name,
@@ -203,7 +204,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           _selectedSubcategory = null;
         });
       },
-      placeholder: 'Select Category',
+      placeholder: AppLocalizations.of(context)!.selectCategory,
     );
   }
 
@@ -227,7 +228,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'No products in ${_selectedCategory!.name}',
+                    AppLocalizations.of(context)!.noProductsInCategory(_selectedCategory!.name),
                     style: TextStyle(
                       color: Colors.blue,
                       fontWeight: FontWeight.w600,
@@ -239,7 +240,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Add products to this category in the Products tab.',
+              AppLocalizations.of(context)!.addProductsToCategoryInProductsTab,
               style: TextStyle(
                 color: Colors.blue,
                 fontSize: 14,
@@ -251,7 +252,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     }
 
     return ExpandableChipDropdown<Subcategory>(
-      label: 'Product',
+      label: AppLocalizations.of(context)!.productLabel,
       value: _selectedSubcategory,
       items: subcategories,
       itemToString: (subcategory) => subcategory.name,
@@ -260,7 +261,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           _selectedSubcategory = subcategory;
         });
       },
-      placeholder: 'Select Product',
+      placeholder: AppLocalizations.of(context)!.selectProduct,
       enabled: _selectedCategory != null,
     );
   }
@@ -268,11 +269,12 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
 
   Widget _buildProductDetails() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Product Details',
+          l10n.productDetails,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -323,7 +325,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Category',
+                            l10n.categoryLabel,
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.dynamicTextSecondary(context),
@@ -331,7 +333,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _selectedCategory?.name ?? 'Not selected',
+                            _selectedCategory?.name ?? l10n.notSelected,
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -346,7 +348,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text(
-                            'Unit Price',
+                            l10n.unitPrice,
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.dynamicTextSecondary(context),
@@ -389,7 +391,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Quantity',
+                                l10n.quantity,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppColors.dynamicTextSecondary(context),
@@ -442,7 +444,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                'Total Amount',
+                                l10n.totalAmount,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppColors.dynamicTextSecondary(context),
@@ -476,7 +478,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Select a product above to view details',
+                        l10n.selectProductAboveToViewDetails,
                         style: TextStyle(
                           fontSize: 15,
                           color: AppColors.dynamicTextSecondary(context),
@@ -746,9 +748,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Add Debt',
-                style: TextStyle(
+            : Text(
+                AppLocalizations.of(context)!.addDebt,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),

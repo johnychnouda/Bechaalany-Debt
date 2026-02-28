@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../../constants/app_colors.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import '../../models/access.dart';
 
@@ -62,17 +63,17 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       await _loadAccess();
       
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
+        final duration = type == AccessType.monthly ? l10n.oneMonthLabel : l10n.oneYearLabel;
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
-            title: const Text('Success'),
-            content: Text(
-              'Access granted successfully (${type == AccessType.monthly ? "1 month" : "1 year"})!',
-            ),
+            title: Text(l10n.success),
+            content: Text(l10n.accessGrantedSuccess(duration)),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(l10n.ok),
               ),
             ],
           ),
@@ -80,15 +81,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
-            title: const Text('Error'),
-            content: Text('Failed to grant access: $e'),
+            title: Text(l10n.error),
+            content: Text(l10n.failedToGrantAccess(e.toString())),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(l10n.ok),
               ),
             ],
           ),
@@ -102,20 +104,21 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   }
 
   Future<void> _revokeAccess() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Revoke Access'),
-        content: const Text('Are you sure you want to revoke this user\'s access?'),
+        title: Text(l10n.revokeAccess),
+        content: Text(l10n.revokeAccessConfirm),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Revoke'),
+            child: Text(l10n.revoke),
           ),
         ],
       ),
@@ -132,15 +135,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       await _loadAccess();
       
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
-            title: const Text('Success'),
-            content: const Text('Access revoked successfully!'),
+            title: Text(l10n.success),
+            content: Text(l10n.accessRevokedSuccess),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(l10n.ok),
               ),
             ],
           ),
@@ -148,15 +152,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
-            title: const Text('Error'),
-            content: Text('Failed to revoke access: $e'),
+            title: Text(l10n.error),
+            content: Text(l10n.failedToRevokeAccess(e.toString())),
             actions: [
               CupertinoDialogAction(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
+                child: Text(l10n.ok),
               ),
             ],
           ),
@@ -174,12 +179,13 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   }
 
   /// Returns contextual text like "21/1/2026 (7 days remaining)" or "28/1/2026 (Expired)".
-  String _formatDateWithContext(DateTime date, int? daysRemaining, {bool isEndDate = true}) {
+  String _formatDateWithContext(BuildContext context, DateTime date, int? daysRemaining, {bool isEndDate = true}) {
+    final l10n = AppLocalizations.of(context)!;
     final dateStr = _formatDate(date);
     if (daysRemaining == null) return dateStr;
-    if (daysRemaining <= 0) return isEndDate ? '$dateStr (Expired)' : dateStr;
-    if (daysRemaining == 1) return '$dateStr (1 day left)';
-    return '$dateStr ($daysRemaining days left)';
+    if (daysRemaining <= 0) return isEndDate ? '$dateStr ${l10n.dateExpired}' : dateStr;
+    if (daysRemaining == 1) return '$dateStr ${l10n.dateDaysLeftOne}';
+    return '$dateStr ${l10n.dateDaysLeftOther(daysRemaining.toString())}';
   }
 
   Color _statusColor(AccessStatus status) {
@@ -196,10 +202,11 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return CupertinoPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('User Details'),
+        middle: Text(l10n.userDetails),
         backgroundColor: AppColors.dynamicSurface(context),
         border: null,
       ),
@@ -212,7 +219,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                     const CupertinoActivityIndicator(radius: 14),
                     const SizedBox(height: 16),
                     Text(
-                      'Loading user details…',
+                      l10n.loadingUserDetails,
                       style: TextStyle(
                         fontSize: 15,
                         color: AppColors.dynamicTextSecondary(context),
@@ -279,7 +286,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                     
                     // Current Status
                     Text(
-                      'Current Status',
+                      l10n.currentStatus,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -292,7 +299,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                     
                     // Actions
                     Text(
-                      'Actions',
+                      l10n.actions,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -329,7 +336,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Updating…',
+                                    l10n.updating,
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: AppColors.dynamicTextSecondary(context),
@@ -341,8 +348,8 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                           _buildActionGroup(
                             context,
                             icon: CupertinoIcons.checkmark_circle,
-                            title: 'Grant Access',
-                            description: 'Grant continued access to this user. Choose duration.',
+                            title: l10n.grantAccess,
+                            description: l10n.grantAccessDescription,
                             child: Row(
                               children: [
                                 Expanded(
@@ -350,7 +357,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                     onPressed: _isUpdating
                                         ? null
                                         : () => _grantAccess(AccessType.monthly),
-                                    child: const Text('1 Month'),
+                                    child: Text(l10n.oneMonth),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -359,7 +366,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                     onPressed: _isUpdating
                                         ? null
                                         : () => _grantAccess(AccessType.yearly),
-                                    child: const Text('1 Year'),
+                                    child: Text(l10n.oneYear),
                                   ),
                                 ),
                               ],
@@ -370,12 +377,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                             _buildActionGroup(
                               context,
                               icon: CupertinoIcons.xmark_circle_fill,
-                              title: 'Revoke Access',
-                              description: 'Temporarily suspend this account. The user can contact you if there is an issue.',
+                              title: l10n.revokeAccess,
+                              description: l10n.revokeAccessDescription,
                               isDestructive: true,
                               child: _buildDestructiveOutlineButton(
                                 context,
-                                label: 'Revoke Access',
+                                label: l10n.revokeAccess,
                                 icon: CupertinoIcons.xmark_circle,
                                 onPressed: _isUpdating ? null : _revokeAccess,
                               ),
@@ -484,6 +491,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
 
   Widget _buildStatusCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final sub = _access;
     return Container(
       padding: const EdgeInsets.all(4),
@@ -508,7 +516,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'No access data',
+                    l10n.noAccessData,
                     style: TextStyle(
                       fontSize: 15,
                       color: AppColors.dynamicTextSecondary(context),
@@ -519,17 +527,18 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
             )
           : Column(
               children: [
-                _buildStatusRow('Status', _getActualStatusLabel(sub),
+                _buildStatusRow(l10n.status, _getActualStatusLabel(context, sub),
                     valueColor: _getActualStatusColor(sub)),
                 if (sub.trialStartDate != null) ...[
                   _buildStatusDivider(),
-                  _buildStatusRow('Trial Started', _formatDate(sub.trialStartDate!)),
+                  _buildStatusRow(l10n.trialStarted, _formatDate(sub.trialStartDate!)),
                 ],
                 if (sub.trialEndDate != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Trial Ends',
+                    l10n.trialEnds,
                     _formatDateWithContext(
+                      context,
                       sub.trialEndDate!,
                       sub.trialDaysRemaining,
                       isEndDate: true,
@@ -539,15 +548,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 if (sub.accessStartDate != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Access Started',
+                    l10n.accessStarted,
                     _formatDate(sub.accessStartDate!),
                   ),
                 ],
                 if (sub.accessEndDate != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Access Ends',
+                    l10n.accessEnds,
                     _formatDateWithContext(
+                      context,
                       sub.accessEndDate!,
                       sub.accessDaysRemaining,
                       isEndDate: true,
@@ -557,8 +567,8 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 if (sub.type != null) ...[
                   _buildStatusDivider(),
                   _buildStatusRow(
-                    'Access Period',
-                    sub.type == AccessType.monthly ? '1 month' : '1 year',
+                    l10n.accessPeriod,
+                    sub.type == AccessType.monthly ? l10n.oneMonthLabel : l10n.oneYearLabel,
                     valueColor: AppColors.dynamicPrimary(context),
                   ),
                 ],
@@ -575,7 +585,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Updated ${_formatDate(sub.lastUpdated)}',
+                        l10n.updatedDate(_formatDate(sub.lastUpdated)),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.dynamicTextSecondary(context),
@@ -589,35 +599,37 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     );
   }
 
-  String _statusLabel(AccessStatus s) {
+  String _statusLabel(BuildContext context, AccessStatus s) {
+    final l10n = AppLocalizations.of(context)!;
     switch (s) {
       case AccessStatus.trial:
-        return 'Trial';
+        return l10n.trial;
       case AccessStatus.active:
-        return 'Active';
+        return l10n.active;
       case AccessStatus.expired:
-        return 'Expired';
+        return l10n.expired;
       case AccessStatus.cancelled:
-        return 'Cancelled';
+        return l10n.cancelled;
     }
   }
 
-  String _getActualStatusLabel(Access access) {
-    if (access.status == AccessStatus.cancelled) return 'Cancelled';
-    if (access.status == AccessStatus.expired) return 'Expired';
+  String _getActualStatusLabel(BuildContext context, Access access) {
+    final l10n = AppLocalizations.of(context)!;
+    if (access.status == AccessStatus.cancelled) return l10n.cancelled;
+    if (access.status == AccessStatus.expired) return l10n.expired;
     if (access.status == AccessStatus.active) {
       if (access.accessEndDate != null) {
-        if (DateTime.now().isAfter(access.accessEndDate!)) return 'Expired';
+        if (DateTime.now().isAfter(access.accessEndDate!)) return l10n.expired;
       }
-      return 'Active';
+      return l10n.active;
     }
     if (access.status == AccessStatus.trial) {
       if (access.trialEndDate != null) {
-        if (DateTime.now().isAfter(access.trialEndDate!)) return 'Trial Expired';
+        if (DateTime.now().isAfter(access.trialEndDate!)) return l10n.trialExpired;
       }
-      return 'Trial';
+      return l10n.trial;
     }
-    return _statusLabel(access.status);
+    return _statusLabel(context, access.status);
   }
 
   bool _isAccessActuallyActive(Access? access) {

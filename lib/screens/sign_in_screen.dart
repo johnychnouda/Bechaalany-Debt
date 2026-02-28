@@ -5,6 +5,7 @@ import 'dart:io' show Platform;
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/logo_utils.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -33,14 +34,14 @@ class _SignInScreenState extends State<SignInScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _errorMessage = 'Google sign-in was cancelled';
+            _errorMessage = AppLocalizations.of(context)!.googleSignInCancelled;
           });
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = 'Google sign-in failed: ${e.toString()}';
+          _errorMessage = AppLocalizations.of(context)!.googleSignInFailed(e.toString());
         });
       }
     } finally {
@@ -66,7 +67,7 @@ class _SignInScreenState extends State<SignInScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _errorMessage = 'Apple sign-in was cancelled';
+            _errorMessage = AppLocalizations.of(context)!.appleSignInCancelled;
           });
         }
       }
@@ -74,14 +75,15 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         setState(() {
           // Provide user-friendly error messages
+          final l10n = AppLocalizations.of(context)!;
           if (e.toString().contains('cancelled')) {
-            _errorMessage = 'Apple sign-in was cancelled. Please try again.';
+            _errorMessage = l10n.appleSignInCancelledTryAgain;
           } else if (e.toString().contains('not available')) {
-            _errorMessage = 'Apple Sign-In is not available. Please check your device settings.';
+            _errorMessage = l10n.appleSignInNotAvailable;
           } else if (e.toString().contains('network')) {
-            _errorMessage = 'Network error. Please check your internet connection.';
+            _errorMessage = l10n.networkError;
           } else {
-            _errorMessage = 'Apple sign-in failed. Please try again or use Google Sign-In instead.';
+            _errorMessage = l10n.appleSignInFailed;
           }
         });
       }
@@ -141,7 +143,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: 'Bechaalany ',
+                        text: AppLocalizations.of(context)!.signInTitleBechaalany,
                         style: AppTheme.title1.copyWith(
                           color: Colors.black,
                           fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
@@ -150,7 +152,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                       ),
                       TextSpan(
-                        text: 'Connect',
+                        text: AppLocalizations.of(context)!.signInTitleConnect,
                         style: AppTheme.title1.copyWith(
                           color: const Color(0xFFFF3B30),
                           fontSize: isSmallScreen ? 28 : isLargeScreen ? 32 : 30,
@@ -164,20 +166,25 @@ class _SignInScreenState extends State<SignInScreen> {
                 
                 SizedBox(height: AppTheme.spacing16),
                 
-                // Subtitle with Elegant Styling
-                Text(
-                  Platform.isIOS
-                      ? 'Sign in with your Google or Apple account to get started'
-                      : 'Sign in with your Google account to get started',
-                  style: AppTheme.body.copyWith(
-                    color: AppColors.textSecondary,
-                    fontSize: isSmallScreen ? 15 : 17,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0.2,
+                // Subtitle with Elegant Styling (1 line, scales to fit)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacing24),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      Platform.isIOS
+                          ? AppLocalizations.of(context)!.signInSubtitle
+                          : AppLocalizations.of(context)!.signInSubtitleGoogleOnly,
+                      style: AppTheme.body.copyWith(
+                        color: AppColors.textSecondary,
+                        fontSize: isSmallScreen ? 15 : 17,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.2,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing48 : AppTheme.spacing56),
@@ -231,7 +238,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ),
                       const SizedBox(height: AppTheme.spacing16),
                       Text(
-                        'Signing you in...',
+                        AppLocalizations.of(context)!.signingIn,
                         style: AppTheme.callout.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -274,7 +281,7 @@ class _SignInScreenState extends State<SignInScreen> {
                               ),
                               const SizedBox(width: 12),
                               Text(
-                                'Continue with Google',
+                                AppLocalizations.of(context)!.continueWithGoogle,
                                 style: AppTheme.headline.copyWith(
                                   color: const Color(0xFF1C1C1E),
                                   fontWeight: FontWeight.w500,
@@ -322,7 +329,7 @@ class _SignInScreenState extends State<SignInScreen> {
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
-                                  'Continue with Apple',
+                                  AppLocalizations.of(context)!.continueWithApple,
                                   style: AppTheme.headline.copyWith(
                                     color: const Color(0xFF1C1C1E),
                                     fontWeight: FontWeight.w500,

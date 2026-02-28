@@ -1101,6 +1101,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   Future<void> _shareReceiptViaWhatsApp() async {
     try {
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
+        context,
         widget.customer,
         widget.customerDebts,
         widget.activities,
@@ -1121,6 +1122,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
   Future<void> _shareReceiptViaEmail() async {
     try {
       final success = await ReceiptSharingService.shareReceiptViaEmail(
+        context,
         widget.customer,
         widget.customerDebts,
         widget.activities,
@@ -1142,6 +1144,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     try {
       // Generate PDF receipt for iOS
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        context: context,
         customer: widget.customer,
         debts: widget.customerDebts,
         activities: widget.activities,

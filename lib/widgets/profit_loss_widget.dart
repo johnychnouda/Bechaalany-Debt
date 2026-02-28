@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
@@ -108,59 +109,50 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Financial',
-                              style: AppTheme.title3.copyWith(
-                                color: AppColors.dynamicTextPrimary(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ' Analysis',
-                              style: AppTheme.title3.copyWith(
-                                color: AppColors.dynamicTextPrimary(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                      Text(
+                        AppLocalizations.of(context)!.financialAnalysis,
+                        style: AppTheme.title3.copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 20),
                   _buildProfitLossCard(
-                    'Total Revenue',
+                    'total_revenue',
+                    AppLocalizations.of(context)!.totalRevenue,
                     totalRevenue,
                     Icons.arrow_upward,
                     AppColors.success,
-                    subtitle: 'From product profit margins',
+                    subtitle: AppLocalizations.of(context)!.fromProductProfitMargins,
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
-                    'Potential Revenue',
+                    'potential_revenue',
+                    AppLocalizations.of(context)!.potentialRevenue,
                     revenueSummary['totalPotentialRevenue'] ?? 0.0,
                     Icons.trending_up,
                     AppColors.warning,
-                    subtitle: 'From unpaid amounts',
+                    subtitle: AppLocalizations.of(context)!.fromUnpaidAmounts,
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
-                    'Total Debts',
+                    'total_debts',
+                    AppLocalizations.of(context)!.totalDebts,
                     totalDebts,
                     Icons.arrow_downward,
                     AppColors.error,
-                    subtitle: 'Outstanding amounts',
+                    subtitle: AppLocalizations.of(context)!.outstandingAmounts,
                   ),
                   const SizedBox(height: 12),
                   _buildProfitLossCard(
-                    'Total Payments',
+                    'total_payments',
+                    AppLocalizations.of(context)!.totalPayments,
                     totalPayments,
                     Icons.payment,
                     AppColors.info,
-                    subtitle: 'From customer payments',
+                    subtitle: AppLocalizations.of(context)!.fromCustomerPayments,
                   ),
 
 
@@ -174,20 +166,20 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
     );
   }
 
-  Widget _buildProfitLossCard(String title, double amount, IconData icon, Color color, {String? subtitle}) {
-    // Determine background color based on the title
+  Widget _buildProfitLossCard(String cardKey, String title, double amount, IconData icon, Color color, {String? subtitle}) {
+    // Determine background color based on card key (stable across locales)
     Color backgroundColor;
-    switch (title) {
-      case 'Total Revenue':
+    switch (cardKey) {
+      case 'total_revenue':
         backgroundColor = AppColors.success.withValues(alpha: 0.1); // Light green
         break;
-      case 'Potential Revenue':
+      case 'potential_revenue':
         backgroundColor = AppColors.warning.withValues(alpha: 0.1); // Light orange
         break;
-      case 'Total Debts':
+      case 'total_debts':
         backgroundColor = AppColors.error.withValues(alpha: 0.1); // Light red
         break;
-      case 'Total Payments':
+      case 'total_payments':
         backgroundColor = AppColors.info.withValues(alpha: 0.1); // Light blue
         break;
       default:

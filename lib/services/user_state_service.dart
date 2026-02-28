@@ -377,12 +377,22 @@ class UserStateService {
         };
       }
 
-      // Force check if user still exists in Firebase
+      // Force check if user still exists in Firebase (reload can fail for
+      // network/timing right after OAuth return — only treat as deleted for
+      // user-not-found / user-disabled).
+      bool reloadFailed = false;
+      bool userDeleted = false;
       try {
         await user.reload();
       } catch (e) {
-        // If reload fails, user was deleted from Firebase
-        // Return status that will trigger sign out
+        reloadFailed = true;
+        if (e is FirebaseAuthException &&
+            (e.code == 'user-not-found' || e.code == 'user-disabled')) {
+          userDeleted = true;
+        }
+      }
+
+      if (userDeleted) {
         return {
           'isNewUser': true,
           'isVerified': false,
@@ -391,12 +401,12 @@ class UserStateService {
           'userId': null,
           'needsOnboarding': true,
           'needsVerification': true,
-          'userDeleted': true, // Flag to indicate user was deleted
+          'userDeleted': true,
         };
       }
 
       final isNew = await isNewUser();
-      final isVerified = await isUserVerified();
+      final isVerified = reloadFailed ? user.emailVerified : await isUserVerified();
       
       return {
         'isNewUser': isNew,

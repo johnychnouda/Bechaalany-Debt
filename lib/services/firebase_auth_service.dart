@@ -73,7 +73,14 @@ class FirebaseAuthService {
     }
   }
 
-  // Delete account
+  /// Re-authenticate the current user (required before delete and other sensitive operations).
+  Future<void> reauthenticateWithCredential(AuthCredential credential) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('No user signed in');
+    await user.reauthenticateWithCredential(credential);
+  }
+
+  // Delete account (call reauthenticateWithCredential first if you get requires-recent-login)
   Future<void> deleteAccount() async {
     try {
       await _auth.currentUser?.delete();

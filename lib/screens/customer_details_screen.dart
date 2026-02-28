@@ -20,6 +20,7 @@ import 'add_debt_from_product_screen.dart';
 import 'add_customer_screen.dart';
 import 'customer_debt_receipt_screen.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
@@ -83,32 +84,47 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     return sortedDebts.where((debt) => debt.remainingAmount > 0).toList();
   }
 
-  // Helper method to format dates
-  String _formatDate(DateTime date) {
+  // Arabic-Indic numerals (٠١٢٣٤٥٦٧٨٩) for time/date when locale is Arabic
+  static const String _arabicIndicNumerals = '٠١٢٣٤٥٦٧٨٩';
+  static String _toArabicNumerals(String s) {
+    return s.replaceAllMapped(RegExp(r'\d'), (m) => _arabicIndicNumerals[int.parse(m.group(0)!)]);
+  }
+
+  // Helper method to format dates (uses l10n for localized strings)
+  String _formatDate(BuildContext context, DateTime date) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+    final isArabic = locale.languageCode == 'ar';
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final debtDate = DateTime(date.year, date.month, date.day);
-    
-    // Format time as HH:MM:SS AM/PM
+
+    // Format time as HH:MM:SS with localized AM/PM
     final hour = date.hour;
     final minute = date.minute.toString().padLeft(2, '0');
     final second = date.second.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'PM' : 'AM';
+    final period = hour >= 12 ? l10n.timePm : l10n.timeAm;
     final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-    final timeString = '$displayHour:$minute:$second $period';
-    
+    String timeString = '$displayHour:$minute:$second $period';
+    if (isArabic) {
+      timeString = _toArabicNumerals(timeString);
+    }
+
     if (debtDate == today) {
-      return 'Today at $timeString';
+      return l10n.todayAtTime(timeString);
     } else if (debtDate == yesterday) {
-      return 'Yesterday at $timeString';
+      return l10n.yesterdayAtTime(timeString);
     } else {
-      // Format: DD/MM/YYYY at HH:MM:SS AM/PM
       final day = date.day.toString().padLeft(2, '0');
       final month = date.month.toString().padLeft(2, '0');
       final year = date.year.toString();
-      
-      return 'Created on $day/$month/$year at $timeString';
+      String dateStr = '$day/$month/$year';
+      if (isArabic) {
+        dateStr = _toArabicNumerals(dateStr);
+      }
+      return l10n.createdOnDateAtTime(dateStr, timeString);
     }
   }
   
@@ -398,6 +414,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       // Generate PDF receipt
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        context: context,
         customer: _currentCustomer,
         debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
         // Note: Partial payments are now handled as activities only
@@ -433,6 +450,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // Note: Partial payments are now handled as activities only
       
       final success = await ReceiptSharingService.shareReceiptViaWhatsApp(
+        context,
         widget.customer,
         appState.debts.where((d) => d.customerId == widget.customer.id).toList(),
         appState.activities.where((a) => a.customerId == widget.customer.id).toList(),
@@ -647,6 +665,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       // Note: Partial payments are now handled as activities only
       
       final success = await ReceiptSharingService.shareReceiptViaEmail(
+        context,
         _currentCustomer,
         appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
         appState.activities.where((a) => a.customerId == _currentCustomer.id).toList(),
@@ -667,6 +686,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       // Generate PDF receipt
       final pdfFile = await ReceiptSharingService.generateReceiptPDF(
+        context: context,
         customer: _currentCustomer,
         debts: appState.debts.where((d) => d.customerId == _currentCustomer.id).toList(),
         // Note: Partial payments are now handled as activities only
@@ -807,6 +827,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Check if customer has ANY partial payments (this will hide all red X icons)
         // ANY partial payment (even $0.01) should disable delete functionality for ALL products
         final customerHasPartialPayments = allCustomerDebts.any((d) => d.paidAmount > 0);
+        final l10n = AppLocalizations.of(context)!;
         
         // Get all customer debts and sort by date and time in descending order (newest first)
         final customerAllDebts = appState.debts
@@ -911,7 +932,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                       Padding(
                         padding: const EdgeInsets.all(16),
                         child: Text(
-                          'CUSTOMER INFORMATION',
+                          l10n.customerInformation.toUpperCase(),
                           style: AppTheme.getDynamicSubheadline(context).copyWith(
                             color: AppColors.dynamicTextSecondary(context),
                             letterSpacing: 0.5,
@@ -926,7 +947,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           color: AppColors.dynamicTextSecondary(context),
                         ),
                         title: Text(
-                          'Customer ID',
+                          l10n.customerId,
                           style: AppTheme.getDynamicBody(context).copyWith(
                             color: AppColors.dynamicTextPrimary(context),
                           ),
@@ -945,7 +966,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           color: AppColors.dynamicTextSecondary(context),
                         ),
                         title: Text(
-                          'Full Name',
+                          l10n.fullName,
                           style: TextStyle(
                             fontSize: 17,
                             color: AppColors.dynamicTextPrimary(context),
@@ -966,7 +987,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           color: AppColors.dynamicTextSecondary(context),
                         ),
                         title: Text(
-                          'Phone Number',
+                          l10n.phoneNumber,
                           style: TextStyle(
                             fontSize: 17,
                             color: AppColors.dynamicTextPrimary(context),
@@ -988,7 +1009,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                             color: AppColors.dynamicTextSecondary(context),
                           ),
                           title: Text(
-                            'Email Address',
+                            l10n.emailAddress,
                             style: TextStyle(
                               fontSize: 17,
                               color: AppColors.dynamicTextPrimary(context),
@@ -1010,7 +1031,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                             color: AppColors.dynamicTextSecondary(context),
                           ),
                           title: Text(
-                            'Address',
+                            l10n.address,
                             style: TextStyle(
                               fontSize: 17,
                               color: AppColors.dynamicTextPrimary(context),
@@ -1051,7 +1072,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           children: [
                             Expanded(
                               child: Text(
-                                'Financial Summary',
+                                l10n.financialSummary,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
@@ -1092,7 +1113,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                           child: Row(
                             children: [
                               Text(
-                                'Product Purchases',
+                                l10n.productPurchases,
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w500,
@@ -1107,7 +1128,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                                               child: Text(
-                                '${customerActiveDebts.length} products',
+                                l10n.productsCount('${customerActiveDebts.length}'),
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -1163,7 +1184,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                           ],
                                         ),
                                         Text(
-                                          _formatDate(debt.createdAt),
+                                          _formatDate(context, debt.createdAt),
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: AppColors.dynamicTextSecondary(context),
@@ -1234,7 +1255,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                                       child: ElevatedButton.icon(
                                         onPressed: () => _showConsolidatedPaymentDialog(context, customerActiveDebts),
                                         icon: const Icon(Icons.payment, size: 20),
-                                        label: const Text('Make Payment'),
+                                        label: Text(l10n.makePayment),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: AppColors.primary,
                                           foregroundColor: Colors.white,
@@ -1268,7 +1289,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                               Row(
                                 children: [
                                   Text(
-                                    'Total Pending:',
+                                    '${l10n.totalPending}:',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
@@ -1291,7 +1312,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                             Row(
                               children: [
                                 Text(
-                                  'Total Paid:',
+                                  '${l10n.totalPaid}:',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
@@ -1968,152 +1989,189 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     return '${totalUSD.toStringAsFixed(2)}\$';
   }
   
-  // Show dialog to confirm deletion of a single debt
+  // Show bottom sheet to confirm deletion of a single debt (quick action style)
   void _showDeleteDebtDialog(BuildContext context, Debt debt) {
-    showDialog(
+    final l10n = AppLocalizations.of(context)!;
+    // Format the amount properly using stored currency
+    final formattedAmount = CurrencyFormatter.formatAmount(
+      context,
+      debt.amount,
+      storedCurrency: debt.storedCurrency,
+    );
+
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext dialogContext) {
-        // Format the amount properly using stored currency
-        final formattedAmount = CurrencyFormatter.formatAmount(
-          context, 
-          debt.amount, 
-          storedCurrency: debt.storedCurrency
-        );
-        
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Colors.orange,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              const Text('Delete Debt'),
-            ],
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Are you sure you want to delete this debt?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.dynamicTextPrimary(context),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicSurface(context),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.dynamicBorder(context)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Debt Details:',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.dynamicTextSecondary(context),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle bar
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2.5),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.description,
-                          size: 16,
-                          color: AppColors.dynamicTextSecondary(context),
+                  ),
+                  const SizedBox(height: 16),
+                  // Title
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        l10n.deleteDebt,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.dynamicTextPrimary(context),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.deleteDebtConfirm,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.dynamicTextPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.dynamicBackground(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.dynamicBorder(context)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.debtDetails,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextSecondary(context),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.description,
+                              size: 16,
+                              color: AppColors.dynamicTextSecondary(context),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                debt.description,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.dynamicTextPrimary(context),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.attach_money,
+                              size: 16,
+                              color: AppColors.dynamicTextSecondary(context),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${l10n.amountLabel} $formattedAmount',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.dynamicTextPrimary(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.deleteDebtCannotUndo,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.orange[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
                           child: Text(
-                            debt.description,
+                            l10n.cancel,
                             style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.dynamicTextPrimary(context),
+                              color: AppColors.dynamicPrimary(context),
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.attach_money,
-                          size: 16,
-                          color: AppColors.dynamicTextSecondary(context),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Amount: $formattedAmount',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.dynamicTextPrimary(context),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.of(sheetContext).pop();
+                            await _deleteSingleDebt(debt);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            l10n.delete,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                '⚠️ This action cannot be undone.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.orange[700],
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(
-                      color: AppColors.dynamicPrimary(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    Navigator.of(dialogContext).pop();
-                    await _deleteSingleDebt(debt);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
             ),
-          ],
+          ),
         );
       },
     );

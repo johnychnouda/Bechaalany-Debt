@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart' as intl;
 import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../services/data_service.dart';
 import '../services/backup_service.dart';
@@ -16,6 +18,19 @@ class DataRecoveryScreen extends StatefulWidget {
 }
 
 class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
+  static const String _arabicIndicNumerals = '٠١٢٣٤٥٦٧٨٩';
+
+  static String _toArabicNumerals(String s) {
+    return s.replaceAllMapped(RegExp(r'\d'), (m) => _arabicIndicNumerals[int.parse(m.group(0)!)]);
+  }
+
+  static String _formatNumbersForLocale(BuildContext context, String s) {
+    if (Localizations.localeOf(context).languageCode == 'ar') {
+      return _toArabicNumerals(s);
+    }
+    return s;
+  }
+
   final DataService _dataService = DataService();
   final BackupService _backupService = BackupService();
   // Background services removed - no longer needed
@@ -25,9 +40,11 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   bool _isBackgroundBackupAvailable = false;
   bool _isBackgroundAppRefreshAvailable = false;
   DateTime? _lastBackupTime;
-  String _nextBackupTime = '';
-  
-  // Timer to automatically refresh the countdown every minute
+  int _nextBackupHours = 0;
+  int _nextBackupMinutes = 0;
+  int _nextBackupSeconds = 0;
+
+  // Timer to automatically refresh the countdown every second
   Timer? _refreshTimer;
   
   @override
@@ -116,17 +133,23 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     final hours = timeRemaining.inHours;
     final minutes = timeRemaining.inMinutes % 60;
     final seconds = timeRemaining.inSeconds % 60;
-    
-    final newTimeString = '${hours}h ${minutes.toString().padLeft(2, '0')}m ${seconds.toString().padLeft(2, '0')}s';
-    
-    // Only update state if the time string has changed
-    if (_nextBackupTime != newTimeString) {
-      setState(() {
-        _nextBackupTime = newTimeString;
-      });
-      
 
+    if (hours != _nextBackupHours || minutes != _nextBackupMinutes || seconds != _nextBackupSeconds) {
+      setState(() {
+        _nextBackupHours = hours;
+        _nextBackupMinutes = minutes;
+        _nextBackupSeconds = seconds;
+      });
     }
+  }
+
+  String _formatNextBackupCountdown(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final h = _nextBackupHours.toString();
+    final m = _nextBackupMinutes.toString().padLeft(2, '0');
+    final s = _nextBackupSeconds.toString().padLeft(2, '0');
+    final timeStr = '${h}${l10n.hoursShort} ${m}${l10n.minutesShort} ${s}${l10n.secondsShort}';
+    return _formatNumbersForLocale(context, timeStr);
   }
 
   // Start automatic refresh timer
@@ -223,23 +246,24 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   Future<void> _restoreFromBackup(String backupPath) async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Restore Data'),
-        content: const Text(
-          'This will replace all current data with the backup. This action cannot be undone. Are you sure?'
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(true),
-            isDestructiveAction: true,
-            child: const Text('Restore'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return CupertinoAlertDialog(
+          title: Text(l10n.restoreData),
+          content: Text(l10n.restoreDataConfirm),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(true),
+              isDestructiveAction: true,
+              child: Text(l10n.restore),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -270,23 +294,24 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
   Future<void> _deleteBackup(String backupPath) async {
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: const Text('Delete Backup'),
-        content: const Text(
-          'This will permanently delete the backup file. This action cannot be undone. Are you sure?'
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(true),
-            isDestructiveAction: true,
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return CupertinoAlertDialog(
+          title: Text(l10n.deleteBackup),
+          content: Text(l10n.deleteBackupConfirm),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l10n.cancel),
+            ),
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(true),
+              isDestructiveAction: true,
+              child: Text(l10n.delete),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirmed != true) return;
@@ -313,7 +338,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          'Data Recovery',
+          AppLocalizations.of(context)!.dataRecovery,
           style: AppTheme.getDynamicTitle2(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
             fontWeight: FontWeight.w600,
@@ -350,7 +375,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Manual Backup',
+          AppLocalizations.of(context)!.manualBackup,
           style: AppTheme.getDynamicTitle3(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
             fontWeight: FontWeight.w600,
@@ -388,7 +413,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Create Backup',
+                        AppLocalizations.of(context)!.createBackup,
                         style: AppTheme.getDynamicTitle3(context).copyWith(
                           color: AppColors.dynamicTextPrimary(context),
                           fontWeight: FontWeight.w600,
@@ -411,7 +436,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Backup',
+                      AppLocalizations.of(context)!.backupButton,
                       style: AppTheme.getDynamicBody(context).copyWith(
                         color: AppColors.dynamicSurface(context),
                         fontWeight: FontWeight.w600,
@@ -432,7 +457,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Automatic Backup',
+          AppLocalizations.of(context)!.automaticBackup,
           style: AppTheme.getDynamicTitle3(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
             fontWeight: FontWeight.w600,
@@ -454,6 +479,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(6),
@@ -469,29 +495,15 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child:                                                   Text(
-                          _isBackgroundAppRefreshAvailable 
-                              ? 'Daily Background App Refresh at 12 AM'
-                              : _isBackgroundBackupAvailable 
-                                  ? 'Daily Background Backup at 12 AM'
-                                  : 'Daily Backup at 12 AM',
-                          style: AppTheme.getDynamicTitle3(context).copyWith(
-                            color: AppColors.dynamicTextPrimary(context),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                      child: Text(
+                        AppLocalizations.of(context)!.dailyBackupAt12AM,
+                        style: AppTheme.getDynamicTitle3(context).copyWith(
+                          color: AppColors.dynamicTextPrimary(context),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
                         ),
-                              ),
-                            ],
-                          ),
-                        ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     CupertinoSwitch(
@@ -536,7 +548,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        'Next backup in: $_nextBackupTime',
+                        AppLocalizations.of(context)!.nextBackupIn(_formatNextBackupCountdown(context)),
                         style: AppTheme.getDynamicFootnote(context).copyWith(
                           color: AppColors.dynamicPrimary(context),
                           fontWeight: FontWeight.w600,
@@ -567,7 +579,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Last backup: ${_formatLastBackupTime()}',
+                          AppLocalizations.of(context)!.lastBackup(_formatLastBackupTime(context)),
                           style: AppTheme.getDynamicFootnote(context).copyWith(
                             color: AppColors.dynamicTextSecondary(context),
                             fontSize: 13,
@@ -588,64 +600,48 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     );
   }
 
-  String _formatLastBackupTime() {
-    if (_lastBackupTime == null) return 'Never';
-    
+  String _formatLastBackupTime(BuildContext context) {
+    if (_lastBackupTime == null) return AppLocalizations.of(context)!.never;
+
+    final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final backupDate = DateTime(_lastBackupTime!.year, _lastBackupTime!.month, _lastBackupTime!.day);
-    
-    // Convert to 12-hour format with AM/PM and seconds
-    int hour12 = _lastBackupTime!.hour == 0 ? 12 : (_lastBackupTime!.hour > 12 ? _lastBackupTime!.hour - 12 : _lastBackupTime!.hour);
-    String minute = _lastBackupTime!.minute.toString().padLeft(2, '0');
-    String second = _lastBackupTime!.second.toString().padLeft(2, '0');
-    String ampm = _lastBackupTime!.hour < 12 ? 'am' : 'pm';
-    String timeString = '$hour12:$minute:$second $ampm';
-    
+
+    final locale = Localizations.localeOf(context).toString();
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final timeFormat = intl.DateFormat.jm(locale);
+    String timeString = timeFormat.format(_lastBackupTime!);
+    if (isArabic) timeString = _toArabicNumerals(timeString);
+
     if (backupDate == today) {
-      return 'Today at $timeString';
+      return l10n.todayAtTime(timeString);
     } else if (backupDate == yesterday) {
-      return 'Yesterday at $timeString';
+      return l10n.yesterdayAtTime(timeString);
     } else {
-      // Show full date and time for backups older than yesterday
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      
-      String month = months[_lastBackupTime!.month - 1];
-      String day = _lastBackupTime!.day.toString().padLeft(2, '0');
-      String year = _lastBackupTime!.year.toString();
-      
-      return '$month $day, $year at $timeString';
+      final dateFormat = intl.DateFormat.yMMMd(locale);
+      String dateStr = dateFormat.format(_lastBackupTime!);
+      if (isArabic) dateStr = _toArabicNumerals(dateStr);
+      return l10n.dateAtTime(dateStr, timeString);
     }
   }
 
 
-  String _formatBackupFileName(String fileName) {
+  String _formatBackupFileName(BuildContext context, String fileName) {
     // Extract timestamp from backup filename (e.g., "backup_1754326124601")
     if (fileName.startsWith('backup_')) {
       try {
         final timestamp = fileName.substring(7); // Remove "backup_" prefix
         final dateTime = DateTime.fromMillisecondsSinceEpoch(int.parse(timestamp));
-        
-        // Format date and time in 12-hour format
-        final month = dateTime.month.toString().padLeft(2, '0');
-        final day = dateTime.day.toString().padLeft(2, '0');
-        final year = dateTime.year;
-        
-        // Convert to 12-hour format
-        int hour = dateTime.hour;
-        final period = hour >= 12 ? 'PM' : 'AM';
-        if (hour == 0) hour = 12;
-        if (hour > 12) hour -= 12;
-        final formattedHour = hour.toString().padLeft(2, '0');
-        final minute = dateTime.minute.toString().padLeft(2, '0');
-        
-        return '$month/$day/$year $formattedHour:$minute $period';
+        final locale = Localizations.localeOf(context).toString();
+        final formatter = intl.DateFormat.yMd(locale).add_jm();
+        String result = formatter.format(dateTime);
+        if (Localizations.localeOf(context).languageCode == 'ar') {
+          result = _toArabicNumerals(result);
+        }
+        return result;
       } catch (e) {
-        // If parsing fails, return the original filename
         return fileName;
       }
     }
@@ -657,7 +653,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Available Backups',
+          AppLocalizations.of(context)!.availableBackups,
           style: AppTheme.getDynamicTitle3(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
             fontWeight: FontWeight.w600,
@@ -694,8 +690,8 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                   Expanded(
                     child: Text(
                       Provider.of<AppState>(context, listen: false).isAuthenticated
-                          ? 'No backups available. Create your first backup to get started.'
-                          : 'Please sign in to view and manage your backups.',
+                          ? AppLocalizations.of(context)!.noBackupsAvailable
+                          : AppLocalizations.of(context)!.signInToViewBackups,
                       style: AppTheme.getDynamicFootnote(context).copyWith(
                         color: AppColors.dynamicTextSecondary(context),
                         fontSize: 15,
@@ -712,7 +708,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
               final index = entry.key;
               final backupPath = entry.value;
               final fileName = backupPath.split('/').last;
-              final formattedDate = _formatBackupFileName(fileName);
+              final formattedDate = _formatBackupFileName(context, fileName);
               final metadata = _backupMetadata[backupPath];
               final isAutomatic = metadata?['isAutomatic'] ?? false;
               final backupType = metadata?['backupType'] ?? 'manual';
@@ -755,7 +751,9 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                               ),
                               const SizedBox(height: 1),
                               Text(
-                                isAutomatic ? 'Automatic backup' : 'Manual backup',
+                                isAutomatic
+                                    ? AppLocalizations.of(context)!.automaticBackupLabel
+                                    : AppLocalizations.of(context)!.manualBackupLabel,
                                 style: AppTheme.getDynamicCaption1(context).copyWith(
                                   color: AppColors.dynamicTextSecondary(context),
                                   fontSize: 12,
@@ -780,7 +778,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'Restore',
+                                  AppLocalizations.of(context)!.restore,
                                   style: AppTheme.getDynamicCaption1(context).copyWith(
                                     color: AppColors.dynamicSurface(context),
                                     fontWeight: FontWeight.w600,
@@ -803,7 +801,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
-                                  'Delete',
+                                  AppLocalizations.of(context)!.delete,
                                   style: AppTheme.getDynamicCaption1(context).copyWith(
                                     color: AppColors.dynamicSurface(context),
                                     fontWeight: FontWeight.w600,

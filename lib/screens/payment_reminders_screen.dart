@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../models/customer.dart';
 import '../utils/currency_formatter.dart';
@@ -145,7 +146,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                           ),
                           Expanded(
                             child: Text(
-                              'Payment Reminders',
+                              AppLocalizations.of(context)!.paymentRemindersTitle,
                               style: TextStyle(
                                 color: AppColors.dynamicTextPrimary(context),
                                 fontSize: 18,
@@ -159,7 +160,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                             TextButton(
                               onPressed: _clearSelection,
                               child: Text(
-                                'Clear',
+                                AppLocalizations.of(context)!.clearSelection,
                                 style: TextStyle(
                                   color: AppColors.dynamicPrimary(context),
                                   fontSize: 17,
@@ -171,7 +172,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                             TextButton(
                               onPressed: _selectAllCustomers,
                               child: Text(
-                                'Select All',
+                                AppLocalizations.of(context)!.selectAll,
                                 style: TextStyle(
                                   color: AppColors.dynamicPrimary(context),
                                   fontSize: 17,
@@ -183,7 +184,9 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${customersWithDebts.length} customer${customersWithDebts.length == 1 ? '' : 's'} with outstanding debts',
+                        customersWithDebts.length == 1
+                            ? AppLocalizations.of(context)!.paymentRemindersCustomerCountOne
+                            : AppLocalizations.of(context)!.paymentRemindersCustomerCountOther(customersWithDebts.length.toString()),
                         style: TextStyle(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 15,
@@ -209,7 +212,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                     child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search by name or ID',
+                        hintText: AppLocalizations.of(context)!.searchByNameOrId,
                         hintStyle: TextStyle(
                           color: AppColors.dynamicTextSecondary(context),
                           fontSize: 16,
@@ -255,7 +258,9 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            '${_selectedCustomerIds.length} customer${_selectedCustomerIds.length == 1 ? '' : 's'} selected',
+                            _selectedCustomerIds.length == 1
+                                ? AppLocalizations.of(context)!.paymentRemindersSelectedOne
+                                : AppLocalizations.of(context)!.paymentRemindersSelectedOther(_selectedCustomerIds.length.toString()),
                             style: TextStyle(
                               color: AppColors.dynamicPrimary(context),
                               fontSize: 16,
@@ -273,8 +278,8 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: const Text(
-                            'Send Reminders',
+                          child: Text(
+                            AppLocalizations.of(context)!.sendReminders,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -312,7 +317,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                'All clear!',
+                                AppLocalizations.of(context)!.allClear,
                                 style: TextStyle(
                                   color: AppColors.dynamicTextPrimary(context),
                                   fontSize: 20,
@@ -321,7 +326,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'No customers have outstanding debts',
+                                AppLocalizations.of(context)!.noCustomersOutstandingDebts,
                                 style: TextStyle(
                                   color: AppColors.dynamicTextSecondary(context),
                                   fontSize: 16,
@@ -395,7 +400,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
               
               // Title
               Text(
-                'Send Payment Reminder',
+                AppLocalizations.of(context)!.sendPaymentReminderDialogTitle,
                 style: TextStyle(
                   color: AppColors.dynamicTextPrimary(context),
                   fontSize: 22,
@@ -406,7 +411,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
               
               // Subtitle
               Text(
-                'This message will be sent via WhatsApp to all selected customers',
+                AppLocalizations.of(context)!.batchReminderSubtitle,
                 style: TextStyle(
                   color: AppColors.dynamicTextSecondary(context),
                   fontSize: 14,
@@ -427,7 +432,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                 ),
                 child: CupertinoTextField(
                   controller: messageController,
-                  placeholder: 'Enter your custom message...',
+                  placeholder: AppLocalizations.of(context)!.enterCustomMessage,
                   placeholderStyle: TextStyle(
                     color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.6),
                     fontSize: 16,
@@ -463,7 +468,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                         ),
                         child: Center(
                           child: Text(
-                            'Cancel',
+                            AppLocalizations.of(context)!.cancel,
                             style: TextStyle(
                               color: AppColors.dynamicTextPrimary(context),
                               fontSize: 16,
@@ -490,7 +495,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                         ),
                         child: Center(
                           child: Text(
-                            'Send to ${_selectedCustomerIds.length}',
+                            AppLocalizations.of(context)!.sendToCount(_selectedCustomerIds.length.toString()),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -531,10 +536,11 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
 
       // Show success feedback
       if (mounted && context.mounted) {
+        final l10n = AppLocalizations.of(context)!;
         if (successCount == totalCount) {
-          _showSuccessDialog(context, 'All reminders sent successfully!');
+          _showSuccessDialog(context, l10n.allRemindersSentSuccess);
         } else {
-          _showWarningDialog(context, 'Sent to $successCount out of $totalCount customers');
+          _showWarningDialog(context, l10n.sentToCountOfTotal(successCount.toString(), totalCount.toString()));
         }
         
         // Clear selection after sending
@@ -545,21 +551,22 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
       }
     } catch (e) {
       if (mounted && context.mounted) {
-        _showErrorDialog(context, 'Failed to send batch payment reminders: $e');
+        _showErrorDialog(context, AppLocalizations.of(context)!.batchRemindersFailed(e.toString()));
       }
     }
   }
 
   void _showSuccessDialog(BuildContext context, String message) {
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Success'),
+        title: Text(l10n.success),
         content: Text(message),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
         ],
       ),
@@ -567,15 +574,16 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
   }
 
   void _showWarningDialog(BuildContext context, String message) {
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Warning'),
+        title: Text(l10n.warning),
         content: Text(message),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
         ],
       ),
@@ -583,15 +591,16 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
   }
 
   void _showErrorDialog(BuildContext context, String message) {
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Error'),
+        title: Text(l10n.error),
         content: Text(message),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
         ],
       ),
@@ -697,7 +706,7 @@ class _CustomerReminderTile extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'ID: ${customer.id}',
+                            '${AppLocalizations.of(context)!.idLabel}: ${customer.id}',
                             style: TextStyle(
                               color: AppColors.dynamicTextSecondary(context),
                               fontSize: 13,

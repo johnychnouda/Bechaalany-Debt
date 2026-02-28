@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
 // Notification service import removed
@@ -316,19 +317,20 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     return await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Duplicate Phone Number'),
+          title: Text(l10n.duplicatePhoneNumber),
           content: Text(
-            'The phone number "$phone" is already used by customer "${existingCustomer.name}" (ID: ${existingCustomer.id}).\n\nDo you want to continue with this phone number?'
+            l10n.duplicatePhoneMessage(phone, existingCustomer.name, existingCustomer.id),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Continue'),
+              child: Text(l10n.continueButton),
             ),
           ],
         );
@@ -399,7 +401,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       appBar: AppBar(
         title: Text(
-          widget.customer != null ? 'Edit Customer' : 'Add Customer',
+          widget.customer != null
+              ? AppLocalizations.of(context)!.editCustomer
+              : AppLocalizations.of(context)!.addCustomer,
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
@@ -423,7 +427,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   if (widget.customer != null) ...[
                     // Customer ID display styled like the customer field in Add Debt from Product
                     Text(
-                      'Customer ID',
+                      AppLocalizations.of(context)!.customerId,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -465,24 +469,25 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                   ] else ...[
                     // Editable field when adding new customer
                     _buildModernField(
-                      label: 'Customer ID *',
+                      label: AppLocalizations.of(context)!.customerIdRequired,
                       controller: _idController,
-                      placeholder: 'Enter customer ID',
+                      placeholder: AppLocalizations.of(context)!.enterCustomerId,
                       icon: Icons.tag,
                       keyboardType: TextInputType.number,
                       validator: (value) {
+                        final l10n = AppLocalizations.of(context)!;
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter customer ID';
+                          return l10n.pleaseEnterCustomerId;
                         }
                         
                         // Check for duplicate ID
                         if (_isDuplicateId(value.trim())) {
-                          return 'Customer ID already exists';
+                          return l10n.customerIdAlreadyExists;
                         }
                         
                         // Check for special characters
                         if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value.trim())) {
-                          return 'Customer ID can only contain letters, numbers, underscore, and hyphen';
+                          return l10n.customerIdInvalidChars;
                         }
                         
                         return null;
@@ -494,7 +499,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       },
                     ),
                     if (_isIdDuplicate && _idController.text.trim().isNotEmpty)
-                      _buildDuplicateWarning('This Customer ID already exists'),
+                      _buildDuplicateWarning(AppLocalizations.of(context)!.thisCustomerIdAlreadyExists),
                     const SizedBox(height: 16),
                   ],
                 ],
@@ -504,14 +509,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               
               // Name
               _buildModernField(
-                label: 'Full Name *',
+                label: AppLocalizations.of(context)!.fullName,
                 controller: _nameController,
-                placeholder: 'Enter customer name',
+                placeholder: AppLocalizations.of(context)!.enterCustomerName,
                 icon: Icons.person,
                 textCapitalization: TextCapitalization.words,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter customer name';
+                    return AppLocalizations.of(context)!.pleaseEnterCustomerName;
                   }
                   return null;
                 },
@@ -524,21 +529,22 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildPhoneInput(
-                    label: 'Phone Number *',
-                    placeholder: 'Enter phone number',
+                    label: AppLocalizations.of(context)!.phoneNumber,
+                    placeholder: AppLocalizations.of(context)!.enterPhoneNumber,
                     onChanged: (value) {
                       setState(() {
                         _isPhoneDuplicate = _isDuplicatePhone(value.trim());
                       });
                     },
                     validator: (value) {
+                      final l10n = AppLocalizations.of(context)!;
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter phone number';
+                        return l10n.pleaseEnterPhoneNumber;
                       }
                       
                       // Check phone number format
                       if (!_isValidPhoneNumber(value.trim())) {
-                        return 'Please enter a valid phone number (minimum 8 digits)';
+                        return l10n.validPhoneNumber;
                       }
                       
                       // Note: Duplicate phone number validation is handled in _saveCustomer with confirmation dialog
@@ -547,7 +553,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     },
                   ),
                   if (_isPhoneDuplicate && _phoneController.text.trim().isNotEmpty)
-                    _buildDuplicateWarning('This phone number already exists'),
+                    _buildDuplicateWarning(AppLocalizations.of(context)!.thisPhoneNumberAlreadyExists),
                 ],
               ),
               
@@ -558,20 +564,21 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildModernField(
-                    label: 'Email Address',
+                    label: AppLocalizations.of(context)!.emailAddress,
                     controller: _emailController,
-                    placeholder: 'Enter email (optional)',
+                    placeholder: AppLocalizations.of(context)!.enterEmailOptional,
                     icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
+                      final l10n = AppLocalizations.of(context)!;
                       if (value != null && value.trim().isNotEmpty) {
                         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                          return 'Please enter a valid email';
+                          return l10n.pleaseEnterValidEmail;
                         }
                         
                         // Check email domain
                         if (!_isValidEmailDomain(value.trim())) {
-                          return 'Please enter a valid email domain';
+                          return l10n.validEmailDomain;
                         }
                       }
                       return null;
@@ -583,7 +590,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                     },
                   ),
                   if (_isEmailDuplicate && _emailController.text.trim().isNotEmpty)
-                    _buildDuplicateWarning('This email is already used by another customer'),
+                    _buildDuplicateWarning(AppLocalizations.of(context)!.thisEmailAlreadyUsed),
                 ],
               ),
               
@@ -591,9 +598,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               
               // Address
               _buildModernField(
-                label: 'Address',
+                label: AppLocalizations.of(context)!.address,
                 controller: _addressController,
-                placeholder: 'Enter address (optional)',
+                placeholder: AppLocalizations.of(context)!.enterAddressOptional,
                 icon: Icons.location_on,
                 maxLines: 3,
               ),
@@ -620,7 +627,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                           ),
                         )
                       : Text(
-                          widget.customer != null ? 'Update Customer' : 'Add Customer',
+                          widget.customer != null
+                              ? AppLocalizations.of(context)!.updateCustomer
+                              : AppLocalizations.of(context)!.addCustomer,
                           style: const TextStyle(fontSize: 16),
                         ),
                 ),

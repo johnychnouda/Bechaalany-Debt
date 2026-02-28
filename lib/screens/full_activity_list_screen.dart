@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart' as fw;
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
@@ -24,6 +27,20 @@ class FullActivityListScreen extends StatefulWidget {
 
 class _FullActivityListScreenState extends State<FullActivityListScreen>
     with TickerProviderStateMixin {
+  static const String _arabicIndicNumerals = '٠١٢٣٤٥٦٧٨٩';
+
+  static String _toArabicNumerals(String s) {
+    return s.replaceAllMapped(
+        RegExp(r'\d'), (m) => _arabicIndicNumerals[int.parse(m.group(0)!)]);
+  }
+
+  static String _formatNumbersForLocale(BuildContext context, String s) {
+    if (Localizations.localeOf(context).languageCode == 'ar') {
+      return _toArabicNumerals(s);
+    }
+    return s;
+  }
+
   late TabController _tabController;
   ActivityView _currentView = ActivityView.daily;
   final TextEditingController _searchController = TextEditingController();
@@ -65,7 +82,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Activity History',
+          AppLocalizations.of(context)!.activityHistory,
           style: AppTheme.title3.copyWith(
             color: AppColors.dynamicTextPrimary(context),
           ),
@@ -78,7 +95,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                 return IconButton(
                   icon: const Icon(Icons.assessment, size: 32),
                   onPressed: () => _generateMonthlyPDF(context, appState),
-                  tooltip: 'Generate Monthly Report',
+                  tooltip: AppLocalizations.of(context)!.generateMonthlyReport,
                   iconSize: 32,
                 );
               },
@@ -91,11 +108,11 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           indicatorWeight: 2,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: 'Daily'),
-            Tab(text: 'Weekly'),
-            Tab(text: 'Monthly'),
-            Tab(text: 'Yearly'),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.daily),
+            Tab(text: AppLocalizations.of(context)!.weekly),
+            Tab(text: AppLocalizations.of(context)!.monthly),
+            Tab(text: AppLocalizations.of(context)!.yearly),
           ],
         ),
       ),
@@ -124,10 +141,10 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         
         final activities = _getActivitiesForView(appState, view);
         final filteredActivities = _filterActivities(activities);
-        final title = _getViewTitle(view);
-        final emptyMessage = _searchQuery.isNotEmpty 
-            ? 'No activities found for "$_searchQuery"'
-            : _getEmptyMessage(view);
+        final title = _getViewTitle(context, view);
+        final emptyMessage = _searchQuery.isNotEmpty
+            ? AppLocalizations.of(context)!.noActivitiesFoundForQuery(_searchQuery)
+            : _getEmptyMessage(context, view);
 
 
         // Get period-specific financial data from AppState
@@ -185,7 +202,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Total Revenue',
+                                    AppLocalizations.of(context)!.totalRevenue,
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -197,14 +214,17 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                               ),
                               const SizedBox(height: 1),
                               Center(
-                                child: Text(
-                                  CurrencyFormatter.formatAmount(context, periodData['totalRevenue'] ?? 0.0),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.dynamicTextPrimary(context),
+                                child: fw.Directionality(
+                                  textDirection: fw.TextDirection.ltr,
+                                  child: Text(
+                                    CurrencyFormatter.formatAmount(context, periodData['totalRevenue'] ?? 0.0),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.dynamicTextPrimary(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -243,7 +263,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Total Paid',
+                                    AppLocalizations.of(context)!.totalPaid,
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -255,14 +275,17 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                               ),
                               const SizedBox(height: 1),
                               Center(
-                                child: Text(
-                                  CurrencyFormatter.formatAmount(context, periodData['totalPaid'] ?? 0.0),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.dynamicTextPrimary(context),
+                                child: fw.Directionality(
+                                  textDirection: fw.TextDirection.ltr,
+                                  child: Text(
+                                    CurrencyFormatter.formatAmount(context, periodData['totalPaid'] ?? 0.0),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.dynamicTextPrimary(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -286,7 +309,7 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                   });
                 },
                 decoration: InputDecoration(
-                                      hintText: 'Search by name or ID',
+                  hintText: AppLocalizations.of(context)!.searchByNameOrId,
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -348,7 +371,52 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     );
   }
 
+  Widget _buildStatusRow(
+    BuildContext context,
+    Activity activity,
+    AppLocalizations l10n,
+    String statusText,
+    Color iconColor,
+  ) {
+    final style = TextStyle(
+      fontSize: 10,
+      color: iconColor,
+      fontWeight: FontWeight.w600,
+    );
+    final isPartial = activity.type == ActivityType.payment && !activity.isPaymentCompleted;
+    final isFullyPaidWithAmount = activity.type == ActivityType.payment &&
+        activity.isPaymentCompleted &&
+        activity.description.startsWith('Fully paid:');
+    if (isPartial || isFullyPaidWithAmount) {
+      final label = isPartial ? l10n.partialPayment : l10n.fullyPaid;
+      final amountStr = CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          fw.Directionality(
+            textDirection: fw.TextDirection.ltr,
+            child: Text(amountStr, style: style),
+          ),
+          Text(' $label', style: style),
+        ],
+      );
+    }
+    return Text(statusText, style: style);
+  }
+
+  /// Normalize description so dollar sign shows on the right (e.g. "$20.00 x" → "20.00$ x")
+  static String _descriptionWithDollarOnRight(String description) {
+    return description.replaceAllMapped(
+      RegExp(r'\$(\d+(?:\.\d+)?)'),
+      (m) => '${m.group(1)}\$',
+    );
+  }
+
   Widget _buildActivityItem(BuildContext context, Activity activity, AppState appState) {
+    final l10n = AppLocalizations.of(context)!;
     IconData icon;
     Color iconColor;
     Color backgroundColor;
@@ -363,19 +431,19 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             icon = Icons.check_circle;
             iconColor = AppColors.success;
             backgroundColor = AppColors.success.withValues(alpha: 0.1);
-            statusText = 'Fully Paid';
+            statusText = l10n.fullyPaid;
           } else {
             // Individual debt payment
             icon = Icons.check_circle;
             iconColor = AppColors.primary;
             backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-            statusText = 'Debt Paid';
+            statusText = l10n.debtPaid;
           }
         } else {
           icon = Icons.payment;
           iconColor = AppColors.warning;
           backgroundColor = AppColors.warning.withValues(alpha: 0.1);
-          statusText = 'Partial Payment';
+          statusText = l10n.partialPayment;
         }
         break;
       case ActivityType.newDebt:
@@ -393,46 +461,46 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
               icon = Icons.check_circle;
               iconColor = AppColors.primary;
               backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-              statusText = 'Debt Paid';
+              statusText = l10n.debtPaid;
             } else if (currentDebt.paidAmount > 0.1) {
               // This specific debt has partial payments - show red for outstanding debt
               icon = Icons.payment;
               iconColor = AppColors.error;
               backgroundColor = AppColors.error.withValues(alpha: 0.1);
-              statusText = 'Outstanding Debt';
+              statusText = l10n.outstandingDebt;
             } else {
               // This specific debt has no payments - show blue plus
               icon = Icons.add_circle;
               iconColor = AppColors.primary;
               backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-              statusText = 'New Debt';
+              statusText = l10n.newDebt;
             }
           } else {
             // Debt not found - show as "New Debt" with blue plus
             icon = Icons.add_circle;
             iconColor = AppColors.primary;
             backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-            statusText = 'New Debt';
+            statusText = l10n.newDebt;
           }
         } else {
           // No debt ID - show as "New Debt" with blue plus
           icon = Icons.add_circle;
           iconColor = AppColors.primary;
           backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-          statusText = 'New Debt';
+          statusText = l10n.newDebt;
         }
         break;
       case ActivityType.debtCleared:
         icon = Icons.check_circle;
         iconColor = AppColors.primary;
         backgroundColor = AppColors.primary.withValues(alpha: 0.1);
-        statusText = 'Debt Paid';
+        statusText = l10n.debtPaid;
         break;
       default:
         icon = Icons.info;
         iconColor = Colors.grey;
         backgroundColor = Colors.grey.withValues(alpha: 0.1);
-        statusText = 'Activity';
+        statusText = l10n.activity;
     }
 
     return Container(
@@ -458,14 +526,17 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
                   ),
                 ),
                 if (activity.type != ActivityType.payment || (activity.isPaymentCompleted && !activity.description.startsWith('Fully paid:')))
-                  Text(
-                    activity.description,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[700],
+                  fw.Directionality(
+                    textDirection: fw.TextDirection.ltr,
+                    child: Text(
+                      _descriptionWithDollarOnRight(activity.description),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[700],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
@@ -473,20 +544,15 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                activity.type == ActivityType.payment && !activity.isPaymentCompleted
-                    ? 'Partial Payment: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0)}'
-                    : activity.type == ActivityType.payment && activity.isPaymentCompleted && activity.description.startsWith('Fully paid:')
-                        ? 'Fully Paid: ${CurrencyFormatter.formatAmount(context, activity.paymentAmount ?? 0)}'
-                        : statusText,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: iconColor,
-                  fontWeight: FontWeight.w600,
-                ),
+              _buildStatusRow(
+                context,
+                activity,
+                l10n,
+                statusText,
+                iconColor,
               ),
               Text(
-                _formatActivityDate(activity.date),
+                _formatActivityDate(context, activity.date),
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.grey[600],
@@ -520,120 +586,91 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     return '$hour:$minute:$second $period';
   }
 
-  String _formatActivityDate(DateTime date) {
+  String _localeString(BuildContext context) {
+    return Localizations.localeOf(context).toString().split('_').first;
+  }
+
+  String _formatActivityDate(BuildContext context, DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
     final activityDate = DateTime(date.year, date.month, date.day);
+    final l10n = AppLocalizations.of(context)!;
+    final timeStr = _formatNumbersForLocale(context, _formatTime12Hour(context, date));
 
     switch (_currentView) {
       case ActivityView.daily:
         if (activityDate == today) {
-          return 'Today at ${_formatTime12Hour(date)}';
+          return l10n.todayAtTime(timeStr);
         } else if (activityDate == yesterday) {
-          return 'Yesterday at ${_formatTime12Hour(date)}';
+          return l10n.yesterdayAtTime(timeStr);
         } else {
-          return '${_formatDate(date)} at ${_formatTime12Hour(date)}';
+          return l10n.dateAtTime(_formatNumbersForLocale(context, _formatDate(context, date)), timeStr);
         }
       case ActivityView.weekly:
       case ActivityView.monthly:
       case ActivityView.yearly:
-        return '${_formatDayDate(date)} at ${_formatTime12Hour(date)}';
+        return l10n.dateAtTime(_formatNumbersForLocale(context, _formatDayDate(context, date)), timeStr);
     }
   }
 
-  String _formatTime12Hour(DateTime date) {
-    int hour = date.hour;
-    String period = 'am';
-    
-    if (hour >= 12) {
-      period = 'pm';
-      if (hour > 12) {
-        hour -= 12;
-      }
-    }
-    if (hour == 0) {
-      hour = 12;
-    }
-    
-    final minute = date.minute.toString().padLeft(2, '0');
-    final second = date.second.toString().padLeft(2, '0');
-    return '$hour:$minute:$second $period';
+  String _formatTime12Hour(BuildContext context, DateTime date) {
+    final locale = _localeString(context);
+    return DateFormat.jm(locale).format(date);
   }
 
-  String _formatDayDate(DateTime date) {
-    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    final dayName = days[date.weekday - 1];
-    final monthName = months[date.month - 1];
-    final day = date.day;
-    
-    return '$dayName $day $monthName';
+  String _formatDayDate(BuildContext context, DateTime date) {
+    final locale = _localeString(context);
+    return DateFormat('EEE MMM d', locale).format(date);
   }
 
-  String _formatDate(DateTime date) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${months[date.month - 1]} ${date.day}';
+  String _formatDate(BuildContext context, DateTime date) {
+    final locale = _localeString(context);
+    return DateFormat.MMMd(locale).format(date);
   }
 
-  String _getViewTitle(ActivityView view) {
+  String _getViewTitle(BuildContext context, ActivityView view) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+    final l10n = AppLocalizations.of(context)!;
     switch (view) {
       case ActivityView.daily:
-        return 'Today\'s Activity';
+        return l10n.todaysActivity;
       case ActivityView.weekly:
         final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
-        return 'Weekly Activity - ${_formatShortDate(startOfWeek)} - ${_formatShortDate(endOfWeek)}';
+        return l10n.weeklyActivityRange(
+          _formatNumbersForLocale(context, _formatShortDate(context, startOfWeek)),
+          _formatNumbersForLocale(context, _formatShortDate(context, endOfWeek)),
+        );
       case ActivityView.monthly:
-        return 'Monthly Activity - ${_getMonthYear(now)}';
+        return l10n.monthlyActivityMonth(_formatNumbersForLocale(context, _getMonthYear(context, now)));
       case ActivityView.yearly:
-        return 'Yearly Activity - ${now.year}';
+        return l10n.yearlyActivityYear(_formatNumbersForLocale(context, now.year.toString()));
     }
   }
 
-  String _getDayName(DateTime date) {
-    switch (date.weekday) {
-      case 1: return 'Monday';
-      case 2: return 'Tuesday';
-      case 3: return 'Wednesday';
-      case 4: return 'Thursday';
-      case 5: return 'Friday';
-      case 6: return 'Saturday';
-      case 7: return 'Sunday';
-      default: return 'Unknown';
-    }
+  String _formatShortDate(BuildContext context, DateTime date) {
+    final locale = _localeString(context);
+    return DateFormat.MMMd(locale).format(date);
   }
 
-  String _formatShortDate(DateTime date) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}';
+  String _getMonthYear(BuildContext context, DateTime date) {
+    final locale = _localeString(context);
+    return DateFormat.yMMMM(locale).format(date);
   }
 
-  String _getMonthYear(DateTime date) {
-    final months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return '${months[date.month - 1]} ${date.year}';
-  }
-
-  String _getEmptyMessage(ActivityView view) {
+  String _getEmptyMessage(BuildContext context, ActivityView view) {
+    final l10n = AppLocalizations.of(context)!;
     switch (view) {
       case ActivityView.daily:
-        return 'No activity today\nAdd debts or make payments to see activity here';
+        return l10n.noActivityToday;
       case ActivityView.weekly:
-        return 'No activity this week\nAdd debts or make payments to see activity here';
+        return l10n.noActivityThisWeek;
       case ActivityView.monthly:
-        return 'No activity this month\nAdd debts or make payments to see activity here';
+        return l10n.noActivityThisMonth;
       case ActivityView.yearly:
-        return 'No activity this year\nAdd debts or make payments to see activity here';
+        return l10n.noActivityThisYear;
     }
   }
 
@@ -822,13 +859,15 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       final totalRevenue = monthlyData['totalRevenue'] ?? 0.0;
       final totalPaid = monthlyData['totalPaid'] ?? 0.0;
 
-      // Generate PDF
+      // Generate PDF (pass l10n so report is in app language, e.g. Arabic)
+      final l10n = AppLocalizations.of(context);
       final pdfFile = await ReceiptSharingService.generateMonthlyActivityPDF(
         monthlyActivities: monthlyActivities,
         monthlyDebts: monthlyDebts,
         totalRevenue: totalRevenue,
         totalPaid: totalPaid,
         monthDate: now,
+        l10n: l10n,
       );
 
       // Hide loading indicator
@@ -836,11 +875,12 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
 
       if (pdfFile != null) {
         // Open PDF directly in the app
+        final reportTitle = l10n?.monthlyActivityReport ?? 'Monthly Activity Report';
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => PDFViewerPopup(
               pdfFile: pdfFile,
-              customerName: 'Monthly Activity Report',
+              customerName: reportTitle,
             ),
           ),
         );

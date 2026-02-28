@@ -47,6 +47,7 @@ class AppState extends ChangeNotifier {
   // App Settings (Only implemented ones)
   bool _isDarkMode = false;
   bool _autoSyncEnabled = true;
+  String _localeCode = 'en';
   
   // Firebase authentication status
   bool get isAuthenticated => _dataService.isAuthenticated;
@@ -149,7 +150,9 @@ class AppState extends ChangeNotifier {
   // App Settings Getters (Only implemented ones)
   bool get isDarkMode => _isDarkMode;
   bool get darkModeEnabled => _isDarkMode;
-  String get selectedLanguage => 'English';
+  String get localeCode => _localeCode;
+  Locale get locale => Locale(_localeCode);
+  String get selectedLanguage => _localeCode == 'ar' ? 'العربية' : 'English';
   bool get autoSyncEnabled => _autoSyncEnabled;
   
   // WhatsApp Automation Getters
@@ -1261,6 +1264,8 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = data['whatsappAutomationEnabled'] ?? true;
           _whatsappCustomMessage = data['whatsappCustomMessage'] ?? '';
           _defaultCurrency = data['defaultCurrency'] ?? 'USD';
+          final savedLocale = data['localeCode'] as String?;
+          _localeCode = (savedLocale == 'ar' || savedLocale == 'en') ? savedLocale! : 'en';
           // Load category order and remove duplicates (preserve order)
           final loadedOrder = List<String>.from(data['categoryOrder'] ?? []);
           final seen = <String>{};
@@ -1277,6 +1282,7 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = true;
           _whatsappCustomMessage = '';
           _defaultCurrency = 'USD';
+          _localeCode = 'en';
           _categoryOrder = [];
         }
       } else {
@@ -1285,6 +1291,7 @@ class AppState extends ChangeNotifier {
         _whatsappAutomationEnabled = true;
         _whatsappCustomMessage = '';
         _defaultCurrency = 'USD';
+        _localeCode = 'en';
         _categoryOrder = [];
       }
       notifyListeners();
@@ -1294,6 +1301,7 @@ class AppState extends ChangeNotifier {
       _whatsappAutomationEnabled = true;
       _whatsappCustomMessage = '';
       _defaultCurrency = 'USD';
+      _localeCode = 'en';
       _categoryOrder = [];
       notifyListeners();
     }
@@ -1316,6 +1324,7 @@ class AppState extends ChangeNotifier {
     _whatsappAutomationEnabled = true; // Default to enabled
     _whatsappCustomMessage = '';
     _defaultCurrency = 'USD';
+    _localeCode = 'en';
     _categoryOrder = [];
     // DON'T call notifyListeners() here - it will be called after initialization
   }
@@ -1672,7 +1681,7 @@ class AppState extends ChangeNotifier {
             customerId: debt.customerId,
             customerName: debt.customerName,
             type: ActivityType.newDebt,
-            description: '${debt.description}: ${debt.amount.toStringAsFixed(2)}\$',
+            description: '${debt.amount.toStringAsFixed(2)}\$ ${debt.description}',
             amount: debt.amount,
             date: debt.createdAt, // Use the debt's creation date
             debtId: debt.id,
@@ -1940,7 +1949,7 @@ class AppState extends ChangeNotifier {
         customerId: debt.customerId,
         customerName: debt.customerName,
         type: ActivityType.newDebt,
-        description: '${debt.description}: ${debt.amount.toStringAsFixed(2)}\$',  // Clean: Product name: amount
+        description: '${debt.amount.toStringAsFixed(2)}\$ ${debt.description}',  // Amount first so in RTL product name (e.g. جينز) appears on the left
         amount: debt.amount,
         date: DateTime.now(),
         debtId: debt.id,
@@ -3133,6 +3142,7 @@ class AppState extends ChangeNotifier {
           'whatsappAutomationEnabled': _whatsappAutomationEnabled,
           'whatsappCustomMessage': _whatsappCustomMessage,
           'defaultCurrency': _defaultCurrency,
+          'localeCode': _localeCode,
           'categoryOrder': _categoryOrder,
         }, SetOptions(merge: true));
       }
@@ -3618,6 +3628,12 @@ class AppState extends ChangeNotifier {
   // Settings methods
   Future<void> setDarkModeEnabled(bool enabled) async {
     _isDarkMode = enabled;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setLocale(String code) async {
+    _localeCode = (code == 'ar' || code == 'en') ? code : 'en';
     await _saveSettings();
     notifyListeners();
   }

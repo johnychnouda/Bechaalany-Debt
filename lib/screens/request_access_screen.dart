@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../constants/app_colors.dart';
-import '../services/access_service.dart';
+import '../l10n/app_localizations.dart';
 import '../models/access.dart';
+import '../services/access_service.dart';
 import '../utils/admin_contact.dart';
 import 'contact_owner_screen.dart';
 
@@ -18,6 +19,12 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
   final AccessService _accessService = AccessService();
   Access? _access;
   bool _isLoading = true;
+
+  static const String _arabicIndicNumerals = '٠١٢٣٤٥٦٧٨٩';
+  static String _toArabicNumerals(String s) {
+    return s.replaceAllMapped(
+        RegExp(r'\d'), (m) => _arabicIndicNumerals[int.parse(m.group(0)!)]);
+  }
 
   @override
   void initState() {
@@ -43,17 +50,18 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
     }
   }
 
-  String _getStatusCardTitle() {
+  String _getStatusCardTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final status = _access!.status;
     switch (status) {
       case AccessStatus.trial:
-        return 'Free Trial';
+        return l10n.freeTrial;
       case AccessStatus.active:
-        return 'Active Access';
+        return l10n.activeAccess;
       case AccessStatus.expired:
-        return 'Access Expired';
+        return l10n.accessExpired;
       case AccessStatus.cancelled:
-        return 'Access Cancelled';
+        return l10n.accessCancelled;
     }
   }
 
@@ -91,7 +99,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
-          'Request Access',
+          AppLocalizations.of(context)!.requestAccess,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
@@ -177,7 +185,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           const SizedBox(width: 14),
           Expanded(
             child: Text(
-              _getStatusCardTitle(),
+              _getStatusCardTitle(context),
               style: _textStyle(
                 context,
                 fontSize: 16,
@@ -217,7 +225,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 16),
           Text(
-            'Welcome to Bechaalany Debt App',
+            AppLocalizations.of(context)!.welcomeToBechaalany,
             style: _textStyle(
               context,
               fontSize: 18,
@@ -227,7 +235,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'The app is completely free and available to all signed-in users. If you ever have trouble accessing your data, you can contact the administrator for technical support.',
+            AppLocalizations.of(context)!.welcomeNoDataMessage,
             style: _textStyle(
               context,
               fontSize: 14,
@@ -247,7 +255,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Trial details',
+            AppLocalizations.of(context)!.trialDetails,
             style: _textStyle(
               context,
               fontSize: 15,
@@ -258,23 +266,26 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         ),
         _buildInfoCard(
           context,
-          title: 'Trial period',
+          title: AppLocalizations.of(context)!.trialPeriod,
           value: _access!.trialDaysRemaining != null
-              ? '${_access!.trialDaysRemaining} days remaining'
-              : 'Active',
+              ? AppLocalizations.of(context)!.daysRemaining(
+                  Localizations.localeOf(context).languageCode == 'ar'
+                      ? _toArabicNumerals(_access!.trialDaysRemaining.toString())
+                      : _access!.trialDaysRemaining.toString())
+              : AppLocalizations.of(context)!.active,
           icon: CupertinoIcons.calendar,
         ),
         if (_access!.trialStartDate != null)
           _buildInfoCard(
             context,
-            title: 'Trial started',
+            title: AppLocalizations.of(context)!.trialStarted,
             value: _formatDate(_access!.trialStartDate!),
             icon: CupertinoIcons.time,
           ),
         if (_access!.trialEndDate != null)
           _buildInfoCard(
             context,
-            title: 'Trial ends',
+            title: AppLocalizations.of(context)!.trialEnds,
             value: _formatDate(_access!.trialEndDate!),
             icon: CupertinoIcons.calendar_today,
           ),
@@ -289,7 +300,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Access details',
+            AppLocalizations.of(context)!.accessDetails,
             style: _textStyle(
               context,
               fontSize: 15,
@@ -300,23 +311,26 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         ),
         _buildInfoCard(
           context,
-          title: 'Access period',
+          title: AppLocalizations.of(context)!.accessPeriod,
           value: _access!.accessDaysRemaining != null
-              ? '${_access!.accessDaysRemaining} days remaining'
-              : 'Active',
+              ? AppLocalizations.of(context)!.daysRemaining(
+                  Localizations.localeOf(context).languageCode == 'ar'
+                      ? _toArabicNumerals(_access!.accessDaysRemaining.toString())
+                      : _access!.accessDaysRemaining.toString())
+              : AppLocalizations.of(context)!.active,
           icon: CupertinoIcons.calendar,
         ),
         if (_access!.accessStartDate != null)
           _buildInfoCard(
             context,
-            title: 'Access started',
+            title: AppLocalizations.of(context)!.accessStarted,
             value: _formatDate(_access!.accessStartDate!),
             icon: CupertinoIcons.time,
           ),
         if (_access!.accessEndDate != null)
           _buildInfoCard(
             context,
-            title: 'Access ends',
+            title: AppLocalizations.of(context)!.accessEnds,
             value: _formatDate(_access!.accessEndDate!),
             icon: CupertinoIcons.calendar_today,
           ),
@@ -346,8 +360,8 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           const SizedBox(height: 16),
           Text(
             isExpired
-                ? 'Your access has expired'
-                : 'Your access has been cancelled',
+                ? AppLocalizations.of(context)!.yourAccessExpired
+                : AppLocalizations.of(context)!.yourAccessCancelled,
             style: _textStyle(
               context,
               fontSize: 17,
@@ -357,7 +371,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'If you believe this is a mistake or need help with your account, contact the administrator for support.',
+            AppLocalizations.of(context)!.expiredContactMessage,
             style: _textStyle(
               context,
               fontSize: 14,
@@ -375,7 +389,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                 ),
               );
             },
-            child: const Text('Contact Administrator'),
+            child: Text(AppLocalizations.of(context)!.contactAdministrator),
           ),
         ],
       ),
@@ -389,7 +403,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Request Access',
+            AppLocalizations.of(context)!.requestAccess,
             style: _textStyle(
               context,
               fontSize: 15,
@@ -421,7 +435,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Access status and renewals',
+                      AppLocalizations.of(context)!.accessStatusAndRenewals,
                       style: _textStyle(
                         context,
                         fontSize: 15,
@@ -433,7 +447,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Your access is free. If your trial or access period ends and you still cannot use the app, you can contact the administrator for help fixing your account. There is no approval process or payment required to keep using the app.',
+                AppLocalizations.of(context)!.requestAccessInfoMessage,
                 style: _textStyle(
                   context,
                   fontSize: 13,
@@ -456,7 +470,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Contact Administrator',
+            AppLocalizations.of(context)!.contactAdministrator,
             style: _textStyle(
               context,
               fontSize: 15,
@@ -511,7 +525,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'WhatsApp',
+                    AppLocalizations.of(context)!.whatsApp,
                     style: _textStyle(
                       context,
                       fontSize: 16,
@@ -573,7 +587,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Phone',
+                    AppLocalizations.of(context)!.phone,
                     style: _textStyle(
                       context,
                       fontSize: 16,

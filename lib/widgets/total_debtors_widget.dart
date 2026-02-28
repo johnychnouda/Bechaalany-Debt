@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 
 class TotalDebtorsWidget extends StatelessWidget {
@@ -41,9 +41,9 @@ class TotalDebtorsWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      "Total Customers and Debtors",
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context)!.totalCustomersAndDebtors,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -56,7 +56,8 @@ class TotalDebtorsWidget extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _buildStatItem(
-                        'Customers with Debts',
+                        context,
+                        AppLocalizations.of(context)!.customersWithDebts,
                         customersWithPendingDebts.toString(),
                         AppColors.warning,
                         Icons.account_balance_wallet,
@@ -65,7 +66,8 @@ class TotalDebtorsWidget extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildStatItem(
-                        'Total Customers',
+                        context,
+                        AppLocalizations.of(context)!.totalCustomers,
                         totalCustomers.toString(),
                         AppColors.primary,
                         Icons.people_outline,
@@ -95,7 +97,7 @@ class TotalDebtorsWidget extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'No customers added yet. Add your first customer to get started!',
+                            AppLocalizations.of(context)!.noCustomersAddedYet,
                             style: TextStyle(
                               color: AppColors.info,
                               fontSize: 12,
@@ -127,7 +129,9 @@ class TotalDebtorsWidget extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            '${((customersWithPendingDebts / totalCustomers) * 100).toStringAsFixed(1)}% of customers have pending debts',
+                            AppLocalizations.of(context)!.percentCustomersPendingDebts(
+                              ((customersWithPendingDebts / totalCustomers) * 100).toStringAsFixed(1),
+                            ),
                             style: TextStyle(
                               color: AppColors.warning,
                               fontSize: 12,
@@ -147,7 +151,7 @@ class TotalDebtorsWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStatItem(String title, String value, Color color, IconData icon) {
+  Widget _buildStatItem(BuildContext context, String title, String value, Color color, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

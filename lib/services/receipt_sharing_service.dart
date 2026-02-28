@@ -1,16 +1,235 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:intl/intl.dart' as intl;
+import '../l10n/app_localizations.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
 import '../utils/pdf_font_utils.dart';
 import 'business_name_service.dart';
 
+/// Holds localized strings and formatters for PDF receipt (used when app locale is set).
+class _ReceiptStrings {
+  final String customerReceipt;
+  final String generatedOn;
+  final String customerInformation;
+  final String accountSummary;
+  final String totalOriginal;
+  final String totalPaid;
+  final String remaining;
+  final String transactionHistory;
+  final String generatedBy;
+  final String receiptFor;
+  final String idLabel;
+  final String partialPayment;
+  final String Function(int current, int total) pageOf;
+  final String Function(DateTime) formatDateTime;
+
+  _ReceiptStrings({
+    required this.customerReceipt,
+    required this.generatedOn,
+    required this.customerInformation,
+    required this.accountSummary,
+    required this.totalOriginal,
+    required this.totalPaid,
+    required this.remaining,
+    required this.transactionHistory,
+    required this.generatedBy,
+    required this.receiptFor,
+    required this.idLabel,
+    required this.partialPayment,
+    required this.pageOf,
+    required this.formatDateTime,
+  });
+}
+
+/// Localized strings and formatters for the monthly activity report PDF.
+class _MonthlyReportStrings {
+  final String monthlyActivityReport;
+  final String generatedOnLabel;
+  final String Function(DateTime) formatGeneratedOn;
+  final String reportSummary;
+  final String totalRevenue;
+  final String totalPaid;
+  final String transactionsLabel;
+  final String activityDetails;
+  final String generatedBy;
+  final String Function(int) getMonthName;
+  final String Function(DateTime) formatActivityDate;
+  final String Function(int, int) pageOf;
+  final String newDebt;
+  final String partialPayment;
+  final String debtPaid;
+  final String fullyPaid;
+  final String activity;
+  /// When true, format numbers with Arabic-Indic numerals in the PDF.
+  final bool isArabic;
+  final String Function(String) formatNumber;
+
+  _MonthlyReportStrings({
+    required this.monthlyActivityReport,
+    required this.generatedOnLabel,
+    required this.formatGeneratedOn,
+    required this.reportSummary,
+    required this.totalRevenue,
+    required this.totalPaid,
+    required this.transactionsLabel,
+    required this.activityDetails,
+    required this.generatedBy,
+    required this.getMonthName,
+    required this.formatActivityDate,
+    required this.pageOf,
+    required this.newDebt,
+    required this.partialPayment,
+    required this.debtPaid,
+    required this.fullyPaid,
+    required this.activity,
+    this.isArabic = false,
+    String Function(String)? formatNumber,
+  }) : formatNumber = formatNumber ?? ((String s) => s);
+}
+
 class ReceiptSharingService {
+  static const String _arabicIndicNumerals = '٠١٢٣٤٥٦٧٨٩';
+  static String _toArabicNumerals(String s) {
+    return s.replaceAllMapped(RegExp(r'\d'), (m) => _arabicIndicNumerals[int.parse(m.group(0)!)]);
+  }
+
+  /// True if [text] contains any character in the Arabic Unicode block (so it should render RTL in PDF).
+  static bool _containsArabic(String text) {
+    if (text.isEmpty) return false;
+    for (final rune in text.runes) {
+      if (rune >= 0x0600 && rune <= 0x06FF) return true;
+    }
+    return false;
+  }
+
+  static _MonthlyReportStrings _buildMonthlyReportStrings(AppLocalizations? l10n) {
+    final isArabic = l10n?.localeName.startsWith('ar') ?? false;
+    // Time and dates: keep numerals in English (user requested amounts/numbers always in English)
+    String formatTime(DateTime dt) {
+      final hour = dt.hour;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final second = dt.second.toString().padLeft(2, '0');
+      final period = hour >= 12 ? (l10n?.timePm ?? 'pm') : (l10n?.timeAm ?? 'am');
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      return '${displayHour.toString().padLeft(2, '0')}:$minute:$second $period';
+    }
+    String formatGeneratedOn(DateTime date) {
+      if (l10n == null) return 'Generated on ${_formatDateForPDFEn(date)}';
+      final locale = l10n.localeName;
+      final formatted = intl.DateFormat.yMMMd(locale).format(date);
+      return '${l10n.generatedOn} $formatted';
+    }
+    String formatActivityDate(DateTime date) {
+      if (l10n == null) return _formatActivityDateEn(date);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final activityDate = DateTime(date.year, date.month, date.day);
+      final timeStr = formatTime(date);
+      if (activityDate == today) return l10n.todayAtTime(timeStr);
+      if (activityDate == yesterday) return l10n.yesterdayAtTime(timeStr);
+      final dateStr = intl.DateFormat.yMMMd(l10n.localeName).format(date);
+      return l10n.dateAtTime(dateStr, timeStr);
+    }
+    String getMonthName(int month) {
+      if (l10n == null) return _getMonthNameEn(month);
+      const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      if (!isArabic) return enMonths[month - 1];
+      const arMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+      return arMonths[month - 1];
+    }
+    return _MonthlyReportStrings(
+      monthlyActivityReport: l10n?.monthlyActivityReport ?? 'Monthly Activity Report',
+      generatedOnLabel: l10n?.generatedOn ?? 'Generated on',
+      formatGeneratedOn: formatGeneratedOn,
+      reportSummary: l10n?.reportSummary ?? 'Summary',
+      totalRevenue: l10n?.totalRevenue ?? 'Total Revenue',
+      totalPaid: l10n?.totalPaid ?? 'Total Paid',
+      transactionsLabel: l10n?.transactionsLabel ?? 'Transactions',
+      activityDetails: l10n?.activityDetails ?? 'Activity Details',
+      generatedBy: l10n?.generatedBy ?? 'Generated by',
+      getMonthName: getMonthName,
+      formatActivityDate: formatActivityDate,
+      pageOf: (current, total) => l10n?.pageOf('$current', '$total') ?? 'Page $current of $total',
+      newDebt: l10n?.newDebt ?? 'New Debt',
+      partialPayment: l10n?.partialPayment ?? 'Partial Payment',
+      debtPaid: l10n?.debtPaid ?? 'Debt Paid',
+      fullyPaid: l10n?.fullyPaid ?? 'Fully Paid',
+      activity: l10n?.activity ?? 'Activity',
+      isArabic: isArabic,
+      // Amounts and counts always in English numerals (user request)
+      formatNumber: (String s) => s,
+    );
+  }
+
+  static String _formatDateForPDFEn(DateTime date) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  static String _formatActivityDateEn(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final activityDate = DateTime(date.year, date.month, date.day);
+    final timeStr = _formatTime12HourEn(date);
+    if (activityDate == today) return 'Today at $timeStr';
+    if (activityDate == yesterday) return 'Yesterday at $timeStr';
+    return '${_formatDateForPDFEn(date)} at $timeStr';
+  }
+
+  static String _formatTime12HourEn(DateTime date) {
+    int hour = date.hour;
+    String period = date.hour >= 12 ? 'pm' : 'am';
+    if (hour > 12) hour -= 12;
+    if (hour == 0) hour = 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final second = date.second.toString().padLeft(2, '0');
+    return '$hour:$minute:$second $period';
+  }
+
+  static String _getMonthNameEn(int month) {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return months[month - 1];
+  }
+
+  static _ReceiptStrings _buildReceiptStrings(AppLocalizations l10n, bool isArabic) {
+    String formatDateTime(DateTime dt) {
+      final hour = dt.hour;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final second = dt.second.toString().padLeft(2, '0');
+      final period = hour >= 12 ? l10n.timePm : l10n.timeAm;
+      final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+      String s = '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${displayHour.toString().padLeft(2, '0')}:$minute:$second $period';
+      if (isArabic) s = _toArabicNumerals(s);
+      return s;
+    }
+    return _ReceiptStrings(
+      customerReceipt: l10n.customerReceipt,
+      generatedOn: l10n.generatedOn,
+      customerInformation: l10n.customerInformation.toUpperCase(),
+      accountSummary: l10n.accountSummary,
+      totalOriginal: l10n.totalOriginal,
+      totalPaid: l10n.totalPaid,
+      remaining: l10n.remaining,
+      transactionHistory: l10n.transactionHistory.toUpperCase(),
+      generatedBy: l10n.generatedBy,
+      receiptFor: l10n.receiptFor,
+      idLabel: l10n.idLabel,
+      partialPayment: l10n.partialPayment,
+      pageOf: (current, total) => l10n.pageOf('$current', '$total'),
+      formatDateTime: formatDateTime,
+    );
+  }
+
   static const String _whatsappBaseUrl = 'https://wa.me/';
   
   static Future<String> _getEmailSubject() async {
@@ -20,6 +239,7 @@ class ReceiptSharingService {
   
   /// Share receipt via WhatsApp
   static Future<bool> shareReceiptViaWhatsApp(
+    BuildContext context,
     Customer customer,
     List<Debt> customerDebts,
     // Note: Partial payments are now handled as activities only
@@ -30,6 +250,7 @@ class ReceiptSharingService {
     try {
       // Generate PDF receipt
       final pdfFile = await generateReceiptPDF(
+        context: context,
         customer: customer,
         debts: customerDebts,
         // Note: Partial payments are now handled as activities only
@@ -66,6 +287,7 @@ class ReceiptSharingService {
   
   /// Share receipt via email
   static Future<bool> shareReceiptViaEmail(
+    BuildContext context,
     Customer customer,
     List<Debt> customerDebts,
     // Note: Partial payments are now handled as activities only
@@ -76,6 +298,7 @@ class ReceiptSharingService {
     try {
       // Generate PDF receipt
       final pdfFile = await generateReceiptPDF(
+        context: context,
         customer: customer,
         debts: customerDebts,
         // Note: Partial payments are now handled as activities only
@@ -142,6 +365,7 @@ class ReceiptSharingService {
   
   /// Generate and save PDF receipt for a customer
   static Future<File?> generateReceiptPDF({
+    required BuildContext context,
     required Customer customer,
     required List<Debt> debts,
     // Note: Partial payments are now handled as activities only
@@ -149,6 +373,10 @@ class ReceiptSharingService {
     DateTime? specificDate,
     String? specificDebtId,
   }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context);
+    final isArabic = locale.languageCode == 'ar';
+    final receiptStrings = _buildReceiptStrings(l10n, isArabic);
     try {
       // Get business name for PDF generation
       final businessNameService = BusinessNameService();
@@ -164,11 +392,20 @@ class ReceiptSharingService {
       final sortedDebts = List<Debt>.from(relevantDebts);
       sortedDebts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       
-      // Check if customer has pending debts (for future use)
-      // final hasPendingDebts = sortedDebts.any((debt) => !debt.isFullyPaid);
+      // Use a font that supports Arabic when the app locale is Arabic, so Arabic text renders correctly in the PDF
+      pw.ThemeData? pdfTheme;
+      pw.Font? pdfFont;
+      if (isArabic) {
+        try {
+          pdfFont = await PdfGoogleFonts.notoSansArabicRegular();
+          pdfTheme = pw.ThemeData.withFont(base: pdfFont);
+        } catch (_) {
+          // If font fails to load, continue without theme (Arabic may show as boxes)
+        }
+      }
       
-      // Create PDF document
-      final pdf = pw.Document();
+      // Create PDF document (with Arabic font theme when locale is Arabic)
+      final pdf = pw.Document(theme: pdfTheme);
       
       // Build PDF content
       final allItems = <Map<String, dynamic>>[];
@@ -196,7 +433,7 @@ class ReceiptSharingService {
         if (activity.paymentAmount != null && activity.paymentAmount! > 0) {
           allItems.add({
             'type': 'payment_activity',
-            'description': 'Partial Payment',
+            'description': receiptStrings.partialPayment,
             'amount': activity.paymentAmount!,
             'date': activity.date,
             'activity': activity,
@@ -254,6 +491,8 @@ class ReceiptSharingService {
               isFirstPage: true,
               showSummary: totalPages == 1, // Show summary on first page only if it's the only page
               businessName: businessName,
+              receiptStrings: receiptStrings,
+              pdfFont: pdfFont,
             );
           },
         ),
@@ -300,6 +539,8 @@ class ReceiptSharingService {
                   isFirstPage: false,
                   showSummary: isLastPage, // Show summary only on the last page
                   businessName: businessName,
+                  receiptStrings: receiptStrings,
+                  pdfFont: pdfFont,
                 );
               },
             ),
@@ -339,12 +580,28 @@ class ReceiptSharingService {
     required String sanitizedCustomerPhone,
     required String sanitizedCustomerId,
     required String businessName,
+    required _ReceiptStrings receiptStrings,
+    pw.Font? pdfFont,
     DateTime? specificDate,
     int pageIndex = 0,
     int totalPages = 1,
     bool isFirstPage = true,
     bool showSummary = true,
   }) {
+    // When Arabic, use Noto Sans Arabic as primary and Helvetica as fallback so both Arabic and Latin (e.g. "Bechaalany Connect", "USD", "Test") render correctly
+    pw.TextStyle withPdfFont(pw.TextStyle s) {
+      if (pdfFont == null) return s;
+      return s.copyWith(
+        font: pdfFont,
+        fontNormal: pdfFont,
+        fontBold: pdfFont,
+        fontItalic: pdfFont,
+        fontBoldItalic: pdfFont,
+        fontFallback: [pw.Font.helvetica()],
+      );
+    }
+    // Only Arabic text (labels/localized strings) should render RTL; page layout and amounts stay LTR
+    final useRtl = pdfFont != null;
     return pw.Container(
       width: double.infinity,
       height: double.infinity,
@@ -371,32 +628,34 @@ class ReceiptSharingService {
                   // App name
                   pw.Text(
                     businessName,
-                    style: pw.TextStyle(
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF64748B),
-                    ),
+                    )),
                   ),
                   pw.SizedBox(height: 4),
                   
-                  // Main title
+                  // Main title (Arabic when locale is Arabic)
                   pw.Text(
-                    'Customer Receipt',
-                    style: pw.TextStyle(
+                    receiptStrings.customerReceipt,
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF1E293B),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                   pw.SizedBox(height: 1),
                   
-                  // Generation date
+                  // Generation date (Arabic label + date)
                   pw.Text(
-                    'Generated on ${_formatDateTime(DateTime.now())}',
-                    style: pw.TextStyle(
+                    '${receiptStrings.generatedOn} ${receiptStrings.formatDateTime(DateTime.now())}',
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 9,
                       color: PdfColor.fromInt(0xFF94A3B8),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                 ],
               ),
@@ -421,42 +680,45 @@ class ReceiptSharingService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    'CUSTOMER INFORMATION',
-                    style: pw.TextStyle(
+                    receiptStrings.customerInformation,
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF64748B),
                       letterSpacing: 0.3,
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                   pw.SizedBox(height: 6),
                   pw.Text(
                     sanitizedCustomerName,
-                    style: pw.TextStyle(
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF1E293B),
-                    ),
+                    )),
+                    textDirection: (useRtl && _containsArabic(sanitizedCustomerName)) ? pw.TextDirection.rtl : null,
                   ),
                   if (sanitizedCustomerPhone.isNotEmpty) ...[
                     pw.SizedBox(height: 3),
                     pw.Text(
                       sanitizedCustomerPhone,
-                      style: pw.TextStyle(
+                      style: withPdfFont(pw.TextStyle(
                         fontSize: 12,
                         fontWeight: pw.FontWeight.normal,
                         color: PdfColor.fromInt(0xFF475569),
-                      ),
+                      )),
                     ),
                   ],
                   pw.SizedBox(height: 3),
                   pw.Text(
-                    'ID: $sanitizedCustomerId',
-                    style: pw.TextStyle(
+                    '${receiptStrings.idLabel}: $sanitizedCustomerId',
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.normal,
                       color: PdfColor.fromInt(0xFF64748B),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                 ],
               ),
@@ -479,14 +741,15 @@ class ReceiptSharingService {
             ),
             child: pw.Column(
               children: [
-                // Summary title
+                // Summary title (Arabic when locale is Arabic)
                 pw.Text(
-                  'Account Summary',
-                  style: pw.TextStyle(
+                  receiptStrings.accountSummary,
+                  style: withPdfFont(pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColor.fromInt(0xFF1E293B),
-                  ),
+                  )),
+                  textDirection: useRtl ? pw.TextDirection.rtl : null,
                 ),
                 pw.SizedBox(height: 8),
                 
@@ -498,19 +761,20 @@ class ReceiptSharingService {
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
                         pw.Text(
-                          'Total Original',
-                          style: pw.TextStyle(
+                          receiptStrings.totalOriginal,
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 12,
                             color: PdfColor.fromInt(0xFF64748B),
-                          ),
+                          )),
+                          textDirection: useRtl ? pw.TextDirection.rtl : null,
                         ),
                         pw.Text(
                           _formatCurrency(totalOriginalAmount),
-                          style: pw.TextStyle(
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColor.fromInt(0xFF64748B),
-                          ),
+                          )),
                         ),
                       ],
                     ),
@@ -518,19 +782,20 @@ class ReceiptSharingService {
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
                         pw.Text(
-                          'Total Paid',
-                          style: pw.TextStyle(
+                          receiptStrings.totalPaid,
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 12,
                             color: PdfColor.fromInt(0xFF64748B),
-                          ),
+                          )),
+                          textDirection: useRtl ? pw.TextDirection.rtl : null,
                         ),
                         pw.Text(
                           _formatCurrency(totalPaidAmount),
-                          style: pw.TextStyle(
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColor.fromInt(0xFF10B981),
-                          ),
+                          )),
                         ),
                       ],
                     ),
@@ -538,19 +803,20 @@ class ReceiptSharingService {
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
                         pw.Text(
-                          'Remaining',
-                          style: pw.TextStyle(
+                          receiptStrings.remaining,
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 12,
                             color: PdfColor.fromInt(0xFF64748B),
-                          ),
+                          )),
+                          textDirection: useRtl ? pw.TextDirection.rtl : null,
                         ),
                         pw.Text(
                           _formatCurrency(remainingAmount),
-                          style: pw.TextStyle(
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                             color: PdfColor.fromInt(0xFFEF4444),
-                          ),
+                          )),
                         ),
                       ],
                     ),
@@ -576,12 +842,13 @@ class ReceiptSharingService {
                   ),
                 ),
                 child: pw.Text(
-                  'Receipt for: ${_formatDateTime(specificDate)}',
-                  style: pw.TextStyle(
+                  '${receiptStrings.receiptFor}: ${receiptStrings.formatDateTime(specificDate)}',
+                  style: withPdfFont(pw.TextStyle(
                     fontSize: 12,
                     fontWeight: pw.FontWeight.bold,
                     color: PdfColor.fromInt(0xFF3B82F6),
-                  ),
+                  )),
+                  textDirection: useRtl ? pw.TextDirection.rtl : null,
                 ),
               ),
             ),
@@ -593,13 +860,14 @@ class ReceiptSharingService {
               width: double.infinity,
               padding: const pw.EdgeInsets.fromLTRB(32, 0, 32, 16),
               child: pw.Text(
-                'TRANSACTION HISTORY',
-                style: pw.TextStyle(
+                receiptStrings.transactionHistory,
+                style: withPdfFont(pw.TextStyle(
                   fontSize: 18,
                   fontWeight: pw.FontWeight.bold,
                   color: PdfColor.fromInt(0xFF1E293B),
                   letterSpacing: -0.3,
-                ),
+                )),
+                textDirection: useRtl ? pw.TextDirection.rtl : null,
               ),
             ),
           
@@ -662,30 +930,32 @@ class ReceiptSharingService {
                             children: [
                               pw.Text(
                                 item['description'],
-                                style: pw.TextStyle(
+                                style: withPdfFont(pw.TextStyle(
                                   fontSize: 12,
                                   fontWeight: pw.FontWeight.bold,
                                   color: textColor,
-                                ),
+                                )),
+                                textDirection: (useRtl && _containsArabic(item['description'] as String)) ? pw.TextDirection.rtl : null,
                               ),
                               pw.SizedBox(height: 2),
                               pw.Text(
-                                _formatDateTime(item['date']),
-                                style: pw.TextStyle(
+                                receiptStrings.formatDateTime(item['date']),
+                                style: withPdfFont(pw.TextStyle(
                                   fontSize: 12,
                                   color: PdfColor.fromInt(0xFF64748B),
-                                ),
+                                )),
+                                textDirection: useRtl ? pw.TextDirection.rtl : null,
                               ),
                             ],
                           ),
                         ),
                         pw.Text(
                           _formatCurrency(item['amount']),
-                          style: pw.TextStyle(
+                          style: withPdfFont(pw.TextStyle(
                             fontSize: 14,
                             fontWeight: pw.FontWeight.bold,
                             color: amountColor,
-                          ),
+                          )),
                         ),
                       ],
                     ),
@@ -711,27 +981,41 @@ class ReceiptSharingService {
             child: pw.Column(
               mainAxisSize: pw.MainAxisSize.min,
               children: [
-                pw.Text(
-                  'Generated by $businessName',
-                  style: pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColor.fromInt(0xFF94A3B8),
-                    letterSpacing: 0.3,
-                  ),
-                  textAlign: pw.TextAlign.center,
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      businessName,
+                      style: withPdfFont(pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColor.fromInt(0xFF94A3B8),
+                        letterSpacing: 0.3,
+                      )),
+                    ),
+                    pw.Text(
+                      ' ${receiptStrings.generatedBy}',
+                      style: withPdfFont(pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColor.fromInt(0xFF94A3B8),
+                        letterSpacing: 0.3,
+                      )),
+                      textDirection: useRtl ? pw.TextDirection.rtl : null,
+                    ),
+                  ],
                 ),
                 // Page number at bottom (if multiple pages)
                 if (totalPages > 1) ...[
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Page ${pageIndex + 1} of $totalPages',
-                    style: pw.TextStyle(
+                    receiptStrings.pageOf(pageIndex + 1, totalPages),
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF64748B),
                       letterSpacing: 0.3,
-                    ),
+                    )),
                     textAlign: pw.TextAlign.center,
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                 ],
               ],
@@ -926,15 +1210,18 @@ This is an automated receipt. Please contact us for any account-related inquirie
     }).toList();
   }
 
-  /// Generate monthly activity PDF report
+  /// Generate monthly activity PDF report.
+  /// Pass [l10n] to render the PDF in the app's current locale (e.g. Arabic).
   static Future<File?> generateMonthlyActivityPDF({
     required List<Activity> monthlyActivities,
     required List<Debt> monthlyDebts,
     required double totalRevenue,
     required double totalPaid,
     required DateTime monthDate,
+    AppLocalizations? l10n,
   }) async {
     try {
+      final reportStrings = _buildMonthlyReportStrings(l10n);
       // Get business name for PDF generation
       final businessNameService = BusinessNameService();
       final businessName = await businessNameService.getBusinessName();
@@ -944,8 +1231,20 @@ This is an automated receipt. Please contact us for any account-related inquirie
         throw Exception('Business name is required. Please set your business name in Settings.');
       }
       
-      // Create PDF document
-      final pdf = pw.Document();
+      // Use a font that supports Arabic when the report is in Arabic, so Arabic text renders in the PDF
+      pw.ThemeData? pdfTheme;
+      pw.Font? pdfFont;
+      if (reportStrings.isArabic) {
+        try {
+          pdfFont = await PdfGoogleFonts.notoSansArabicRegular();
+          pdfTheme = pw.ThemeData.withFont(base: pdfFont);
+        } catch (_) {
+          // If font fails to load, continue without theme (Arabic may show as boxes)
+        }
+      }
+      
+      // Create PDF document (with Arabic font theme when locale is Arabic)
+      final pdf = pw.Document(theme: pdfTheme);
       
       // Build PDF content
       final allItems = <Map<String, dynamic>>[];
@@ -993,7 +1292,7 @@ This is an automated receipt. Please contact us for any account-related inquirie
       // If not, it means some activities couldn't be added
       // The PDF will still generate with available items
       
-      final monthName = _getMonthName(monthDate.month);
+      final monthName = reportStrings.getMonthName(monthDate.month);
       final year = monthDate.year;
       
       // Pagination constants - items per page (adjusted based on actual fit)
@@ -1030,6 +1329,8 @@ This is an automated receipt. Please contact us for any account-related inquirie
               isFirstPage: true,
               showSummary: true,
               businessName: businessName,
+              reportStrings: reportStrings,
+              pdfFont: pdfFont,
             );
           },
         ),
@@ -1072,6 +1373,8 @@ This is an automated receipt. Please contact us for any account-related inquirie
                   isFirstPage: false,
                   showSummary: false,
                   businessName: businessName,
+                  reportStrings: reportStrings,
+                  pdfFont: pdfFont,
                 );
               },
             ),
@@ -1109,11 +1412,26 @@ This is an automated receipt. Please contact us for any account-related inquirie
     required int year,
     required int totalTransactions,
     required String businessName,
+    required _MonthlyReportStrings reportStrings,
+    pw.Font? pdfFont,
     int pageIndex = 0,
     int totalPages = 1,
     bool isFirstPage = true,
     bool showSummary = true,
   }) {
+    // When Arabic, use Noto Sans Arabic as primary and Helvetica as fallback for Latin (e.g. business name, numbers)
+    pw.TextStyle withPdfFont(pw.TextStyle s) {
+      if (pdfFont == null) return s;
+      return s.copyWith(
+        font: pdfFont,
+        fontNormal: pdfFont,
+        fontBold: pdfFont,
+        fontItalic: pdfFont,
+        fontBoldItalic: pdfFont,
+        fontFallback: [pw.Font.helvetica()],
+      );
+    }
+    final useRtl = pdfFont != null;
     return pw.Container(
       width: double.infinity,
       height: double.infinity,
@@ -1137,45 +1455,48 @@ This is an automated receipt. Please contact us for any account-related inquirie
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  // App name
+                  // App name (often English; keep LTR)
                   pw.Text(
                     businessName,
-                    style: pw.TextStyle(
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF64748B),
-                    ),
+                    )),
                   ),
                   pw.SizedBox(height: 4),
                   
-                  // Main title
+                  // Main title (Arabic when locale is Arabic → RTL)
                   pw.Text(
-                    'Monthly Activity Report',
-                    style: pw.TextStyle(
+                    reportStrings.monthlyActivityReport,
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF1E293B),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                   pw.SizedBox(height: 2),
                   
-                  // Month and year
+                  // Month and year (Arabic month name when Arabic → RTL)
                   pw.Text(
                     '$monthName $year',
-                    style: pw.TextStyle(
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 12,
                       fontWeight: pw.FontWeight.normal,
                       color: PdfColor.fromInt(0xFF475569),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                   pw.SizedBox(height: 1),
-                  // Generation date (only on first page)
+                  // Generation date (only on first page) (Arabic label → RTL)
                   pw.Text(
-                    'Generated on ${_formatDateForPDF(DateTime.now())}',
-                    style: pw.TextStyle(
+                    reportStrings.formatGeneratedOn(DateTime.now()),
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 9,
                       color: PdfColor.fromInt(0xFF94A3B8),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                 ],
               ),
@@ -1197,18 +1518,19 @@ This is an automated receipt. Please contact us for any account-related inquirie
               ),
               child: pw.Column(
                 children: [
-                  // Summary title
+                  // Summary title (Arabic → RTL)
                   pw.Text(
-                    'Summary',
-                    style: pw.TextStyle(
+                    reportStrings.reportSummary,
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 16,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF1E293B),
-                    ),
+                    )),
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                   pw.SizedBox(height: 8),
                   
-                  // Clean summary layout - no cards, just clean rows
+                  // Clean summary layout - labels RTL when Arabic; amounts always English numerals, LTR
                   pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
@@ -1216,19 +1538,20 @@ This is an automated receipt. Please contact us for any account-related inquirie
                         crossAxisAlignment: pw.CrossAxisAlignment.center,
                         children: [
                           pw.Text(
-                            'Total Revenue',
-                            style: pw.TextStyle(
+                            reportStrings.totalRevenue,
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 12,
                               color: PdfColor.fromInt(0xFF64748B),
-                            ),
+                            )),
+                            textDirection: useRtl ? pw.TextDirection.rtl : null,
                           ),
                           pw.Text(
-                            '\$${totalRevenue.toStringAsFixed(2)}',
-                            style: pw.TextStyle(
+                            '${totalRevenue.toStringAsFixed(2)}\$',
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColor.fromInt(0xFF10B981),
-                            ),
+                            )),
                           ),
                         ],
                       ),
@@ -1236,19 +1559,20 @@ This is an automated receipt. Please contact us for any account-related inquirie
                         crossAxisAlignment: pw.CrossAxisAlignment.center,
                         children: [
                           pw.Text(
-                            'Total Paid',
-                            style: pw.TextStyle(
+                            reportStrings.totalPaid,
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 12,
                               color: PdfColor.fromInt(0xFF64748B),
-                            ),
+                            )),
+                            textDirection: useRtl ? pw.TextDirection.rtl : null,
                           ),
                           pw.Text(
-                            '\$${totalPaid.toStringAsFixed(2)}',
-                            style: pw.TextStyle(
+                            '${totalPaid.toStringAsFixed(2)}\$',
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColor.fromInt(0xFF3B82F6),
-                            ),
+                            )),
                           ),
                         ],
                       ),
@@ -1256,19 +1580,20 @@ This is an automated receipt. Please contact us for any account-related inquirie
                         crossAxisAlignment: pw.CrossAxisAlignment.center,
                         children: [
                           pw.Text(
-                            'Transactions',
-                            style: pw.TextStyle(
+                            reportStrings.transactionsLabel,
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 12,
                               color: PdfColor.fromInt(0xFF64748B),
-                            ),
+                            )),
+                            textDirection: useRtl ? pw.TextDirection.rtl : null,
                           ),
                           pw.Text(
                             '$totalTransactions',
-                            style: pw.TextStyle(
+                            style: withPdfFont(pw.TextStyle(
                               fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
                               color: PdfColor.fromInt(0xFF6366F1),
-                            ),
+                            )),
                           ),
                         ],
                       ),
@@ -1286,16 +1611,17 @@ This is an automated receipt. Please contact us for any account-related inquirie
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Activity Details header (only on first page)
+                  // Activity Details header (only on first page) (Arabic → RTL)
                   if (isFirstPage) ...[
                     pw.Text(
-                      'Activity Details',
-                      style: pw.TextStyle(
+                      reportStrings.activityDetails,
+                      style: withPdfFont(pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColor.fromInt(0xFF1E293B),
                         letterSpacing: -0.3,
-                      ),
+                      )),
+                      textDirection: useRtl ? pw.TextDirection.rtl : null,
                     ),
                     pw.SizedBox(height: 16),
                   ],
@@ -1304,7 +1630,7 @@ This is an automated receipt. Please contact us for any account-related inquirie
                       itemCount: pageItems.length,
                       itemBuilder: (context, index) {
                         final item = pageItems[index];
-                        return _buildModernActivityPDFItem(item);
+                        return _buildModernActivityPDFItem(item, reportStrings, pdfFont, useRtl);
                       },
                     ),
                   ),
@@ -1329,27 +1655,44 @@ This is an automated receipt. Please contact us for any account-related inquirie
             child: pw.Column(
               mainAxisSize: pw.MainAxisSize.min,
               children: [
-                pw.Text(
-                  'Generated by $businessName',
-                  style: pw.TextStyle(
-                    fontSize: 11,
-                    color: PdfColor.fromInt(0xFF94A3B8),
-                    letterSpacing: 0.3,
-                  ),
-                  textAlign: pw.TextAlign.center,
+                // Split so Arabic (generatedBy) uses RTL on the right, English (businessName) LTR on the left
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.center,
+                  children: [
+                    pw.Text(
+                      businessName,
+                      style: withPdfFont(pw.TextStyle(
+                        fontSize: 11,
+                        color: PdfColor.fromInt(0xFF94A3B8),
+                        letterSpacing: 0.3,
+                      )),
+                      textDirection: pw.TextDirection.ltr,
+                    ),
+                    pw.SizedBox(width: 4),
+                    pw.Text(
+                      reportStrings.generatedBy,
+                      style: withPdfFont(pw.TextStyle(
+                        fontSize: 11,
+                        color: PdfColor.fromInt(0xFF94A3B8),
+                        letterSpacing: 0.3,
+                      )),
+                      textDirection: useRtl ? pw.TextDirection.rtl : null,
+                    ),
+                  ],
                 ),
                 // Page number at bottom (if multiple pages)
                 if (totalPages > 1) ...[
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Page ${pageIndex + 1} of $totalPages',
-                    style: pw.TextStyle(
+                    reportStrings.pageOf(pageIndex + 1, totalPages),
+                    style: withPdfFont(pw.TextStyle(
                       fontSize: 11,
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColor.fromInt(0xFF64748B),
                       letterSpacing: 0.3,
-                    ),
+                    )),
                     textAlign: pw.TextAlign.center,
+                    textDirection: useRtl ? pw.TextDirection.rtl : null,
                   ),
                 ],
               ],
@@ -1475,13 +1818,70 @@ This is an automated receipt. Please contact us for any account-related inquirie
     );
   }
 
+  /// Build description as PDF widgets: product name (RTL if Arabic) then " x N" in LTR so "x 2" appears on the right of the product.
+  static List<pw.Widget> _buildDescriptionWithQuantityPdf(String description, bool useRtl, pw.TextStyle Function(pw.TextStyle) withPdfFont) {
+    const quantitySeparator = ' x ';
+    final textStyle = withPdfFont(pw.TextStyle(
+      fontSize: 12,
+      fontWeight: pw.FontWeight.bold,
+      color: PdfColor.fromInt(0xFF1E293B),
+    ));
+    if (description.contains(quantitySeparator)) {
+      final parts = description.split(quantitySeparator);
+      if (parts.length >= 2) {
+        final quantityPart = parts.last.trim();
+        final isNumeric = double.tryParse(quantityPart.replaceAll(',', '.')) != null;
+        if (isNumeric) {
+          final productName = parts.sublist(0, parts.length - 1).join(quantitySeparator).trim();
+          return [
+            pw.Text(
+              productName,
+              style: textStyle,
+              textDirection: (useRtl && _containsArabic(productName)) ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+            ),
+            pw.Text(
+              '$quantitySeparator$quantityPart',
+              style: textStyle,
+              textDirection: pw.TextDirection.ltr,
+            ),
+          ];
+        }
+      }
+    }
+    return [
+      pw.Text(
+        description,
+        style: textStyle,
+        textDirection: (useRtl && _containsArabic(description)) ? pw.TextDirection.rtl : pw.TextDirection.ltr,
+      ),
+    ];
+  }
+
   /// Build modern activity item for PDF
-  static pw.Widget _buildModernActivityPDFItem(Map<String, dynamic> item) {
+  static pw.Widget _buildModernActivityPDFItem(Map<String, dynamic> item, _MonthlyReportStrings reportStrings, pw.Font? pdfFont, bool useRtl) {
+    pw.TextStyle withPdfFont(pw.TextStyle s) {
+      if (pdfFont == null) return s;
+      return s.copyWith(
+        font: pdfFont,
+        fontNormal: pdfFont,
+        fontBold: pdfFont,
+        fontItalic: pdfFont,
+        fontBoldItalic: pdfFont,
+        fontFallback: [pw.Font.helvetica()],
+      );
+    }
     final activity = item['activity'] as Activity;
     final amount = item['amount'] as double;
     final date = item['date'] as DateTime;
     final customerName = item['customerName'] as String;
-    final description = item['description'] as String;
+    String description = item['description'] as String;
+    // For new debt, activity.description is "$amount product" (e.g. "$20.00 جينز"); we show amount in the column, so strip it from text to avoid duplicate
+    if (activity.type == ActivityType.newDebt && description.isNotEmpty) {
+      final amountPrefix = RegExp(r'^\$\d+(\.\d+)?\s+');
+      if (amountPrefix.hasMatch(description)) {
+        description = description.replaceFirst(amountPrefix, '').trim();
+      }
+    }
     
     PdfColor statusColor;
     String statusText;
@@ -1490,34 +1890,34 @@ This is an automated receipt. Please contact us for any account-related inquirie
     switch (activity.type) {
       case ActivityType.payment:
         if (activity.isPaymentCompleted) {
-          if (description.startsWith('Fully paid:')) {
+          if (description.startsWith('Fully paid:') || description.startsWith('مدفوع بالكامل:')) {
             statusColor = PdfColor.fromInt(0xFF10B981);
-            statusText = 'Fully Paid';
+            statusText = reportStrings.fullyPaid;
             backgroundColor = PdfColor.fromInt(0xFFECFDF5);
           } else {
             statusColor = PdfColor.fromInt(0xFF3B82F6);
-            statusText = 'Debt Paid';
+            statusText = reportStrings.debtPaid;
             backgroundColor = PdfColor.fromInt(0xFFEFF6FF);
           }
         } else {
           statusColor = PdfColor.fromInt(0xFFF59E0B);
-          statusText = 'Partial Payment';
+          statusText = reportStrings.partialPayment;
           backgroundColor = PdfColor.fromInt(0xFFFFFBEB);
         }
         break;
       case ActivityType.newDebt:
         statusColor = PdfColor.fromInt(0xFF6366F1);
-        statusText = 'New Debt';
+        statusText = reportStrings.newDebt;
         backgroundColor = PdfColor.fromInt(0xFFF0F4FF);
         break;
       case ActivityType.debtCleared:
         statusColor = PdfColor.fromInt(0xFF3B82F6);
-        statusText = 'Debt Paid';
+        statusText = reportStrings.debtPaid;
         backgroundColor = PdfColor.fromInt(0xFFEFF6FF);
         break;
       default:
         statusColor = PdfColor.fromInt(0xFF64748B);
-        statusText = 'Activity';
+        statusText = reportStrings.activity;
         backgroundColor = PdfColor.fromInt(0xFFF8FAFC);
     }
     
@@ -1545,56 +1945,78 @@ This is an automated receipt. Please contact us for any account-related inquirie
           ),
           pw.SizedBox(width: 10),
           
-          // Main content
+          // Main content: customer name (always LTR, left) then product; amount stays on the right
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               mainAxisSize: pw.MainAxisSize.min,
               children: [
-                // Customer name and description in one line
-                pw.Text(
-                  '$customerName - $description',
-                  style: pw.TextStyle(
-                    fontSize: 12,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromInt(0xFF1E293B),
-                  ),
+                pw.Row(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  children: activity.type == ActivityType.payment
+                      ? [
+                          // Fully paid / Partial payment: left shows only customer name; amount and status on the right
+                          pw.Text(
+                            customerName,
+                            style: withPdfFont(pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromInt(0xFF1E293B),
+                            )),
+                            textDirection: pw.TextDirection.ltr,
+                          ),
+                        ]
+                      : [
+                          // New debt etc.: customer name then product (and optional " x 2")
+                          pw.Text(
+                            '$customerName - ',
+                            style: withPdfFont(pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColor.fromInt(0xFF1E293B),
+                            )),
+                            textDirection: pw.TextDirection.ltr,
+                          ),
+                          ..._buildDescriptionWithQuantityPdf(description, useRtl, withPdfFont),
+                        ],
                 ),
                 pw.SizedBox(height: 2),
                 
-                // Date
+                // Date (Arabic label when Arabic → RTL)
                 pw.Text(
-                  _formatActivityDate(date),
-                  style: pw.TextStyle(
+                  reportStrings.formatActivityDate(date),
+                  style: withPdfFont(pw.TextStyle(
                     fontSize: 10,
                     color: PdfColor.fromInt(0xFF94A3B8),
-                  ),
+                  )),
+                  textDirection: useRtl ? pw.TextDirection.rtl : null,
                 ),
               ],
             ),
           ),
           
-          // Amount and status in one column
+          // Amount (always English numerals, LTR) and status (Arabic when useRtl → RTL)
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             mainAxisSize: pw.MainAxisSize.min,
             children: [
               pw.Text(
-                '\$${amount.toStringAsFixed(2)}',
-                style: pw.TextStyle(
+                '${amount.toStringAsFixed(2)}\$',
+                style: withPdfFont(pw.TextStyle(
                   fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
                   color: statusColor,
-                ),
+                )),
               ),
               pw.SizedBox(height: 1),
               pw.Text(
                 statusText,
-                style: pw.TextStyle(
+                style: withPdfFont(pw.TextStyle(
                   fontSize: 9,
                   fontWeight: pw.FontWeight.normal,
                   color: statusColor,
-                ),
+                )),
+                textDirection: useRtl ? pw.TextDirection.rtl : null,
               ),
             ],
           ),

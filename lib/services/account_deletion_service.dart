@@ -13,14 +13,16 @@ class AccountDeletionService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseAuthService _authService = FirebaseAuthService();
 
-  /// Delete the current user's account and all associated data
+  /// Delete the current user's account and all associated data.
+  /// [reauthCredential] If provided, re-authenticates the user first (required when
+  /// Firebase returns requires-recent-login). Pass the credential from password dialog
+  /// or from AuthService.getCredentialForReauth() for Google/Apple.
   /// This method:
-  /// 1. Deletes all user data from Firestore (customers, debts, activities, backups, etc.)
-  /// 2. Deletes the user document itself
-  /// 3. Deletes the Firebase Auth account
-  /// 
-  /// Throws an exception if deletion fails at any step
-  Future<void> deleteAccount() async {
+  /// 1. Optionally re-authenticates with [reauthCredential]
+  /// 2. Deletes all user data from Firestore
+  /// 3. Deletes the user document
+  /// 4. Deletes the Firebase Auth account
+  Future<void> deleteAccount({AuthCredential? reauthCredential}) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw Exception('No user is currently signed in');
@@ -29,6 +31,10 @@ class AccountDeletionService {
     final userId = user.uid;
 
     try {
+      if (reauthCredential != null) {
+        await _authService.reauthenticateWithCredential(reauthCredential);
+      }
+
       // Step 1: Delete all user data from Firestore subcollections
       await _deleteAllUserData(userId);
 
@@ -36,12 +42,8 @@ class AccountDeletionService {
       await _firestore.collection('users').doc(userId).delete();
 
       // Step 3: Delete the Firebase Auth account
-      // This must be done last, as it will invalidate the user session
       await _authService.deleteAccount();
     } catch (e) {
-      // If Firebase Auth deletion fails, we've already deleted the data
-      // This is acceptable - the user won't be able to sign in again anyway
-      // But we should still throw the error so the UI can inform the user
       rethrow;
     }
   }

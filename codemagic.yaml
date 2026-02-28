@@ -33,10 +33,4 @@ workflows:
           failure: false
       app_store_connect:
         auth: integration
-        
-        # Configuration related to TestFlight (optional)
-        # Note: It is also possible to publish to TestFlight without submitting for review
-        submit_to_testflight: false
-        # beta_groups: # Uncomment and specify beta tester groups if needed
-        #   - group name 1
-        #   - group name 2
+        submit_to_testflight: false  # App Store only, no TestFlight

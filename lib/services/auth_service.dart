@@ -54,7 +54,15 @@ class AuthService {
       if (!_googleSignIn.supportsAuthenticate()) {
         throw Exception('Google Sign-In is not supported on this device');
       }
-      
+
+      // Disconnect any cached session so Google shows "Sign in" (not "Sign back in")
+      // for new users. Safe to call even when no user is connected.
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {
+        // Ignore; proceed with authenticate()
+      }
+
       // Use authenticate() for both platforms (v7 API)
       // Credential Manager is disabled via AndroidManifest metadata
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
@@ -63,21 +71,14 @@ class AuthService {
         throw Exception('Google Sign-In was cancelled by user');
       }
 
-      // Obtain the auth details from the request
+      // Obtain the auth details from the request (idToken is enough for Firebase).
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
-      // Get access token via authorization client (v7 API)
-      String? accessToken;
-      try {
-        final authorization = await googleUser.authorizationClient.authorizeScopes(['openid', 'email', 'profile']);
-        accessToken = authorization.accessToken;
-      } catch (e) {
-        // Access token not critical for Firebase Auth if we have idToken
-      }
-
-      // Create a new credential
+      // Use only idToken for the credential. Do not call authorizeScopes() here:
+      // that triggers a second consent screen which Google shows as "You're signing
+      // back in" and confuses new users.
       final credential = GoogleAuthProvider.credential(
-        accessToken: accessToken,
+        accessToken: null,
         idToken: googleAuth.idToken,
       );
 
@@ -240,6 +241,61 @@ class AuthService {
     if (isGoogleUser) return 'Google';
     if (isAppleUser) return 'Apple';
     return 'Unknown';
+  }
+
+  /// Returns true if the current user signed in with email/password (needs password for re-auth).
+  bool get isEmailPasswordUser {
+    final user = currentUser;
+    if (user == null) return false;
+    return user.providerData.any((p) => p.providerId == 'password');
+  }
+
+  /// Obtain a credential for re-authentication (e.g. before account deletion).
+  /// For Google/Apple: runs the sign-in flow and returns the credential.
+  /// For email/password: returns null — UI must ask for password and use
+  /// EmailAuthProvider.credential(email, password).
+  /// Throws if user cancels or flow fails.
+  Future<AuthCredential?> getCredentialForReauth() async {
+    if (isGoogleUser) return _getGoogleReauthCredential();
+    if (isAppleUser) return _getAppleReauthCredential();
+    return null;
+  }
+
+  Future<AuthCredential> _getGoogleReauthCredential() async {
+    await ensureInitialized();
+    if (!_googleSignIn.supportsAuthenticate()) {
+      throw Exception('Google Sign-In is not supported on this device');
+    }
+    final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+    if (googleUser == null) {
+      throw Exception('Google Sign-In was cancelled');
+    }
+    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+    String? accessToken;
+    try {
+      final authorization = await googleUser.authorizationClient.authorizeScopes(['openid', 'email', 'profile']);
+      accessToken = authorization.accessToken;
+    } catch (e) {
+      // idToken is sufficient for Firebase credential
+    }
+    return GoogleAuthProvider.credential(
+      accessToken: accessToken,
+      idToken: googleAuth.idToken,
+    );
+  }
+
+  Future<AuthCredential> _getAppleReauthCredential() async {
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [AppleIDAuthorizationScopes.email],
+    );
+    if (appleCredential.identityToken == null ||
+        appleCredential.identityToken!.isEmpty) {
+      throw Exception('Apple Sign-In was cancelled or failed');
+    }
+    return OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      accessToken: appleCredential.authorizationCode,
+    );
   }
 
   /// Track email verification completion

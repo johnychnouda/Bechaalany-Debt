@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart' as fw;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/app_state.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 import '../models/category.dart' show ProductCategory, Subcategory;
 import '../models/currency_settings.dart';
@@ -150,7 +152,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No products found',
+                AppLocalizations.of(context)!.noProductsFound,
                 style: TextStyle(
                   color: AppColors.dynamicTextPrimary(context),
                   fontSize: 18,
@@ -159,7 +161,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Try adjusting your search terms',
+                AppLocalizations.of(context)!.tryAdjustingSearchTerms,
                 style: TextStyle(
                   color: AppColors.dynamicTextSecondary(context),
                 ),
@@ -200,8 +202,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
       );
       
       if (selectedCategory.id.isEmpty) {
-        return const Center(
-          child: Text('Category not found'),
+        return Center(
+          child: Text(AppLocalizations.of(context)!.categoryNotFound),
         );
       }
       
@@ -217,7 +219,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'No products found',
+                AppLocalizations.of(context)!.noProductsFound,
                 style: TextStyle(
                   color: AppColors.dynamicTextPrimary(context),
                   fontSize: 18,
@@ -226,9 +228,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _searchQuery.isNotEmpty 
-                    ? 'Try adjusting your search terms'
-                    : 'Add products to this category to get started',
+                _searchQuery.isNotEmpty
+                    ? AppLocalizations.of(context)!.tryAdjustingSearchTerms
+                    : AppLocalizations.of(context)!.addProductsToCategoryToGetStarted(_selectedCategory),
                 style: TextStyle(
                   color: AppColors.dynamicTextSecondary(context),
                 ),
@@ -303,7 +305,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
               label: Text(
-                'All',
+                AppLocalizations.of(context)!.filterAll,
                 style: TextStyle(
                   color: _selectedCategory == 'All' 
                       ? Colors.white 
@@ -486,7 +488,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           _filterProducts();
                         },
                         decoration: InputDecoration(
-                          hintText: 'Search products...',
+                          hintText: AppLocalizations.of(context)!.searchProducts,
                           hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
                           prefixIcon: Icon(Icons.search, color: AppColors.dynamicTextSecondary(context)),
                           filled: true,
@@ -527,7 +529,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                _getEmptyStateMessage(),
+                                _getEmptyStateMessage(context),
                                 style: TextStyle(
                                   color: AppColors.dynamicTextPrimary(context),
                                   fontSize: 18,
@@ -536,7 +538,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _getEmptyStateSubMessage(),
+                                _getEmptyStateSubMessage(context),
                                 style: TextStyle(
                                   color: AppColors.dynamicTextSecondary(context),
                                 ),
@@ -549,7 +551,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     _filterProducts();
                                   },
                                   icon: const Icon(Icons.refresh),
-                                  label: const Text('Refresh'),
+                                  label: Text(AppLocalizations.of(context)!.refresh),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.dynamicPrimary(context),
                                     foregroundColor: Colors.white,
@@ -580,44 +582,45 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  String _getEmptyStateMessage() {
+  String _getEmptyStateMessage(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
-    
+    final l10n = AppLocalizations.of(context)!;
     // If there's a search query, always show "No products found"
     if (_searchQuery.isNotEmpty) {
-      return 'No products found';
+      return l10n.noProductsFound;
     }
     
     if (_selectedCategory == 'All') {
       // Check if categories exist
       if (appState.categories.isEmpty) {
-        return 'No categories found';
+        return l10n.noCategoriesFound;
       } else {
         // Categories exist but no products
-        return 'No products found';
+        return l10n.noProductsFound;
       }
     }
-    return 'No products in $_selectedCategory';
+    return l10n.noProductsInCategory(_selectedCategory);
   }
 
-  String _getEmptyStateSubMessage() {
+  String _getEmptyStateSubMessage(BuildContext context) {
     final appState = Provider.of<AppState>(context, listen: false);
+    final l10n = AppLocalizations.of(context)!;
     
     // If there's a search query, suggest adjusting search terms
     if (_searchQuery.isNotEmpty) {
-      return 'Try adjusting your search terms';
+      return l10n.tryAdjustingSearchTerms;
     }
     
     if (_selectedCategory == 'All') {
       // Check if categories exist
       if (appState.categories.isEmpty) {
-        return 'Add categories to get started';
+        return l10n.addCategoriesToGetStarted;
       } else {
         // Categories exist but no products
-        return 'Add products to get started';
+        return l10n.addProductsToGetStarted;
       }
     }
-    return 'Add products to $_selectedCategory to get started';
+    return l10n.addProductsToCategoryToGetStarted(_selectedCategory);
   }
 
   void _editProduct(Subcategory subcategory) {
@@ -646,17 +649,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final appState = Provider.of<AppState>(context, listen: false);
     final hasCategories = appState.categories.isNotEmpty;
 
+    final l10n = AppLocalizations.of(context)!;
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
-        title: const Text('Quick Actions'),
+        title: Text(l10n.quickActions),
         actions: <CupertinoActionSheetAction>[
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.of(context).pop();
               _showAddCategoryDialog(context);
             },
-            child: const Text('Add Category'),
+            child: Text(l10n.addCategory),
           ),
           if (hasCategories)
             CupertinoActionSheetAction(
@@ -664,7 +668,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 Navigator.of(context).pop();
                 _showCategorySelectionDialog(context);
               },
-              child: const Text('Add Product'),
+              child: Text(l10n.addProduct),
             ),
           if (hasCategories)
             CupertinoActionSheetAction(
@@ -673,7 +677,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 Navigator.of(context).pop();
                 _showDeleteCategorySelectionDialog(context);
               },
-              child: const Text('Delete Category'),
+              child: Text(l10n.deleteCategory),
             ),
           if (hasCategories)
             CupertinoActionSheetAction(
@@ -682,14 +686,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 Navigator.of(context).pop();
                 _showDeleteSubcategorySelectionDialog(context);
               },
-              child: const Text('Delete Product'),
+              child: Text(l10n.deleteProduct),
             ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
       ),
     );
@@ -702,8 +706,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Select Category'),
+          title: Text(l10n.selectCategory),
           content: ConstrainedBox(
             constraints: BoxConstraints(
               // Limit dialog height to avoid overflow on small screens
@@ -713,11 +718,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Choose a category to add a subcategory to:'),
+                  Text(l10n.chooseCategoryToAddSubcategory),
                   const SizedBox(height: 16),
                   ...categories.map((category) => ListTile(
                         title: Text(category.name),
-                        subtitle: Text('${category.subcategories.length} subcategories'),
+                        subtitle: Text(l10n.subcategoriesCount('${category.subcategories.length}')),
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () {
                           Navigator.of(context).pop();
@@ -731,7 +736,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
           ],
         );
@@ -745,16 +750,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
+        final l10n = AppLocalizations.of(context)!;
         return AlertDialog(
-          title: const Text('Add Category'),
+          title: Text(l10n.addCategory),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Category Name',
-                  hintText: 'e.g., Electronics',
+                decoration: InputDecoration(
+                  labelText: l10n.categoryName,
+                  hintText: l10n.categoryNameHint,
                 ),
               ),
             ],
@@ -762,7 +768,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -789,7 +795,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   }
                 }
               },
-              child: const Text('Add'),
+              child: Text(l10n.add),
             ),
           ],
         );
@@ -1016,7 +1022,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Cancel'),
+                        child: Text(AppLocalizations.of(context)!.cancel),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1043,7 +1049,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                           content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP.'),
                                           actions: [
                                             CupertinoDialogAction(
-                                              child: const Text('Cancel'),
+                                              child: Text(AppLocalizations.of(context)!.cancel),
                                               onPressed: () => Navigator.pop(context),
                                             ),
                                             CupertinoDialogAction(
@@ -1297,18 +1303,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     // Check if exchange rate is set (only required for LBP products)
     if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
+      final l10n = AppLocalizations.of(context)!;
       showCupertinoDialog(
         context: context,
         builder: (context) => CupertinoAlertDialog(
-          title: const Text('Exchange Rate Required'),
-          content: const Text('Please set an exchange rate in Currency Settings before adding products with LBP.'),
+          title: Text(l10n.exchangeRateRequired),
+          content: Text(l10n.setExchangeRateInSettings),
           actions: [
             CupertinoDialogAction(
-              child: const Text('Cancel'),
+              child: Text(l10n.cancel),
               onPressed: () => Navigator.pop(context),
             ),
             CupertinoDialogAction(
-              child: const Text('Go to Settings'),
+              child: Text(l10n.goToSettings),
               onPressed: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(
@@ -1339,8 +1346,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
             costPriceController.addListener(() => setState(() {}));
             sellingPriceController.addListener(() => setState(() {}));
             
+            final l10n = AppLocalizations.of(context)!;
             return AlertDialog(
-              title: Text('Add Subcategory to $categoryName'),
+              title: Text(l10n.addSubcategoryTo(categoryName)),
               contentPadding: const EdgeInsets.all(16),
               content: SingleChildScrollView(
                 child: Column(
@@ -1348,19 +1356,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   children: [
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Subcategory Name',
-                        hintText: 'e.g., iPhone',
+                      decoration: InputDecoration(
+                        labelText: l10n.subcategoryName,
+                        hintText: l10n.subcategoryNameHint,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Currency',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    Text(
+                      l10n.currencyLabel,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     ExpandableChipDropdown<String>(
-                      label: 'Currency',
+                      label: l10n.currencyLabel,
                       value: selectedCurrency,
                       items: ['USD', 'LBP'],
                       itemToString: (currency) => currency,
@@ -1397,8 +1405,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(
                       controller: costPriceController,
                       decoration: InputDecoration(
-                        labelText: 'Cost Price',
-                        hintText: 'Enter cost price',
+                        labelText: l10n.costPrice,
+                        hintText: l10n.enterCostPrice,
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
@@ -1425,8 +1433,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(
                       controller: sellingPriceController,
                       decoration: InputDecoration(
-                        labelText: 'Selling Price',
-                        hintText: 'Enter selling price',
+                        labelText: l10n.sellingPrice,
+                        hintText: l10n.enterSellingPrice,
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: selectedCurrency == 'LBP' 
@@ -1505,7 +1513,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
-                        child: const Text('Cancel'),
+                        child: Text(AppLocalizations.of(context)!.cancel),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1549,18 +1557,33 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       // Validate prices before saving to prevent corruption
                                       if (!subcategory.hasValidPrices) {
                                         final validationMessage = subcategory.priceValidationMessage;
-                                        // Notification removed
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(validationMessage ?? 'Invalid prices')),
+                                          );
+                                        }
                                         return;
                                       }
-                                      
+                                      if (category.id.isEmpty) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Category not found. Please try again.')),
+                                          );
+                                        }
+                                        return;
+                                      }
                                       category.subcategories.add(subcategory);
                                       await appState.updateCategory(category);
-                                      if (mounted) {
+                                      if (context.mounted) {
                                         Navigator.of(context).pop();
                                       }
-                                      _filterProducts();
+                                      if (mounted) _filterProducts();
                                     } catch (e) {
-                                      // Notification removed
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Failed to add: ${e.toString()}')),
+                                        );
+                                      }
                                     }
                                   }
                                 : null,
@@ -1574,7 +1597,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: Text(isLoss ? 'Confirm' : 'Add'),
+                            child: Text(isLoss ? l10n.confirm : l10n.add),
                           );
                         },
                       ),
@@ -1624,7 +1647,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ],
         );
@@ -1689,7 +1712,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ],
         );
@@ -1730,7 +1753,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
           ],
         );
@@ -1771,7 +1794,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           onPressed: () {
             Navigator.of(context).pop();
           },
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
       ),
     );
@@ -1806,7 +1829,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -2365,6 +2388,7 @@ class _ProductCard extends StatelessWidget {
             const SizedBox(height: 12),
             Consumer<AppState>(
               builder: (context, appState, child) {
+                final l10n = AppLocalizations.of(context)!;
                 // Get actual ProductPurchase data for this subcategory
                 final productPurchases = appState.productPurchases
                     .where((p) => p.subcategoryName == subcategory.name)
@@ -2416,7 +2440,7 @@ class _ProductCard extends StatelessWidget {
                     Expanded(
                       child: _buildInfoChip(
                         context,
-                        'Cost',
+                        l10n.productCost,
                         // Pass original LBP values for LBP products, converted USD values for USD products
                         subcategory.costPriceCurrency == 'LBP' 
                             ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.costPrice, storedCurrency: 'LBP')
@@ -2429,7 +2453,7 @@ class _ProductCard extends StatelessWidget {
                     Expanded(
                       child: _buildInfoChip(
                         context,
-                        'Price',
+                        l10n.productPrice,
                         // Pass original LBP values for LBP products, converted USD values for USD products
                         subcategory.sellingPriceCurrency == 'LBP'
                             ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.sellingPrice, storedCurrency: 'LBP')
@@ -2442,7 +2466,7 @@ class _ProductCard extends StatelessWidget {
                     Expanded(
                       child: _buildInfoChip(
                         context,
-                        totalRevenue >= 0 ? 'Revenue' : 'Loss',
+                        totalRevenue >= 0 ? l10n.productRevenue : l10n.productLoss,
                         // Pass original LBP values for LBP products, converted USD values for USD products
                         subcategory.sellingPriceCurrency == 'LBP'
                             ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.profit, storedCurrency: 'LBP')
@@ -2495,7 +2519,7 @@ class _ProductCard extends StatelessWidget {
           onPressed: () {
             Navigator.pop(context);
           },
-          child: const Text('Cancel'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
       ),
     );
@@ -2559,15 +2583,32 @@ class _ProductCard extends StatelessWidget {
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 2),
           Flexible(
-            child: Text(
-              '$label: $value',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '$label: ',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: color,
+                  ),
+                ),
+                // Keep amount and $ in LTR so dollar sign stays on the right in RTL
+                fw.Directionality(
+                  textDirection: fw.TextDirection.ltr,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

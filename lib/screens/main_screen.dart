@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../services/admin_service.dart';
 import 'home_screen.dart';
 import 'customers_screen.dart';
@@ -127,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Activities',
+              AppLocalizations.of(context)!.navActivities,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w400,
@@ -180,19 +181,19 @@ class _MainScreenState extends State<MainScreen> {
                         _buildNavigationItem(
                           index: 0,
                           icon: Icons.dashboard_rounded,
-                          label: 'Dashboard',
+                          label: AppLocalizations.of(context)!.navDashboard,
                           isSelected: _currentIndex == 0,
                         ),
                         _buildNavigationItem(
                           index: 1,
                           icon: Icons.people_rounded,
-                          label: 'Customers',
+                          label: AppLocalizations.of(context)!.navCustomers,
                           isSelected: _currentIndex == 1,
                         ),
                         _buildNavigationItem(
                           index: 2,
                           icon: Icons.inventory_2_rounded,
-                          label: 'Products',
+                          label: AppLocalizations.of(context)!.navProducts,
                           isSelected: _currentIndex == 2,
                         ),
                         _buildActivitiesNavigationItem(),
@@ -200,7 +201,7 @@ class _MainScreenState extends State<MainScreen> {
                           _buildNavigationItem(
                             index: 3,
                             icon: Icons.admin_panel_settings,
-                            label: 'Admin',
+                            label: AppLocalizations.of(context)!.navAdmin,
                             isSelected: _currentIndex == 3,
                           ),
                       ],

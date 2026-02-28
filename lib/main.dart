@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'dart:io' show Platform;
 import 'firebase_options.dart';
 import 'constants/platform_theme.dart';
+import 'l10n/app_localizations.dart';
 import 'providers/app_state.dart';
 import 'widgets/auth_wrapper.dart';
 import 'services/firebase_service.dart';
@@ -18,6 +21,9 @@ import 'services/app_update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Load date formatting for Arabic so dates display in Arabic when app locale is ar
+  await initializeDateFormatting('ar', null);
   
   // Disable debug paint to remove yellow lines and other debug visuals
   debugPaintSizeEnabled = false;
@@ -214,17 +220,31 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
             theme: PlatformTheme.getLightTheme(context),
             darkTheme: PlatformTheme.getDarkTheme(context),
             themeMode: appState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            locale: appState.locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
             builder: (context, child) {
-              // Apply custom theme based on app state
+              // Slightly larger text scaling for Arabic for better readability
+              final isArabic = appState.localeCode == 'ar';
+              final textScaler = TextScaler.linear(isArabic ? 1.12 : 1.0);
+              // Keep layout left-to-right even when Arabic is selected
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
-                  textScaler: TextScaler.linear(1.0), // Use our custom text scaling
+                  textScaler: textScaler,
                 ),
                 child: AnnotatedRegion<SystemUiOverlayStyle>(
                   value: _getSystemUIOverlayStyle(appState.isDarkMode),
-                  child: child!,
+                  child: Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: child!,
+                  ),
                 ),
               );
             },

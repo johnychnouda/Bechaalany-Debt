@@ -9,7 +9,10 @@ import '../services/auth_service.dart';
 import '../services/user_state_service.dart';
 import '../services/access_service.dart';
 import '../services/admin_service.dart';
+import '../services/business_name_service.dart';
+import '../services/data_service.dart';
 import '../models/access.dart';
+import '../screens/required_setup_screen.dart';
 
 /// Caches the access-check future in initState to prevent FutureBuilder from
 /// recreating it on every rebuild. Without this, parent rebuilds (e.g. from
@@ -30,12 +33,30 @@ class _SignedInAccessChecker extends StatefulWidget {
 }
 
 class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
-  late final Future<Map<String, dynamic>> _accessFuture;
+  late Future<Map<String, dynamic>> _accessFuture;
+  bool _userDeletedRetryScheduled = false;
 
   @override
   void initState() {
     super.initState();
     _accessFuture = widget.ensureUserDocumentAndGetStatus();
+  }
+
+  /// Retry access check once when userDeleted is reported. Right after sign-in,
+  /// user.reload() can fail transiently and be reported as user-not-found.
+  void _retryAccessCheckIfUserDeleted() {
+    if (_userDeletedRetryScheduled) return;
+    _userDeletedRetryScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 600), () async {
+        if (!mounted) return;
+        final status = await widget.ensureUserDocumentAndGetStatus();
+        if (!mounted) return;
+        setState(() {
+          _accessFuture = Future.value(status);
+        });
+      });
+    });
   }
 
   @override
@@ -48,7 +69,7 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
         }
 
         if (userStatusSnapshot.hasError) {
-          return ContactOwnerScreen(
+          return const ContactOwnerScreen(
             reason: AccessDeniedReason.trialExpired,
           );
         }
@@ -57,15 +78,44 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
         final userDeleted = userStatus['userDeleted'] ?? false;
         final hasAccess = userStatus['hasAccess'] ?? false;
         final isAdmin = userStatus['isAdmin'] ?? false;
+        final needsSetup = userStatus['needsSetup'] == true;
+        final isNewUser = userStatus['isNewUser'] == true;
         final accessDeniedReason = userStatus['accessDeniedReason'] as AccessDeniedReason?;
 
+        // Only treat as deleted and sign out after confirming with a retry.
+        // Right after sign-in (e.g. returning from Google/Apple OAuth), user.reload()
+        // can fail transiently and be reported as user-not-found, which would incorrectly
+        // kick the user back to the sign-in screen.
         if (userDeleted) {
+          if (!_userDeletedRetryScheduled) {
+            _retryAccessCheckIfUserDeleted();
+            return const SplashScreen();
+          }
           widget.authService.signOut();
           return const SignInScreen();
         }
 
-        // Allow all authenticated users to access the app (removed admin approval requirement per App Store guidelines)
-        return const MainScreen();
+        // Show "Before you start" when setup is needed: either user has access (or is admin)
+        // or is a new user (so they see setup first even if access check is still settling).
+        if (needsSetup && (hasAccess || isAdmin || isNewUser)) {
+          return RequiredSetupScreen(
+            onComplete: () {
+              setState(() {
+                _accessFuture = widget.ensureUserDocumentAndGetStatus();
+              });
+            },
+          );
+        }
+
+        // Admins or users with active access: go to main app
+        if (isAdmin || hasAccess) {
+          return const MainScreen();
+        }
+
+        // If the user does not have access (including expired trial),
+        // show the ContactOwnerScreen with the appropriate reason.
+        final reason = accessDeniedReason ?? AccessDeniedReason.trialExpired;
+        return ContactOwnerScreen(reason: reason);
       },
     );
   }
@@ -116,9 +166,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
             await _authService.trackEmailVerificationCompletion(user.email ?? '');
           }
         } catch (e) {
-          // If reload fails, user might have been deleted from Firebase
-          // Sign out the user to clear the cached state
-          await _authService.signOut();
+          // Do not sign out on reload failure. Reload can fail due to network
+          // or timing (e.g. right after returning from Google OAuth). Signing out
+          // here caused new users to be kicked back to the sign-in screen after
+          // tapping "Continue" on the Google consent page.
         }
       }
     } catch (e) {
@@ -159,6 +210,13 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       }
       final hasAccess = await _accessService.hasActiveAccess();
       final isAdmin = await _adminService.isAdmin();
+
+      // Always check if required setup (shop name + exchange rate) is complete,
+      // so new users see "Before you start" even when access check is still settling.
+      final hasBusinessName = await BusinessNameService().hasBusinessName();
+      final currencySettings = await DataService().getCurrencySettings();
+      final hasExchangeRate = currencySettings?.exchangeRate != null && currencySettings!.exchangeRate! > 0;
+      final needsSetup = !hasBusinessName || !hasExchangeRate;
       
       // Determine the reason for access denial if user doesn't have access
       AccessDeniedReason? accessDeniedReason;
@@ -189,6 +247,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
         ...userStatus, 
         'hasAccess': hasAccess, 
         'isAdmin': isAdmin,
+        'needsSetup': needsSetup,
         'accessDeniedReason': accessDeniedReason,
       };
     } catch (e) {
@@ -206,6 +265,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
         'needsVerification': false,
         'hasAccess': false,
         'isAdmin': false,
+        'needsSetup': false,
         'accessDeniedReason': AccessDeniedReason.trialExpired,
       };
     }

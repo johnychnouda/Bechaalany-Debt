@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 
@@ -65,9 +65,9 @@ class TopDebtorsWidget extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Text(
-                      'Top Debtors',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context)!.topDebtors,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -77,19 +77,19 @@ class TopDebtorsWidget extends StatelessWidget {
                 const SizedBox(height: 16),
                 
                 if (topDebtors.isEmpty)
-                  const Center(
+                  Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.people_outline,
                           size: 32,
                           color: AppColors.textLight,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
-                          'No outstanding debts',
-                          style: TextStyle(
+                          AppLocalizations.of(context)!.noOutstandingDebts,
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),

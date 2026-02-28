@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
 import '../../constants/firestore_access_keys.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import 'user_management_screen.dart';
 
@@ -114,9 +115,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return CupertinoPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
-        middle: const Text(
-          'Admin Dashboard',
-          style: TextStyle(
+        middle: Text(
+          AppLocalizations.of(context)!.adminDashboard,
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
           ),
@@ -157,7 +158,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _buildWelcomeHeader(context),
                       const SizedBox(height: 24),
                       // Overview section
-                      _buildSectionLabel(context, 'Overview'),
+                      _buildSectionLabel(context, AppLocalizations.of(context)!.overview),
                       const SizedBox(height: 16),
                       // Statistics cards
                       Row(
@@ -165,22 +166,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              title: 'Total Users',
+                              title: AppLocalizations.of(context)!.totalUsers,
                               value: stats['total'].toString(),
                               icon: CupertinoIcons.person_2_fill,
                               color: AppColors.info,
-                              description: 'All registered users',
+                              description: AppLocalizations.of(context)!.allRegisteredUsers,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              title: 'Active',
+                              title: AppLocalizations.of(context)!.active,
                               value: stats['active'].toString(),
                               icon: CupertinoIcons.check_mark_circled_solid,
                               color: AppColors.success,
-                              description: 'Active access',
+                              description: AppLocalizations.of(context)!.activeAccess,
                             ),
                           ),
                         ],
@@ -191,33 +192,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              title: 'Trial',
+                              title: AppLocalizations.of(context)!.trial,
                               value: stats['trial'].toString(),
                               icon: CupertinoIcons.clock_fill,
                               color: AppColors.warning,
-                              description: 'On trial period',
+                              description: AppLocalizations.of(context)!.onTrialPeriod,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildStatCard(
                               context,
-                              title: 'Expired',
+                              title: AppLocalizations.of(context)!.expired,
                               value: stats['expired'].toString(),
                               icon: CupertinoIcons.exclamationmark_circle_fill,
                               color: AppColors.error,
-                              description: 'Expired access',
+                              description: AppLocalizations.of(context)!.expiredAccess,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 32),
-                      _buildSectionLabel(context, 'Quick Actions'),
+                      _buildSectionLabel(context, AppLocalizations.of(context)!.quickActions),
                       const SizedBox(height: 16),
                       _buildActionCard(
                         context,
-                        title: 'Manage Users',
-                        subtitle: 'View & manage all users',
+                        title: AppLocalizations.of(context)!.manageUsers,
+                        subtitle: AppLocalizations.of(context)!.viewManageAllUsers,
                         icon: CupertinoIcons.person_3_fill,
                         onTap: () {
                           Navigator.push(
@@ -272,7 +273,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Dashboard Overview',
+                  AppLocalizations.of(context)!.dashboardOverview,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -281,7 +282,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Monitor your user statistics',
+                  AppLocalizations.of(context)!.monitorUserStatistics,
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.dynamicTextSecondary(context),
@@ -303,7 +304,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const CupertinoActivityIndicator(radius: 16),
           const SizedBox(height: 16),
           Text(
-            'Loading dashboard...',
+            AppLocalizations.of(context)!.loadingDashboard,
             style: TextStyle(
               fontSize: 15,
               color: AppColors.dynamicTextSecondary(context),
@@ -335,7 +336,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Unable to Load Dashboard',
+              AppLocalizations.of(context)!.unableToLoadDashboard,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -354,7 +355,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 24),
             CupertinoButton.filled(
               onPressed: () => setState(() {}),
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.retry),
             ),
           ],
         ),
@@ -383,7 +384,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'No Users Yet',
+              AppLocalizations.of(context)!.noUsersInSystem,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -392,7 +393,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'User statistics will appear here once users start registering.',
+              AppLocalizations.of(context)!.noUsersYetSubtitle,
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.dynamicTextSecondary(context),

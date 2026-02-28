@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../utils/logo_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -256,7 +257,7 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Welcome back',
+                  AppLocalizations.of(context)!.dashboardWelcomeBack,
                   style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
                     fontSize: 16, // Increased from 12
