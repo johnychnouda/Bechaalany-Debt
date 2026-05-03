@@ -66,9 +66,9 @@ class AuthService {
       // Use authenticate() for both platforms (v7 API)
       // Credential Manager is disabled via AndroidManifest metadata
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-      
+
       if (googleUser == null) {
-        throw Exception('Google Sign-In was cancelled by user');
+        return null;
       }
 
       // Obtain the auth details from the request (idToken is enough for Firebase).
@@ -88,11 +88,10 @@ class AuthService {
       
       return result;
     } on GoogleSignInException catch (e) {
-      // Handle specific error codes
       if (e.code == GoogleSignInExceptionCode.canceled) {
-        throw Exception('Google Sign-In was cancelled');
+        return null;
       }
-      
+
       throw Exception('Google Sign-In failed: ${e.toString()} (Code: ${e.code})');
     } catch (e) {
       rethrow;
@@ -261,27 +260,34 @@ class AuthService {
     return null;
   }
 
-  Future<AuthCredential> _getGoogleReauthCredential() async {
+  Future<AuthCredential?> _getGoogleReauthCredential() async {
     await ensureInitialized();
     if (!_googleSignIn.supportsAuthenticate()) {
       throw Exception('Google Sign-In is not supported on this device');
     }
-    final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
-    if (googleUser == null) {
-      throw Exception('Google Sign-In was cancelled');
-    }
-    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-    String? accessToken;
     try {
-      final authorization = await googleUser.authorizationClient.authorizeScopes(['openid', 'email', 'profile']);
-      accessToken = authorization.accessToken;
-    } catch (e) {
-      // idToken is sufficient for Firebase credential
+      final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
+      if (googleUser == null) {
+        return null;
+      }
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      String? accessToken;
+      try {
+        final authorization = await googleUser.authorizationClient.authorizeScopes(['openid', 'email', 'profile']);
+        accessToken = authorization.accessToken;
+      } catch (e) {
+        // idToken is sufficient for Firebase credential
+      }
+      return GoogleAuthProvider.credential(
+        accessToken: accessToken,
+        idToken: googleAuth.idToken,
+      );
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return null;
+      }
+      rethrow;
     }
-    return GoogleAuthProvider.credential(
-      accessToken: accessToken,
-      idToken: googleAuth.idToken,
-    );
   }
 
   Future<AuthCredential> _getAppleReauthCredential() async {

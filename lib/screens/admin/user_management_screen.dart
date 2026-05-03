@@ -59,8 +59,31 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
+  /// True when paid access period has ended by [accessEndDate], matching
+  /// [AdminDashboardScreen] stats and [UserDetailsScreen] labels (Firestore
+  /// [accessStatus] can remain `active` after the end date).
+  bool _isPaidAccessEndedByDate(Map<String, dynamic> user) {
+    final end = user[FirestoreAccessKeys.endDate] as Timestamp?;
+    if (end == null) return false;
+    if (DateTime.now().isBefore(end.toDate())) return false;
+
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    if (status == 'active') return true;
+
+    final accessType = user[FirestoreAccessKeys.type];
+    final hasPaidType = accessType != null &&
+        accessType.toString().trim().isNotEmpty &&
+        (accessType.toString().toLowerCase() == 'monthly' ||
+            accessType.toString().toLowerCase() == 'yearly');
+    return hasPaidType;
+  }
+
   String _getStatusText(BuildContext context, String? status, Map<String, dynamic> user) {
     final l10n = AppLocalizations.of(context)!;
+    if (status == 'cancelled') return l10n.cancelled;
+    if (status == 'expired') return l10n.expired;
+    if (_isPaidAccessEndedByDate(user)) return l10n.expired;
+
     // Check if trial has expired but no access was granted
     if (status == 'trial') {
       final trialEndDate = user['trialEndDate'] as Timestamp?;
@@ -89,12 +112,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
-  Color _getStatusColor(String? status, {bool isTrialExpired = false}) {
-    // If trial expired, use orange/red color
+  Color _getStatusColor(String? status, Map<String, dynamic> user,
+      {bool isTrialExpired = false}) {
+    if (status == 'cancelled') return Colors.grey;
+    if (status == 'expired' || _isPaidAccessEndedByDate(user)) {
+      return Colors.red;
+    }
     if (isTrialExpired) {
       return Colors.orange;
     }
-    
+
     switch (status) {
       case 'trial':
         return Colors.blue;
@@ -168,6 +195,96 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     };
   }
 
+  /// Matches the green "Active" badge (paid access still valid by end date).
+  bool _isDisplayedActive(Map<String, dynamic> user) {
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    return status == 'active' && !_isPaidAccessEndedByDate(user);
+  }
+
+  /// Days until paid access ends or trial ends; null when not applicable or already ended.
+  int? _daysRemainingForUser(Map<String, dynamic> user) {
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    if (status == 'cancelled') return null;
+    final now = DateTime.now();
+    final accessEnd = user[FirestoreAccessKeys.endDate] as Timestamp?;
+    final trialEnd = user['trialEndDate'] as Timestamp?;
+    final accessType = user[FirestoreAccessKeys.type] as String?;
+    final t = accessType?.toLowerCase();
+
+    if (accessEnd != null) {
+      final endDt = accessEnd.toDate();
+      if (!now.isAfter(endDt)) {
+        final hasPaidType = t == 'monthly' || t == 'yearly';
+        if (hasPaidType || status == 'active') {
+          return endDt.difference(now).inDays;
+        }
+      }
+    }
+
+    if (status == 'trial' && trialEnd != null && !_isTrialExpired(user)) {
+      final tEnd = trialEnd.toDate();
+      if (now.isBefore(tEnd)) {
+        return tEnd.difference(now).inDays;
+      }
+    }
+    return null;
+  }
+
+  /// 0 = ongoing trial, 1 = paid active, 2 = expired (incl. trial expired / ended access), 3 = cancelled.
+  int _allListSortTier(Map<String, dynamic> user) {
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    if (status == 'cancelled') return 3;
+
+    final isTrialExpired = _isTrialExpired(user);
+    if (status == 'expired' ||
+        isTrialExpired ||
+        _isPaidAccessEndedByDate(user)) {
+      return 2;
+    }
+
+    if (status == 'trial') return 0;
+    if (_isDisplayedActive(user)) return 1;
+    if (status == 'active') return 1;
+
+    return 2;
+  }
+
+  String _userSortNameKey(Map<String, dynamic> user) {
+    final name = (user['displayName'] ?? '').toString().toLowerCase();
+    if (name.isNotEmpty) return name;
+    return (user['email'] ?? '').toString().toLowerCase();
+  }
+
+  /// Trial → Active → Expired → Cancelled; trial/active sorted by fewer days remaining first.
+  int _compareUsersForAllList(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    const largeDays = 1 << 30;
+    final ta = _allListSortTier(a);
+    final tb = _allListSortTier(b);
+    if (ta != tb) return ta.compareTo(tb);
+
+    if (ta == 0 || ta == 1) {
+      final da = _daysRemainingForUser(a) ?? largeDays;
+      final db = _daysRemainingForUser(b) ?? largeDays;
+      if (da != db) return da.compareTo(db);
+    }
+
+    return _userSortNameKey(a).compareTo(_userSortNameKey(b));
+  }
+
+  int _compareUsersByDaysRemainingAscThenName(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    const largeDays = 1 << 30;
+    final da = _daysRemainingForUser(a) ?? largeDays;
+    final db = _daysRemainingForUser(b) ?? largeDays;
+    if (da != db) return da.compareTo(db);
+    return _userSortNameKey(a).compareTo(_userSortNameKey(b));
+  }
+
   bool _matchesFilter(Map<String, dynamic> user, UserFilter filter) {
     final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
     final accessType = user[FirestoreAccessKeys.type] as String?;
@@ -180,12 +297,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         // Show only active trials (exclude expired trials)
         return status == 'trial' && !isTrialExpired;
       case UserFilter.monthly:
-        return status == 'active' && accessType?.toLowerCase() == 'monthly';
+        if (accessType?.toLowerCase() != 'monthly') return false;
+        if (status == 'cancelled' || status == 'expired') return false;
+        if (isTrialExpired) return false;
+        if (_isPaidAccessEndedByDate(user)) return false;
+        return true;
       case UserFilter.yearly:
-        return status == 'active' && accessType?.toLowerCase() == 'yearly';
+        if (accessType?.toLowerCase() != 'yearly') return false;
+        if (status == 'cancelled' || status == 'expired') return false;
+        if (isTrialExpired) return false;
+        if (_isPaidAccessEndedByDate(user)) return false;
+        return true;
       case UserFilter.expired:
-        // Include both expired access and expired trials
-        return status == 'expired' || isTrialExpired;
+        return status == 'expired' ||
+            status == 'cancelled' ||
+            isTrialExpired ||
+            _isPaidAccessEndedByDate(user);
     }
   }
 
@@ -461,6 +588,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     return email.contains(_searchQuery) || displayName.contains(_searchQuery);
                   }).toList();
 
+                  if (_selectedFilter == UserFilter.all) {
+                    users.sort(_compareUsersForAllList);
+                  } else if (_selectedFilter == UserFilter.trial ||
+                      _selectedFilter == UserFilter.monthly ||
+                      _selectedFilter == UserFilter.yearly) {
+                    users.sort(_compareUsersByDaysRemainingAscThenName);
+                  }
+
                   if (users.isEmpty) {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -502,8 +637,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       final user = users[index];
                       final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
                       final isTrialExpired = _isTrialExpired(user);
-                      final statusColor = _getStatusColor(status, isTrialExpired: isTrialExpired);
-                      
+                      final statusColor =
+                          _getStatusColor(status, user, isTrialExpired: isTrialExpired);
+                      final daysLeft = _daysRemainingForUser(user);
+                      final l10n = AppLocalizations.of(context)!;
+                      final hidePlanUnderEmail = _selectedFilter == UserFilter.all &&
+                          _matchesFilter(user, UserFilter.expired);
+                      final accessTypeLower =
+                          (user[FirestoreAccessKeys.type] as String?)?.toLowerCase();
+                      final hideRedundantAccessTypeLabel =
+                          (_selectedFilter == UserFilter.monthly &&
+                                  accessTypeLower == 'monthly') ||
+                              (_selectedFilter == UserFilter.yearly &&
+                                  accessTypeLower == 'yearly') ||
+                              (_selectedFilter == UserFilter.trial) ||
+                              (_selectedFilter == UserFilter.expired);
+                      final showAccessTypePart =
+                          user[FirestoreAccessKeys.type] != null &&
+                              !hideRedundantAccessTypeLabel;
+                      final showDaysPart = daysLeft != null;
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
@@ -568,6 +721,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       ),
                                       const SizedBox(height: 8),
                                       Row(
+                                        crossAxisAlignment: CrossAxisAlignment.center,
                                         children: [
                                           Container(
                                             padding: const EdgeInsets.symmetric(
@@ -582,18 +736,40 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                               _getStatusText(context, status, user),
                                               style: TextStyle(
                                                 fontSize: 12,
+                                                height: 1.2,
                                                 fontWeight: FontWeight.w600,
                                                 color: statusColor,
                                               ),
                                             ),
                                           ),
-                                          if (user[FirestoreAccessKeys.type] != null) ...[
+                                          if (!hidePlanUnderEmail &&
+                                              (showAccessTypePart || showDaysPart)) ...[
                                             const SizedBox(width: 8),
-                                            Text(
-                                              '• ${_localizeAccessType(context, user[FirestoreAccessKeys.type].toString())}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.dynamicTextSecondary(context),
+                                            Expanded(
+                                              child: Text.rich(
+                                                TextSpan(
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    height: 1.2,
+                                                    color: AppColors.dynamicTextSecondary(
+                                                        context),
+                                                  ),
+                                                  children: [
+                                                    if (showAccessTypePart)
+                                                      TextSpan(
+                                                        text:
+                                                            '• ${_localizeAccessType(context, user[FirestoreAccessKeys.type].toString())}',
+                                                      ),
+                                                    if (showDaysPart)
+                                                      TextSpan(
+                                                        text: showAccessTypePart
+                                                            ? ' (${l10n.daysRemaining(daysLeft.toString())})'
+                                                            : '(${l10n.daysRemaining(daysLeft.toString())})',
+                                                      ),
+                                                  ],
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                           ],

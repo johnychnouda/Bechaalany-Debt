@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import '../models/activity.dart';
 import '../models/category.dart';
@@ -14,6 +15,9 @@ import '../services/revenue_calculation_service.dart';
 import '../services/theme_service.dart';
 import '../services/whatsapp_automation_service.dart';
 
+
+/// Key for persisting locale in SharedPreferences (survives app restart before Firebase loads).
+const String _kLocalePreferenceKey = 'app_locale_code';
 
 class AppState extends ChangeNotifier {
   final DataService _dataService = DataService();
@@ -74,9 +78,15 @@ class AppState extends ChangeNotifier {
     
     // Defer all heavy operations to avoid blocking main thread
     // Use microtask to defer initialization until after current frame
-    Future.microtask(() {
+    Future.microtask(() async {
       // Listen to authentication state changes to handle user switching
       _setupAuthListener();
+      
+      // Load locale from local storage first so language is correct before Firebase auth is ready
+      await _loadLocaleFromLocalStorage();
+      
+      // Load user settings (locale, dark mode, etc.) from Firebase so language persists after app restart
+      _loadSettings();
       
       // Initialize Firebase streams asynchronously to avoid blocking main thread
       _initializeFirebaseStreams();
@@ -211,6 +221,9 @@ class AppState extends ChangeNotifier {
     
     // Clear any existing data first
     _clearAllLocalData();
+    
+    // Load this user's saved settings (locale, dark mode, etc.) from Firebase
+    _loadSettings();
     
     // Initialize streams for the new user
     _initializeFirebaseStreams();
@@ -3130,6 +3143,31 @@ class AppState extends ChangeNotifier {
   }
 
   // Settings methods
+
+  /// Loads locale from SharedPreferences so the app shows the correct language
+  /// immediately on startup (before Firebase auth/settings are ready).
+  Future<void> _loadLocaleFromLocalStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_kLocalePreferenceKey);
+      if (saved == 'ar' || saved == 'en') {
+        _localeCode = saved!;
+      }
+    } catch (_) {
+      // Keep default _localeCode
+    }
+  }
+
+  /// Saves locale to SharedPreferences so it persists across app restarts.
+  Future<void> _saveLocaleToLocalStorage(String code) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kLocalePreferenceKey, code);
+    } catch (_) {
+      // Ignore; Firebase save may still succeed
+    }
+  }
+
   Future<void> _saveSettings() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -3634,6 +3672,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> setLocale(String code) async {
     _localeCode = (code == 'ar' || code == 'en') ? code : 'en';
+    await _saveLocaleToLocalStorage(_localeCode);
     await _saveSettings();
     notifyListeners();
   }

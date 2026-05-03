@@ -41,7 +41,13 @@ class _SignInScreenState extends State<SignInScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = AppLocalizations.of(context)!.googleSignInFailed(e.toString());
+          final msg = e.toString();
+          final l10n = AppLocalizations.of(context)!;
+          if (msg.contains('cancelled') || msg.contains('canceled')) {
+            _errorMessage = l10n.googleSignInCancelled;
+          } else {
+            _errorMessage = l10n.googleSignInFailed(msg);
+          }
         });
       }
     } finally {

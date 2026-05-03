@@ -64,8 +64,12 @@ android {
                 signingConfig = signingConfigs.getByName("debug")
                 println("WARNING: Using debug signing. Keystore file not found. Create android/key.properties and keystore file for release signing.")
             }
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
