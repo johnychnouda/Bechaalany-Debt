@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../constants/app_colors.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
@@ -23,13 +24,21 @@ class UserDetailsScreen extends StatefulWidget {
 
 class _UserDetailsScreenState extends State<UserDetailsScreen> {
   final AccessService _accessService = AccessService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Access? _access;
   bool _isLoading = true;
   bool _isUpdating = false;
+  bool _isSavingProfile = false;
+  String _userDisplayName = '';
+  String _userEmail = '';
+  String _userPhone = '';
+  String _shopName = '';
 
   @override
   void initState() {
     super.initState();
+    _userDisplayName = widget.userDisplayName;
+    _userEmail = widget.userEmail;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadAccess();
     });
@@ -42,14 +51,159 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
     try {
       final access = await _accessService.getUserAccess(widget.userId);
+      final userDoc = await _firestore.collection('users').doc(widget.userId).get();
+      final userData = userDoc.data();
       setState(() {
         _access = access;
+        _userDisplayName = (userData?['displayName'] as String?)?.trim().isNotEmpty == true
+            ? (userData?['displayName'] as String).trim()
+            : widget.userDisplayName;
+        _userEmail = (userData?['email'] as String?)?.trim().isNotEmpty == true
+            ? (userData?['email'] as String).trim()
+            : widget.userEmail;
+        _userPhone = (userData?['phone'] as String?)?.trim() ?? '';
+        _shopName = (userData?['businessName'] as String?)?.trim() ?? '';
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  bool _isValidPhoneNumber(String phone) {
+    final trimmed = phone.trim();
+    if (trimmed.isEmpty) return true;
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[^\d]'), '');
+    if (digitsOnly.length < 8 || digitsOnly.length > 15) return false;
+    final phoneRegex = RegExp(r'^[\d\s\-\+\(\)]+$');
+    return phoneRegex.hasMatch(trimmed);
+  }
+
+  Future<void> _showEditProfileDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final nameController = TextEditingController(text: _userDisplayName);
+    final phoneController = TextEditingController(text: _userPhone);
+    String? validationError;
+
+    final result = await showCupertinoDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return CupertinoAlertDialog(
+            title: Text(l10n.editCustomer),
+            content: Column(
+              children: [
+                const SizedBox(height: 12),
+                CupertinoTextField(
+                  controller: nameController,
+                  placeholder: l10n.enterCustomerName,
+                  autofocus: true,
+                  onChanged: (_) {
+                    if (validationError != null) {
+                      setDialogState(() => validationError = null);
+                    }
+                  },
+                ),
+                const SizedBox(height: 10),
+                CupertinoTextField(
+                  controller: phoneController,
+                  placeholder: l10n.enterPhoneNumber,
+                  keyboardType: TextInputType.phone,
+                  onChanged: (_) {
+                    if (validationError != null) {
+                      setDialogState(() => validationError = null);
+                    }
+                  },
+                ),
+                if (validationError != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    validationError!,
+                    style: const TextStyle(
+                      color: CupertinoColors.systemRed,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l10n.cancel),
+              ),
+              CupertinoDialogAction(
+                onPressed: () {
+                  final name = nameController.text.trim();
+                  final phone = phoneController.text.trim();
+                  if (name.isEmpty) {
+                    setDialogState(() {
+                      validationError = l10n.pleaseEnterCustomerName;
+                    });
+                    return;
+                  }
+                  if (!_isValidPhoneNumber(phone)) {
+                    setDialogState(() {
+                      validationError = l10n.validPhoneNumber;
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialogContext, {
+                    'name': name,
+                    'phone': phone,
+                  });
+                },
+                child: Text(l10n.save),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    nameController.dispose();
+    phoneController.dispose();
+
+    if (result == null || !mounted) return;
+    await _saveProfileChanges(result['name'] ?? '', result['phone'] ?? '');
+  }
+
+  Future<void> _saveProfileChanges(String name, String phone) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (_isSavingProfile) return;
+
+    setState(() => _isSavingProfile = true);
+    try {
+      await _firestore.collection('users').doc(widget.userId).set({
+        'displayName': name,
+        'phone': phone,
+        'lastUpdated': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      setState(() {
+        _userDisplayName = name;
+        _userPhone = phone;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      showCupertinoDialog(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: Text(l10n.error),
+          content: Text(l10n.saveFailedTryAgain),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSavingProfile = false);
     }
   }
 
@@ -248,6 +402,21 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       ),
                       child: Column(
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              CupertinoButton(
+                                padding: EdgeInsets.zero,
+                                minSize: 24,
+                                onPressed: _isSavingProfile ? null : _showEditProfileDialog,
+                                child: Icon(
+                                  CupertinoIcons.pencil,
+                                  size: 20,
+                                  color: AppColors.dynamicPrimary(context),
+                                ),
+                              ),
+                            ],
+                          ),
                           Container(
                             width: 64,
                             height: 64,
@@ -263,18 +432,38 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            widget.userDisplayName,
+                            _userDisplayName,
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: AppColors.dynamicTextPrimary(context),
                             ),
                           ),
+                          if (_userPhone.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _userPhone,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                            ),
+                          ],
+                          if (_shopName.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${l10n.shopName}: $_shopName',
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
-                            widget.userEmail,
+                            _userEmail,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 20,
                               color: AppColors.dynamicTextSecondary(context),
                             ),
                           ),

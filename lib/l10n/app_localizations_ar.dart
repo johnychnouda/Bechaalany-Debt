@@ -805,6 +805,22 @@ class AppLocalizationsAr extends AppLocalizations {
       'ليس لديك إذن للوصول إلى بيانات المستخدمين. تأكد من أن حسابك معرّف كمشرف في Firestore.';
 
   @override
+  String get deleteUser => 'حذف المستخدم';
+
+  @override
+  String deleteUserConfirm(String name) {
+    return 'سيتم حذف جميع بيانات $name نهائياً (العملاء، الديون، السجل، النسخ الاحتياطية، والإعدادات). لا يمكن التراجع عن هذا الإجراء.\n\nهل تريد المتابعة؟';
+  }
+
+  @override
+  String get deleteUserSuccess => 'تم حذف بيانات المستخدم بنجاح.';
+
+  @override
+  String failedToDeleteUser(String error) {
+    return 'فشل حذف المستخدم: $error';
+  }
+
+  @override
   String get addCustomer => 'إضافة عميل';
 
   @override

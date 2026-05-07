@@ -815,6 +815,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     // Initialize controllers based on currency
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
+    bool trackInventory = subcategory.trackInventory;
     
     // Get current exchange rate from app state
     final appState = Provider.of<AppState>(context, listen: false);
@@ -966,6 +967,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ? [FilteringTextInputFormatter.digitsOnly, ThousandsSeparatorInputFormatter()]
                           : [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
                     ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Track inventory'),
+                      subtitle: const Text('Enable stock quantity'),
+                      value: trackInventory,
+                      onChanged: (value) {
+                        setState(() {
+                          trackInventory = value;
+                        });
+                      },
+                    ),
                     
                     // Calculate if there's a loss
                     Builder(
@@ -1034,8 +1047,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           final costPrice = double.tryParse(costPriceText) ?? 0.0;
                           final sellingPrice = double.tryParse(sellingPriceText);
                           final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                          final hasValidStock = true;
                           
-                          final isEnabled = nameController.text.trim().isNotEmpty && costPriceController.text.isNotEmpty && sellingPriceController.text.isNotEmpty;
+                          final isEnabled = nameController.text.trim().isNotEmpty &&
+                              costPriceController.text.isNotEmpty &&
+                              sellingPriceController.text.isNotEmpty &&
+                              hasValidStock;
                           
                           return ElevatedButton(
                             onPressed: isEnabled
@@ -1086,6 +1103,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       subcategory.sellingPrice = sellingPrice;
                                       subcategory.costPriceCurrency = selectedCurrency;
                                       subcategory.sellingPriceCurrency = selectedCurrency;
+                                      subcategory.trackInventory = trackInventory;
+                                      subcategory.stockQuantity = trackInventory
+                                          ? (subcategory.stockQuantity ?? 0)
+                                          : null;
                                       
                                       // Validate prices before saving to prevent corruption
                                       if (!subcategory.hasValidPrices) {
@@ -1294,6 +1315,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     String selectedCurrency = 'USD';
+    bool trackInventory = false;
     double defaultCostPriceUSD = 0.0;
     double defaultSellingPriceUSD = 0.0;
     
@@ -1457,6 +1479,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         }
                       },
                     ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Track inventory'),
+                      subtitle: const Text('Enable stock quantity'),
+                      value: trackInventory,
+                      onChanged: (value) {
+                        setState(() {
+                          trackInventory = value;
+                        });
+                      },
+                    ),
                     
                     // Calculate if there's a loss
                     Builder(
@@ -1525,8 +1559,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           final costPrice = double.tryParse(costPriceText) ?? 0.0;
                           final sellingPrice = double.tryParse(sellingPriceText);
                           final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                          final hasValidStock = true;
                           
-                          final isEnabled = nameController.text.trim().isNotEmpty && costPriceController.text.isNotEmpty && sellingPriceController.text.isNotEmpty;
+                          final isEnabled = nameController.text.trim().isNotEmpty &&
+                              costPriceController.text.isNotEmpty &&
+                              sellingPriceController.text.isNotEmpty &&
+                              hasValidStock;
                           
                           return ElevatedButton(
                             onPressed: isEnabled
@@ -1552,6 +1590,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                         createdAt: DateTime.now(),
                                         costPriceCurrency: selectedCurrency,
                                         sellingPriceCurrency: selectedCurrency,
+                                        trackInventory: trackInventory,
+                                        stockQuantity: trackInventory
+                                            ? 0
+                                            : null,
                                       );
                                       
                                       // Validate prices before saving to prevent corruption
@@ -2379,10 +2421,88 @@ class _ProductCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
+                        Consumer<AppState>(
+                          builder: (context, appState, child) {
+                            final stock = subcategory.stockQuantity ?? 0.0;
+                            final threshold = appState.lowStockThreshold;
+                            final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
+                            final isLow = subcategory.trackInventory &&
+                                stock > 0 &&
+                                stock <= threshold;
+                            final isOut = subcategory.trackInventory && stock <= 0;
+
+                            Color badgeColor;
+                            IconData badgeIcon;
+                            String badgeLabel;
+
+                            if (!subcategory.trackInventory) {
+                              badgeColor = AppColors.dynamicTextSecondary(context);
+                              badgeIcon = Icons.inventory_2_outlined;
+                              badgeLabel = 'Not tracked';
+                            } else if (isOut) {
+                              badgeColor = AppColors.error;
+                              badgeIcon = Icons.error_outline;
+                              badgeLabel = 'Out of stock';
+                            } else if (isLow) {
+                              badgeColor = AppColors.dynamicWarning(context);
+                              badgeIcon = Icons.warning_amber_rounded;
+                              badgeLabel = 'Low: $stockText';
+                            } else {
+                              badgeColor = AppColors.dynamicSuccess(context);
+                              badgeIcon = Icons.check_circle_outline;
+                              badgeLabel = 'In stock: $stockText';
+                            }
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: badgeColor.withAlpha(26),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: badgeColor.withAlpha(77)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(badgeIcon, size: 13, color: badgeColor),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    badgeLabel,
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: badgeColor,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
+                  if (subcategory.trackInventory) ...[
+                    const SizedBox(width: 8),
+                    Consumer<AppState>(
+                      builder: (context, appState, child) {
+                        final stock = subcategory.stockQuantity ?? 0.0;
+                        final stockText = _formatStockQuantity(stock);
+
+                        return _buildStockStepper(
+                          context,
+                          stockText: stockText,
+                          currentStock: stock,
+                          onManualEdit: (manualStock) =>
+                              _updateStockQuantity(context, appState, manualStock),
+                          onDecrease: stock > 0
+                              ? () => _updateStockQuantity(context, appState, stock - 1)
+                              : null,
+                          onIncrease: () => _updateStockQuantity(context, appState, stock + 1),
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             const SizedBox(height: 12),
@@ -2628,6 +2748,213 @@ class _ProductCard extends StatelessWidget {
     }
     
     return buffer.toString();
+  }
+
+  String _formatStockQuantity(double value) {
+    return value % 1 == 0 ? value.toInt().toString() : value.toStringAsFixed(2);
+  }
+
+  Widget _buildStockStepper(
+    BuildContext context, {
+    required String stockText,
+    required double currentStock,
+    required ValueChanged<double> onManualEdit,
+    required VoidCallback? onDecrease,
+    required VoidCallback onIncrease,
+  }) {
+    final borderColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemGrey4,
+      context,
+    );
+    final bgColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemGrey6,
+      context,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildStockControlButton(
+            context,
+            icon: CupertinoIcons.minus,
+            onPressed: onDecrease,
+          ),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minSize: 30,
+            onPressed: () async {
+              final manualStock = await _showStockQuantityDialog(context, currentStock);
+              if (manualStock == null) return;
+              HapticFeedback.selectionClick();
+              onManualEdit(manualStock);
+            },
+            child: Container(
+            constraints: const BoxConstraints(minWidth: 38),
+            alignment: Alignment.center,
+            child: Text(
+              stockText,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppColors.dynamicTextPrimary(context),
+              ),
+            ),
+          ),
+          ),
+          _buildStockControlButton(
+            context,
+            icon: CupertinoIcons.plus,
+            onPressed: onIncrease,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStockControlButton(
+    BuildContext context, {
+    required IconData icon,
+    required VoidCallback? onPressed,
+  }) {
+    final isEnabled = onPressed != null;
+    final actionColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.activeBlue,
+      context,
+    );
+    final disabledColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemGrey3,
+      context,
+    );
+    final buttonColor = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBackground,
+      context,
+    );
+
+    return SizedBox(
+      width: 30,
+      height: 30,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: buttonColor,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isEnabled ? actionColor.withAlpha(70) : disabledColor,
+            width: 0.8,
+          ),
+        ),
+        child: CupertinoButton(
+          onPressed: onPressed == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onPressed();
+                },
+          padding: EdgeInsets.zero,
+          minSize: 30,
+          child: Icon(
+            icon,
+            color: isEnabled
+                ? actionColor
+                : CupertinoDynamicColor.resolve(CupertinoColors.systemGrey, context),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateStockQuantity(
+    BuildContext context,
+    AppState appState,
+    double nextStock,
+  ) async {
+    final double safeStock = nextStock < 0 ? 0.0 : nextStock;
+
+    try {
+      final categoryIndex = appState.categories.indexWhere(
+        (category) => category.subcategories.any((item) => item.id == subcategory.id),
+      );
+      if (categoryIndex == -1) return;
+
+      final updatedCategory = appState.categories[categoryIndex];
+      final subcategoryIndex = updatedCategory.subcategories.indexWhere((item) => item.id == subcategory.id);
+      if (subcategoryIndex == -1) return;
+
+      updatedCategory.subcategories[subcategoryIndex].stockQuantity = safeStock;
+      await appState.updateCategory(updatedCategory);
+    } catch (_) {
+      // Ignore stock control update errors to keep the card responsive.
+    }
+  }
+
+  Future<double?> _showStockQuantityDialog(
+    BuildContext context,
+    double currentStock,
+  ) async {
+    final controller = TextEditingController(text: _formatStockQuantity(currentStock));
+    String? errorText;
+
+    return showCupertinoDialog<double>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return CupertinoAlertDialog(
+              title: const Text('Set stock quantity'),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  children: [
+                    CupertinoTextField(
+                      controller: controller,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      placeholder: 'Enter quantity',
+                      autofocus: true,
+                    ),
+                    if (errorText != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        errorText!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: CupertinoDynamicColor.resolve(CupertinoColors.systemRed, context),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(AppLocalizations.of(context)!.cancel),
+                ),
+                CupertinoDialogAction(
+                  isDefaultAction: true,
+                  onPressed: () {
+                    final parsed = double.tryParse(controller.text.trim());
+                    if (parsed == null || parsed < 0) {
+                      setState(() {
+                        errorText = 'Please enter a valid number';
+                      });
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(parsed);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
 

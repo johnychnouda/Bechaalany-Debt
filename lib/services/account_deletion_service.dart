@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_auth_service.dart';
+import 'admin_service.dart';
 
 /// Service for deleting user accounts and all associated data
 /// Complies with App Store Guideline 5.1.1(v) - Account Deletion Requirements
@@ -12,6 +13,7 @@ class AccountDeletionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseAuthService _authService = FirebaseAuthService();
+  final AdminService _adminService = AdminService();
 
   /// Delete the current user's account and all associated data.
   /// [reauthCredential] If provided, re-authenticates the user first (required when
@@ -46,6 +48,38 @@ class AccountDeletionService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Admin-only: delete a user's Firestore data + user doc.
+  ///
+  /// Note: This does NOT delete the Firebase Auth account (requires Admin SDK /
+  /// Cloud Function). If the user signs in again, the app may recreate a new trial
+  /// document.
+  Future<void> deleteUserDataAsAdmin(String userId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('No user is currently signed in');
+    }
+
+    // Safety: don't allow deleting self via admin panel.
+    if (currentUser.uid == userId) {
+      throw Exception('Cannot delete your own account from the admin panel');
+    }
+
+    final isAdmin = await _adminService.isAdmin();
+    if (!isAdmin) {
+      throw Exception('Only admins can delete users');
+    }
+
+    // Safety: never delete admin users.
+    final userDoc = await _firestore.collection('users').doc(userId).get();
+    final data = userDoc.data();
+    if (data?['isAdmin'] == true) {
+      throw Exception('Cannot delete an admin user');
+    }
+
+    await _deleteAllUserData(userId);
+    await _firestore.collection('users').doc(userId).delete();
   }
 
   /// Delete all user data from Firestore subcollections

@@ -97,6 +97,10 @@ class Subcategory {
 
   String sellingPriceCurrency;
 
+  bool trackInventory;
+
+  double? stockQuantity;
+
   Subcategory({
     required this.id,
     required this.name,
@@ -107,6 +111,8 @@ class Subcategory {
     List<PriceHistory>? priceHistory,
     required this.costPriceCurrency,
     required this.sellingPriceCurrency,
+    this.trackInventory = false,
+    this.stockQuantity,
   }) : priceHistory = priceHistory ?? [];
 
   // Helper function to parse DateTime from various formats
@@ -191,6 +197,8 @@ class Subcategory {
     List<PriceHistory>? priceHistory,
     String? costPriceCurrency,
     String? sellingPriceCurrency,
+    bool? trackInventory,
+    double? stockQuantity,
   }) {
     return Subcategory(
       id: id ?? this.id,
@@ -202,6 +210,8 @@ class Subcategory {
       priceHistory: priceHistory ?? this.priceHistory,
       costPriceCurrency: costPriceCurrency ?? this.costPriceCurrency,
       sellingPriceCurrency: sellingPriceCurrency ?? this.sellingPriceCurrency,
+      trackInventory: trackInventory ?? this.trackInventory,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
     );
   }
 
@@ -216,6 +226,8 @@ class Subcategory {
       'priceHistory': priceHistory.map((p) => p.toJson()).toList(),
       'costPriceCurrency': costPriceCurrency,
       'sellingPriceCurrency': sellingPriceCurrency,
+      'trackInventory': trackInventory,
+      'stockQuantity': stockQuantity,
     };
   }
 
@@ -232,6 +244,8 @@ class Subcategory {
           .toList() ?? [],
       costPriceCurrency: json['costPriceCurrency'] ?? 'USD',
       sellingPriceCurrency: json['sellingPriceCurrency'] ?? 'USD',
+      trackInventory: json['trackInventory'] ?? false,
+      stockQuantity: json['stockQuantity']?.toDouble(),
     );
   }
 }

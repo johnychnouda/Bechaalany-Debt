@@ -27,49 +27,62 @@ service cloud.firestore {
                          .hasAny(['accessStatus', 'accessType', 'accessStartDate', 'accessEndDate', 'trialStartDate', 'trialEndDate', 'isAdmin'])) ||
                       // Admins can update any user, including access fields
                       (isAdmin() && request.auth.uid != userId));
-      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null &&
+                     (request.auth.uid == userId ||
+                      (isAdmin() && request.auth.uid != userId));
       
       // Customers subcollection - private to each user
       match /customers/{customerId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
       }
       
       // Debts subcollection - private to each user
       match /debts/{debtId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null &&
+                    (request.auth.uid == userId || isAdmin());
+        allow create, update, delete: if request.auth != null &&
+                                      (request.auth.uid == userId || isAdmin());
       }
       
       // Categories subcollection - private to each user
       match /categories/{categoryId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
       }
       
       // Product purchases subcollection - private to each user
       match /product_purchases/{purchaseId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null &&
+                    (request.auth.uid == userId || isAdmin());
+        allow create, update, delete: if request.auth != null &&
+                                      (request.auth.uid == userId || isAdmin());
       }
       
       // Partial payments subcollection - private to each user
       match /partial_payments/{paymentId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
       }
       
       // Currency settings subcollection - private to each user
       match /currency_settings/{settingsId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
       }
       
       // Backup subcollection - private to each user
       match /backups/{backupId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null &&
+                           (request.auth.uid == userId || isAdmin());
       }
       
       // Activities subcollection - private to each user
       match /activities/{activityId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null &&
+                    (request.auth.uid == userId || isAdmin());
+        allow create, update, delete: if request.auth != null &&
+                                      (request.auth.uid == userId || isAdmin());
       }
     }
     

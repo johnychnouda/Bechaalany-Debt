@@ -45,6 +45,89 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     super.dispose();
   }
 
+  double _parseQuantity() {
+    return double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
+  }
+
+  String _formatQuantity(double value) {
+    return value.truncateToDouble() == value
+        ? value.toInt().toString()
+        : value.toStringAsFixed(2);
+  }
+
+  double _maxAllowedQuantity() {
+    final selected = _selectedSubcategory;
+    if (selected == null || !selected.trackInventory) {
+      return double.infinity;
+    }
+    return (selected.stockQuantity ?? 0.0).clamp(0.0, double.infinity);
+  }
+
+  double _applyStockLimit(double requested, {bool showMessage = false}) {
+    final maxQuantity = _maxAllowedQuantity();
+    if (requested <= maxQuantity) {
+      return requested;
+    }
+
+    if (showMessage && mounted) {
+      final maxText = _formatQuantity(maxQuantity);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Maximum available quantity is $maxText'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+    return maxQuantity;
+  }
+
+  void _changeQuantity(double delta) {
+    final currentValue = _parseQuantity();
+    final requested = (currentValue + delta).clamp(0.1, double.infinity);
+    final newValue = _applyStockLimit(requested, showMessage: true);
+    _quantityController.text = _formatQuantity(newValue);
+    setState(() {});
+  }
+
+  Future<void> _editQuantityManually() async {
+    final controller = TextEditingController(text: _formatQuantity(_parseQuantity()));
+    final value = await showDialog<double>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(AppLocalizations.of(context)!.quantity),
+          content: TextField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            autofocus: true,
+            decoration: const InputDecoration(hintText: '1'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(MaterialLocalizations.of(dialogContext).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.replaceAll(',', ''));
+                if (parsed == null || parsed <= 0) {
+                  return;
+                }
+                Navigator.of(dialogContext).pop(parsed);
+              },
+              child: Text(MaterialLocalizations.of(dialogContext).okButtonLabel),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (value == null) return;
+    final allowedValue = _applyStockLimit(value.clamp(0.1, double.infinity), showMessage: true);
+    _quantityController.text = _formatQuantity(allowedValue);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -259,6 +342,11 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       onChanged: (subcategory) {
         setState(() {
           _selectedSubcategory = subcategory;
+          if (subcategory != null && subcategory.trackInventory) {
+            final stock = (subcategory.stockQuantity ?? 0.0).clamp(0.0, double.infinity);
+            final defaultQuantity = stock >= 1 ? 1.0 : stock;
+            _quantityController.text = _formatQuantity(defaultQuantity);
+          }
         });
       },
       placeholder: AppLocalizations.of(context)!.selectProduct,
@@ -314,6 +402,66 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Builder(
+                  builder: (context) {
+                    final originalStock = _selectedSubcategory!.stockQuantity ?? 0.0;
+                    final isTracked = _selectedSubcategory!.trackInventory;
+                    final selectedQuantity = _parseQuantity();
+                    final stock = isTracked
+                        ? (originalStock - selectedQuantity).clamp(0.0, double.infinity)
+                        : originalStock;
+                    final lowStockThreshold = Provider.of<AppState>(context, listen: false).lowStockThreshold;
+                    final isLowStock = isTracked && stock > 0 && stock <= lowStockThreshold;
+                    final isOutOfStock = isTracked && stock <= 0;
+                    final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
+
+                    Color chipColor;
+                    IconData chipIcon;
+                    String label;
+
+                    if (!isTracked) {
+                      chipColor = AppColors.dynamicTextSecondary(context);
+                      chipIcon = Icons.inventory_2_outlined;
+                      label = 'Inventory not tracked';
+                    } else if (isOutOfStock) {
+                      chipColor = AppColors.error;
+                      chipIcon = Icons.error_outline;
+                      label = 'Out of stock';
+                    } else if (isLowStock) {
+                      chipColor = AppColors.dynamicWarning(context);
+                      chipIcon = Icons.warning_amber_rounded;
+                      label = 'Low stock: $stockText';
+                    } else {
+                      chipColor = AppColors.dynamicSuccess(context);
+                      chipIcon = Icons.check_circle_outline;
+                      label = 'In stock: $stockText';
+                    }
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: chipColor.withAlpha(26),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: chipColor.withAlpha(77)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(chipIcon, size: 16, color: chipColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: chipColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 20),
                 
@@ -379,7 +527,8 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 // Quantity and Total Amount in a clean row
                 Builder(
                   builder: (context) {
-                    final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
+                    final quantity = _parseQuantity();
+                    final maxQuantity = _maxAllowedQuantity();
                     final unitPrice = _selectedSubcategory!.sellingPrice;
                     final totalAmount = quantity * unitPrice;
                     final currency = _selectedSubcategory!.sellingPriceCurrency;
@@ -398,43 +547,38 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              SizedBox(
-                                width: 100,
-                                child: TextField(
-                                  controller: _quantityController,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.dynamicTextPrimary(context),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: quantity > 0.1 ? () => _changeQuantity(-1) : null,
+                                    icon: const Icon(Icons.remove_rounded),
+                                    color: AppColors.dynamicPrimary(context),
+                                    visualDensity: VisualDensity.compact,
                                   ),
-                                  decoration: InputDecoration(
-                                    hintText: '1',
-                                    hintStyle: TextStyle(
-                                      color: AppColors.dynamicTextSecondary(context),
-                                      fontSize: 16,
+                                  InkWell(
+                                    onTap: _editQuantityManually,
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: SizedBox(
+                                      width: 56,
+                                      child: Text(
+                                        _formatQuantity(quantity),
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.dynamicTextPrimary(context),
+                                        ),
+                                      ),
                                     ),
-                                    filled: true,
-                                    fillColor: AppColors.dynamicBackground(context),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                    isDense: true,
                                   ),
-                                  onChanged: (value) {
-                                    setState(() {});
-                                  },
-                                ),
+                                  IconButton(
+                                    onPressed: quantity < maxQuantity ? () => _changeQuantity(1) : null,
+                                    icon: const Icon(Icons.add_rounded),
+                                    color: AppColors.dynamicPrimary(context),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -656,7 +800,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   }
 
   Widget _buildTotalAmount() {
-    final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
+    final quantity = _parseQuantity();
     final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
     final totalAmount = quantity * unitPrice;
     final currency = _selectedSubcategory?.sellingPriceCurrency ?? 'USD';
@@ -719,7 +863,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   }
 
   Widget _buildAddDebtButton() {
-    final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
+    final quantity = _parseQuantity();
     final unitPrice = _selectedSubcategory?.sellingPrice ?? 0.0;
     final totalAmount = quantity * unitPrice;
     final isValid = _selectedCustomer != null && 
@@ -803,7 +947,8 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
     try {
       final appState = Provider.of<AppState>(context, listen: false);
-      final quantity = double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 1.0;
+      final quantity = _parseQuantity();
+      final selectedSubcategory = _selectedSubcategory!;
       
       // Validate quantity
       if (quantity <= 0) {
@@ -816,6 +961,69 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           );
         }
         return;
+      }
+
+      if (selectedSubcategory.trackInventory) {
+        final selectedCategory = _selectedCategory;
+        if (selectedCategory == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not find selected category for stock update'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        final categoryIndex = appState.categories.indexWhere((c) => c.id == selectedCategory.id);
+        if (categoryIndex == -1) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Category not found while checking stock'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        final category = appState.categories[categoryIndex];
+        final subcategoryIndex = category.subcategories.indexWhere((s) => s.id == selectedSubcategory.id);
+        if (subcategoryIndex == -1) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Product not found while checking stock'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        final latestSubcategory = category.subcategories[subcategoryIndex];
+        final currentStock = latestSubcategory.stockQuantity ?? 0.0;
+        if (currentStock < quantity) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Not enough stock. Available: ${currentStock.toStringAsFixed(currentStock % 1 == 0 ? 0 : 2)}',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+
+        category.subcategories[subcategoryIndex] = latestSubcategory.copyWith(
+          stockQuantity: currentStock - quantity,
+        );
+        await appState.updateCategory(category);
       }
       
       // DYNAMIC EXCHANGE RATE IMPLEMENTATION
@@ -874,8 +1082,9 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
         createdAt: DateTime.now(),
         subcategoryId: _selectedSubcategory!.id,
         subcategoryName: _selectedSubcategory!.name,
-        originalSellingPrice: actualSellingPrice, // Store unit price for reference
-        originalCostPrice: actualCostPrice, // Store unit cost for reference
+        // Store totals (not unit prices) so revenue/potential calculations stay proportional to debt amount.
+        originalSellingPrice: totalSellingPrice,
+        originalCostPrice: totalCostPrice,
         categoryName: _selectedCategory!.name,
         storedCurrency: storedCurrency, // Store the original currency (LBP or USD)
       );

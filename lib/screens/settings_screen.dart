@@ -156,6 +156,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     CupertinoIcons.money_dollar,
                     () => _showCurrencySettings(),
                   ),
+                  _buildNavigationRow(
+                    'Low Stock Alert Threshold',
+                    'Low stock warning limit',
+                    CupertinoIcons.exclamationmark_triangle,
+                    () => _showLowStockThresholdDialog(),
+                  ),
                 ],
               ),
               
@@ -468,6 +474,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => const CurrencySettingsScreen(),
+      ),
+    );
+  }
+
+  void _showLowStockThresholdDialog() {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final controller = TextEditingController(
+      text: appState.lowStockThreshold.toString(),
+    );
+
+    showCupertinoDialog(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: Text(
+          'Low Stock Threshold',
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(dialogContext),
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              'Products with stock less than or equal to this value will show as low stock.',
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(dialogContext),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 12),
+            CupertinoTextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              placeholder: 'Enter threshold',
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: AppColors.dynamicTextSecondary(dialogContext)),
+            ),
+          ),
+          CupertinoDialogAction(
+            onPressed: () async {
+              final parsed = int.tryParse(controller.text.trim());
+              if (parsed == null || parsed < 0) {
+                Navigator.pop(dialogContext);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid number (0 or more)'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+                return;
+              }
+
+              await appState.setLowStockThreshold(parsed);
+              if (mounted) {
+                Navigator.pop(dialogContext);
+              }
+            },
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: AppColors.dynamicPrimary(dialogContext),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

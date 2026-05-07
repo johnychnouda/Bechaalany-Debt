@@ -188,16 +188,21 @@ class Debt {
   // PROFESSIONAL REVENUE CALCULATION PROPERTIES
   /// Original revenue (profit) for this debt at creation time
   double get originalRevenue {
-    if (originalSellingPrice == null || originalCostPrice == null) return 0.0;
-    final revenue = originalSellingPrice! - originalCostPrice!;
+    final revenue = revenuePerDollar * amount;
     // Round to 2 decimal places to avoid floating-point precision errors
     return ((revenue * 100).round() / 100);
   }
 
   /// Revenue per dollar of debt amount (for proportional calculations)
   double get revenuePerDollar {
-    if (amount <= 0) return 0.0;
-    final revenuePerDollar = originalRevenue / amount;
+    if (originalSellingPrice == null ||
+        originalCostPrice == null ||
+        originalSellingPrice == 0) {
+      return 0.0;
+    }
+
+    final revenuePerDollar =
+        (originalSellingPrice! - originalCostPrice!) / originalSellingPrice!;
     // Round to 4 decimal places to avoid floating-point precision errors in subsequent calculations
     return ((revenuePerDollar * 10000).round() / 10000);
   }

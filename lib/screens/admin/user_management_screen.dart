@@ -6,6 +6,7 @@ import '../../constants/firestore_access_keys.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import '../../services/admin_service.dart';
+import '../../services/account_deletion_service.dart';
 import 'user_details_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -26,11 +27,13 @@ enum UserFilter {
 class _UserManagementScreenState extends State<UserManagementScreen> {
   final AccessService _accessService = AccessService();
   final AdminService _adminService = AdminService();
+  final AccountDeletionService _accountDeletionService = AccountDeletionService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   UserFilter _selectedFilter = UserFilter.all;
   bool _isAdmin = false;
   bool _isCheckingAdmin = true;
+  final Set<String> _deletingUserIds = <String>{};
 
   @override
   void initState() {
@@ -57,6 +60,123 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _confirmAndDeleteUser(Map<String, dynamic> user) async {
+    if (!mounted) return false;
+    final screenContext = context;
+    final l10n = AppLocalizations.of(screenContext)!;
+    final userId = user['userId'] as String;
+    final name = (user['displayName'] as String?)?.trim().isNotEmpty == true
+        ? user['displayName'] as String
+        : (user['email'] as String? ?? '');
+
+    final confirmed = await showCupertinoDialog<bool>(
+      context: screenContext,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: Text(l10n.deleteUser),
+        content: Text(l10n.deleteUserConfirm(name)),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    setState(() => _deletingUserIds.add(userId));
+    try {
+      await _accountDeletionService.deleteUserDataAsAdmin(userId);
+      if (!mounted) return true;
+      showCupertinoDialog(
+        context: screenContext,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: Text(l10n.success),
+          content: Text(l10n.deleteUserSuccess),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+      return true;
+    } catch (e) {
+      if (!mounted) return false;
+      showCupertinoDialog(
+        context: screenContext,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: Text(l10n.error),
+          content: Text(l10n.saveFailedTryAgain),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+      return false;
+    } finally {
+      if (mounted) setState(() => _deletingUserIds.remove(userId));
+    }
+  }
+
+  void _openUserDetails(Map<String, dynamic> user) {
+    final userId = user['userId'] as String;
+    Navigator.push(
+      context,
+      CupertinoPageRoute(
+        builder: (context) => UserDetailsScreen(
+          userId: userId,
+          userEmail: user['email'] as String? ?? 'No email',
+          userDisplayName: user['displayName'] as String? ?? 'No name',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showUserActions(Map<String, dynamic> user) async {
+    if (!mounted) return;
+    final screenContext = context;
+    final l10n = AppLocalizations.of(screenContext)!;
+
+    await showCupertinoModalPopup<void>(
+      context: screenContext,
+      builder: (actionContext) => CupertinoActionSheet(
+        title: Text(l10n.actions),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(actionContext);
+              _openUserDetails(user);
+            },
+            child: Text(l10n.viewDetails),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              Navigator.pop(actionContext);
+              await _confirmAndDeleteUser(user);
+            },
+            child: Text(l10n.deleteUser),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(actionContext),
+          child: Text(l10n.cancel),
+        ),
+      ),
+    );
   }
 
   /// True when paid access period has ended by [accessEndDate], matching
@@ -585,7 +705,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (_searchQuery.isEmpty) return true;
                     final email = (user['email'] ?? '').toString().toLowerCase();
                     final displayName = (user['displayName'] ?? '').toString().toLowerCase();
-                    return email.contains(_searchQuery) || displayName.contains(_searchQuery);
+                    final businessName = (user['businessName'] ?? '').toString().toLowerCase();
+                    return email.contains(_searchQuery) ||
+                        displayName.contains(_searchQuery) ||
+                        businessName.contains(_searchQuery);
                   }).toList();
 
                   if (_selectedFilter == UserFilter.all) {
@@ -635,12 +758,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     itemCount: users.length,
                     itemBuilder: (context, index) {
                       final user = users[index];
+                      final userId = user['userId'] as String;
                       final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
                       final isTrialExpired = _isTrialExpired(user);
                       final statusColor =
                           _getStatusColor(status, user, isTrialExpired: isTrialExpired);
                       final daysLeft = _daysRemainingForUser(user);
                       final l10n = AppLocalizations.of(context)!;
+                      final isDeleting = _deletingUserIds.contains(userId);
                       final hidePlanUnderEmail = _selectedFilter == UserFilter.all &&
                           _matchesFilter(user, UserFilter.expired);
                       final accessTypeLower =
@@ -657,7 +782,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               !hideRedundantAccessTypeLabel;
                       final showDaysPart = daysLeft != null;
 
-                      return Container(
+                      final card = Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: AppColors.dynamicSurface(context),
@@ -669,18 +794,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                         child: CupertinoButton(
                           padding: EdgeInsets.zero,
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => UserDetailsScreen(
-                                  userId: user['userId'] as String,
-                                  userEmail: user['email'] as String? ?? 'No email',
-                                  userDisplayName: user['displayName'] as String? ?? 'No name',
-                                ),
-                              ),
-                            );
-                          },
+                          onPressed: isDeleting
+                              ? null
+                              : () => _showUserActions(user),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Row(
@@ -711,6 +827,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                           color: AppColors.dynamicTextPrimary(context),
                                         ),
                                       ),
+                                      if ((user['businessName'] as String? ?? '')
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${AppLocalizations.of(context)!.shopName}: ${(user['businessName'] as String).trim()}',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.dynamicTextSecondary(context),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                       const SizedBox(height: 4),
                                       Text(
                                         user['email'] as String? ?? 'No email',
@@ -751,8 +882,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     height: 1.2,
-                                                    color: AppColors.dynamicTextSecondary(
-                                                        context),
+                                                    color: AppColors.dynamicTextSecondary(context),
                                                   ),
                                                   children: [
                                                     if (showAccessTypePart)
@@ -778,16 +908,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                     ],
                                   ),
                                 ),
-                                Icon(
-                                  CupertinoIcons.chevron_right,
-                                  color: AppColors.dynamicTextSecondary(context),
-                                  size: 16,
-                                ),
+                                if (isDeleting)
+                                  const CupertinoActivityIndicator(radius: 10)
+                                else
+                                  Icon(
+                                    CupertinoIcons.chevron_right,
+                                    color: AppColors.dynamicTextSecondary(context),
+                                    size: 16,
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       );
+
+                      return card;
                     },
                         ),
                       ),

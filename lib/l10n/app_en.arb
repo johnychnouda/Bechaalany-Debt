@@ -306,6 +306,12 @@
   "activeStatus": "Active",
   "permissionDenied": "Permission Denied",
   "permissionDeniedMessage": "You do not have permission to access user data. Please ensure your account is marked as admin in Firestore.",
+  "deleteUser": "Delete User",
+  "deleteUserConfirm": "This will permanently delete all data for {name} (customers, debts, activities, backups, and settings). This cannot be undone.\n\nContinue?",
+  "@deleteUserConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "deleteUserSuccess": "User data deleted successfully.",
+  "failedToDeleteUser": "Failed to delete user: {error}",
+  "@failedToDeleteUser": { "placeholders": { "error": { "type": "String" } } },
 
   "addCustomer": "Add Customer",
   "editCustomer": "Edit Customer",

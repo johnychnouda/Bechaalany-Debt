@@ -63,6 +63,7 @@ class AppState extends ChangeNotifier {
   
   // Business Settings (Only implemented ones)
   String _defaultCurrency = 'USD';
+  int _lowStockThreshold = 5;
   
   // Category filter order (list of category IDs in display order)
   List<String> _categoryOrder = [];
@@ -173,6 +174,7 @@ class AppState extends ChangeNotifier {
   
   // Business Settings Getters (Only implemented ones)
   String get defaultCurrency => _defaultCurrency;
+  int get lowStockThreshold => _lowStockThreshold;
   
   // Category order getter
   List<String> get categoryOrder => List.from(_categoryOrder);
@@ -1277,6 +1279,12 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = data['whatsappAutomationEnabled'] ?? true;
           _whatsappCustomMessage = data['whatsappCustomMessage'] ?? '';
           _defaultCurrency = data['defaultCurrency'] ?? 'USD';
+          final lowStockThresholdRaw = data['lowStockThreshold'];
+          if (lowStockThresholdRaw is num && lowStockThresholdRaw >= 0) {
+            _lowStockThreshold = lowStockThresholdRaw.toInt();
+          } else {
+            _lowStockThreshold = 5;
+          }
           final savedLocale = data['localeCode'] as String?;
           _localeCode = (savedLocale == 'ar' || savedLocale == 'en') ? savedLocale! : 'en';
           // Load category order and remove duplicates (preserve order)
@@ -1295,6 +1303,7 @@ class AppState extends ChangeNotifier {
           _whatsappAutomationEnabled = true;
           _whatsappCustomMessage = '';
           _defaultCurrency = 'USD';
+          _lowStockThreshold = 5;
           _localeCode = 'en';
           _categoryOrder = [];
         }
@@ -1304,6 +1313,7 @@ class AppState extends ChangeNotifier {
         _whatsappAutomationEnabled = true;
         _whatsappCustomMessage = '';
         _defaultCurrency = 'USD';
+        _lowStockThreshold = 5;
         _localeCode = 'en';
         _categoryOrder = [];
       }
@@ -1314,6 +1324,7 @@ class AppState extends ChangeNotifier {
       _whatsappAutomationEnabled = true;
       _whatsappCustomMessage = '';
       _defaultCurrency = 'USD';
+      _lowStockThreshold = 5;
       _localeCode = 'en';
       _categoryOrder = [];
       notifyListeners();
@@ -1337,6 +1348,7 @@ class AppState extends ChangeNotifier {
     _whatsappAutomationEnabled = true; // Default to enabled
     _whatsappCustomMessage = '';
     _defaultCurrency = 'USD';
+    _lowStockThreshold = 5;
     _localeCode = 'en';
     _categoryOrder = [];
     // DON'T call notifyListeners() here - it will be called after initialization
@@ -3180,6 +3192,7 @@ class AppState extends ChangeNotifier {
           'whatsappAutomationEnabled': _whatsappAutomationEnabled,
           'whatsappCustomMessage': _whatsappCustomMessage,
           'defaultCurrency': _defaultCurrency,
+          'lowStockThreshold': _lowStockThreshold,
           'localeCode': _localeCode,
           'categoryOrder': _categoryOrder,
         }, SetOptions(merge: true));
@@ -3198,6 +3211,12 @@ class AppState extends ChangeNotifier {
   
   Future<void> setWhatsappCustomMessage(String message) async {
     _whatsappCustomMessage = message;
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<void> setLowStockThreshold(int value) async {
+    _lowStockThreshold = value < 0 ? 0 : value;
     await _saveSettings();
     notifyListeners();
   }

@@ -265,6 +265,12 @@
   "activeStatus": "نشط",
   "permissionDenied": "تم رفض الإذن",
   "permissionDeniedMessage": "ليس لديك إذن للوصول إلى بيانات المستخدمين. تأكد من أن حسابك معرّف كمشرف في Firestore.",
+  "deleteUser": "حذف المستخدم",
+  "deleteUserConfirm": "سيتم حذف جميع بيانات {name} نهائياً (العملاء، الديون، السجل، النسخ الاحتياطية، والإعدادات). لا يمكن التراجع عن هذا الإجراء.\n\nهل تريد المتابعة؟",
+  "@deleteUserConfirm": { "placeholders": { "name": { "type": "String" } } },
+  "deleteUserSuccess": "تم حذف بيانات المستخدم بنجاح.",
+  "failedToDeleteUser": "فشل حذف المستخدم: {error}",
+  "@failedToDeleteUser": { "placeholders": { "error": { "type": "String" } } },
 
   "addCustomer": "إضافة عميل",
   "editCustomer": "تعديل العميل",

@@ -1532,6 +1532,30 @@ abstract class AppLocalizations {
   /// **'You do not have permission to access user data. Please ensure your account is marked as admin in Firestore.'**
   String get permissionDeniedMessage;
 
+  /// No description provided for @deleteUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete User'**
+  String get deleteUser;
+
+  /// No description provided for @deleteUserConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'This will permanently delete all data for {name} (customers, debts, activities, backups, and settings). This cannot be undone.\n\nContinue?'**
+  String deleteUserConfirm(String name);
+
+  /// No description provided for @deleteUserSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'User data deleted successfully.'**
+  String get deleteUserSuccess;
+
+  /// No description provided for @failedToDeleteUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete user: {error}'**
+  String failedToDeleteUser(String error);
+
   /// No description provided for @addCustomer.
   ///
   /// In en, this message translates to:

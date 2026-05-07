@@ -819,6 +819,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'You do not have permission to access user data. Please ensure your account is marked as admin in Firestore.';
 
   @override
+  String get deleteUser => 'Delete User';
+
+  @override
+  String deleteUserConfirm(String name) {
+    return 'This will permanently delete all data for $name (customers, debts, activities, backups, and settings). This cannot be undone.\n\nContinue?';
+  }
+
+  @override
+  String get deleteUserSuccess => 'User data deleted successfully.';
+
+  @override
+  String failedToDeleteUser(String error) {
+    return 'Failed to delete user: $error';
+  }
+
+  @override
   String get addCustomer => 'Add Customer';
 
   @override
