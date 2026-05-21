@@ -169,6 +169,13 @@
   "appleSignInNotAvailable": "Apple Sign-In is not available. Please check your device settings.",
   "networkError": "Network error. Please check your internet connection.",
   "appleSignInFailed": "Apple sign-in failed. Please try again or use Google Sign-In instead.",
+  "appleSignInWebNotOnLocalhost": "Apple Sign-In on web only works on the live site, not localhost. Use Google here, or open https://bechaalany-debt-app-e1bb0.web.app",
+  "appleSignInWebFailed": "Apple sign-in failed: {message}",
+  "@appleSignInWebFailed": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
 
   "requiredSetupTitle": "Required Setup",
   "requiredSetupSubtitle": "Complete the following to start using the app",

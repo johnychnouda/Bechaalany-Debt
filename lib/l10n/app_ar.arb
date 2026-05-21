@@ -154,6 +154,8 @@
   "appleSignInNotAvailable": "تسجيل الدخول عبر Apple غير متاح. تحقق من إعدادات جهازك.",
   "networkError": "خطأ في الشبكة. تحقق من اتصال الإنترنت.",
   "appleSignInFailed": "فشل تسجيل الدخول عبر Apple. يرجى المحاولة مرة أخرى أو استخدام Google.",
+  "appleSignInWebNotOnLocalhost": "تسجيل الدخول عبر Apple على الويب يعمل على الموقع المنشور فقط وليس على localhost. استخدم Google هنا، أو افتح https://bechaalany-debt-app-e1bb0.web.app",
+  "appleSignInWebFailed": "فشل تسجيل الدخول عبر Apple: {message}",
 
   "requiredSetupTitle": "الإعداد المطلوب",
   "requiredSetupSubtitle": "أكمل التالي لبدء استخدام التطبيق",

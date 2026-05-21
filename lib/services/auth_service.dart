@@ -1,7 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'dart:io' show Platform;
+import '../utils/platform_utils.dart';
 import 'admin_service.dart';
 import 'business_name_service.dart';
 
@@ -16,6 +17,16 @@ class AuthService {
   /// Single init future; initialize() must be called exactly once per plugin docs.
   Future<void>? _initFuture;
 
+  /// Set when [completeWebOAuthRedirectIfPending] fails (e.g. Apple misconfiguration).
+  String? _pendingWebOAuthError;
+
+  /// Consumes and clears a stored OAuth redirect error for the sign-in screen.
+  String? takePendingWebOAuthError() {
+    final message = _pendingWebOAuthError;
+    _pendingWebOAuthError = null;
+    return message;
+  }
+
   // Current user
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => currentUser != null;
@@ -26,15 +37,24 @@ class AuthService {
   /// Initialize Google Sign-In (platform-specific client IDs).
   /// Must be called exactly once; use ensureInitialized() to await safely.
   Future<void> initialize() async {
-    if (Platform.isAndroid) {
+    const serverClientId =
+        '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com';
+
+    if (kIsWeb) {
       await _googleSignIn.initialize(
-        clientId: '908856160324-0n5oi3n60e2mj09nogg0998lj54sfajq.apps.googleusercontent.com',
-        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com',
+        clientId: serverClientId,
       );
-    } else if (Platform.isIOS) {
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
       await _googleSignIn.initialize(
-        clientId: '908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com',
-        serverClientId: '908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com',
+        clientId:
+            '908856160324-0n5oi3n60e2mj09nogg0998lj54sfajq.apps.googleusercontent.com',
+        serverClientId: serverClientId,
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _googleSignIn.initialize(
+        clientId:
+            '908856160324-rifpo3dibqilhhee82mfcchc9t8rd500.apps.googleusercontent.com',
+        serverClientId: serverClientId,
       );
     }
   }
@@ -47,9 +67,13 @@ class AuthService {
     await _initFuture!;
   }
 
-  /// Sign in with Google (Cross-platform)
+  /// Sign in with Google (mobile via google_sign_in, web via Firebase popup).
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      if (PlatformUtils.isBrowserContext) {
+        return await _signInWithGoogleWeb();
+      }
+
       await ensureInitialized();
       if (!_googleSignIn.supportsAuthenticate()) {
         throw Exception('Google Sign-In is not supported on this device');
@@ -98,23 +122,123 @@ class AuthService {
     }
   }
 
-  /// Sign in with Apple
+  /// Sign in with Apple (iOS native, or web via Firebase popup).
   Future<UserCredential?> signInWithApple() async {
     try {
-      // iOS implementation using native package
+      if (PlatformUtils.isBrowserContext) {
+        if (!PlatformUtils.isAppleWebSignInAvailable) {
+          throw Exception(
+            'Apple Sign-In on web is not available on localhost. '
+            'Use Google Sign-In here, or test at https://bechaalany-debt-app-e1bb0.web.app',
+          );
+        }
+        return await _signInWithAppleWeb();
+      }
+      if (!PlatformUtils.isIOS) {
+        throw Exception('Apple Sign-In is only available on iOS.');
+      }
       return await _signInWithAppleIOS();
+    } on FirebaseAuthException {
+      rethrow;
     } catch (e) {
-      // Provide more user-friendly error messages
+      if (PlatformUtils.isBrowserContext) {
+        rethrow;
+      }
+      // Provide more user-friendly error messages (mobile / generic)
       if (e.toString().contains('1001') || e.toString().contains('canceled')) {
         throw Exception('Apple Sign-In was cancelled. Please try again.');
       } else if (e.toString().contains('not available')) {
         throw Exception('Apple Sign-In is not available. Please check your device settings.');
       } else if (e.toString().contains('network')) {
         throw Exception('Network error. Please check your internet connection.');
+      } else if (e.toString().contains('localhost')) {
+        rethrow;
       } else {
         throw Exception('Apple Sign-In failed. Please try again or use Google Sign-In instead.');
       }
     }
+  }
+
+  /// Web Google Sign-In via Firebase Auth popup.
+  Future<UserCredential?> _signInWithGoogleWeb() async {
+    final provider = GoogleAuthProvider();
+
+    try {
+      return await _auth.signInWithPopup(provider);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request' ||
+          e.code == 'web-context-cancelled') {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
+  /// Completes Apple/Google OAuth after [signInWithRedirect] on web. Call once before runApp.
+  Future<UserCredential?> completeWebOAuthRedirectIfPending() async {
+    if (!PlatformUtils.isBrowserContext) return null;
+
+    _pendingWebOAuthError = null;
+    try {
+      final result = await _auth.getRedirectResult();
+      if (result.user != null) {
+        return result;
+      }
+
+      // Flutter web sometimes sets currentUser without populating redirect result.
+      if (_auth.currentUser != null) {
+        return result;
+      }
+
+      // Wait briefly for auth state after handler redirect back to this origin.
+      try {
+        await _auth
+            .authStateChanges()
+            .where((user) => user != null)
+            .first
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {
+        // Auth state not ready yet.
+      }
+      return _auth.currentUser != null ? result : null;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request' ||
+          e.code == 'web-context-cancelled') {
+        return null;
+      }
+      _pendingWebOAuthError = _formatAuthError(e);
+      return null;
+    }
+  }
+
+  /// Web Apple Sign-In via Firebase popup (same session; no redirect round-trip).
+  Future<UserCredential?> _signInWithAppleWeb() async {
+    final provider = AppleAuthProvider()..addScope('email');
+
+    try {
+      return await _auth.signInWithPopup(provider);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request' ||
+          e.code == 'web-context-cancelled') {
+        return null;
+      }
+      throw FirebaseAuthException(
+        code: e.code,
+        message: _formatAuthError(e),
+      );
+    }
+  }
+
+  static String _formatAuthError(FirebaseAuthException e) {
+    final detail = e.message?.trim();
+    if (detail != null && detail.isNotEmpty) return detail;
+    return 'Apple Sign-In failed (${e.code}). '
+        'In Apple Developer → Services ID → Sign in with Apple → Web, set domain '
+        'bechaalany-debt-app-e1bb0.firebaseapp.com and return URL '
+        'https://bechaalany-debt-app-e1bb0.firebaseapp.com/__/auth/handler';
   }
 
   /// iOS-specific Apple Sign-In implementation
@@ -261,6 +385,15 @@ class AuthService {
   }
 
   Future<AuthCredential?> _getGoogleReauthCredential() async {
+    if (PlatformUtils.isBrowserContext) {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('Not signed in');
+      }
+      await user.reauthenticateWithPopup(GoogleAuthProvider());
+      return null;
+    }
+
     await ensureInitialized();
     if (!_googleSignIn.supportsAuthenticate()) {
       throw Exception('Google Sign-In is not supported on this device');
@@ -290,7 +423,18 @@ class AuthService {
     }
   }
 
-  Future<AuthCredential> _getAppleReauthCredential() async {
+  Future<AuthCredential?> _getAppleReauthCredential() async {
+    if (PlatformUtils.isBrowserContext) {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('Not signed in');
+      }
+      final provider = AppleAuthProvider()..addScope('email');
+      await user.reauthenticateWithPopup(provider);
+      // Reauth already completed via popup.
+      return null;
+    }
+
     final appleCredential = await SignInWithApple.getAppleIDCredential(
       scopes: [AppleIDAuthorizationScopes.email],
     );

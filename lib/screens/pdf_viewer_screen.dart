@@ -1,14 +1,12 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
-import 'package:path_provider/path_provider.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../models/pdf_document_file.dart';
+import '../utils/platform_utils.dart';
 
-class PDFViewerScreen extends StatelessWidget {
-  final File pdfFile;
+class PDFViewerScreen extends StatefulWidget {
+  final PdfDocumentFile pdfFile;
   final String title;
 
   const PDFViewerScreen({
@@ -16,6 +14,31 @@ class PDFViewerScreen extends StatelessWidget {
     required this.pdfFile,
     required this.title,
   });
+
+  @override
+  State<PDFViewerScreen> createState() => _PDFViewerScreenState();
+}
+
+class _PDFViewerScreenState extends State<PDFViewerScreen> {
+  final PdfViewerController _pdfController = PdfViewerController();
+  double _viewportWidth = 0;
+
+  void _fitPdfToViewport(PdfDocumentLoadedDetails details) {
+    if (!PlatformUtils.isBrowserContext || _viewportWidth <= 0) return;
+    try {
+      final pageSize = details.document.pages[0].size;
+      final fitZoom = (_viewportWidth - 32) / pageSize.width;
+      _pdfController.zoomLevel = fitZoom.clamp(0.4, 1.0);
+    } catch (_) {
+      _pdfController.zoomLevel = 0.85;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,34 +52,45 @@ class PDFViewerScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          title,
+          widget.title,
           style: AppTheme.title3.copyWith(
             color: AppColors.dynamicTextPrimary(context),
           ),
         ),
         actions: [
+          if (PlatformUtils.isBrowserContext) ...[
+            IconButton(
+              icon: const Icon(Icons.print_outlined),
+              onPressed: () => widget.pdfFile.printDocument(),
+              tooltip: 'Print',
+            ),
+            IconButton(
+              icon: const Icon(Icons.download_outlined),
+              onPressed: () => widget.pdfFile.download(),
+              tooltip: 'Download PDF',
+            ),
+          ],
           IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () => _savePDF(context),
-            tooltip: 'Save PDF',
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () => _sharePDF(context),
+            tooltip: 'Share',
           ),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // Ensure we have valid constraints before rendering
           if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
             return const SizedBox.shrink();
           }
-          
-          // Use explicit bounded constraints to prevent layout errors
-          final boundedWidth = constraints.maxWidth.isFinite 
-              ? constraints.maxWidth 
+
+          final boundedWidth = constraints.maxWidth.isFinite
+              ? constraints.maxWidth
               : MediaQuery.of(context).size.width;
-          final boundedHeight = constraints.maxHeight.isFinite 
-              ? constraints.maxHeight 
+          final boundedHeight = constraints.maxHeight.isFinite
+              ? constraints.maxHeight
               : MediaQuery.of(context).size.height;
-          
+          _viewportWidth = boundedWidth;
+
           return Container(
             margin: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -72,61 +106,19 @@ class PDFViewerScreen extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: SizedBox(
-                width: boundedWidth - 16, // Account for margin
-                height: boundedHeight - 16, // Account for margin
-                child: Builder(
-                  builder: (context) {
-                    try {
-                      return SfPdfViewer.file(
-                        pdfFile,
-                        enableDoubleTapZooming: true,
-                        enableTextSelection: true,
-                        canShowScrollHead: true,
-                        canShowScrollStatus: true,
-                        onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-                          // Document loaded successfully
-                        },
-                        onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-                          // Handle document load failure
-                        },
-                        onPageChanged: (PdfPageChangedDetails details) {
-                          // Handle page change
-                        },
-                      );
-                    } catch (e) {
-                      // If rendering fails, show error message
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.error_outline,
-                                color: AppColors.error,
-                                size: 48,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'PDF Rendering Error',
-                                style: AppTheme.title3.copyWith(
-                                  color: AppColors.dynamicTextPrimary(context),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Please try downloading the PDF instead',
-                                style: AppTheme.body.copyWith(
-                                  color: AppColors.dynamicTextSecondary(context),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                width: boundedWidth - 16,
+                height: boundedHeight - 16,
+                child: SfPdfViewer.memory(
+                  widget.pdfFile.bytes,
+                  controller: _pdfController,
+                  enableDoubleTapZooming: true,
+                  enableTextSelection: true,
+                  canShowScrollHead: true,
+                  canShowScrollStatus: true,
+                  pageLayoutMode: PlatformUtils.isBrowserContext
+                      ? PdfPageLayoutMode.single
+                      : PdfPageLayoutMode.continuous,
+                  onDocumentLoaded: _fitPdfToViewport,
                 ),
               ),
             ),
@@ -136,31 +128,21 @@ class PDFViewerScreen extends StatelessWidget {
     );
   }
 
-
-  Future<void> _savePDF(BuildContext context) async {
+  Future<void> _sharePDF(BuildContext context) async {
     try {
-      // Save PDF to iPhone's Documents directory (iOS compatible)
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'Monthly_Activity_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      final savedFile = await pdfFile.copy('${directory.path}/$fileName');
-      
-      if (await savedFile.exists()) {
-        // Optionally share the file so user can save to Files app or other locations
-        await Share.shareXFiles(
-          [XFile(savedFile.path)],
-          text: 'Monthly Activity Report from Bechaalany Connect',
-        );
-      } else {
-        throw Exception('Failed to save PDF');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error saving PDF: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 3),
-        ),
+      await widget.pdfFile.share(
+        text: 'Monthly Activity Report from Bechaalany Connect',
       );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sharing PDF: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 }

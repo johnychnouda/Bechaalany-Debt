@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Bechaalany Connect — debt and payment management for your shop.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="google-signin-client_id" content="908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a.apps.googleusercontent.com">
+
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Bechaalany Connect">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Bechaalany Connect</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script>
+    if (location.pathname === '/privacy-policy.html') {
+      location.replace('/');
+    }
+  </script>
+  <!-- Required by syncfusion_flutter_pdfviewer on web (renders PDF pages via pdf.js) -->
+  <script type="module" async>
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs';
+    globalThis.pdfjsLib = pdfjsLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

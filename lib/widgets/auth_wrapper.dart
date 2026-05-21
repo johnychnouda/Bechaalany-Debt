@@ -6,6 +6,7 @@ import '../screens/main_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/contact_owner_screen.dart';
 import '../services/auth_service.dart';
+import '../utils/platform_utils.dart';
 import '../services/user_state_service.dart';
 import '../services/access_service.dart';
 import '../services/admin_service.dart';
@@ -130,6 +131,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _isLoading = true;
+  bool _webOAuthRedirectChecked = !PlatformUtils.isBrowserContext;
   final AuthService _authService = AuthService();
   final UserStateService _userStateService = UserStateService();
   final AccessService _accessService = AccessService();
@@ -139,10 +141,23 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _completeWebOAuthRedirectIfNeeded();
     // Show splash screen for minimum duration
     _showSplashForMinimumDuration();
     // Handle any pending email verification links
     _handlePendingEmailVerification();
+  }
+
+  Future<void> _completeWebOAuthRedirectIfNeeded() async {
+    if (!PlatformUtils.isBrowserContext) return;
+    try {
+      // Also handled in main() before runApp; repeat here if app resumed mid-redirect.
+      await _authService.completeWebOAuthRedirectIfPending();
+    } finally {
+      if (mounted) {
+        setState(() => _webOAuthRedirectChecked = true);
+      }
+    }
   }
 
   @override
@@ -277,8 +292,8 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
 
-        // Show splash screen while loading
-        if (_isLoading) {
+        // Show splash while loading or finishing OAuth redirect (web Apple/Google).
+        if (_isLoading || !_webOAuthRedirectChecked) {
           return const SplashScreen();
         }
         

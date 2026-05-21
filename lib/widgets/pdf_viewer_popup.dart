@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:share_plus/share_plus.dart' as share_plus;
-import 'package:cross_file/cross_file.dart';import 'dart:io';
 import 'dart:typed_data';
 import '../constants/app_colors.dart';
+import '../models/pdf_document_file.dart';
+import '../utils/platform_utils.dart';
 // Notification service import removed
 import '../models/customer.dart'; // Added import for Customer model
 import '../screens/customer_details_screen.dart'; // Added import for CustomerDetailsScreen
 
 class PDFViewerPopup extends StatefulWidget {
-  final File pdfFile;
+  final PdfDocumentFile pdfFile;
   final String customerName;
   final VoidCallback? onClose;
   final Customer? customer; // Add customer parameter
@@ -28,12 +28,14 @@ class PDFViewerPopup extends StatefulWidget {
 }
 
 class _PDFViewerPopupState extends State<PDFViewerPopup> {
+  final PdfViewerController _pdfController = PdfViewerController();
   bool _isLoading = true;
   String? _errorMessage;
   int _currentPage = 1;
   int _totalPages = 0;
   Uint8List? _pdfBytes;
   bool _hasRenderingError = false;
+  double _viewportWidth = 0;
 
   @override
   void initState() {
@@ -43,17 +45,9 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
 
   Future<void> _loadPDF() async {
     try {
-      if (!widget.pdfFile.existsSync()) {
-        setState(() {
-          _errorMessage = 'PDF file not found';
-          _isLoading = false;
-        });
-        return;
-      }
+      final bytes = widget.pdfFile.bytes;
 
-      final fileSize = widget.pdfFile.lengthSync();
-      
-      if (fileSize == 0) {
+      if (bytes.isEmpty) {
         setState(() {
           _errorMessage = 'PDF file is empty (0 bytes)';
           _isLoading = false;
@@ -61,9 +55,6 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
         return;
       }
 
-      // Read PDF bytes
-      final bytes = await widget.pdfFile.readAsBytes();
-      
       if (mounted) {
         setState(() {
           _pdfBytes = bytes;
@@ -157,14 +148,27 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                   ),
                 ),
                 const Spacer(),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () => _sharePDF(),
-                  child: Icon(
-                    CupertinoIcons.share,
-                    color: CupertinoColors.activeBlue,
-                    size: 20,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (PlatformUtils.isBrowserContext) ...[
+                      _headerActionButton(
+                        icon: CupertinoIcons.arrow_down_doc,
+                        tooltip: 'Download PDF',
+                        onPressed: _downloadPDF,
+                      ),
+                      _headerActionButton(
+                        icon: CupertinoIcons.printer,
+                        tooltip: 'Print',
+                        onPressed: _printPDF,
+                      ),
+                    ],
+                    _headerActionButton(
+                      icon: CupertinoIcons.share,
+                      tooltip: 'Share',
+                      onPressed: _sharePDF,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -299,7 +303,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
             ),
             const SizedBox(height: 16),
             Text(
-              'File: ${widget.pdfFile.path.split('/').last}',
+              'File: ${widget.pdfFile.name}',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel.resolveFrom(context),
                 fontSize: 15,
@@ -308,7 +312,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Size: ${(widget.pdfFile.lengthSync() / 1024).toStringAsFixed(1)} KB',
+              'Size: ${(widget.pdfFile.bytes.length / 1024).toStringAsFixed(1)} KB',
               style: TextStyle(
                 color: CupertinoColors.secondaryLabel.resolveFrom(context),
                 fontSize: 15,
@@ -362,6 +366,37 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
     return _buildStablePdfViewer();
   }
 
+  Widget _headerActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: CupertinoButton(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        onPressed: onPressed,
+        child: Icon(
+          icon,
+          color: CupertinoColors.activeBlue,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  void _fitPdfToViewport(PdfDocumentLoadedDetails details) {
+    if (!PlatformUtils.isBrowserContext || _viewportWidth <= 0) return;
+    try {
+      final pageSize = details.document.pages[0].size;
+      final horizontalPadding = 32.0;
+      final fitZoom = (_viewportWidth - horizontalPadding) / pageSize.width;
+      _pdfController.zoomLevel = fitZoom.clamp(0.4, 1.0);
+    } catch (_) {
+      _pdfController.zoomLevel = 0.85;
+    }
+  }
+
   Widget _buildStablePdfViewer() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -377,6 +412,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
         final boundedHeight = constraints.maxHeight.isFinite 
             ? constraints.maxHeight 
             : MediaQuery.of(context).size.height;
+        _viewportWidth = boundedWidth;
         
         return SizedBox(
           width: boundedWidth,
@@ -387,16 +423,21 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
               try {
                 return SfPdfViewer.memory(
                   _pdfBytes!,
+                  controller: _pdfController,
                   enableDoubleTapZooming: true,
                   enableTextSelection: false,
                   canShowScrollHead: false,
                   canShowScrollStatus: false,
-                  pageSpacing: 0,
+                  pageSpacing: PlatformUtils.isBrowserContext ? 12 : 0,
                   enableDocumentLinkAnnotation: false,
                   enableHyperlinkNavigation: false,
                   canShowPaginationDialog: false,
+                  pageLayoutMode: PlatformUtils.isBrowserContext
+                      ? PdfPageLayoutMode.single
+                      : PdfPageLayoutMode.continuous,
                   onDocumentLoaded: (PdfDocumentLoadedDetails details) {
                     if (mounted) {
+                      _fitPdfToViewport(details);
                       setState(() {
                         _totalPages = details.document.pages.count;
                       });
@@ -405,7 +446,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                   onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
                     if (mounted) {
                       setState(() {
-                        _errorMessage = details.error.toString();
+                        _errorMessage = _formatPdfLoadError(details.error);
                         _hasRenderingError = true;
                       });
                     }
@@ -556,6 +597,14 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
     );
   }
 
+  String _formatPdfLoadError(Object? error) {
+    final message = error?.toString().trim() ?? '';
+    if (message.isEmpty || message == 'Error') {
+      return 'PDF viewer could not load this receipt. Try sharing or downloading the PDF instead.';
+    }
+    return message;
+  }
+
   void _retryLoadPDF() {
     setState(() {
       _errorMessage = null;
@@ -573,18 +622,26 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
 
   Future<void> _sharePDF() async {
     try {
-          await share_plus.Share.shareXFiles([XFile(widget.pdfFile.path)]);
-      
-      if (mounted) {
-        // Notification service removed
-        // Notification removed
-      }
-    } catch (e) {
-      if (mounted) {
-        // Notification service removed
-        // Notification removed
-      }
-    }
+      await widget.pdfFile.share();
+    } catch (_) {}
+  }
+
+  Future<void> _downloadPDF() async {
+    try {
+      await widget.pdfFile.download();
+    } catch (_) {}
+  }
+
+  Future<void> _printPDF() async {
+    try {
+      await widget.pdfFile.printDocument();
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pdfController.dispose();
+    super.dispose();
   }
 }
 

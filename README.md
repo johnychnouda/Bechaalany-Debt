@@ -62,6 +62,50 @@ lib/
    flutter run
    ```
 
+## Web (browser)
+
+The same Firebase backend powers the web app — users sign in with the same account and see the same data as on mobile.
+
+### Run locally
+
+```bash
+flutter run -d chrome
+```
+
+### Build & deploy to Firebase Hosting
+
+```bash
+./build_web.sh
+firebase deploy --only hosting --project bechaalany-debt-app-e1bb0
+```
+
+Live URL after deploy: `https://bechaalany-debt-app-e1bb0.web.app`
+
+### One-time Firebase / Google setup for web sign-in
+
+1. [Firebase Console](https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/authentication/providers) → enable **Google** sign-in.
+2. **Authentication → Settings → Authorized domains** — ensure `localhost` and `bechaalany-debt-app-e1bb0.web.app` are listed.
+3. [Google Cloud Console](https://console.cloud.google.com/apis/credentials?project=bechaalany-debt-app-e1bb0) → OAuth **Web client** (`908856160324-8ft1tgo1lv5jmp1dr4astcankuq54u4a`) → **Authorized JavaScript origins** (include every port you use locally, e.g. Flutter’s default or `--web-port`):
+   - `http://localhost`
+   - `http://localhost:5000`
+   - `http://localhost:7357`
+   - `https://bechaalany-debt-app-e1bb0.web.app`
+   - `https://bechaalany-debt-app-e1bb0.firebaseapp.com`
+
+### Apple Sign-In on web
+
+**Does not work on `localhost`.** Apple only allows Sign in with Apple on HTTPS domains you register. Use Google on local dev, or test Apple on the deployed site.
+
+1. [Firebase Console](https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/authentication/providers) → enable **Apple** and fill in **all** fields: Services ID, Apple Team ID, Key ID, and the `.p8` private key (same Apple key as iOS is fine).
+2. [Apple Developer](https://developer.apple.com/account/resources/identifiers/list/serviceId) → your **Services ID** (must match Firebase) → **Sign in with Apple** → **Configure** for **Web**:
+   - **Domains and Subdomains:** `bechaalany-debt-app-e1bb0.firebaseapp.com` (required — OAuth completes on this host even when the app is served from `.web.app`)
+   - **Return URLs:** `https://bechaalany-debt-app-e1bb0.firebaseapp.com/__/auth/handler` (exact match, no trailing slash)
+3. Link the Services ID to your primary App ID under **Identifiers → App ID → Sign in with Apple → Edit**.
+4. Test at [https://bechaalany-debt-app-e1bb0.web.app](https://bechaalany-debt-app-e1bb0.web.app) (hard refresh after deploy). Apple sign-in uses a full-page redirect; you return signed in or see a specific error on the sign-in screen.
+5. Users sign in with the **same Apple ID** as on iPhone — one account, shared data.
+
+If Apple still fails, the sign-in screen will show the Firebase/Apple error code — most often `invalid_client` or `invalid_request` means step 2 return URL or Services ID mismatch.
+
 ## Design System
 
 The app uses a professional design system with:

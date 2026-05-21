@@ -1,7 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:io' show Platform;
+import '../utils/platform_utils.dart';
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
@@ -19,6 +20,21 @@ class _SignInScreenState extends State<SignInScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final pendingOAuthError = _authService.takePendingWebOAuthError();
+    if (pendingOAuthError != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _errorMessage = AppLocalizations.of(context)!
+              .appleSignInWebFailed(pendingOAuthError);
+        });
+      });
+    }
+  }
 
   Future<void> _signInWithGoogle() async {
     if (!mounted) return;
@@ -70,23 +86,28 @@ class _SignInScreenState extends State<SignInScreen> {
       final result = await _authService.signInWithApple();
       if (result != null) {
         // Success — AuthWrapper will run access check and show MainScreen or ContactOwnerScreen
-      } else {
-        if (mounted) {
-          setState(() {
-            _errorMessage = AppLocalizations.of(context)!.appleSignInCancelled;
-          });
-        }
+      } else if (mounted) {
+        setState(() {
+          _errorMessage = AppLocalizations.of(context)!.appleSignInCancelled;
+        });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          // Provide user-friendly error messages
+          final msg = e.toString();
           final l10n = AppLocalizations.of(context)!;
-          if (e.toString().contains('cancelled')) {
+          if (msg.contains('localhost')) {
+            _errorMessage = l10n.appleSignInWebNotOnLocalhost;
+          } else if (e is FirebaseAuthException) {
+            _errorMessage = l10n.appleSignInWebFailed(e.message ?? e.code);
+          } else if (PlatformUtils.isBrowserContext) {
+            final detail = msg.replaceFirst(RegExp(r'^Exception:\s*'), '');
+            _errorMessage = l10n.appleSignInWebFailed(detail);
+          } else if (msg.contains('cancelled') || msg.contains('canceled')) {
             _errorMessage = l10n.appleSignInCancelledTryAgain;
-          } else if (e.toString().contains('not available')) {
+          } else if (msg.contains('not available')) {
             _errorMessage = l10n.appleSignInNotAvailable;
-          } else if (e.toString().contains('network')) {
+          } else if (msg.contains('network')) {
             _errorMessage = l10n.networkError;
           } else {
             _errorMessage = l10n.appleSignInFailed;
@@ -101,6 +122,8 @@ class _SignInScreenState extends State<SignInScreen> {
       }
     }
   }
+
+  static const double _signInContentMaxWidth = 400;
 
   @override
   Widget build(BuildContext context) {
@@ -124,11 +147,16 @@ class _SignInScreenState extends State<SignInScreen> {
           ),
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacing24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: _signInContentMaxWidth,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                 // Logo Design
                 LogoUtils.buildLogo(
                   context: context,
@@ -178,7 +206,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      Platform.isIOS
+                      PlatformUtils.signInSubtitleMentionsApple
                           ? AppLocalizations.of(context)!.signInSubtitle
                           : AppLocalizations.of(context)!.signInSubtitleGoogleOnly,
                       style: AppTheme.body.copyWith(
@@ -302,7 +330,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       const SizedBox(height: AppTheme.spacing16),
                       
                       // Apple Sign In Button - iOS only
-                      if (Platform.isIOS)
+                      if (PlatformUtils.showAppleSignIn)
                         Container(
                           width: double.infinity,
                           height: 56,
@@ -350,7 +378,9 @@ class _SignInScreenState extends State<SignInScreen> {
                   ),
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing40 : AppTheme.spacing48),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
         ),

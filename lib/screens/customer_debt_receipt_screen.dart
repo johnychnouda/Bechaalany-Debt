@@ -7,9 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:cross_file/cross_file.dart';
-// These imports are only used in mobile-specific code
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
+import '../models/pdf_document_file.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
@@ -1153,8 +1151,7 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       );
       
       if (pdfFile != null) {
-        // Use the existing share functionality to save to iPhone
-            await share_plus.Share.shareXFiles([XFile(pdfFile.path)]);
+        await pdfFile.share();
         
         if (mounted) {
           // Receipt saved successfully
@@ -1172,17 +1169,12 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
       final pdf = PdfFontUtils.createDocumentWithFonts();
       await _buildMultiPagePDF(pdf);
       
-      // Mobile PDF handling
       final pdfBytes = await pdf.save();
       final now = DateTime.now();
       final dateStr = '${now.day.toString().padLeft(2, '0')}-${now.month}-${now.year}';
       final fileName = '${widget.customer.name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ' ')}_${dateStr}_ID${widget.customer.id}.pdf';
-      
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsBytes(pdfBytes);
-      
-          await share_plus.Share.shareXFiles([XFile(file.path)]);
+
+      await PdfDocumentFile(bytes: pdfBytes, name: fileName).share();
       
       if (mounted) {
         // PDF exported successfully

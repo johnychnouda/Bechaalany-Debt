@@ -697,7 +697,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
       
       if (pdfFile != null) {
         // Use the existing share functionality to save to iPhone
-        await share_plus.Share.shareXFiles([XFile(pdfFile.path)]);
+        await pdfFile.share();
         
       } else {
       }

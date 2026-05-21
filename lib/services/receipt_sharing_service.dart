@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -11,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/activity.dart';
+import '../models/pdf_document_file.dart';
 import '../utils/pdf_font_utils.dart';
 import 'business_name_service.dart';
 
@@ -364,7 +363,7 @@ class ReceiptSharingService {
   }
   
   /// Generate and save PDF receipt for a customer
-  static Future<File?> generateReceiptPDF({
+  static Future<PdfDocumentFile?> generateReceiptPDF({
     required BuildContext context,
     required Customer customer,
     required List<Debt> debts,
@@ -550,20 +549,10 @@ class ReceiptSharingService {
         }
       }
       
-      // Save PDF to temporary directory
-      final directory = await getTemporaryDirectory();
-      final fileName = '${customer.name}_Receipt_${DateTime.now().day}-${DateTime.now().month}-${DateTime.now().year}_ID${customer.id}.pdf';
-      final file = File('${directory.path}/$fileName');
-      
+      final fileName =
+          '${customer.name}_Receipt_${DateTime.now().day}-${DateTime.now().month}-${DateTime.now().year}_ID${customer.id}.pdf';
       final pdfBytes = await pdf.save();
-      await file.writeAsBytes(pdfBytes);
-      
-      // Verify file was created
-      if (await file.exists()) {
-        return file;
-      } else {
-        return null;
-      }
+      return PdfDocumentFile(bytes: pdfBytes, name: fileName);
     } catch (e) {
       return null;
     }
@@ -1212,7 +1201,7 @@ This is an automated receipt. Please contact us for any account-related inquirie
 
   /// Generate monthly activity PDF report.
   /// Pass [l10n] to render the PDF in the app's current locale (e.g. Arabic).
-  static Future<File?> generateMonthlyActivityPDF({
+  static Future<PdfDocumentFile?> generateMonthlyActivityPDF({
     required List<Activity> monthlyActivities,
     required List<Debt> monthlyDebts,
     required double totalRevenue,
@@ -1384,20 +1373,9 @@ This is an automated receipt. Please contact us for any account-related inquirie
         }
       }
       
-      // Save PDF to temporary directory
-      final directory = await getTemporaryDirectory();
       final fileName = 'Monthly_Activity_Report_${monthName}_${year}.pdf';
-      final file = File('${directory.path}/$fileName');
-      
       final pdfBytes = await pdf.save();
-      await file.writeAsBytes(pdfBytes);
-      
-      // Verify file was created
-      if (await file.exists()) {
-        return file;
-      } else {
-        return null;
-      }
+      return PdfDocumentFile(bytes: pdfBytes, name: fileName);
     } catch (e) {
       return null;
     }
@@ -2185,12 +2163,11 @@ This is an automated receipt. Please contact us for any account-related inquirie
     return '$hour:$minute:$second $period';
   }
 
-  /// Share a PDF file using the system share dialog
-  static Future<void> sharePDFFile(File pdfFile) async {
+  /// Share a PDF using the system share dialog (or browser download on web).
+  static Future<void> sharePDFFile(PdfDocumentFile pdfFile) async {
     try {
       final businessName = await BusinessNameService().getBusinessName();
-      await Share.shareXFiles(
-        [XFile(pdfFile.path)],
+      await pdfFile.share(
         text: 'Monthly Activity Report from $businessName',
       );
     } catch (e) {

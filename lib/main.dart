@@ -6,8 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'firebase_options.dart';
+import 'utils/platform_utils.dart';
 import 'constants/platform_theme.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/app_state.dart';
@@ -40,9 +41,8 @@ void main() async {
     ),
   );
   
-  // Suppress system warnings on Android
-  if (Platform.isAndroid) {
-    // Suppress verbose logging from Google Play Services
+  // Suppress system warnings on Android (not applicable on web)
+  if (PlatformUtils.isAndroid) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
   
@@ -52,6 +52,11 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Complete OAuth redirect (Apple/Google) before first frame — required on web.
+    if (PlatformUtils.isBrowserContext) {
+      await AuthService().completeWebOAuthRedirectIfPending();
+    }
     
     // Set Firebase Auth language asynchronously after initialization
     // This doesn't block the app from starting
@@ -60,14 +65,7 @@ void main() async {
         final auth = FirebaseAuth.instance;
         // Get system locale or default to 'en'. Defensive: localeName can
         // behave differently on iPad/multitasking; wrap in try to avoid startup issues.
-        String localeCode = 'en';
-        try {
-          final name = Platform.localeName;
-          localeCode = name.split('_').first.trim();
-          if (localeCode.isEmpty) localeCode = 'en';
-        } catch (_) {
-          localeCode = 'en';
-        }
+        final localeCode = PlatformUtils.systemLocaleCode;
         await auth.setLanguageCode(localeCode);
       } catch (e) {
         // Fallback to English if locale setting fails
@@ -101,11 +99,13 @@ void _initializeServicesAsync() async {
     // Handle Firebase initialization error silently
   }
   
-  try {
-    await AuthService().ensureInitialized();
-  } catch (e) {
-    // Handle Google Sign-In initialization error silently
-    // Google Play Services errors are expected on emulators without full GMS
+  if (!PlatformUtils.isBrowserContext) {
+    try {
+      await AuthService().ensureInitialized();
+    } catch (e) {
+      // Handle Google Sign-In initialization error silently
+      // Google Play Services errors are expected on emulators without full GMS
+    }
   }
   
   
@@ -121,12 +121,14 @@ void _initializeServicesAsync() async {
   // Background backup service disabled
   // Background App Refresh service disabled
   
-  // Check for app updates
-  try {
-    final appUpdateService = AppUpdateService();
-    await appUpdateService.checkForUpdates();
-  } catch (e) {
-    // Handle app update check error silently
+  // App store update checks are mobile-only
+  if (!kIsWeb) {
+    try {
+      final appUpdateService = AppUpdateService();
+      await appUpdateService.checkForUpdates();
+    } catch (e) {
+      // Handle app update check error silently
+    }
   }
 }
 

@@ -448,6 +448,15 @@ class AppLocalizationsAr extends AppLocalizations {
       'فشل تسجيل الدخول عبر Apple. يرجى المحاولة مرة أخرى أو استخدام Google.';
 
   @override
+  String get appleSignInWebNotOnLocalhost =>
+      'تسجيل الدخول عبر Apple على الويب يعمل على الموقع المنشور فقط وليس على localhost. استخدم Google هنا، أو افتح https://bechaalany-debt-app-e1bb0.web.app';
+
+  @override
+  String appleSignInWebFailed(String message) {
+    return 'فشل تسجيل الدخول عبر Apple: $message';
+  }
+
+  @override
   String get requiredSetupTitle => 'الإعداد المطلوب';
 
   @override

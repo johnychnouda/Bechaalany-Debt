@@ -896,6 +896,18 @@ abstract class AppLocalizations {
   /// **'Apple sign-in failed. Please try again or use Google Sign-In instead.'**
   String get appleSignInFailed;
 
+  /// No description provided for @appleSignInWebNotOnLocalhost.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple Sign-In on web only works on the live site, not localhost. Use Google here, or open https://bechaalany-debt-app-e1bb0.web.app'**
+  String get appleSignInWebNotOnLocalhost;
+
+  /// No description provided for @appleSignInWebFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Apple sign-in failed: {message}'**
+  String appleSignInWebFailed(String message);
+
   /// No description provided for @requiredSetupTitle.
   ///
   /// In en, this message translates to:

@@ -457,6 +457,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Apple sign-in failed. Please try again or use Google Sign-In instead.';
 
   @override
+  String get appleSignInWebNotOnLocalhost =>
+      'Apple Sign-In on web only works on the live site, not localhost. Use Google here, or open https://bechaalany-debt-app-e1bb0.web.app';
+
+  @override
+  String appleSignInWebFailed(String message) {
+    return 'Apple sign-in failed: $message';
+  }
+
+  @override
   String get requiredSetupTitle => 'Required Setup';
 
   @override

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:io' show Platform;
+import '../utils/platform_utils.dart';
 import 'app_theme.dart';
 import 'app_colors.dart';
 import '../providers/app_state.dart';
 
 class PlatformTheme {
   // Cross-platform detection
-  static bool get isIOS => Platform.isIOS;
-  static bool get isAndroid => Platform.isAndroid;
+  static bool get isIOS => PlatformUtils.isIOS;
+  static bool get isAndroid => PlatformUtils.isAndroid;
   
   // Get iOS light theme
   static ThemeData getLightTheme(BuildContext context) {
