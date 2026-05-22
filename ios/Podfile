@@ -89,4 +89,12 @@ post_install do |installer|
   Dir.glob(File.join(installer.sandbox.root, '**', '*.framework', 'Info.plist')).each do |plist|
     fix_framework_plist(plist, min_os)
   end
+
+  # Flutter.podspec defaults to iOS 13.0; must match app deployment target (Firebase needs 15+).
+  flutter_podspec = File.expand_path(File.join('Flutter', 'Flutter.podspec'), __dir__)
+  if File.file?(flutter_podspec)
+    contents = File.read(flutter_podspec)
+    updated = contents.gsub("s.ios.deployment_target = '13.0'", "s.ios.deployment_target = '#{min_os}'")
+    File.write(flutter_podspec, updated) if updated != contents
+  end
 end
