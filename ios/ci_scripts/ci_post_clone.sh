@@ -113,6 +113,24 @@ if [ ! -f "$IOS_FLUTTER_DIR/Generated.xcconfig" ]; then
 fi
 echo "✅ Generated.xcconfig created successfully at: $IOS_FLUTTER_DIR/Generated.xcconfig"
 
+# Regenerate SwiftPM Package.swift with the app's iOS 15 deployment target.
+# Without this, FlutterGeneratedPluginSwiftPackage stays at iOS 13.0 and Firebase SPM fails.
+echo ""
+echo "📦 Regenerating iOS Swift Package config (deployment target 15.0)..."
+cd "$REPO_ROOT"
+flutter build ios --config-only
+SPM_PACKAGE="$IOS_FLUTTER_DIR/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift"
+if [ ! -f "$SPM_PACKAGE" ]; then
+    echo "❌ ERROR: FlutterGeneratedPluginSwiftPackage/Package.swift was not created!"
+    exit 1
+fi
+if ! grep -q '.iOS("15.0")' "$SPM_PACKAGE"; then
+    echo "❌ ERROR: Package.swift does not declare iOS 15.0 (Firebase requires 15.0+)"
+    grep -A2 'platforms' "$SPM_PACKAGE" || true
+    exit 1
+fi
+echo "✅ FlutterGeneratedPluginSwiftPackage targets iOS 15.0"
+
 # Install CocoaPods dependencies
 echo ""
 echo "📦 Step 2: Installing CocoaPods dependencies..."

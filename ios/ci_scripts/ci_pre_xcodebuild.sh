@@ -56,6 +56,26 @@ else
     echo "✅ Generated.xcconfig exists"
 fi
 
+# Ensure SwiftPM plugin package matches iOS 15 deployment target (Firebase auth/functions).
+SPM_PACKAGE="$IOS_FLUTTER_DIR/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift"
+if [ ! -f "$SPM_PACKAGE" ] || ! grep -q '.iOS("15.0")' "$SPM_PACKAGE"; then
+    echo "⚠️  Regenerating iOS Swift Package config..."
+    if [ -n "$FLUTTER_PATH" ] && [ -f "$FLUTTER_PATH" ]; then
+        "$FLUTTER_PATH" build ios --config-only
+    elif command -v flutter &> /dev/null; then
+        flutter build ios --config-only
+    else
+        echo "❌ ERROR: Flutter not available to regenerate Package.swift"
+        exit 1
+    fi
+fi
+if [ -f "$SPM_PACKAGE" ] && grep -q '.iOS("15.0")' "$SPM_PACKAGE"; then
+    echo "✅ FlutterGeneratedPluginSwiftPackage targets iOS 15.0"
+else
+    echo "❌ ERROR: Package.swift missing or still below iOS 15.0"
+    exit 1
+fi
+
 # Ensure CocoaPods dependencies are installed
 if [ ! -d "$IOS_PODS_DIR" ]; then
     echo "⚠️  Pods directory missing, running pod install..."
