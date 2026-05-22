@@ -393,6 +393,8 @@
   "trackInventory": "Track inventory",
   "barcodeProductLabel": "Barcode",
   "barcodeProductHint": "EAN / UPC number on package",
+  "productBarcodeWebHint": "USB scanner or type here",
+  "productBarcodeMobileHint": "Tap scan icon or type here",
   "barcodeRequiredHint": "Required",
   "barcodeRequired": "Please enter a barcode when barcode is enabled",
   "duplicateBarcode": "This barcode is already used by \"{productName}\"",
@@ -402,6 +404,12 @@
     }
   },
   "useBarcodeScannerOrType": "Use your barcode scanner or type the number, then tap Find product",
+  "chooseCategoryToAddProductWithBarcode": "Choose a category to add a new product with barcode {barcode}",
+  "@chooseCategoryToAddProductWithBarcode": {
+    "placeholders": {
+      "barcode": { "type": "String" }
+    }
+  },
   "customerLabel": "Customer",
   "categoryLabel": "Category",
   "productLabel": "Product",

@@ -9,6 +9,8 @@ import '../models/currency_settings.dart';
 import '../services/data_service.dart';
 // Notification service import removed
 import '../providers/app_state.dart';
+import '../utils/settings_navigation.dart';
+import '../widgets/web_subpage_scaffold.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
@@ -190,11 +192,56 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
     }
   }
 
+  Widget _buildUpdateButton(BuildContext context) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      onPressed: _saveCurrencySettings,
+      child: Text(
+        'Update',
+        style: AppTheme.getDynamicBody(context).copyWith(
+          color: AppColors.dynamicPrimary(context),
+          fontWeight: FontWeight.w600,
+          fontSize: 17,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageBody(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+    return Material(
+      color: Colors.transparent,
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        children: [
+          const SizedBox(height: 8),
+          if (_currentSettings != null) _buildCurrentSettingsSection(),
+          const SizedBox(height: 16),
+          _buildExchangeRateSection(),
+          const SizedBox(height: 24),
+          _buildHelpText(),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (WebSubpageScaffold.useWebPanel(context)) {
+      return WebSubpageScaffold(
+        title: 'Currency Settings',
+        trailing: _buildUpdateButton(context),
+        body: _buildPageBody(context),
+      );
+    }
+
     return CupertinoPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
+        leading: SettingsNavigation.cupertinoBackButton(context),
         middle: Text(
           'Currency Settings',
           style: AppTheme.getDynamicTitle3(context).copyWith(
@@ -203,47 +250,9 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
         ),
         backgroundColor: AppColors.dynamicSurface(context),
         border: null,
-        trailing: CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            'Update',
-            style: AppTheme.getDynamicBody(context).copyWith(
-              color: AppColors.dynamicPrimary(context),
-              fontWeight: FontWeight.w600,
-              fontSize: 17,
-            ),
-          ),
-          onPressed: _saveCurrencySettings,
-        ),
+        trailing: _buildUpdateButton(context),
       ),
-      child: SafeArea(
-        child: _isLoading
-            ? const Center(child: CupertinoActivityIndicator())
-            : Material(
-                color: Colors.transparent,
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  children: [
-                    const SizedBox(height: 16),
-                    
-                    // Current Settings Section
-                    if (_currentSettings != null) _buildCurrentSettingsSection(),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Exchange Rate Input Section
-                    _buildExchangeRateSection(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Help Text
-                    _buildHelpText(),
-                    
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-      ),
+      child: SafeArea(child: _buildPageBody(context)),
     );
   }
 

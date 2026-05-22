@@ -6,6 +6,8 @@ import '../l10n/app_localizations.dart';
 import '../models/access.dart';
 import '../services/access_service.dart';
 import '../utils/admin_contact.dart';
+import '../utils/settings_navigation.dart';
+import '../widgets/web_subpage_scaffold.dart';
 import 'contact_owner_screen.dart';
 
 class RequestAccessScreen extends StatefulWidget {
@@ -93,13 +95,59 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
     );
   }
 
+  Widget _buildPageBody(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CupertinoActivityIndicator());
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          if (_access != null) ...[
+            _buildStatusCard(context),
+            const SizedBox(height: 16),
+            if (_access!.status == AccessStatus.trial)
+              _buildTrialSection(context),
+            if (_access!.status == AccessStatus.active)
+              _buildActiveSection(context),
+            if (_access!.status == AccessStatus.expired ||
+                _access!.status == AccessStatus.cancelled)
+              _buildExpiredSection(context),
+            const SizedBox(height: 16),
+          ] else ...[
+            _buildNoDataSection(context),
+            const SizedBox(height: 16),
+          ],
+          if (_access != null && _access!.status == AccessStatus.trial) ...[
+            _buildRequestAccessSection(context),
+            const SizedBox(height: 16),
+          ],
+          _buildContactAdminSection(context),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final title = AppLocalizations.of(context)!.requestAccess;
+
+    if (WebSubpageScaffold.useWebPanel(context)) {
+      return WebSubpageScaffold(
+        title: title,
+        body: _buildPageBody(context),
+      );
+    }
+
     return CupertinoPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
+        leading: SettingsNavigation.cupertinoBackButton(context),
         middle: Text(
-          AppLocalizations.of(context)!.requestAccess,
+          title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
@@ -110,40 +158,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
         backgroundColor: AppColors.dynamicSurface(context),
         border: null,
       ),
-      child: SafeArea(
-        child: _isLoading
-            ? const Center(child: CupertinoActivityIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 8),
-                    if (_access != null) ...[
-                      _buildStatusCard(context),
-                      const SizedBox(height: 16),
-                      if (_access!.status == AccessStatus.trial)
-                        _buildTrialSection(context),
-                      if (_access!.status == AccessStatus.active)
-                        _buildActiveSection(context),
-                      if (_access!.status == AccessStatus.expired ||
-                          _access!.status == AccessStatus.cancelled)
-                        _buildExpiredSection(context),
-                      const SizedBox(height: 16),
-                    ] else ...[
-                      _buildNoDataSection(context),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_access != null && _access!.status == AccessStatus.trial) ...[
-                      _buildRequestAccessSection(context),
-                      const SizedBox(height: 16),
-                    ],
-                    _buildContactAdminSection(context),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-      ),
+      child: SafeArea(child: _buildPageBody(context)),
     );
   }
 

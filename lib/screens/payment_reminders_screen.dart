@@ -7,6 +7,8 @@ import '../providers/app_state.dart';
 import '../models/customer.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/responsive_layout.dart';
+import '../utils/settings_navigation.dart';
+import '../widgets/web_subpage_scaffold.dart';
 
 class PaymentRemindersScreen extends StatefulWidget {
   const PaymentRemindersScreen({super.key});
@@ -112,91 +114,95 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
     return _getCustomerTotalDebt(customerId) > 0;
   }
 
+  Widget _buildSelectionTrailing(BuildContext context) {
+    if (_isSelectionMode) {
+      return TextButton(
+        onPressed: _clearSelection,
+        child: Text(
+          AppLocalizations.of(context)!.clearSelection,
+          style: TextStyle(
+            color: AppColors.dynamicPrimary(context),
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
+    }
+    return TextButton(
+      onPressed: _selectAllCustomers,
+      child: Text(
+        AppLocalizations.of(context)!.selectAll,
+        style: TextStyle(
+          color: AppColors.dynamicPrimary(context),
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubtitle(BuildContext context, int customerCount) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      child: Text(
+        customerCount == 1
+            ? AppLocalizations.of(context)!.paymentRemindersCustomerCountOne
+            : AppLocalizations.of(context)!
+                .paymentRemindersCustomerCountOther(customerCount.toString()),
+        style: TextStyle(
+          color: AppColors.dynamicTextSecondary(context),
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileHeader(BuildContext context, int customerCount) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SettingsNavigation.materialBackButton(context),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.paymentRemindersTitle,
+                  style: TextStyle(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 1,
+                ),
+              ),
+              _buildSelectionTrailing(context),
+            ],
+          ),
+          const SizedBox(height: 4),
+          _buildSubtitle(context, customerCount),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, appState, child) {
-        final customersWithDebts = _filteredCustomers.where((customer) => _hasRemainingDebts(customer.id)).toList();
-        
-        return Scaffold(
-          backgroundColor: AppColors.dynamicBackground(context),
-          body: SafeArea(
-            child: Column(
-              children: [
-                // iOS 18.6 Style Header
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Back Button and Title Row
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            icon: Icon(
-                              Icons.arrow_back_ios_rounded,
-                              color: AppColors.dynamicTextPrimary(context),
-                              size: 24,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 44,
-                              minHeight: 44,
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              AppLocalizations.of(context)!.paymentRemindersTitle,
-                              style: TextStyle(
-                                color: AppColors.dynamicTextPrimary(context),
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.5,
-                              ),
-                              maxLines: 1,
-                            ),
-                          ),
-                          if (_isSelectionMode)
-                            TextButton(
-                              onPressed: _clearSelection,
-                              child: Text(
-                                AppLocalizations.of(context)!.clearSelection,
-                                style: TextStyle(
-                                  color: AppColors.dynamicPrimary(context),
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            )
-                          else
-                            TextButton(
-                              onPressed: _selectAllCustomers,
-                              child: Text(
-                                AppLocalizations.of(context)!.selectAll,
-                                style: TextStyle(
-                                  color: AppColors.dynamicPrimary(context),
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        customersWithDebts.length == 1
-                            ? AppLocalizations.of(context)!.paymentRemindersCustomerCountOne
-                            : AppLocalizations.of(context)!.paymentRemindersCustomerCountOther(customersWithDebts.length.toString()),
-                        style: TextStyle(
-                          color: AppColors.dynamicTextSecondary(context),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        final customersWithDebts = _filteredCustomers
+            .where((customer) => _hasRemainingDebts(customer.id))
+            .toList();
+        final l10n = AppLocalizations.of(context)!;
+        final useWebPanel = WebSubpageScaffold.useWebPanel(context);
+
+        final content = Column(
+          children: [
+            if (!useWebPanel) _buildMobileHeader(context, customersWithDebts.length),
+            if (useWebPanel) _buildSubtitle(context, customersWithDebts.length),
                 
                 // iOS 18.6 Style Search Bar
                 Container(
@@ -355,9 +361,20 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
                           },
                         ),
                 ),
-              ],
-            ),
-          ),
+          ],
+        );
+
+        if (useWebPanel) {
+          return WebSubpageScaffold(
+            title: l10n.paymentRemindersTitle,
+            trailing: _buildSelectionTrailing(context),
+            body: content,
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.dynamicBackground(context),
+          body: SafeArea(child: content),
         );
       },
     );

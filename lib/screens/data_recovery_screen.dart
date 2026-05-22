@@ -9,6 +9,8 @@ import '../services/backup_service.dart';
 // Background services removed - no longer needed
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import '../utils/settings_navigation.dart';
+import '../widgets/web_subpage_scaffold.dart';
 
 class DataRecoveryScreen extends StatefulWidget {
   const DataRecoveryScreen({super.key});
@@ -333,12 +335,38 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
     }
   }
 
+  Widget _buildPageBody() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildBackupSection(),
+          const SizedBox(height: 20),
+          _buildAutomaticBackupSection(),
+          const SizedBox(height: 20),
+          _buildAvailableBackupsSection(),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final title = AppLocalizations.of(context)!.dataRecovery;
+
+    if (WebSubpageScaffold.useWebPanel(context)) {
+      return WebSubpageScaffold(
+        title: title,
+        body: _buildPageBody(),
+      );
+    }
+
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
+        leading: SettingsNavigation.cupertinoBackButton(context),
         middle: Text(
-          AppLocalizations.of(context)!.dataRecovery,
+          title,
           style: AppTheme.getDynamicTitle2(context).copyWith(
             color: AppColors.dynamicTextPrimary(context),
             fontWeight: FontWeight.w600,
@@ -352,21 +380,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
           ),
         ),
       ),
-      child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildBackupSection(),
-              const SizedBox(height: 20),
-              _buildAutomaticBackupSection(),
-              const SizedBox(height: 20),
-              _buildAvailableBackupsSection(),
-            ],
-          ),
-        ),
-      ),
+      child: SafeArea(child: _buildPageBody()),
     );
   }
 

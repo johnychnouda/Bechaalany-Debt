@@ -20,6 +20,9 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<State<SettingsScreen>> _settingsScreenKey =
+      GlobalKey<State<SettingsScreen>>();
   int _currentIndex = 0;
   bool _isAdmin = false;
   bool _isCheckingAdmin = true;
@@ -46,21 +49,21 @@ class _MainScreenState extends State<MainScreen> {
 
   List<Widget> get _webScreens {
     if (_isAdmin) {
-      return const [
-        HomeScreen(),
-        CustomersScreen(),
-        ProductsScreen(),
-        FullActivityListScreen(embeddedInShell: true),
-        SettingsScreen(embeddedInShell: true),
-        AdminDashboardScreen(),
+      return [
+        const HomeScreen(),
+        const CustomersScreen(),
+        const ProductsScreen(),
+        const FullActivityListScreen(embeddedInShell: true),
+        SettingsScreen(key: _settingsScreenKey, embeddedInShell: true),
+        const AdminDashboardScreen(),
       ];
     }
-    return const [
-      HomeScreen(),
-      CustomersScreen(),
-      ProductsScreen(),
-      FullActivityListScreen(embeddedInShell: true),
-      SettingsScreen(embeddedInShell: true),
+    return [
+      const HomeScreen(),
+      const CustomersScreen(),
+      const ProductsScreen(),
+      const FullActivityListScreen(embeddedInShell: true),
+      SettingsScreen(key: _settingsScreenKey, embeddedInShell: true),
     ];
   }
 
@@ -91,7 +94,30 @@ class _MainScreenState extends State<MainScreen> {
 
   void _selectIndex(int index) {
     if (_currentIndex == index) return;
+    if (_currentIndex == _settingsTabIndex && index != _settingsTabIndex) {
+      SettingsScreen.popInnerToRootFromHost(_settingsScreenKey);
+    }
+    _shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     setState(() => _currentIndex = index);
+  }
+
+  Route<void> _shellHomeRoute(List<Widget> screens) {
+    return PageRouteBuilder<void>(
+      pageBuilder: (context, animation, secondaryAnimation) => IndexedStack(
+        index: _currentIndex,
+        children: screens,
+        sizing: StackFit.expand,
+      ),
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
+
+  Widget _buildShellNavigator(List<Widget> screens) {
+    return Navigator(
+      key: _shellNavigatorKey,
+      onGenerateRoute: (_) => _shellHomeRoute(screens),
+    );
   }
 
   List<WebSidebarNavItem> _sidebarItems(BuildContext context) {
@@ -293,11 +319,7 @@ class _MainScreenState extends State<MainScreen> {
             onIndexSelected: _selectIndex,
           ),
         Expanded(
-          child: IndexedStack(
-            index: _currentIndex,
-            children: screens,
-            sizing: StackFit.expand,
-          ),
+          child: _buildShellNavigator(screens),
         ),
       ],
     );
@@ -313,11 +335,7 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       body: useDesktopWeb
           ? _buildWebDesktopShell(screens)
-          : IndexedStack(
-              index: _currentIndex,
-              children: screens,
-              sizing: StackFit.expand,
-            ),
+          : _buildShellNavigator(screens),
       bottomNavigationBar:
           useDesktopWeb ? null : _buildMobileBottomNav(),
     );

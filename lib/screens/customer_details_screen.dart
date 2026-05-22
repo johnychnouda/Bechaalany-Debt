@@ -13,6 +13,8 @@ import '../models/activity.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/debt_description_utils.dart';
+import '../utils/responsive_layout.dart';
+import '../utils/settings_navigation.dart';
 import '../services/receipt_sharing_service.dart';
 import '../services/firebase_data_service.dart';
 import '../widgets/pdf_viewer_popup.dart';
@@ -439,19 +441,18 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         specificDebtId: null, // No specific debt filter
       );
       
-      if (pdfFile != null) {
-        if (mounted) {
-          Navigator.of(context).push(
+      if (pdfFile != null && mounted) {
+        final viewer = PDFViewerPopup(
+          pdfFile: pdfFile,
+          customerName: _currentCustomer.name,
+        );
+        if (ResponsiveLayout.isDesktopWeb(context)) {
+          await SettingsNavigation.pushSubpage(context, viewer);
+        } else {
+          await Navigator.of(context).push(
             CupertinoPageRoute(
               fullscreenDialog: true,
-              builder: (BuildContext context) => PDFViewerPopup(
-                pdfFile: pdfFile,
-                customerName: _currentCustomer.name,
-                customer: _currentCustomer, // Pass customer information
-                onClose: () {
-                  Navigator.of(context).pop();
-                },
-              ),
+              builder: (context) => viewer,
             ),
           );
         }

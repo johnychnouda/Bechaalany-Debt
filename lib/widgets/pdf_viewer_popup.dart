@@ -6,21 +6,14 @@ import '../constants/app_colors.dart';
 import '../models/pdf_document_file.dart';
 import '../utils/platform_utils.dart';
 // Notification service import removed
-import '../models/customer.dart'; // Added import for Customer model
-import '../screens/customer_details_screen.dart'; // Added import for CustomerDetailsScreen
-
 class PDFViewerPopup extends StatefulWidget {
   final PdfDocumentFile pdfFile;
   final String customerName;
-  final VoidCallback? onClose;
-  final Customer? customer; // Add customer parameter
 
   const PDFViewerPopup({
     super.key,
     required this.pdfFile,
     required this.customerName,
-    this.onClose,
-    this.customer, // Add customer parameter
   });
 
   @override
@@ -92,27 +85,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                 CupertinoButton(
                   padding: EdgeInsets.zero,
                   onPressed: () {
-                    widget.onClose?.call();
-                    
-                    // Navigate to customer details if needed, then pop
-                    // This prevents navigation conflicts that cause WindowOnBackDispatcher spam
-                    if (widget.customer != null) {
-                      // Pop first, then navigate after frame completes
-                      Navigator.of(context).pop();
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && Navigator.of(context).canPop()) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => CustomerDetailsScreen(
-                                customer: widget.customer!,
-                                showDebtsSection: true,
-                              ),
-                            ),
-                          );
-                        }
-                      });
-                    } else {
-                      // Simple pop if no customer navigation needed
+                    if (Navigator.of(context).canPop()) {
                       Navigator.of(context).pop();
                     }
                   },
@@ -428,6 +401,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                   enableTextSelection: false,
                   canShowScrollHead: false,
                   canShowScrollStatus: false,
+                  canShowPageLoadingIndicator: false,
                   pageSpacing: PlatformUtils.isBrowserContext ? 12 : 0,
                   enableDocumentLinkAnnotation: false,
                   enableHyperlinkNavigation: false,

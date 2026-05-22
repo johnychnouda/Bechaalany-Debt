@@ -132,6 +132,7 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _isLoading = true;
   bool _webOAuthRedirectChecked = !PlatformUtils.isBrowserContext;
+  late final Stream<User?> _authStream;
   final AuthService _authService = AuthService();
   final UserStateService _userStateService = UserStateService();
   final AccessService _accessService = AccessService();
@@ -140,6 +141,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    // Cache the stream so rebuilds (e.g. after Navigator.pop) do not resubscribe
+    // and flash SplashScreen while connectionState is waiting.
+    _authStream = FirebaseAuth.instance.authStateChanges();
     WidgetsBinding.instance.addObserver(this);
     _completeWebOAuthRedirectIfNeeded();
     // Show splash screen for minimum duration
@@ -289,7 +293,8 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _authStream,
+      initialData: FirebaseAuth.instance.currentUser,
       builder: (context, snapshot) {
 
         // Show splash while loading or finishing OAuth redirect (web Apple/Google).

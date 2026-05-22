@@ -1060,6 +1060,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get barcodeProductHint => 'EAN / UPC number on package';
 
   @override
+  String get productBarcodeWebHint => 'USB scanner or type here';
+
+  @override
+  String get productBarcodeMobileHint => 'Tap scan icon or type here';
+
+  @override
   String get barcodeRequiredHint => 'Required';
 
   @override
@@ -1074,6 +1080,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get useBarcodeScannerOrType =>
       'Use your barcode scanner or type the number, then tap Find product';
+
+  @override
+  String chooseCategoryToAddProductWithBarcode(String barcode) {
+    return 'Choose a category to add a new product with barcode $barcode';
+  }
 
   @override
   String get customerLabel => 'Customer';

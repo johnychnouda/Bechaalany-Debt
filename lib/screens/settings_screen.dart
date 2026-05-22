@@ -18,7 +18,9 @@ import 'request_access_screen.dart';
 import '../services/admin_service.dart';
 import '../services/business_name_service.dart';
 import '../utils/responsive_layout.dart';
+import '../utils/settings_navigation.dart';
 import '../widgets/desktop_content.dart';
+import '../widgets/settings_nav_host.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool embeddedInShell;
@@ -30,13 +32,24 @@ class SettingsScreen extends StatefulWidget {
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
+
+  /// Resets nested web routes when leaving the Settings tab ([MainScreen]).
+  static void popInnerToRootFromHost(GlobalKey<State<SettingsScreen>> key) {
+    (key.currentState as dynamic)?.popInnerToRoot();
+  }
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final GlobalKey<NavigatorState> _innerNavKey = GlobalKey<NavigatorState>();
   String _appVersion = '1.1.1'; // Default fallback
   bool _isAdmin = false;
   bool _isCheckingAdmin = true;
   final AdminService _adminService = AdminService();
+
+  /// Resets nested web routes when leaving the Settings tab.
+  void popInnerToRoot() {
+    _innerNavKey.currentState?.popUntil((route) => route.isFirst);
+  }
 
   @override
   void initState() {
@@ -84,11 +97,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       AppLocalizations.of(context)!.accessStatus,
                       AppLocalizations.of(context)!.accessStatusSubtitle,
                       CupertinoIcons.person_circle,
-                      () => Navigator.push(
+                      () => SettingsNavigation.pushSubpage(
                         context,
-                        CupertinoPageRoute(
-                          builder: (context) => const RequestAccessScreen(),
-                        ),
+                        const RequestAccessScreen(),
                       ),
                     ),
                   _buildNavigationRow(
@@ -193,11 +204,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     AppLocalizations.of(context)!.dataRecovery,
                     AppLocalizations.of(context)!.dataRecoverySubtitle,
                     CupertinoIcons.arrow_clockwise,
-                    () => Navigator.push(
+                    () => SettingsNavigation.pushSubpage(
                       context,
-                      CupertinoPageRoute(
-                        builder: (context) => const DataRecoveryScreen(),
-                      ),
+                      const DataRecoveryScreen(),
                     ),
                   ),
                 ],
@@ -232,6 +241,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settingsBody = _buildSettingsList(context);
 
+    if (widget.embeddedInShell && ResponsiveLayout.isWeb) {
+      return Scaffold(
+        backgroundColor: AppColors.dynamicBackground(context),
+        body: SettingsNavHost(
+          navigatorKey: _innerNavKey,
+          child: Navigator(
+            key: _innerNavKey,
+            onGenerateRoute: (_) => PageRouteBuilder<void>(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  DesktopContent(child: settingsBody),
+              transitionDuration: Duration.zero,
+              reverseTransitionDuration: Duration.zero,
+            ),
+          ),
+        ),
+      );
+    }
+
     if (widget.embeddedInShell) {
       return Scaffold(
         backgroundColor: AppColors.dynamicBackground(context),
@@ -264,27 +291,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSection(String title, List<Widget> children) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
+      child: Material(
         color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.dynamicTextSecondary(context),
-                letterSpacing: 0.5,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.dynamicTextSecondary(context),
+                  letterSpacing: 0.5,
+                ),
               ),
             ),
-          ),
-          ...children,
-        ],
+            ...children,
+          ],
+        ),
       ),
     );
   }
@@ -570,10 +600,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showCurrencySettings() {
-    Navigator.of(context).push(
-      CupertinoPageRoute(
-        builder: (context) => const CurrencySettingsScreen(),
-      ),
+    SettingsNavigation.pushSubpage(
+      context,
+      const CurrencySettingsScreen(),
     );
   }
 
@@ -1177,11 +1206,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
   
   void _showPaymentRemindersScreen(BuildContext context) {
-    Navigator.push(
+    SettingsNavigation.pushSubpage(
       context,
-      CupertinoPageRoute(
-        builder: (context) => const PaymentRemindersScreen(),
-      ),
+      const PaymentRemindersScreen(),
     );
   }
 
@@ -1210,9 +1237,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await Future.delayed(const Duration(milliseconds: 200));
               
               if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  CupertinoPageRoute(builder: (context) => const SignInScreen()),
-                  (route) => false,
+                SettingsNavigation.pushAndClearToRoot(
+                  context,
+                  const SignInScreen(),
                 );
               }
             },
@@ -1493,9 +1520,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Close loading dialog and go straight to login — account is fully deleted from Firebase
       if (context.mounted) {
         Navigator.pop(context); // close loading
-        Navigator.of(context).pushAndRemoveUntil(
-          CupertinoPageRoute(builder: (context) => const SignInScreen()),
-          (route) => false,
+        SettingsNavigation.pushAndClearToRoot(
+          context,
+          const SignInScreen(),
         );
       }
     } catch (e) {

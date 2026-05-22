@@ -1976,6 +1976,18 @@ abstract class AppLocalizations {
   /// **'EAN / UPC number on package'**
   String get barcodeProductHint;
 
+  /// No description provided for @productBarcodeWebHint.
+  ///
+  /// In en, this message translates to:
+  /// **'USB scanner or type here'**
+  String get productBarcodeWebHint;
+
+  /// No description provided for @productBarcodeMobileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap scan icon or type here'**
+  String get productBarcodeMobileHint;
+
   /// No description provided for @barcodeRequiredHint.
   ///
   /// In en, this message translates to:
@@ -1999,6 +2011,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use your barcode scanner or type the number, then tap Find product'**
   String get useBarcodeScannerOrType;
+
+  /// No description provided for @chooseCategoryToAddProductWithBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a category to add a new product with barcode {barcode}'**
+  String chooseCategoryToAddProductWithBarcode(String barcode);
 
   /// No description provided for @customerLabel.
   ///

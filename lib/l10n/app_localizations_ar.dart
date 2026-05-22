@@ -1044,6 +1044,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get barcodeProductHint => 'رقم EAN / UPC على العبوة';
 
   @override
+  String get productBarcodeWebHint => 'ماسح USB أو اكتب هنا';
+
+  @override
+  String get productBarcodeMobileHint => 'اضغط أيقونة المسح أو اكتب هنا';
+
+  @override
   String get barcodeRequiredHint => 'مطلوب';
 
   @override
@@ -1057,6 +1063,11 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get useBarcodeScannerOrType =>
       'استخدم ماسح الباركود أو اكتب الرقم، ثم اضغط البحث عن المنتج';
+
+  @override
+  String chooseCategoryToAddProductWithBarcode(String barcode) {
+    return 'اختر تصنيفاً لإضافة منتج جديد بالباركود $barcode';
+  }
 
   @override
   String get customerLabel => 'العميل';

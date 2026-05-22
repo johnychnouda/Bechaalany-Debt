@@ -344,6 +344,8 @@
   "trackInventory": "تتبع المخزون",
   "barcodeProductLabel": "الباركود",
   "barcodeProductHint": "رقم EAN / UPC على العبوة",
+  "productBarcodeWebHint": "ماسح USB أو اكتب هنا",
+  "productBarcodeMobileHint": "اضغط أيقونة المسح أو اكتب هنا",
   "barcodeRequiredHint": "مطلوب",
   "barcodeRequired": "يرجى إدخال الباركود عند تفعيله",
   "duplicateBarcode": "هذا الباركود مستخدم بالفعل من قبل \"{productName}\"",
@@ -353,6 +355,12 @@
     }
   },
   "useBarcodeScannerOrType": "استخدم ماسح الباركود أو اكتب الرقم، ثم اضغط البحث عن المنتج",
+  "chooseCategoryToAddProductWithBarcode": "اختر تصنيفاً لإضافة منتج جديد بالباركود {barcode}",
+  "@chooseCategoryToAddProductWithBarcode": {
+    "placeholders": {
+      "barcode": { "type": "String" }
+    }
+  },
   "customerLabel": "العميل",
   "categoryLabel": "التصنيف",
   "productLabel": "المنتج",

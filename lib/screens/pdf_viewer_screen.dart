@@ -115,6 +115,7 @@ class _PDFViewerScreenState extends State<PDFViewerScreen> {
                   enableTextSelection: true,
                   canShowScrollHead: true,
                   canShowScrollStatus: true,
+                  canShowPageLoadingIndicator: false,
                   pageLayoutMode: PlatformUtils.isBrowserContext
                       ? PdfPageLayoutMode.single
                       : PdfPageLayoutMode.continuous,

@@ -12,10 +12,13 @@ import '../models/category.dart' show ProductCategory, Subcategory;
 import '../models/currency_settings.dart';
 import '../utils/barcode_lookup.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/platform_utils.dart';
 import '../utils/responsive_layout.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 // Notification service import removed
+import 'barcode_scan_screen.dart';
 import 'currency_settings_screen.dart';
+import '../utils/settings_navigation.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
   @override
@@ -65,6 +68,67 @@ class _ProductsScreenState extends State<ProductsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _filterProducts();
     });
+  }
+
+  bool get _showCameraBarcodeScan =>
+      !ResponsiveLayout.isWeb && !PlatformUtils.isBrowserContext;
+
+  Future<void> _openBarcodeScanner({
+    required TextEditingController target,
+    VoidCallback? onFilled,
+  }) async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
+    );
+    if (!mounted || code == null || code.isEmpty) return;
+    target.text = normalizeBarcode(code);
+    onFilled?.call();
+  }
+
+  Widget _buildProductBarcodeField({
+    required BuildContext context,
+    required TextEditingController barcodeController,
+    required String? barcodeError,
+    required VoidCallback onStateChanged,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final isWeb = ResponsiveLayout.isWeb;
+    final field = TextField(
+      controller: barcodeController,
+      autofocus: isWeb,
+      decoration: InputDecoration(
+        labelText: l10n.barcodeProductLabel,
+        hintText: l10n.barcodeRequiredHint,
+        helperText:
+            isWeb ? l10n.productBarcodeWebHint : l10n.productBarcodeMobileHint,
+        helperMaxLines: 2,
+        errorText: barcodeError,
+      ),
+      keyboardType: TextInputType.number,
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+      ],
+    );
+
+    if (!_showCameraBarcodeScan) {
+      return field;
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: field),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: () => _openBarcodeScanner(
+            target: barcodeController,
+            onFilled: onStateChanged,
+          ),
+          icon: const Icon(Icons.qr_code_scanner),
+          tooltip: l10n.scanBarcode,
+        ),
+      ],
+    );
   }
 
   @override
@@ -889,9 +953,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  void _showCategorySelectionDialog(BuildContext context) {
+  void _showCategorySelectionDialog(
+    BuildContext context, {
+    String? initialBarcode,
+  }) {
     final appState = Provider.of<AppState>(context, listen: false);
     final categories = appState.categories.toList();
+    final barcode = initialBarcode != null ? normalizeBarcode(initialBarcode) : null;
 
     showDialog(
       context: context,
@@ -908,7 +976,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(l10n.chooseCategoryToAddSubcategory),
+                  Text(
+                    barcode != null && barcode.isNotEmpty
+                        ? l10n.chooseCategoryToAddProductWithBarcode(barcode)
+                        : l10n.chooseCategoryToAddSubcategory,
+                  ),
                   const SizedBox(height: 16),
                   ...categories.map((category) => ListTile(
                         title: Text(category.name),
@@ -916,7 +988,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         trailing: const Icon(Icons.arrow_forward_ios),
                         onTap: () {
                           Navigator.of(context).pop();
-                          _showAddSubcategoryDialog(context, category.name);
+                          _showAddSubcategoryDialog(
+                            context,
+                            category.name,
+                            initialBarcode: barcode,
+                          );
                         },
                       )),
                 ],
@@ -1180,17 +1256,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               barcodeError = l10n.duplicateBarcode(conflict.subcategory.name);
                             }
                           }
-                          return TextField(
-                            controller: barcodeController,
-                            decoration: InputDecoration(
-                              labelText: l10n.barcodeProductLabel,
-                              hintText: l10n.barcodeRequiredHint,
-                              errorText: barcodeError,
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
+                          return _buildProductBarcodeField(
+                            context: context,
+                            barcodeController: barcodeController,
+                            barcodeError: barcodeError,
+                            onStateChanged: () => setState(() {}),
                           );
                         },
                       ),
@@ -1427,10 +1497,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                                       child: const Text('Go to Settings'),
                                                       onPressed: () {
                                                         Navigator.pop(context);
-                                                        Navigator.of(context).push(
-                                                          CupertinoPageRoute(
-                                                            builder: (context) => const CurrencySettingsScreen(),
-                                                          ),
+                                                        SettingsNavigation.pushSubpage(
+                                                          context,
+                                                          const CurrencySettingsScreen(),
                                                         );
                                                       },
                                                     ),
@@ -1732,14 +1801,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
-  void _showAddSubcategoryDialog(BuildContext context, String categoryName) {
+  void _showAddSubcategoryDialog(
+    BuildContext context,
+    String categoryName, {
+    String? initialBarcode,
+  }) {
+    final prefilledBarcode =
+        initialBarcode != null ? normalizeBarcode(initialBarcode) : '';
     final nameController = TextEditingController();
-    final barcodeController = TextEditingController();
+    final barcodeController = TextEditingController(text: prefilledBarcode);
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     String selectedCurrency = 'USD';
     bool trackInventory = false;
-    bool useBarcode = false;
+    bool useBarcode = prefilledBarcode.isNotEmpty;
     double defaultCostPriceUSD = 0.0;
     double defaultSellingPriceUSD = 0.0;
     
@@ -1765,10 +1840,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
               child: Text(l10n.goToSettings),
               onPressed: () {
                 Navigator.pop(context);
-                Navigator.of(context).push(
-                  CupertinoPageRoute(
-                    builder: (context) => const CurrencySettingsScreen(),
-                  ),
+                SettingsNavigation.pushSubpage(
+                  context,
+                  const CurrencySettingsScreen(),
                 );
               },
             ),
@@ -1895,17 +1969,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               barcodeError = l10n.duplicateBarcode(conflict.subcategory.name);
                             }
                           }
-                          return TextField(
-                            controller: barcodeController,
-                            decoration: InputDecoration(
-                              labelText: l10n.barcodeProductLabel,
-                              hintText: l10n.barcodeRequiredHint,
-                              errorText: barcodeError,
-                            ),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
+                          return _buildProductBarcodeField(
+                            context: context,
+                            barcodeController: barcodeController,
+                            barcodeError: barcodeError,
+                            onStateChanged: () => setState(() {}),
                           );
                         },
                       ),
@@ -2930,6 +2998,7 @@ class _DesktopProductTableColumns {
   _DesktopProductTableColumns._();
 
   static const double horizontalPadding = 20;
+  static const double productColumnGap = 20;
   static const double costWidth = 100;
   static const double priceWidth = 100;
   static const double revenueWidth = 110;
@@ -2957,6 +3026,7 @@ class _DesktopProductsTableHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(l10n.productLabel, style: labelStyle)),
+          const SizedBox(width: _DesktopProductTableColumns.productColumnGap),
           SizedBox(
             width: _DesktopProductTableColumns.costWidth,
             child: Text(l10n.productCost, style: labelStyle),
@@ -3341,42 +3411,26 @@ class _ProductCard extends StatelessWidget {
     final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
 
     if (isDesktopWeb) {
-      return Row(
+      return Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          if (_showsBarcode) ...[
-            Expanded(
-              flex: 3,
-              child: _buildBarcodeChip(context),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: _buildStockStatusChip(
-                context,
-                badgeColor: stock.color,
-                badgeIcon: stock.icon,
-                value: stock.value,
-              ),
-            ),
+          _buildStockStatusChip(
+            context,
+            badgeColor: stock.color,
+            badgeIcon: stock.icon,
+            value: stock.value,
           ),
+          if (_showsBarcode) _buildBarcodeChip(context),
         ],
       );
     }
 
+    // Match the 3-column cost / price / revenue row: stock in the left column.
     return Row(
       children: [
-        if (_showsBarcode) ...[
-          Expanded(
-            flex: 2,
-            child: _buildBarcodeChip(context),
-          ),
-          const SizedBox(width: 8),
-        ],
         Expanded(
-          flex: 1,
           child: _buildStockStatusChip(
             context,
             badgeColor: stock.color,
@@ -3384,6 +3438,17 @@ class _ProductCard extends StatelessWidget {
             value: stock.value,
           ),
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: _showsBarcode ? 2 : 1,
+          child: _showsBarcode
+              ? _buildBarcodeChip(context)
+              : const SizedBox.shrink(),
+        ),
+        if (!_showsBarcode) ...[
+          const SizedBox(width: 8),
+          const Expanded(child: SizedBox.shrink()),
+        ],
       ],
     );
   }
@@ -3482,6 +3547,7 @@ class _ProductCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: _DesktopProductTableColumns.productColumnGap),
                   SizedBox(
                     width: _DesktopProductTableColumns.costWidth,
                     child: Text(

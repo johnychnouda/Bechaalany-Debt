@@ -9,6 +9,7 @@ import '../providers/app_state.dart';
 import '../models/activity.dart';
 import '../utils/currency_formatter.dart';
 import '../services/receipt_sharing_service.dart';
+import '../utils/settings_navigation.dart';
 import '../widgets/pdf_viewer_popup.dart';
 
 enum ActivityView { daily, weekly, monthly, yearly }
@@ -833,14 +834,22 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
     }
   }
 
+  void _dismissLoadingDialog(BuildContext context) {
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    if (rootNav.canPop()) {
+      rootNav.pop();
+    }
+  }
+
   /// Generate monthly activity PDF report
   Future<void> _generateMonthlyPDF(BuildContext context, AppState appState) async {
     try {
-      // Show loading indicator
-      showDialog(
+      // Use root navigator so the dialog dismisses on web (nested shell navigators).
+      showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (BuildContext context) {
+        useRootNavigator: true,
+        builder: (BuildContext dialogContext) {
           return const Center(
             child: CircularProgressIndicator(),
           );
@@ -875,27 +884,23 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         l10n: l10n,
       );
 
-      // Hide loading indicator
-      Navigator.of(context).pop();
+      if (!context.mounted) return;
+      _dismissLoadingDialog(context);
 
       if (pdfFile != null) {
-        // Open PDF directly in the app
         final reportTitle = l10n?.monthlyActivityReport ?? 'Monthly Activity Report';
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => PDFViewerPopup(
-              pdfFile: pdfFile,
-              customerName: reportTitle,
-            ),
+        await SettingsNavigation.pushSubpage(
+          context,
+          PDFViewerPopup(
+            pdfFile: pdfFile,
+            customerName: reportTitle,
           ),
         );
       }
     } catch (e) {
-      // Hide loading indicator if it's still showing
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+      if (context.mounted) {
+        _dismissLoadingDialog(context);
       }
-      
     }
   }
 

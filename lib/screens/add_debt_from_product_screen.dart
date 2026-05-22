@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
@@ -11,6 +10,7 @@ import '../utils/currency_formatter.dart';
 import '../utils/platform_utils.dart';
 import '../utils/responsive_layout.dart';
 // Notification service import removed
+import '../widgets/barcode_entry_row.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 import '../widgets/searchable_customer_field.dart';
 import '../l10n/app_localizations.dart';
@@ -96,20 +96,6 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     if (_barcodeNotFound) {
       setState(() => _barcodeNotFound = false);
     }
-  }
-
-  OutlineInputBorder _barcodeOutlineBorder(BuildContext context, {bool focused = false}) {
-    final errorColor = AppColors.error;
-    final normalColor = AppColors.dynamicBorder(context);
-    final color = _barcodeNotFound
-        ? errorColor
-        : (focused ? AppColors.dynamicPrimary(context) : normalColor);
-    final width = _barcodeNotFound || focused ? 2.0 : 1.0;
-
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: color, width: width),
-    );
   }
 
   Future<void> _openBarcodeScanner() async {
@@ -295,133 +281,16 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     );
   }
 
-  static const double _barcodeActionSize = 56;
-  static const double _barcodeActionIconSize = 26;
-
-  Widget _buildBarcodeActionButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-  }) {
-    return IconButton.filled(
-      onPressed: onPressed,
-      icon: Icon(icon, size: _barcodeActionIconSize),
-      tooltip: tooltip,
-      padding: const EdgeInsets.all(14),
-      style: IconButton.styleFrom(
-        backgroundColor: AppColors.dynamicPrimary(context),
-        foregroundColor: Colors.white,
-        minimumSize: const Size(_barcodeActionSize, _barcodeActionSize),
-        fixedSize: const Size(_barcodeActionSize, _barcodeActionSize),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBarcodeSection(AppState appState) {
-    final l10n = AppLocalizations.of(context)!;
-    final isWeb = ResponsiveLayout.isWeb;
-    final showCameraScan = !isWeb && !PlatformUtils.isBrowserContext;
+    final showCameraScan = !ResponsiveLayout.isWeb && !PlatformUtils.isBrowserContext;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.barcodeLabel,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.dynamicTextPrimary(context),
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (isWeb)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              l10n.useBarcodeScannerOrType,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ),
-          ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.only(top: _barcodeNotFound ? 8 : 0),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    TextField(
-                      controller: _barcodeController,
-                      focusNode: _barcodeFocusNode,
-                      decoration: InputDecoration(
-                        hintText: l10n.barcodeHint,
-                        enabledBorder: _barcodeOutlineBorder(context),
-                        focusedBorder: _barcodeOutlineBorder(context, focused: true),
-                        errorBorder: _barcodeOutlineBorder(context),
-                        focusedErrorBorder:
-                            _barcodeOutlineBorder(context, focused: true),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                      ),
-                      keyboardType: TextInputType.number,
-                      textInputAction: TextInputAction.search,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
-                      onChanged: (_) => _clearBarcodeNotFound(),
-                      onSubmitted: (_) => _applyBarcodeLookup(appState),
-                    ),
-                    if (_barcodeNotFound)
-                      Positioned(
-                        left: 12,
-                        top: 0,
-                        child: Transform.translate(
-                          offset: const Offset(0, -10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            color: AppColors.dynamicSurface(context),
-                            child: Text(
-                              l10n.productNotFoundForBarcode,
-                              style: TextStyle(
-                                color: AppColors.error,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                height: 1.1,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            _buildBarcodeActionButton(
-              icon: Icons.search,
-              tooltip: l10n.findProductByBarcode,
-              onPressed: () => _applyBarcodeLookup(appState),
-            ),
-            if (showCameraScan) ...[
-              const SizedBox(width: 12),
-              _buildBarcodeActionButton(
-                icon: Icons.qr_code_scanner,
-                tooltip: l10n.scanBarcode,
-                onPressed: _openBarcodeScanner,
-              ),
-            ],
-          ],
-        ),
-      ],
+    return BarcodeEntryRow(
+      controller: _barcodeController,
+      focusNode: _barcodeFocusNode,
+      notFound: _barcodeNotFound,
+      onFind: () => _applyBarcodeLookup(appState),
+      onScan: showCameraScan ? _openBarcodeScanner : null,
+      onChanged: _clearBarcodeNotFound,
     );
   }
 
