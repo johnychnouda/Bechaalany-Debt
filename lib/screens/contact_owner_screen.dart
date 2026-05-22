@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../auth/auth_gate.dart';
 import '../constants/app_colors.dart';
-import '../services/auth_service.dart';
 import '../utils/admin_contact.dart';
 
 enum AccessDeniedReason {
@@ -55,7 +55,7 @@ class ContactOwnerScreen extends StatelessWidget {
   }
 
   Future<void> _signOut(BuildContext context) async {
-    await AuthService().signOut();
+    await performAppSignOut(context);
   }
 
   @override

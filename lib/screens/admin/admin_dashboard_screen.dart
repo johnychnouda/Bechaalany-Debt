@@ -7,7 +7,10 @@ import '../../services/access_service.dart';
 import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  const AdminDashboardScreen({super.key, this.embeddedInShell = false});
+
+  /// When true, shown inside [MainScreen]'s tab stack (no nested root navigator).
+  final bool embeddedInShell;
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -97,6 +100,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embeddedInShell) {
+      return _buildDashboardContent(context);
+    }
     return Navigator(
       onGenerateRoute: (_) => CupertinoPageRoute(
         builder: _buildDashboardContent,

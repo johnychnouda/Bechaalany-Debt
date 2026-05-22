@@ -79,19 +79,25 @@ class AuthService {
         throw Exception('Google Sign-In is not supported on this device');
       }
 
-      // Disconnect any cached session so Google shows "Sign in" (not "Sign back in")
-      // for new users. Safe to call even when no user is connected.
-      try {
-        await _googleSignIn.disconnect();
-      } catch (_) {
-        // Ignore; proceed with authenticate()
-      }
-
       // Use authenticate() for both platforms (v7 API)
       // Credential Manager is disabled via AndroidManifest metadata
       final GoogleSignInAccount? googleUser = await _googleSignIn.authenticate();
 
       if (googleUser == null) {
+        // Firebase may already have a session (iOS OAuth timing / re-sign-in).
+        if (_auth.currentUser != null) {
+          return null;
+        }
+        try {
+          final recovered = await _googleSignIn.attemptLightweightAuthentication();
+          if (recovered != null) {
+            final auth = recovered.authentication;
+            final credential = GoogleAuthProvider.credential(
+              idToken: auth.idToken,
+            );
+            return await _auth.signInWithCredential(credential);
+          }
+        } catch (_) {}
         return null;
       }
 

@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import '../auth/auth_gate.dart';
 import '../utils/platform_utils.dart';
 import '../services/auth_service.dart';
 import '../constants/app_colors.dart';
@@ -36,23 +38,34 @@ class _SignInScreenState extends State<SignInScreen> {
     }
   }
 
+  Future<bool> _completeOAuthSignIn() async {
+    final gate = context.read<AuthGate>();
+    final signedIn = await gate.waitForSignedIn();
+    if (!signedIn) return false;
+    // Finish access check before leaving sign-in (no blank intermediate screen).
+    await gate.preloadAccessStatus();
+    gate.notifySignedIn();
+    return FirebaseAuth.instance.currentUser != null;
+  }
+
   Future<void> _signInWithGoogle() async {
     if (!mounted) return;
+    var leaveSignIn = false;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final result = await _authService.signInWithGoogle();
-      if (result != null) {
-        // Success — AuthWrapper will run access check and show MainScreen or ContactOwnerScreen
-      } else {
-        if (mounted) {
-          setState(() {
-            _errorMessage = AppLocalizations.of(context)!.googleSignInCancelled;
-          });
-        }
+      await _authService.signInWithGoogle();
+      if (!mounted) return;
+      final signedIn = await _completeOAuthSignIn();
+      if (signedIn) {
+        leaveSignIn = true;
+      } else if (mounted) {
+        setState(() {
+          _errorMessage = AppLocalizations.of(context)!.googleSignInCancelled;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -67,7 +80,7 @@ class _SignInScreenState extends State<SignInScreen> {
         });
       }
     } finally {
-      if (mounted) {
+      if (mounted && !leaveSignIn) {
         setState(() {
           _isLoading = false;
         });
@@ -77,15 +90,18 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _signInWithApple() async {
     if (!mounted) return;
+    var leaveSignIn = false;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final result = await _authService.signInWithApple();
-      if (result != null) {
-        // Success — AuthWrapper will run access check and show MainScreen or ContactOwnerScreen
+      await _authService.signInWithApple();
+      if (!mounted) return;
+      final signedIn = await _completeOAuthSignIn();
+      if (signedIn) {
+        leaveSignIn = true;
       } else if (mounted) {
         setState(() {
           _errorMessage = AppLocalizations.of(context)!.appleSignInCancelled;
@@ -115,7 +131,7 @@ class _SignInScreenState extends State<SignInScreen> {
         });
       }
     } finally {
-      if (mounted) {
+      if (mounted && !leaveSignIn) {
         setState(() {
           _isLoading = false;
         });
@@ -279,24 +295,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 if (_errorMessage != null) SizedBox(height: AppTheme.spacing24),
                 
                 // Sign In Buttons with Elegant Styling
-                if (_isLoading)
-                  Column(
-                    children: [
-                      const CupertinoActivityIndicator(
-                        color: AppColors.primary,
-                        radius: 20,
-                      ),
-                      const SizedBox(height: AppTheme.spacing16),
-                      Text(
-                        AppLocalizations.of(context)!.signingIn,
-                        style: AppTheme.callout.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Column(
+                Column(
                     children: [
                       // Google Sign In Button - iOS 18.6 Native Style
                       Container(
@@ -318,7 +317,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           ],
                         ),
                         child: CupertinoButton(
-                          onPressed: _signInWithGoogle,
+                          onPressed: _isLoading ? null : _signInWithGoogle,
                           padding: EdgeInsets.zero,
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -366,7 +365,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             ],
                           ),
                           child: CupertinoButton(
-                            onPressed: _signInWithApple,
+                            onPressed: _isLoading ? null : _signInWithApple,
                             padding: EdgeInsets.zero,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -390,6 +389,20 @@ class _SignInScreenState extends State<SignInScreen> {
                             ),
                           ),
                         ),
+                      if (_isLoading) ...[
+                        const SizedBox(height: AppTheme.spacing20),
+                        const CupertinoActivityIndicator(
+                          color: AppColors.primary,
+                          radius: 10,
+                        ),
+                        const SizedBox(height: AppTheme.spacing8),
+                        Text(
+                          AppLocalizations.of(context)!.signingIn,
+                          style: AppTheme.footnote.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 

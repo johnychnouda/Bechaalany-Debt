@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../constants/app_colors.dart';
 import '../l10n/app_localizations.dart';
+import '../auth/auth_gate.dart';
 import '../providers/app_state.dart';
 import '../services/firebase_data_service.dart';
 import '../services/firebase_auth_service.dart';
@@ -13,7 +14,6 @@ import '../services/account_deletion_service.dart';
 import 'data_recovery_screen.dart';
 import 'currency_settings_screen.dart';
 import 'payment_reminders_screen.dart';
-import 'sign_in_screen.dart';
 import 'request_access_screen.dart';
 import '../services/admin_service.dart';
 import '../services/business_name_service.dart';
@@ -1229,19 +1229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // Close the dialog first
               Navigator.pop(context);
               
-              // Sign out immediately using AuthService
-              final authService = AuthService();
-              await authService.signOut();
-              
-              // Force navigation to sign-in screen after a short delay
-              await Future.delayed(const Duration(milliseconds: 200));
-              
-              if (context.mounted) {
-                SettingsNavigation.pushAndClearToRoot(
-                  context,
-                  const SignInScreen(),
-                );
-              }
+              await performAppSignOut(context);
             },
             child: const Text('Sign Out'),
           ),
@@ -1520,10 +1508,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Close loading dialog and go straight to login — account is fully deleted from Firebase
       if (context.mounted) {
         Navigator.pop(context); // close loading
-        SettingsNavigation.pushAndClearToRoot(
-          context,
-          const SignInScreen(),
-        );
+        await performAppSignOut(context);
       }
     } catch (e) {
       // Close loading dialog

@@ -933,8 +933,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           backgroundColor: AppColors.dynamicSurface(context),
           border: null,
         ),
-        child: SafeArea(
-        child: Column(
+        child: Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            child: Column(
           children: [
             // Search Bar
             Padding(
@@ -1068,6 +1070,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: AppColors.dynamicTextSecondary(context),
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                   ),
@@ -1401,8 +1404,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
             ),
           ],
+            ),
+          ),
         ),
-      ),
       ),
     );
   }

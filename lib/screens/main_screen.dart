@@ -29,6 +29,7 @@ class _MainScreenState extends State<MainScreen> {
 
   static const int _activitiesTabIndex = 3;
   static const int _settingsTabIndex = 4;
+  static const int _adminTabIndexMobile = 4;
   static const int _adminTabIndexWeb = 5;
 
   List<Widget> get _mobileScreens {
@@ -37,13 +38,15 @@ class _MainScreenState extends State<MainScreen> {
         HomeScreen(),
         CustomersScreen(),
         ProductsScreen(),
-        AdminDashboardScreen(),
+        FullActivityListScreen(embeddedInShell: true),
+        const AdminDashboardScreen(embeddedInShell: true),
       ];
     }
     return const [
       HomeScreen(),
       CustomersScreen(),
       ProductsScreen(),
+      FullActivityListScreen(embeddedInShell: true),
     ];
   }
 
@@ -55,7 +58,7 @@ class _MainScreenState extends State<MainScreen> {
         const ProductsScreen(),
         const FullActivityListScreen(embeddedInShell: true),
         SettingsScreen(key: _settingsScreenKey, embeddedInShell: true),
-        const AdminDashboardScreen(),
+        const AdminDashboardScreen(embeddedInShell: true),
       ];
     }
     return [
@@ -81,8 +84,8 @@ class _MainScreenState extends State<MainScreen> {
       _isAdmin = isAdmin;
       _isCheckingAdmin = false;
       final maxIndex = isAdmin
-          ? (ResponsiveLayout.isWeb ? _adminTabIndexWeb : 3)
-          : (ResponsiveLayout.isWeb ? _settingsTabIndex : 2);
+          ? (ResponsiveLayout.isWeb ? _adminTabIndexWeb : _adminTabIndexMobile)
+          : (ResponsiveLayout.isWeb ? _settingsTabIndex : _activitiesTabIndex);
       if (_currentIndex > maxIndex) {
         _currentIndex = 0;
       }
@@ -93,18 +96,29 @@ class _MainScreenState extends State<MainScreen> {
       ResponsiveLayout.isDesktopWeb(context);
 
   void _selectIndex(int index) {
+    final useDesktopWeb = _useDesktopWebLayout(context);
+    final screenCount =
+        (useDesktopWeb ? _webScreens : _mobileScreens).length;
+    if (index < 0 || index >= screenCount) return;
     if (_currentIndex == index) return;
-    if (_currentIndex == _settingsTabIndex && index != _settingsTabIndex) {
+    if (useDesktopWeb &&
+        _currentIndex == _settingsTabIndex &&
+        index != _settingsTabIndex) {
       SettingsScreen.popInnerToRootFromHost(_settingsScreenKey);
     }
-    _shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    if (useDesktopWeb) {
+      _shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    }
     setState(() => _currentIndex = index);
   }
 
   Route<void> _shellHomeRoute(List<Widget> screens) {
+    final stackIndex = screens.isEmpty
+        ? 0
+        : _currentIndex.clamp(0, screens.length - 1);
     return PageRouteBuilder<void>(
       pageBuilder: (context, animation, secondaryAnimation) => IndexedStack(
-        index: _currentIndex,
+        index: stackIndex,
         children: screens,
         sizing: StackFit.expand,
       ),
@@ -204,45 +218,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildActivitiesNavigationItem() {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const FullActivityListScreen(),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.transparent,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.history_rounded,
-              size: 24,
-              color: AppColors.dynamicTextSecondary(context),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              AppLocalizations.of(context)!.navActivities,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: AppColors.dynamicTextSecondary(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildMobileBottomNav() {
     return Container(
       decoration: BoxDecoration(
@@ -265,9 +240,7 @@ class _MainScreenState extends State<MainScreen> {
         child: Container(
           height: 88,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: _isCheckingAdmin
-              ? const Center(child: CircularProgressIndicator())
-              : Row(
+          child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavigationItem(
@@ -288,13 +261,18 @@ class _MainScreenState extends State<MainScreen> {
                       label: AppLocalizations.of(context)!.navProducts,
                       isSelected: _currentIndex == 2,
                     ),
-                    _buildActivitiesNavigationItem(),
+                    _buildNavigationItem(
+                      index: _activitiesTabIndex,
+                      icon: Icons.history_rounded,
+                      label: AppLocalizations.of(context)!.navActivities,
+                      isSelected: _currentIndex == _activitiesTabIndex,
+                    ),
                     if (_isAdmin)
                       _buildNavigationItem(
-                        index: 3,
+                        index: _adminTabIndexMobile,
                         icon: Icons.admin_panel_settings,
                         label: AppLocalizations.of(context)!.navAdmin,
-                        isSelected: _currentIndex == 3,
+                        isSelected: _currentIndex == _adminTabIndexMobile,
                       ),
                   ],
                 ),
@@ -303,21 +281,27 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget _buildMobileBody() {
+    final screens = _mobileScreens;
+    final index = screens.isEmpty
+        ? 0
+        : _currentIndex.clamp(0, screens.length - 1);
+    return IndexedStack(
+      index: index,
+      sizing: StackFit.expand,
+      children: screens,
+    );
+  }
+
   Widget _buildWebDesktopShell(List<Widget> screens) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_isCheckingAdmin)
-          SizedBox(
-            width: ResponsiveLayout.sidebarWidth,
-            child: const Center(child: CircularProgressIndicator()),
-          )
-        else
-          WebSidebar(
-            selectedIndex: _currentIndex,
-            items: _sidebarItems(context),
-            onIndexSelected: _selectIndex,
-          ),
+        WebSidebar(
+          selectedIndex: _currentIndex,
+          items: _sidebarItems(context),
+          onIndexSelected: _selectIndex,
+        ),
         Expanded(
           child: _buildShellNavigator(screens),
         ),
@@ -335,7 +319,7 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       body: useDesktopWeb
           ? _buildWebDesktopShell(screens)
-          : _buildShellNavigator(screens),
+          : _buildMobileBody(),
       bottomNavigationBar:
           useDesktopWeb ? null : _buildMobileBottomNav(),
     );

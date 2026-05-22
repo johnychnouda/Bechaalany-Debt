@@ -11,6 +11,7 @@ import 'firebase_options.dart';
 import 'utils/platform_utils.dart';
 import 'constants/platform_theme.dart';
 import 'l10n/app_localizations.dart';
+import 'auth/auth_gate.dart';
 import 'providers/app_state.dart';
 import 'widgets/auth_wrapper.dart';
 import 'services/firebase_service.dart';
@@ -214,6 +215,7 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => AppState()),
+        ChangeNotifierProvider(create: (context) => AuthGate()),
       ],
       child: Consumer<AppState>(
         builder: (context, appState, child) {

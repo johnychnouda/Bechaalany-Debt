@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import '../auth/auth_gate.dart';
 import '../screens/sign_in_screen.dart';
 import '../screens/main_screen.dart';
 import '../screens/splash_screen.dart';
@@ -21,12 +23,14 @@ import '../screens/required_setup_screen.dart';
 /// the app to appear unresponsive—especially on iPad.
 class _SignedInAccessChecker extends StatefulWidget {
   final AuthService authService;
-  final Future<Map<String, dynamic>> Function() ensureUserDocumentAndGetStatus;
+  final Future<Map<String, dynamic>> accessFuture;
+  final Future<Map<String, dynamic>> Function() reloadAccess;
 
   const _SignedInAccessChecker({
     super.key,
     required this.authService,
-    required this.ensureUserDocumentAndGetStatus,
+    required this.accessFuture,
+    required this.reloadAccess,
   });
 
   @override
@@ -35,26 +39,26 @@ class _SignedInAccessChecker extends StatefulWidget {
 
 class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
   late Future<Map<String, dynamic>> _accessFuture;
-  bool _userDeletedRetryScheduled = false;
+  int _userDeletedRetryCount = 0;
+  static const int _maxUserDeletedRetries = 3;
 
   @override
   void initState() {
     super.initState();
-    _accessFuture = widget.ensureUserDocumentAndGetStatus();
+    _accessFuture = widget.accessFuture;
   }
 
-  /// Retry access check once when userDeleted is reported. Right after sign-in,
+  /// Retry access check when userDeleted is reported. Right after sign-in,
   /// user.reload() can fail transiently and be reported as user-not-found.
   void _retryAccessCheckIfUserDeleted() {
-    if (_userDeletedRetryScheduled) return;
-    _userDeletedRetryScheduled = true;
+    if (_userDeletedRetryCount >= _maxUserDeletedRetries) return;
+    _userDeletedRetryCount++;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 600), () async {
         if (!mounted) return;
-        final status = await widget.ensureUserDocumentAndGetStatus();
-        if (!mounted) return;
+        if (FirebaseAuth.instance.currentUser == null) return;
         setState(() {
-          _accessFuture = Future.value(status);
+          _accessFuture = widget.reloadAccess();
         });
       });
     });
@@ -66,7 +70,7 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
       future: _accessFuture,
       builder: (context, userStatusSnapshot) {
         if (userStatusSnapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
+          return const MainScreen();
         }
 
         if (userStatusSnapshot.hasError) {
@@ -88,12 +92,17 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
         // can fail transiently and be reported as user-not-found, which would incorrectly
         // kick the user back to the sign-in screen.
         if (userDeleted) {
-          if (!_userDeletedRetryScheduled) {
+          // Firebase session may still be valid while reload() fails after OAuth.
+          if (FirebaseAuth.instance.currentUser != null &&
+              _userDeletedRetryCount < _maxUserDeletedRetries) {
             _retryAccessCheckIfUserDeleted();
-            return const SplashScreen();
+            return const MainScreen();
           }
-          widget.authService.signOut();
-          return const SignInScreen();
+          if (FirebaseAuth.instance.currentUser == null) {
+            widget.authService.signOut();
+            return const SignInScreen();
+          }
+          return const MainScreen();
         }
 
         // Show "Before you start" when setup is needed: either user has access (or is admin)
@@ -102,7 +111,7 @@ class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
           return RequiredSetupScreen(
             onComplete: () {
               setState(() {
-                _accessFuture = widget.ensureUserDocumentAndGetStatus();
+                _accessFuture = widget.reloadAccess();
               });
             },
           );
@@ -132,7 +141,6 @@ class AuthWrapper extends StatefulWidget {
 class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   bool _isLoading = true;
   bool _webOAuthRedirectChecked = !PlatformUtils.isBrowserContext;
-  late final Stream<User?> _authStream;
   final AuthService _authService = AuthService();
   final UserStateService _userStateService = UserStateService();
   final AccessService _accessService = AccessService();
@@ -141,10 +149,15 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // Cache the stream so rebuilds (e.g. after Navigator.pop) do not resubscribe
-    // and flash SplashScreen while connectionState is waiting.
-    _authStream = FirebaseAuth.instance.authStateChanges();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final gate = context.read<AuthGate>();
+      gate.registerAccessStatusLoader(_ensureUserDocumentAndGetStatus);
+      if (FirebaseAuth.instance.currentUser != null && !gate.accessCheckReady) {
+        gate.preloadAccessStatus();
+      }
+    });
     _completeWebOAuthRedirectIfNeeded();
     // Show splash screen for minimum duration
     _showSplashForMinimumDuration();
@@ -201,8 +214,11 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     
     if (state == AppLifecycleState.resumed) {
-      // App came to foreground, check for verification status
+      // App came to foreground after Google/Apple OAuth sheet — sync auth UI.
       _handlePendingEmailVerification();
+      if (mounted) {
+        context.read<AuthGate>().notifySignedIn();
+      }
     }
   }
 
@@ -292,43 +308,42 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: _authStream,
-      initialData: FirebaseAuth.instance.currentUser,
-      builder: (context, snapshot) {
+    final authGate = context.watch<AuthGate>();
+    final user = authGate.user;
 
-        // Show splash while loading or finishing OAuth redirect (web Apple/Google).
-        if (_isLoading || !_webOAuthRedirectChecked) {
-          return const SplashScreen();
-        }
-        
-        // Handle connection state
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
-        }
-        
-        // Handle errors
-        if (snapshot.hasError) {
-          // If there's an error, show sign-in screen
-          return const SignInScreen();
-        }
-        
-        // If user is signed in, check their state.
-        // CRITICAL: Use a dedicated widget that caches the future in initState.
-        // Passing future: _ensureUserDocumentAndGetStatus() inline would recreate
-        // the future on every parent rebuild (e.g. from AppState.notifyListeners),
-        // causing infinite re-fetches and an unresponsive app—especially on iPad.
-        if (snapshot.hasData && snapshot.data != null) {
-          return _SignedInAccessChecker(
-            key: ValueKey(snapshot.data!.uid),
-            authService: _authService,
-            ensureUserDocumentAndGetStatus: _ensureUserDocumentAndGetStatus,
-          );
-        }
-        
-        // If user is not signed in, show sign-in screen
-        return const SignInScreen();
-      },
+    // Cold-start splash only (not after Google/Apple OAuth sign-in).
+    if (!_webOAuthRedirectChecked || (_isLoading && user == null)) {
+      return const SplashScreen();
+    }
+
+    // Signed in but access not verified yet — splash on cold start, sign-in after OAuth.
+    if (user != null && !authGate.accessCheckReady) {
+      if (_isLoading) {
+        return const SplashScreen();
+      }
+      return SignInScreen(
+        key: ValueKey('sign_in_${authGate.signInScreenKey}'),
+      );
+    }
+
+    // If user is signed in, check their state.
+    // CRITICAL: Use a dedicated widget that caches the future in initState.
+    // Passing future: _ensureUserDocumentAndGetStatus() inline would recreate
+    // the future on every parent rebuild (e.g. from AppState.notifyListeners),
+    // causing infinite re-fetches and an unresponsive app—especially on iPad.
+    if (user != null && authGate.accessCheckReady) {
+      return _SignedInAccessChecker(
+        key: ValueKey(user.uid),
+        authService: _authService,
+        accessFuture: authGate.resolveAccessFuture(
+          _ensureUserDocumentAndGetStatus,
+        ),
+        reloadAccess: _ensureUserDocumentAndGetStatus,
+      );
+    }
+
+    return SignInScreen(
+      key: ValueKey('sign_in_${authGate.signInScreenKey}'),
     );
   }
 }
