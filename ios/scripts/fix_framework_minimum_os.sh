@@ -3,6 +3,11 @@
 # Firebase/gRPC binaries ship with wrong minos (e.g. 10.0/100.0); App.framework ships 13.0.
 set +e
 
+# vtool invalidates code signatures — only patch Release archives (App Store), not Debug/simulator.
+if [ "${CONFIGURATION:-Debug}" != "Release" ]; then
+  exit 0
+fi
+
 MIN_OS="${MINIMUM_OS_VERSION:-15.0}"
 # Match the SDK used to build (Xcode 26.x); required for vtool -set-build-version.
 SDK_OS="${SDK_VERSION_OS:-26.0}"

@@ -366,7 +366,7 @@
 			name = "Fix Framework Minimum OS Version";
 			outputPaths = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
+			runOnlyForDeploymentPostprocessing = 1;
 			shellPath = /bin/sh;
 			shellScript = "bash \"${SRCROOT}/scripts/fix_framework_minimum_os.sh\"\n";
 			showEnvVarsInLog = 0;
