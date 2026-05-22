@@ -37,16 +37,19 @@ target 'Runner' do
 end
 
 def fix_framework_plist(plist_path, min_os)
-  return unless File.exist?(plist_path)
+  return unless File.file?(plist_path)
 
-  set_ok = system('/usr/libexec/PlistBuddy', '-c', "Set :MinimumOSVersion #{min_os}", plist_path)
+  set_ok = system('/usr/libexec/PlistBuddy', '-c', "Set :MinimumOSVersion #{min_os}", plist_path,
+                  out: File::NULL, err: File::NULL)
   unless set_ok
-    system('/usr/libexec/PlistBuddy', '-c', "Add :MinimumOSVersion string #{min_os}", plist_path)
+    system('/usr/libexec/PlistBuddy', '-c', "Add :MinimumOSVersion string #{min_os}", plist_path,
+           out: File::NULL, err: File::NULL)
   end
 
   version = `/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "#{plist_path}" 2>/dev/null`.strip
   if version.empty?
-    system('/usr/libexec/PlistBuddy', '-c', 'Add :CFBundleShortVersionString string 1.0', plist_path)
+    system('/usr/libexec/PlistBuddy', '-c', 'Add :CFBundleShortVersionString string 1.0', plist_path,
+           out: File::NULL, err: File::NULL)
   end
 end
 
