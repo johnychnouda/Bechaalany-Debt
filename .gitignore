@@ -43,7 +43,10 @@ app.*.map.json
 
 # iOS build directories
 ios/build/
-ios/Runner.xcworkspace/xcshareddata/
+# Ignore xcshareddata except Package.resolved (required for Xcode Cloud SPM)
+ios/**/xcshareddata/*
+!ios/**/xcshareddata/swiftpm/
+!ios/**/xcshareddata/swiftpm/Package.resolved
 ios/Runner.xcodeproj/xcuserdata/
 ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 

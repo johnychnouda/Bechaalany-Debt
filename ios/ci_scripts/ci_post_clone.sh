@@ -127,6 +127,20 @@ if [ ! -d "$REPO_ROOT/ios/Pods" ]; then
 fi
 echo "✅ CocoaPods dependencies installed successfully"
 
+# Xcode Cloud requires Package.resolved under Runner.xcworkspace (not only xcodeproj).
+echo ""
+echo "📦 Syncing Swift Package Manager lockfile for Xcode Cloud..."
+SPM_SRC="$REPO_ROOT/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+SPM_DST_DIR="$REPO_ROOT/ios/Runner.xcworkspace/xcshareddata/swiftpm"
+mkdir -p "$SPM_DST_DIR"
+if [ -f "$SPM_SRC" ]; then
+    cp "$SPM_SRC" "$SPM_DST_DIR/Package.resolved"
+    echo "✅ Package.resolved synced to Runner.xcworkspace"
+elif [ ! -f "$SPM_DST_DIR/Package.resolved" ]; then
+    echo "❌ ERROR: Package.resolved missing for Xcode Cloud SPM resolution"
+    exit 1
+fi
+
 # Verify critical files exist
 echo ""
 echo "📋 Verifying build requirements..."
