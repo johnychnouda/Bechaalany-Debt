@@ -1013,6 +1013,52 @@ class AppLocalizationsAr extends AppLocalizations {
   String get addDebtFromProduct => 'إضافة دين من منتج';
 
   @override
+  String get barcodeLabel => 'الباركود';
+
+  @override
+  String get barcodeHint => 'امسح أو اكتب رقم الباركود';
+
+  @override
+  String get scanBarcode => 'مسح الباركود';
+
+  @override
+  String get findProductByBarcode => 'البحث عن المنتج';
+
+  @override
+  String get pointCameraAtBarcode => 'وجّه الكاميرا نحو الباركود على المنتج';
+
+  @override
+  String get productNotFoundForBarcode =>
+      'لم يتم العثور على منتج لهذا الباركود';
+
+  @override
+  String get useBarcode => 'استخدام الباركود';
+
+  @override
+  String get trackInventory => 'تتبع المخزون';
+
+  @override
+  String get barcodeProductLabel => 'الباركود';
+
+  @override
+  String get barcodeProductHint => 'رقم EAN / UPC على العبوة';
+
+  @override
+  String get barcodeRequiredHint => 'مطلوب';
+
+  @override
+  String get barcodeRequired => 'يرجى إدخال الباركود عند تفعيله';
+
+  @override
+  String duplicateBarcode(String productName) {
+    return 'هذا الباركود مستخدم بالفعل من قبل \"$productName\"';
+  }
+
+  @override
+  String get useBarcodeScannerOrType =>
+      'استخدم ماسح الباركود أو اكتب الرقم، ثم اضغط البحث عن المنتج';
+
+  @override
   String get customerLabel => 'العميل';
 
   @override
@@ -1049,6 +1095,16 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get addProductsToCategoryInProductsTab =>
       'أضف منتجات لهذا التصنيف من تبويب المنتجات.';
+
+  @override
+  String get productLowStockThreshold => 'حد المخزون المنخفض';
+
+  @override
+  String get productLowStockThresholdHint => 'مطلوب';
+
+  @override
+  String get lowStockThresholdRequired =>
+      'يرجى إدخال حد المخزون المنخفض عند تفعيل تتبع المخزون';
 
   @override
   String get productPurchases => 'مشتريات المنتجات';

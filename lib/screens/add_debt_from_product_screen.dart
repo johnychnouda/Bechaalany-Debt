@@ -1,22 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
 import '../models/customer.dart';
 import '../models/debt.dart';
 import '../models/category.dart';
 import '../providers/app_state.dart';
+import '../utils/barcode_lookup.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/platform_utils.dart';
+import '../utils/responsive_layout.dart';
 // Notification service import removed
 import '../widgets/expandable_chip_dropdown.dart';
 import '../widgets/searchable_customer_field.dart';
 import '../l10n/app_localizations.dart';
+import 'barcode_scan_screen.dart';
 
 class AddDebtFromProductScreen extends StatefulWidget {
-  final Customer? customer; // Optional customer parameter
-  
+  final Customer? customer;
+  final bool embeddedInShell;
+  final VoidCallback? onCancel;
+  final VoidCallback? onComplete;
+
   const AddDebtFromProductScreen({
     super.key,
     this.customer,
+    this.embeddedInShell = false,
+    this.onCancel,
+    this.onComplete,
   });
 
   @override
@@ -28,7 +39,10 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
   ProductCategory? _selectedCategory;
   Subcategory? _selectedSubcategory;
   final TextEditingController _quantityController = TextEditingController(text: '1');
+  final TextEditingController _barcodeController = TextEditingController();
+  final FocusNode _barcodeFocusNode = FocusNode();
   bool _isLoading = false;
+  bool _barcodeNotFound = false;
 
   @override
   void initState() {
@@ -37,12 +51,75 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
     if (widget.customer != null) {
       _selectedCustomer = widget.customer;
     }
+    if (ResponsiveLayout.isWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _barcodeFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
   void dispose() {
     _quantityController.dispose();
+    _barcodeController.dispose();
+    _barcodeFocusNode.dispose();
     super.dispose();
+  }
+
+  void _selectSubcategory(Subcategory? subcategory) {
+    setState(() {
+      _selectedSubcategory = subcategory;
+      if (subcategory != null && subcategory.trackInventory) {
+        final stock = (subcategory.stockQuantity ?? 0.0).clamp(0.0, double.infinity);
+        final defaultQuantity = stock >= 1 ? 1.0 : stock;
+        _quantityController.text = _formatQuantity(defaultQuantity);
+      }
+    });
+  }
+
+  void _applyBarcodeLookup(AppState appState) {
+    final result = findProductByBarcode(appState.categories, _barcodeController.text);
+    if (result == null) {
+      setState(() {
+        _barcodeNotFound = true;
+      });
+      return;
+    }
+    setState(() {
+      _barcodeNotFound = false;
+      _selectedCategory = result.category;
+    });
+    _selectSubcategory(result.subcategory);
+  }
+
+  void _clearBarcodeNotFound() {
+    if (_barcodeNotFound) {
+      setState(() => _barcodeNotFound = false);
+    }
+  }
+
+  OutlineInputBorder _barcodeOutlineBorder(BuildContext context, {bool focused = false}) {
+    final errorColor = AppColors.error;
+    final normalColor = AppColors.dynamicBorder(context);
+    final color = _barcodeNotFound
+        ? errorColor
+        : (focused ? AppColors.dynamicPrimary(context) : normalColor);
+    final width = _barcodeNotFound || focused ? 2.0 : 1.0;
+
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  Future<void> _openBarcodeScanner() async {
+    final code = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const BarcodeScanScreen()),
+    );
+    if (!mounted || code == null || code.isEmpty) return;
+    _barcodeController.text = code;
+    final appState = Provider.of<AppState>(context, listen: false);
+    _applyBarcodeLookup(appState);
   }
 
   double _parseQuantity() {
@@ -69,15 +146,6 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       return requested;
     }
 
-    if (showMessage && mounted) {
-      final maxText = _formatQuantity(maxQuantity);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Maximum available quantity is $maxText'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    }
     return maxQuantity;
   }
 
@@ -130,18 +198,35 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
+      backgroundColor: widget.embeddedInShell
+          ? AppColors.dynamicSurface(context)
+          : AppColors.dynamicBackground(context),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.addDebtFromProduct, style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
+        automaticallyImplyLeading: !widget.embeddedInShell,
+        leading: widget.embeddedInShell
+            ? IconButton(
+                icon: Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.dynamicPrimary(context),
+                ),
+                onPressed: widget.onCancel,
+              )
+            : null,
+        title: Text(
+          l10n.addDebtFromProduct,
+          style: TextStyle(
+            color: AppColors.dynamicTextPrimary(context),
+            fontSize: widget.embeddedInShell ? 18 : 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         backgroundColor: AppColors.dynamicSurface(context),
         elevation: 0,
+        scrolledUnderElevation: 0,
         iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
-        titleTextStyle: TextStyle(
-          color: AppColors.dynamicTextPrimary(context),
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
       ),
       body: Consumer<AppState>(
         builder: (context, appState, child) {
@@ -179,6 +264,10 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                 ],
                 
                 const SizedBox(height: 24),
+
+                _buildBarcodeSection(appState),
+                
+                const SizedBox(height: 24),
                 
                 // Category Selection
                 _buildExpandableCategorySelection(appState),
@@ -203,6 +292,136 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
           );
         },
       ),
+    );
+  }
+
+  static const double _barcodeActionSize = 56;
+  static const double _barcodeActionIconSize = 26;
+
+  Widget _buildBarcodeActionButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return IconButton.filled(
+      onPressed: onPressed,
+      icon: Icon(icon, size: _barcodeActionIconSize),
+      tooltip: tooltip,
+      padding: const EdgeInsets.all(14),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.dynamicPrimary(context),
+        foregroundColor: Colors.white,
+        minimumSize: const Size(_barcodeActionSize, _barcodeActionSize),
+        fixedSize: const Size(_barcodeActionSize, _barcodeActionSize),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarcodeSection(AppState appState) {
+    final l10n = AppLocalizations.of(context)!;
+    final isWeb = ResponsiveLayout.isWeb;
+    final showCameraScan = !isWeb && !PlatformUtils.isBrowserContext;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.barcodeLabel,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (isWeb)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              l10n.useBarcodeScannerOrType,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ),
+          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(top: _barcodeNotFound ? 8 : 0),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    TextField(
+                      controller: _barcodeController,
+                      focusNode: _barcodeFocusNode,
+                      decoration: InputDecoration(
+                        hintText: l10n.barcodeHint,
+                        enabledBorder: _barcodeOutlineBorder(context),
+                        focusedBorder: _barcodeOutlineBorder(context, focused: true),
+                        errorBorder: _barcodeOutlineBorder(context),
+                        focusedErrorBorder:
+                            _barcodeOutlineBorder(context, focused: true),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.search,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      onChanged: (_) => _clearBarcodeNotFound(),
+                      onSubmitted: (_) => _applyBarcodeLookup(appState),
+                    ),
+                    if (_barcodeNotFound)
+                      Positioned(
+                        left: 12,
+                        top: 0,
+                        child: Transform.translate(
+                          offset: const Offset(0, -10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            color: AppColors.dynamicSurface(context),
+                            child: Text(
+                              l10n.productNotFoundForBarcode,
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            _buildBarcodeActionButton(
+              icon: Icons.search,
+              tooltip: l10n.findProductByBarcode,
+              onPressed: () => _applyBarcodeLookup(appState),
+            ),
+            if (showCameraScan) ...[
+              const SizedBox(width: 12),
+              _buildBarcodeActionButton(
+                icon: Icons.qr_code_scanner,
+                tooltip: l10n.scanBarcode,
+                onPressed: _openBarcodeScanner,
+              ),
+            ],
+          ],
+        ),
+      ],
     );
   }
 
@@ -339,16 +558,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       value: _selectedSubcategory,
       items: subcategories,
       itemToString: (subcategory) => subcategory.name,
-      onChanged: (subcategory) {
-        setState(() {
-          _selectedSubcategory = subcategory;
-          if (subcategory != null && subcategory.trackInventory) {
-            final stock = (subcategory.stockQuantity ?? 0.0).clamp(0.0, double.infinity);
-            final defaultQuantity = stock >= 1 ? 1.0 : stock;
-            _quantityController.text = _formatQuantity(defaultQuantity);
-          }
-        });
-      },
+      onChanged: _selectSubcategory,
       placeholder: AppLocalizations.of(context)!.selectProduct,
       enabled: _selectedCategory != null,
     );
@@ -412,8 +622,11 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                     final stock = isTracked
                         ? (originalStock - selectedQuantity).clamp(0.0, double.infinity)
                         : originalStock;
-                    final lowStockThreshold = Provider.of<AppState>(context, listen: false).lowStockThreshold;
-                    final isLowStock = isTracked && stock > 0 && stock <= lowStockThreshold;
+                    final lowStockThreshold = _selectedSubcategory!.lowStockThreshold;
+                    final isLowStock = isTracked &&
+                        lowStockThreshold != null &&
+                        stock > 0 &&
+                        stock <= lowStockThreshold;
                     final isOutOfStock = isTracked && stock <= 0;
                     final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
 
@@ -952,71 +1165,29 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       
       // Validate quantity
       if (quantity <= 0) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please enter a valid quantity greater than 0'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
         return;
       }
 
       if (selectedSubcategory.trackInventory) {
         final selectedCategory = _selectedCategory;
         if (selectedCategory == null) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Could not find selected category for stock update'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
           return;
         }
 
         final categoryIndex = appState.categories.indexWhere((c) => c.id == selectedCategory.id);
         if (categoryIndex == -1) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Category not found while checking stock'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
           return;
         }
 
         final category = appState.categories[categoryIndex];
         final subcategoryIndex = category.subcategories.indexWhere((s) => s.id == selectedSubcategory.id);
         if (subcategoryIndex == -1) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Product not found while checking stock'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
           return;
         }
 
         final latestSubcategory = category.subcategories[subcategoryIndex];
         final currentStock = latestSubcategory.stockQuantity ?? 0.0;
         if (currentStock < quantity) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Not enough stock. Available: ${currentStock.toStringAsFixed(currentStock % 1 == 0 ? 0 : 2)}',
-                ),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
           return;
         }
 
@@ -1090,9 +1261,13 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
       );
       
       await appState.addDebt(debt);
-        
+
         if (mounted) {
-        Navigator.of(context).pop();
+        if (widget.embeddedInShell && widget.onComplete != null) {
+          widget.onComplete!();
+        } else {
+          Navigator.of(context).pop(true);
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -1029,6 +1029,53 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addDebtFromProduct => 'Add Debt from Product';
 
   @override
+  String get barcodeLabel => 'Barcode';
+
+  @override
+  String get barcodeHint => 'Scan or type barcode number';
+
+  @override
+  String get scanBarcode => 'Scan barcode';
+
+  @override
+  String get findProductByBarcode => 'Find product';
+
+  @override
+  String get pointCameraAtBarcode =>
+      'Point the camera at the barcode on the product';
+
+  @override
+  String get productNotFoundForBarcode => 'No product found for this barcode';
+
+  @override
+  String get useBarcode => 'Use barcode';
+
+  @override
+  String get trackInventory => 'Track inventory';
+
+  @override
+  String get barcodeProductLabel => 'Barcode';
+
+  @override
+  String get barcodeProductHint => 'EAN / UPC number on package';
+
+  @override
+  String get barcodeRequiredHint => 'Required';
+
+  @override
+  String get barcodeRequired =>
+      'Please enter a barcode when barcode is enabled';
+
+  @override
+  String duplicateBarcode(String productName) {
+    return 'This barcode is already used by \"$productName\"';
+  }
+
+  @override
+  String get useBarcodeScannerOrType =>
+      'Use your barcode scanner or type the number, then tap Find product';
+
+  @override
   String get customerLabel => 'Customer';
 
   @override
@@ -1065,6 +1112,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get addProductsToCategoryInProductsTab =>
       'Add products to this category in the Products tab.';
+
+  @override
+  String get productLowStockThreshold => 'Low stock threshold';
+
+  @override
+  String get productLowStockThresholdHint => 'Required';
+
+  @override
+  String get lowStockThresholdRequired =>
+      'Please enter a low stock threshold when inventory tracking is enabled';
 
   @override
   String get productPurchases => 'Product Purchases';

@@ -9,7 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../screens/settings_screen.dart';
-
+import '../utils/responsive_layout.dart';
 import 'top_debtors_widget.dart';
 import 'profit_loss_widget.dart';
 import 'total_debtors_widget.dart';
@@ -215,12 +215,10 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
 
     return Consumer<AppState>(
       builder: (context, appState, child) {
+        final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
         return Column(
           children: [
-            // Header with logo, title, and settings
-            _buildHeader(appState),
-            
-            // Widgets
+            if (!isDesktopWeb) _buildHeader(appState),
             Expanded(
               child: _buildNormalMode(),
             ),
@@ -231,36 +229,43 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
   }
 
   Widget _buildHeader(AppState appState) {
+    final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+    final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding: const EdgeInsets.all(16), // Increased padding for larger elements
+      padding: EdgeInsets.fromLTRB(
+        isDesktopWeb ? 24 : 16,
+        isDesktopWeb ? 20 : 16,
+        isDesktopWeb ? 24 : 16,
+        isDesktopWeb ? 8 : 16,
+      ),
       child: Row(
         children: [
-          // Original clean logo design - matching iOS app
-          LogoUtils.buildLogo(
-            context: context,
-            width: 56, // Increased from 40
-            height: 56, // Increased from 40
-            // Removed placeholder to let actual logo show
-          ),
-          const SizedBox(width: 12), // Increased spacing
+          if (!isDesktopWeb) ...[
+            LogoUtils.buildLogo(
+              context: context,
+              width: 56,
+              height: 56,
+            ),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bechaalany Connect',
+                  isDesktopWeb ? l10n.navDashboard : 'Bechaalany Connect',
                   style: AppTheme.getDynamicTitle3(context).copyWith(
                     color: AppColors.dynamicTextPrimary(context),
-                    fontSize: 22, // Increased from 16
+                    fontSize: isDesktopWeb ? 26 : 22,
                     fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  AppLocalizations.of(context)!.dashboardWelcomeBack,
+                  l10n.dashboardWelcomeBack,
                   style: AppTheme.getDynamicFootnote(context).copyWith(
                     color: AppColors.dynamicTextSecondary(context),
-                    fontSize: 16, // Increased from 12
+                    fontSize: isDesktopWeb ? 15 : 16,
                     fontWeight: FontWeight.w500,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -284,34 +289,39 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
                 ),
               ),
             ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
-            },
-            icon: const Icon(
-              Icons.settings_outlined,
-              color: AppColors.textSecondary,
-              size: 26, // Increased from 18
+          if (!ResponsiveLayout.isDesktopWeb(context))
+            IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.textSecondary,
+                size: 26,
+              ),
+              padding: const EdgeInsets.all(8),
+              constraints: const BoxConstraints(
+                minWidth: 44,
+                minHeight: 44,
+              ),
             ),
-            padding: const EdgeInsets.all(8), // Increased padding
-            constraints: const BoxConstraints(
-              minWidth: 44, // Increased from 32
-              minHeight: 44, // Increased from 32
-            ),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildNormalMode() {
+    if (ResponsiveLayout.isDesktopWeb(context)) {
+      return _buildDesktopGrid();
+    }
+
     return ReorderableListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12), // Further reduced from 16
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       itemCount: _enabledWidgets.length,
       onReorder: _reorderWidgets,
       itemBuilder: (context, index) {
@@ -322,6 +332,55 @@ class _CustomizableDashboardWidgetState extends State<CustomizableDashboardWidge
           child: widget.widget,
         );
       },
+    );
+  }
+
+  Widget _buildDesktopGrid() {
+    DashboardWidget? widgetById(String id) {
+      for (final w in _enabledWidgets) {
+        if (w.id == id) return w;
+      }
+      return null;
+    }
+
+    final financial = widgetById('profit_loss');
+    final customers = widgetById('total_debtors');
+    final topDebtors = widgetById('top_debtors');
+    const spacing = 20.0;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (financial != null) financial.widget,
+          if (financial != null && (customers != null || topDebtors != null))
+            const SizedBox(height: spacing),
+          if (customers != null && topDebtors != null)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: customers.widget,
+                  ),
+                  const SizedBox(width: spacing),
+                  Expanded(
+                    flex: 3,
+                    child: topDebtors.widget,
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            if (customers != null) customers.widget,
+            if (customers != null && topDebtors != null)
+              const SizedBox(height: spacing),
+            if (topDebtors != null) topDebtors.widget,
+          ],
+        ],
+      ),
     );
   }
 }

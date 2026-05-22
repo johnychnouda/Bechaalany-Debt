@@ -25,11 +25,19 @@ import '../l10n/app_localizations.dart';
 class CustomerDetailsScreen extends StatefulWidget {
   final Customer customer;
   final bool showDebtsSection;
+  final bool embeddedInShell;
+  final VoidCallback? onClose;
+  final VoidCallback? onAddDebt;
+  final VoidCallback? onEdit;
 
   const CustomerDetailsScreen({
     super.key, 
     required this.customer,
     this.showDebtsSection = true,
+    this.embeddedInShell = false,
+    this.onClose,
+    this.onAddDebt,
+    this.onEdit,
   });
 
   @override
@@ -51,6 +59,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
   void didChangeDependencies() {
     super.didChangeDependencies();
     _currentCustomer = widget.customer;
+  }
+
+  @override
+  void didUpdateWidget(CustomerDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.customer.id != widget.customer.id) {
+      _currentCustomer = widget.customer;
+    }
   }
 
   @override
@@ -849,84 +865,137 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         // Fix floating-point precision issues by rounding to 2 decimal places
         final roundedTotalPaid = ((totalPaid * 100).round() / 100);
 
+        Future<void> openAddDebt() async {
+          if (!mounted) return;
+          if (widget.embeddedInShell && widget.onAddDebt != null) {
+            widget.onAddDebt!();
+            return;
+          }
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddDebtFromProductScreen(customer: _currentCustomer),
+            ),
+          );
+          if (result == true && mounted) {
+            _loadCustomerDebts();
+          }
+        }
+
         return Scaffold(
-          backgroundColor: AppColors.dynamicBackground(context),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () async {
-              if (!mounted) return;
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => AddDebtFromProductScreen(customer: _currentCustomer),
+          backgroundColor: widget.embeddedInShell
+              ? AppColors.dynamicSurface(context)
+              : AppColors.dynamicBackground(context),
+          floatingActionButton: widget.embeddedInShell
+              ? null
+              : FloatingActionButton(
+                  onPressed: openAddDebt,
+                  backgroundColor: AppColors.dynamicPrimary(context),
+                  foregroundColor: Colors.white,
+                  child: const Icon(Icons.add),
                 ),
-              );
-              if (result == true && mounted) {
-                _loadCustomerDebts();
-              }
-            },
-            backgroundColor: AppColors.dynamicPrimary(context),
-            foregroundColor: Colors.white,
-            child: const Icon(Icons.add),
-          ),
           appBar: AppBar(
+            automaticallyImplyLeading: !widget.embeddedInShell,
             title: Text(
               _currentCustomer.name,
-              style: AppTheme.getDynamicHeadline(context),
+              style: AppTheme.getDynamicHeadline(context).copyWith(
+                fontSize: widget.embeddedInShell ? 18 : null,
+              ),
             ),
             backgroundColor: AppColors.dynamicSurface(context),
             elevation: 0,
+            scrolledUnderElevation: 0,
             actions: [
-              // Edit customer button
+              if (widget.embeddedInShell) ...[
+                IconButton(
+                  onPressed: openAddDebt,
+                  tooltip: l10n.addDebt,
+                  icon: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: AppColors.dynamicPrimary(context),
+                  ),
+                ),
+              ],
               IconButton(
                 onPressed: () async {
+                  if (widget.embeddedInShell && widget.onEdit != null) {
+                    widget.onEdit!();
+                    return;
+                  }
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => AddCustomerScreen(customer: _currentCustomer),
                     ),
                   );
-                  // Refresh the screen after editing
                   if (result == true) {
+                    final appState = Provider.of<AppState>(context, listen: false);
+                    final stillExists = appState.customers
+                        .any((c) => c.id == _currentCustomer.id);
+                    if (!stillExists) {
+                      widget.onClose?.call();
+                      return;
+                    }
                     setState(() {
-                      // Refresh customer data from AppState
-                      final appState = Provider.of<AppState>(context, listen: false);
-                      final updatedCustomer = appState.customers.firstWhere(
+                      _currentCustomer = appState.customers.firstWhere(
                         (c) => c.id == _currentCustomer.id,
-                        orElse: () => _currentCustomer,
                       );
-                      _currentCustomer = updatedCustomer;
                     });
-                    // Refresh customer debts
                     _loadCustomerDebts();
                   }
                 },
                 icon: Icon(
-                  Icons.edit,
+                  Icons.edit_outlined,
                   color: AppColors.dynamicPrimary(context),
                 ),
               ),
-
+              if (widget.embeddedInShell && widget.onClose != null)
+                IconButton(
+                  onPressed: widget.onClose,
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                ),
             ],
           ),
-          body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+          body: ListView(
+              padding: EdgeInsets.fromLTRB(
+                widget.embeddedInShell ? 20 : 16,
+                widget.embeddedInShell ? 12 : 16,
+                widget.embeddedInShell ? 20 : 16,
+                widget.embeddedInShell ? 24 : 16,
+              ),
               children: [
                 // Customer Information Section
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: AppColors.dynamicSurface(context),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(13), // 0.05 * 255
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    border: widget.embeddedInShell
+                        ? Border.all(
+                            color: AppColors.dynamicBorder(context)
+                                .withValues(alpha: 0.25),
+                          )
+                        : null,
+                    boxShadow: widget.embeddedInShell
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(13),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                   ),
-                  child: Column(
+                  child: Material(
+                    color: widget.embeddedInShell
+                        ? AppColors.dynamicBackground(context)
+                        : AppColors.dynamicSurface(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
@@ -1047,6 +1116,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                         ),
                     ],
                   ),
+                  ),
                 ),
                 
                 const SizedBox(height: 16),
@@ -1055,10 +1125,13 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 Container(
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.dynamicSurface(context),
+                    color: widget.embeddedInShell
+                        ? AppColors.dynamicBackground(context)
+                        : AppColors.dynamicSurface(context),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.dynamicBorder(context),
+                      color: AppColors.dynamicBorder(context)
+                          .withValues(alpha: widget.embeddedInShell ? 0.25 : 1.0),
                       width: 1,
                     ),
                   ),
@@ -1342,7 +1415,6 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
                 const SizedBox(height: 20),
               ],
             ),
-          ),
         );
       },
     );
@@ -2184,44 +2256,17 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     // Verify authentication before attempting deletion
     if (!firebaseService.isAuthenticated) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: You are not authenticated. Please sign in again.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
       return;
     }
     
     // Debug: Log user ID and debt ID for troubleshooting
     final currentUserId = firebaseService.currentUserId;
     if (currentUserId == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Unable to get user ID. Please sign out and sign back in.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
       return;
     }
     
     // Verify the debt belongs to the current user before attempting deletion
     if (debt.customerId != _currentCustomer.id) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: This debt does not belong to the current customer.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
       return;
     }
     
@@ -2272,32 +2317,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
         setState(() {});
       }
     } catch (e) {
-      // Show error to user with detailed message
-      if (mounted) {
-        String errorMessage = 'Error deleting debt: ${e.toString()}';
-        
-        // Provide helpful guidance for permission errors
-        if (e.toString().contains('permission-denied')) {
-          final authUser = FirebaseAuth.instance.currentUser;
-          errorMessage = 'Permission Denied Error\n\n';
-          errorMessage += 'User ID: ${authUser?.uid ?? "Unknown"}\n';
-          errorMessage += 'Debt ID: ${debt.id}\n';
-          errorMessage += 'Expected Path: /users/${authUser?.uid ?? "YOUR_USER_ID"}/debts/${debt.id}\n\n';
-          errorMessage += 'Please verify:\n';
-          errorMessage += '1. You are signed in with the correct account\n';
-          errorMessage += '2. The debt exists at the path above\n';
-          errorMessage += '3. Firestore rules allow delete for your user ID\n\n';
-          errorMessage += 'Check rules: https://console.firebase.google.com/project/bechaalany-debt-app-e1bb0/firestore/rules';
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 8),
-          ),
-        );
-      }
+      // ignore
     }
   }
   

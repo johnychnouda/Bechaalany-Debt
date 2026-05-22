@@ -334,6 +334,25 @@
   "categoryNameExists": "اسم التصنيف موجود",
 
   "addDebtFromProduct": "إضافة دين من منتج",
+  "barcodeLabel": "الباركود",
+  "barcodeHint": "امسح أو اكتب رقم الباركود",
+  "scanBarcode": "مسح الباركود",
+  "findProductByBarcode": "البحث عن المنتج",
+  "pointCameraAtBarcode": "وجّه الكاميرا نحو الباركود على المنتج",
+  "productNotFoundForBarcode": "لم يتم العثور على منتج لهذا الباركود",
+  "useBarcode": "استخدام الباركود",
+  "trackInventory": "تتبع المخزون",
+  "barcodeProductLabel": "الباركود",
+  "barcodeProductHint": "رقم EAN / UPC على العبوة",
+  "barcodeRequiredHint": "مطلوب",
+  "barcodeRequired": "يرجى إدخال الباركود عند تفعيله",
+  "duplicateBarcode": "هذا الباركود مستخدم بالفعل من قبل \"{productName}\"",
+  "@duplicateBarcode": {
+    "placeholders": {
+      "productName": { "type": "String" }
+    }
+  },
+  "useBarcodeScannerOrType": "استخدم ماسح الباركود أو اكتب الرقم، ثم اضغط البحث عن المنتج",
   "customerLabel": "العميل",
   "categoryLabel": "التصنيف",
   "productLabel": "المنتج",
@@ -346,6 +365,10 @@
   "totalAmount": "المبلغ الإجمالي",
   "notSelected": "لم يتم الاختيار",
   "addProductsToCategoryInProductsTab": "أضف منتجات لهذا التصنيف من تبويب المنتجات.",
+
+  "productLowStockThreshold": "حد المخزون المنخفض",
+  "productLowStockThresholdHint": "مطلوب",
+  "lowStockThresholdRequired": "يرجى إدخال حد المخزون المنخفض عند تفعيل تتبع المخزون",
 
   "productPurchases": "مشتريات المنتجات",
   "productsCount": "{count} منتجات",

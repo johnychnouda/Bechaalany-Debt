@@ -10,7 +10,9 @@ import '../l10n/app_localizations.dart';
 
 import '../models/category.dart' show ProductCategory, Subcategory;
 import '../models/currency_settings.dart';
+import '../utils/barcode_lookup.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_layout.dart';
 import '../widgets/expandable_chip_dropdown.dart';
 // Notification service import removed
 import 'currency_settings_screen.dart';
@@ -105,7 +107,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     if (_searchQuery.isNotEmpty) {
       allSubcategories = allSubcategories.where((subcategory) {
         return subcategory.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-               (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+               (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+               (subcategory.barcode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
       }).toList();
     }
 
@@ -117,7 +120,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
-  Widget _buildGroupedProductsList(AppState appState) {
+  Widget _buildGroupedProductsList(AppState appState, {bool isDesktopWeb = false}) {
     if (_selectedCategory == 'All') {
       // Show all categories with their subcategories grouped
       List<ProductCategory> categoriesToShow = [];
@@ -130,7 +133,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
         if (_searchQuery.isNotEmpty) {
           filteredSubcategories = category.subcategories.where((subcategory) {
             return subcategory.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                   (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+                   (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                   (subcategory.barcode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
           }).toList();
         }
         
@@ -172,17 +176,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
       
       return ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: EdgeInsets.only(bottom: isDesktopWeb ? 16 : 0),
         itemCount: categoriesToShow.length,
         itemBuilder: (context, index) {
           final category = categoriesToShow[index];
           
-          // Get filtered subcategories for this category
           List<Subcategory> filteredSubcategories = category.subcategories;
           if (_searchQuery.isNotEmpty) {
             filteredSubcategories = category.subcategories.where((subcategory) {
               return subcategory.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                     (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
+                     (subcategory.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
+                     (subcategory.barcode?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
             }).toList();
           }
           
@@ -191,6 +195,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             subcategories: filteredSubcategories,
             onEditProduct: _editProduct,
             onDeleteProduct: _deleteProduct,
+            desktopTable: isDesktopWeb,
           );
         },
       );
@@ -240,6 +245,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
         );
       }
       
+      if (isDesktopWeb) {
+        return ListView.separated(
+          padding: const EdgeInsets.only(bottom: 16),
+          itemCount: _filteredProducts.length + 1,
+          separatorBuilder: (context, index) {
+            if (index == 0) return const Divider(height: 1);
+            return Divider(
+              height: 1,
+              color: AppColors.dynamicBorder(context).withValues(alpha: 0.15),
+            );
+          },
+          itemBuilder: (context, index) {
+            if (index == 0) return const _DesktopProductsTableHeader();
+            final subcategory = _filteredProducts[index - 1];
+            return _ProductCard(
+              subcategory: subcategory,
+              onEdit: () => _editProduct(subcategory),
+              onDelete: () => _deleteProduct(subcategory),
+              desktopRow: true,
+            );
+          },
+        );
+      }
+
       return ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _filteredProducts.length,
@@ -249,7 +278,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             subcategory: subcategory,
             onEdit: () => _editProduct(subcategory),
             onDelete: () => _deleteProduct(subcategory),
-            categoryName: null, // Don't show category name since we're already in that category
+            categoryName: null,
           );
         },
       );
@@ -465,120 +494,178 @@ class _ProductsScreenState extends State<ProductsScreen> {
     );
   }
 
+  Widget _buildSearchField(BuildContext context, {double? maxWidth}) {
+    final field = TextField(
+      onChanged: (value) {
+        setState(() => _searchQuery = value);
+        _filterProducts();
+      },
+      decoration: InputDecoration(
+        hintText: AppLocalizations.of(context)!.searchProducts,
+        hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+        prefixIcon: Icon(Icons.search_rounded, color: AppColors.dynamicTextSecondary(context)),
+        filled: true,
+        fillColor: AppColors.dynamicSurface(context),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+    );
+
+    if (maxWidth != null) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: field,
+      );
+    }
+    return field;
+  }
+
+  Widget _buildEmptyProductsState(BuildContext context, AppState appState) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 48,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _getEmptyStateMessage(context),
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _getEmptyStateSubMessage(context),
+            style: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+            textAlign: TextAlign.center,
+          ),
+          if (appState.categories.isEmpty) ...[
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _filterProducts,
+              icon: const Icon(Icons.refresh_rounded, size: 20),
+              label: Text(AppLocalizations.of(context)!.refresh),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopAddButton(BuildContext context) {
+    return FloatingActionButton(
+      heroTag: 'products_fab_hero',
+      onPressed: () => _showAddChoiceDialog(context),
+      backgroundColor: AppColors.dynamicPrimary(context),
+      elevation: 2,
+      child: const Icon(Icons.add, color: Colors.white),
+    );
+  }
+
+  Widget _buildDesktopProducts(BuildContext context, AppState appState) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(child: _buildSearchField(context)),
+              const SizedBox(width: 16),
+              _buildDesktopAddButton(context),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildReorderableFilterChips(context, appState),
+          const SizedBox(height: 16),
+          Expanded(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.dynamicSurface(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.dynamicBorder(context).withValues(alpha: 0.2),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _filteredProducts.isEmpty
+                  ? _buildEmptyProductsState(context, appState)
+                  : _buildGroupedProductsList(appState, isDesktopWeb: true),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+
     return Scaffold(
       backgroundColor: AppColors.dynamicBackground(context),
-      body: SafeArea(
-        child: Consumer<AppState>(
-          builder: (context, appState, child) {
-            return Column(
+      body: Consumer<AppState>(
+        builder: (context, appState, child) {
+          if (isDesktopWeb) {
+            return _buildDesktopProducts(context, appState);
+          }
+
+          return SafeArea(
+            child: Column(
               children: [
-                // Search and Filter Section
                 Container(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // Search Bar
-                      TextField(
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                          _filterProducts();
-                        },
-                        decoration: InputDecoration(
-                          hintText: AppLocalizations.of(context)!.searchProducts,
-                          hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
-                          prefixIcon: Icon(Icons.search, color: AppColors.dynamicTextSecondary(context)),
-                          filled: true,
-                          fillColor: AppColors.dynamicSurface(context),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
-                          ),
-                        ),
-                        style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
-                      ),
+                      _buildSearchField(context),
                       const SizedBox(height: 12),
-                      // Filter Chips with Reorderable Support
                       _buildReorderableFilterChips(context, appState),
                     ],
                   ),
                 ),
-                
-                // Products List
                 Expanded(
                   child: _filteredProducts.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 64,
-                                color: AppColors.dynamicTextSecondary(context),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _getEmptyStateMessage(context),
-                                style: TextStyle(
-                                  color: AppColors.dynamicTextPrimary(context),
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _getEmptyStateSubMessage(context),
-                                style: TextStyle(
-                                  color: AppColors.dynamicTextSecondary(context),
-                                ),
-                              ),
-                              // Add refresh button for automatic refresh
-                              if (appState.categories.isEmpty) ...[
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    _filterProducts();
-                                  },
-                                  icon: const Icon(Icons.refresh),
-                                  label: Text(AppLocalizations.of(context)!.refresh),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.dynamicPrimary(context),
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
+                      ? _buildEmptyProductsState(context, appState)
                       : _buildGroupedProductsList(appState),
                 ),
               ],
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'products_fab_hero',
-        onPressed: () async {
-          _showAddChoiceDialog(context);
+            ),
+          );
         },
-        backgroundColor: AppColors.dynamicPrimary(context),
-        child: const Icon(
-          Icons.add,
-          color: Colors.white,
-        ),
       ),
+      floatingActionButton: isDesktopWeb
+          ? null
+          : FloatingActionButton(
+              heroTag: 'products_fab_hero',
+              onPressed: () => _showAddChoiceDialog(context),
+              backgroundColor: AppColors.dynamicPrimary(context),
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
     );
   }
 
@@ -645,7 +732,110 @@ class _ProductsScreenState extends State<ProductsScreen> {
     }
   }
 
+  void _showWebQuickActionsDialog(BuildContext context) {
+    final appState = Provider.of<AppState>(context, listen: false);
+    final hasCategories = appState.categories.isNotEmpty;
+    final l10n = AppLocalizations.of(context)!;
+    final primary = AppColors.dynamicPrimary(context);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.dynamicSurface(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.quickActions,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  _QuickActionTile(
+                    icon: Icons.create_new_folder_outlined,
+                    label: l10n.addCategory,
+                    color: primary,
+                    onTap: () {
+                      Navigator.of(dialogContext).pop();
+                      _showAddCategoryDialog(context);
+                    },
+                  ),
+                  if (hasCategories) ...[
+                    const SizedBox(height: 6),
+                    _QuickActionTile(
+                      icon: Icons.inventory_2_outlined,
+                      label: l10n.addProduct,
+                      color: primary,
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        _showCategorySelectionDialog(context);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Divider(
+                      color: AppColors.dynamicBorder(context).withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 6),
+                    _QuickActionTile(
+                      icon: Icons.delete_outline_rounded,
+                      label: l10n.deleteCategory,
+                      color: AppColors.error,
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        _showDeleteCategorySelectionDialog(context);
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    _QuickActionTile(
+                      icon: Icons.delete_outline_rounded,
+                      label: l10n.deleteProduct,
+                      color: AppColors.error,
+                      onTap: () {
+                        Navigator.of(dialogContext).pop();
+                        _showDeleteSubcategorySelectionDialog(context);
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showAddChoiceDialog(BuildContext context) {
+    if (ResponsiveLayout.isDesktopWeb(context)) {
+      _showWebQuickActionsDialog(context);
+      return;
+    }
+
     final appState = Provider.of<AppState>(context, listen: false);
     final hasCategories = appState.categories.isNotEmpty;
 
@@ -805,6 +995,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showEditSubcategoryDialog(BuildContext context, Subcategory subcategory, String categoryName) {
     final nameController = TextEditingController(text: subcategory.name);
+    final barcodeController = TextEditingController(text: subcategory.barcode ?? '');
     String selectedCurrency = subcategory.costPriceCurrency;
     
     // Get the stored amounts in their original currency
@@ -816,11 +1007,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     bool trackInventory = subcategory.trackInventory;
+    bool useBarcode = subcategory.useBarcode;
     
     // Get current exchange rate from app state
     final appState = Provider.of<AppState>(context, listen: false);
     final currentExchangeRate = appState.currencySettings?.exchangeRate;
-    
+    final lowStockThresholdController = TextEditingController(
+      text: subcategory.lowStockThreshold?.toString() ?? '',
+    );
+
     // Note: We allow editing even without exchange rate - validation happens on save
     
     // Set initial values based on currency
@@ -863,23 +1058,92 @@ class _ProductsScreenState extends State<ProductsScreen> {
         }
       }
     }
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            // Add listeners to trigger rebuild when text changes
-            nameController.addListener(() => setState(() {}));
-            costPriceController.addListener(() => setState(() {}));
-            sellingPriceController.addListener(() => setState(() {}));
-            
-            return AlertDialog(
-              title: const Text('Edit Subcategory'),
-              contentPadding: const EdgeInsets.all(16),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+
+    final initialName = subcategory.name;
+    final initialUseBarcode = subcategory.useBarcode;
+    final initialBarcode = subcategory.barcode ?? '';
+    final initialCurrency = selectedCurrency;
+    final initialTrackInventory = trackInventory;
+    final initialThresholdText = lowStockThresholdController.text.trim();
+    final initialCostPriceText = costPriceController.text;
+    final initialSellingPriceText = sellingPriceController.text;
+    final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+
+    Widget buildEditor(BuildContext context, StateSetter setState) {
+      // Add listeners to trigger rebuild when text changes
+      nameController.addListener(() => setState(() {}));
+      costPriceController.addListener(() => setState(() {}));
+      sellingPriceController.addListener(() => setState(() {}));
+      lowStockThresholdController.addListener(() => setState(() {}));
+      barcodeController.addListener(() => setState(() {}));
+
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Material(
+          color: AppColors.dynamicSurface(context),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: isDesktopWeb
+                ? BorderRadius.circular(16)
+                : const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * (isDesktopWeb ? 0.85 : 0.92),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, isDesktopWeb ? 16 : 12, 16, 0),
+                    child: Column(
+                      children: [
+                        if (!isDesktopWeb) ...[
+                          Container(
+                            width: 36,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: AppColors.dynamicTextSecondary(context)
+                                  .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2.5),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    'Edit Product',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dynamicTextPrimary(context),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: AppColors.dynamicTextSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                     TextField(
                       controller: nameController,
                       decoration: const InputDecoration(
@@ -887,6 +1151,50 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         hintText: 'e.g., iPhone',
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(AppLocalizations.of(context)!.useBarcode),
+                      value: useBarcode,
+                      onChanged: (value) {
+                        setState(() {
+                          useBarcode = value;
+                        });
+                      },
+                    ),
+                    if (useBarcode) ...[
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (context) {
+                          final l10n = AppLocalizations.of(context)!;
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final code = barcodeController.text.trim();
+                          String? barcodeError;
+                          if (code.isNotEmpty) {
+                            final conflict = findProductByBarcode(
+                              appState.categories,
+                              code,
+                              excludeSubcategoryId: subcategory.id,
+                            );
+                            if (conflict != null) {
+                              barcodeError = l10n.duplicateBarcode(conflict.subcategory.name);
+                            }
+                          }
+                          return TextField(
+                            controller: barcodeController,
+                            decoration: InputDecoration(
+                              labelText: l10n.barcodeProductLabel,
+                              hintText: l10n.barcodeRequiredHint,
+                              errorText: barcodeError,
+                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     const Text(
                       'Currency',
@@ -970,8 +1278,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     const SizedBox(height: 16),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Track inventory'),
-                      subtitle: const Text('Enable stock quantity'),
+                      title: Text(AppLocalizations.of(context)!.trackInventory),
                       value: trackInventory,
                       onChanged: (value) {
                         setState(() {
@@ -979,6 +1286,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         });
                       },
                     ),
+                    if (trackInventory) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: lowStockThresholdController,
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(context)!.productLowStockThreshold,
+                          hintText: AppLocalizations.of(context)!.productLowStockThresholdHint,
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ],
                     
                     // Calculate if there's a loss
                     Builder(
@@ -1023,128 +1342,231 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         );
                       },
                     ),
-                  ],
-                ),
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                            ],
+                          ),
                         ),
-                        child: Text(AppLocalizations.of(context)!.cancel),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          final costPriceText = costPriceController.text.replaceAll(',', '');
-                          final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
-                          final costPrice = double.tryParse(costPriceText) ?? 0.0;
-                          final sellingPrice = double.tryParse(sellingPriceText);
-                          final isLoss = sellingPrice != null && sellingPrice < costPrice;
-                          final hasValidStock = true;
-                          
-                          final isEnabled = nameController.text.trim().isNotEmpty &&
-                              costPriceController.text.isNotEmpty &&
-                              sellingPriceController.text.isNotEmpty &&
-                              hasValidStock;
-                          
-                          return ElevatedButton(
-                            onPressed: isEnabled
-                                ? () async {
-                                    // Check if exchange rate is required for LBP currency
-                                    if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
-                                      showCupertinoDialog(
-                                        context: context,
-                                        builder: (context) => CupertinoAlertDialog(
-                                          title: const Text('Exchange Rate Required'),
-                                          content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP.'),
-                                          actions: [
-                                            CupertinoDialogAction(
-                                              child: Text(AppLocalizations.of(context)!.cancel),
-                                              onPressed: () => Navigator.pop(context),
-                                            ),
-                                            CupertinoDialogAction(
-                                              child: const Text('Go to Settings'),
-                                              onPressed: () {
-                                                Navigator.pop(context);
-                                                Navigator.of(context).push(
-                                                  CupertinoPageRoute(
-                                                    builder: (context) => const CurrencySettingsScreen(),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    
-                                    final appState = Provider.of<AppState>(context, listen: false);
-                                    // Notification service removed
-                                    final category = appState.categories.firstWhere(
-                                      (cat) => cat.name == categoryName,
-                                      orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                                    );
-                                    try {
-                                      String cleanCostPrice = costPriceController.text.replaceAll(',', '');
-                                      String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
-                                      double costPrice = double.parse(cleanCostPrice);
-                                      double sellingPrice = double.parse(cleanSellingPrice);
-                                      
-                                      subcategory.name = nameController.text.trim();
-                                      subcategory.costPrice = costPrice;
-                                      subcategory.sellingPrice = sellingPrice;
-                                      subcategory.costPriceCurrency = selectedCurrency;
-                                      subcategory.sellingPriceCurrency = selectedCurrency;
-                                      subcategory.trackInventory = trackInventory;
-                                      subcategory.stockQuantity = trackInventory
-                                          ? (subcategory.stockQuantity ?? 0)
-                                          : null;
-                                      
-                                      // Validate prices before saving to prevent corruption
-                                      if (!subcategory.hasValidPrices) {
-                                        final validationMessage = subcategory.priceValidationMessage;
-                                        // Notification removed
-                                        return;
-                                      }
-                                      
-                                      await appState.updateCategory(category);
-                                      if (mounted) {
-                                        Navigator.of(context).pop();
-                                      }
-                                      _filterProducts();
-                                    } catch (e) {
-                                      // Notification removed
-                                    }
-                                  }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isEnabled 
-                                  ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
-                                  : AppColors.dynamicTextSecondary(context),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                child: Text(AppLocalizations.of(context)!.cancel),
                               ),
                             ),
-                            child: Text(isLoss ? 'Confirm' : 'Update'),
-                          );
-                        },
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Builder(
+                                builder: (context) {
+                                  final costPriceText = costPriceController.text.replaceAll(',', '');
+                                  final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                                  final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                                  final sellingPrice = double.tryParse(sellingPriceText);
+                                  final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                                  final hasValidStock = true;
+                                  final thresholdText = lowStockThresholdController.text.trim();
+                                  final parsedThreshold = int.tryParse(thresholdText);
+                                  final hasValidLowStockThreshold = !trackInventory ||
+                                      (thresholdText.isNotEmpty &&
+                                          parsedThreshold != null &&
+                                          parsedThreshold >= 0);
+                                  final hasValidBarcode =
+                                      !useBarcode || barcodeController.text.trim().isNotEmpty;
+                                  final appStateForBarcode =
+                                      Provider.of<AppState>(context, listen: false);
+                                  final barcodeCode = barcodeController.text.trim();
+                                  final barcodeConflict = useBarcode && barcodeCode.isNotEmpty
+                                      ? findProductByBarcode(
+                                          appStateForBarcode.categories,
+                                          barcodeCode,
+                                          excludeSubcategoryId: subcategory.id,
+                                        )
+                                      : null;
+                                  final hasUniqueBarcode = barcodeConflict == null;
+                                  final hasChanges = nameController.text.trim() != initialName ||
+                                      useBarcode != initialUseBarcode ||
+                                      (useBarcode &&
+                                          barcodeController.text.trim() != initialBarcode) ||
+                                      selectedCurrency != initialCurrency ||
+                                      trackInventory != initialTrackInventory ||
+                                      (trackInventory &&
+                                          lowStockThresholdController.text.trim() !=
+                                              initialThresholdText) ||
+                                      costPriceController.text != initialCostPriceText ||
+                                      sellingPriceController.text != initialSellingPriceText;
+                                  
+                                  final isEnabled = hasChanges &&
+                                      nameController.text.trim().isNotEmpty &&
+                                      costPriceController.text.isNotEmpty &&
+                                      sellingPriceController.text.isNotEmpty &&
+                                      hasValidStock &&
+                                      hasValidLowStockThreshold &&
+                                      hasValidBarcode &&
+                                      hasUniqueBarcode;
+                                  
+                                  return ElevatedButton(
+                                    onPressed: isEnabled
+                                        ? () async {
+                                            if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
+                                              showCupertinoDialog(
+                                                context: context,
+                                                builder: (context) => CupertinoAlertDialog(
+                                                  title: const Text('Exchange Rate Required'),
+                                                  content: const Text('Please set an exchange rate in Currency Settings before saving products with LBP.'),
+                                                  actions: [
+                                                    CupertinoDialogAction(
+                                                      child: Text(AppLocalizations.of(context)!.cancel),
+                                                      onPressed: () => Navigator.pop(context),
+                                                    ),
+                                                    CupertinoDialogAction(
+                                                      child: const Text('Go to Settings'),
+                                                      onPressed: () {
+                                                        Navigator.pop(context);
+                                                        Navigator.of(context).push(
+                                                          CupertinoPageRoute(
+                                                            builder: (context) => const CurrencySettingsScreen(),
+                                                          ),
+                                                        );
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              return;
+                                            }
+                                            
+                                            final appState = Provider.of<AppState>(context, listen: false);
+                                            final category = appState.categories.firstWhere(
+                                              (cat) => cat.name == categoryName,
+                                              orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                                            );
+                                            try {
+                                              String cleanCostPrice = costPriceController.text.replaceAll(',', '');
+                                              String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
+                                              double costPrice = double.parse(cleanCostPrice);
+                                              double sellingPrice = double.parse(cleanSellingPrice);
+                                              
+                                              subcategory.name = nameController.text.trim();
+                                              subcategory.useBarcode = useBarcode;
+                                              if (useBarcode) {
+                                                final barcodeText = barcodeController.text.trim();
+                                                if (barcodeText.isEmpty) {
+                                                  return;
+                                                }
+                                                final conflict = findProductByBarcode(
+                                                  appState.categories,
+                                                  barcodeText,
+                                                  excludeSubcategoryId: subcategory.id,
+                                                );
+                                                if (conflict != null) {
+                                                  return;
+                                                }
+                                                subcategory.barcode = barcodeText;
+                                              } else {
+                                                subcategory.barcode = null;
+                                              }
+                                              subcategory.costPrice = costPrice;
+                                              subcategory.sellingPrice = sellingPrice;
+                                              subcategory.costPriceCurrency = selectedCurrency;
+                                              subcategory.sellingPriceCurrency = selectedCurrency;
+                                              subcategory.trackInventory = trackInventory;
+                                              subcategory.stockQuantity = trackInventory
+                                                  ? (subcategory.stockQuantity ?? 0)
+                                                  : null;
+                                              if (trackInventory) {
+                                                final thresholdText =
+                                                    lowStockThresholdController.text.trim();
+                                                if (thresholdText.isEmpty) {
+                                                  return;
+                                                }
+                                                final parsed = int.tryParse(thresholdText);
+                                                if (parsed == null || parsed < 0) {
+                                                  return;
+                                                }
+                                                subcategory.lowStockThreshold = parsed;
+                                              } else {
+                                                subcategory.lowStockThreshold = null;
+                                              }
+                                              
+                                              if (!subcategory.hasValidPrices) {
+                                                return;
+                                              }
+                                              
+                                              await appState.updateCategory(category);
+                                              if (mounted) {
+                                                Navigator.of(context).pop();
+                                              }
+                                              _filterProducts();
+                                            } catch (e) {
+                                              // ignore
+                                            }
+                                          }
+                                        : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isEnabled 
+                                          ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
+                                          : AppColors.dynamicTextSecondary(context),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(isLoss ? 'Confirm' : 'Update'),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+      );
+    }
+
+    if (isDesktopWeb) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return Dialog(
+                backgroundColor: AppColors.dynamicSurface(context),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                insetPadding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 480,
+                    maxHeight: MediaQuery.of(dialogContext).size.height * 0.85,
+                  ),
+                  child: buildEditor(context, setState),
+                ),
+              );
+            },
+          );
+        },
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setState) => buildEditor(context, setState),
         );
       },
     );
@@ -1312,17 +1734,20 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   void _showAddSubcategoryDialog(BuildContext context, String categoryName) {
     final nameController = TextEditingController();
+    final barcodeController = TextEditingController();
     final costPriceController = TextEditingController();
     final sellingPriceController = TextEditingController();
     String selectedCurrency = 'USD';
     bool trackInventory = false;
+    bool useBarcode = false;
     double defaultCostPriceUSD = 0.0;
     double defaultSellingPriceUSD = 0.0;
     
     // Get current exchange rate from app state
     final appState = Provider.of<AppState>(context, listen: false);
     final currentExchangeRate = appState.currencySettings?.exchangeRate;
-    
+    final lowStockThresholdController = TextEditingController();
+
     // Check if exchange rate is set (only required for LBP products)
     if (selectedCurrency == 'LBP' && (currentExchangeRate == null || currentExchangeRate <= 0)) {
       final l10n = AppLocalizations.of(context)!;
@@ -1358,24 +1783,84 @@ class _ProductsScreenState extends State<ProductsScreen> {
     costPriceController.addListener(() {});
     sellingPriceController.addListener(() {});
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (BuildContext context) {
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext sheetContext) {
         return StatefulBuilder(
           builder: (context, setState) {
             // Add listeners to trigger rebuild when text changes
             nameController.addListener(() => setState(() {}));
             costPriceController.addListener(() => setState(() {}));
             sellingPriceController.addListener(() => setState(() {}));
+            lowStockThresholdController.addListener(() => setState(() {}));
+            barcodeController.addListener(() => setState(() {}));
             
             final l10n = AppLocalizations.of(context)!;
-            return AlertDialog(
-              title: Text(l10n.addSubcategoryTo(categoryName)),
-              contentPadding: const EdgeInsets.all(16),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Material(
+                color: AppColors.dynamicSurface(context),
+                clipBehavior: Clip.antiAlias,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.92,
+                  ),
+                  child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: AppColors.dynamicTextSecondary(context)
+                                    .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(2.5),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    l10n.addSubcategoryTo(categoryName),
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.dynamicTextPrimary(context),
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: AppColors.dynamicTextSecondary(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                     TextField(
                       controller: nameController,
                       decoration: InputDecoration(
@@ -1383,6 +1868,48 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         hintText: l10n.subcategoryNameHint,
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(l10n.useBarcode),
+                      value: useBarcode,
+                      onChanged: (value) {
+                        setState(() {
+                          useBarcode = value;
+                        });
+                      },
+                    ),
+                    if (useBarcode) ...[
+                      const SizedBox(height: 8),
+                      Builder(
+                        builder: (context) {
+                          final appState = Provider.of<AppState>(context, listen: false);
+                          final code = barcodeController.text.trim();
+                          String? barcodeError;
+                          if (code.isNotEmpty) {
+                            final conflict = findProductByBarcode(
+                              appState.categories,
+                              code,
+                            );
+                            if (conflict != null) {
+                              barcodeError = l10n.duplicateBarcode(conflict.subcategory.name);
+                            }
+                          }
+                          return TextField(
+                            controller: barcodeController,
+                            decoration: InputDecoration(
+                              labelText: l10n.barcodeProductLabel,
+                              hintText: l10n.barcodeRequiredHint,
+                              errorText: barcodeError,
+                            ),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     Text(
                       l10n.currencyLabel,
@@ -1482,8 +2009,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     const SizedBox(height: 16),
                     SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Track inventory'),
-                      subtitle: const Text('Enable stock quantity'),
+                      title: Text(AppLocalizations.of(context)!.trackInventory),
                       value: trackInventory,
                       onChanged: (value) {
                         setState(() {
@@ -1491,6 +2017,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         });
                       },
                     ),
+                    if (trackInventory) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: lowStockThresholdController,
+                        decoration: InputDecoration(
+                          labelText: l10n.productLowStockThreshold,
+                          hintText: l10n.productLowStockThresholdHint,
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      ),
+                    ],
                     
                     // Calculate if there's a loss
                     Builder(
@@ -1535,118 +2073,160 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         );
                       },
                     ),
-                  ],
-                ),
-              ),
-              actions: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                            ],
+                          ),
                         ),
-                        child: Text(AppLocalizations.of(context)!.cancel),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Builder(
-                        builder: (context) {
-                          final costPriceText = costPriceController.text.replaceAll(',', '');
-                          final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
-                          final costPrice = double.tryParse(costPriceText) ?? 0.0;
-                          final sellingPrice = double.tryParse(sellingPriceText);
-                          final isLoss = sellingPrice != null && sellingPrice < costPrice;
-                          final hasValidStock = true;
-                          
-                          final isEnabled = nameController.text.trim().isNotEmpty &&
-                              costPriceController.text.isNotEmpty &&
-                              sellingPriceController.text.isNotEmpty &&
-                              hasValidStock;
-                          
-                          return ElevatedButton(
-                            onPressed: isEnabled
-                                ? () async {
-                                    final appState = Provider.of<AppState>(context, listen: false);
-                                    // Notification service removed
-                                    final category = appState.categories.firstWhere(
-                                      (cat) => cat.name == categoryName,
-                                      orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
-                                    );
-                                    try {
-                                      String cleanCostPrice = costPriceController.text.replaceAll(',', '');
-                                      String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
-                                      double costPrice = double.parse(cleanCostPrice);
-                                      double sellingPrice = double.parse(cleanSellingPrice);
-                                      
-                                      final subcategory = Subcategory(
-                                        id: appState.generateProductPurchaseId(),
-                                        name: nameController.text.trim(),
-                                        description: null,
-                                        costPrice: costPrice,
-                                        sellingPrice: sellingPrice,
-                                        createdAt: DateTime.now(),
-                                        costPriceCurrency: selectedCurrency,
-                                        sellingPriceCurrency: selectedCurrency,
-                                        trackInventory: trackInventory,
-                                        stockQuantity: trackInventory
-                                            ? 0
-                                            : null,
-                                      );
-                                      
-                                      // Validate prices before saving to prevent corruption
-                                      if (!subcategory.hasValidPrices) {
-                                        final validationMessage = subcategory.priceValidationMessage;
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text(validationMessage ?? 'Invalid prices')),
-                                          );
-                                        }
-                                        return;
-                                      }
-                                      if (category.id.isEmpty) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(content: Text('Category not found. Please try again.')),
-                                          );
-                                        }
-                                        return;
-                                      }
-                                      category.subcategories.add(subcategory);
-                                      await appState.updateCategory(category);
-                                      if (context.mounted) {
-                                        Navigator.of(context).pop();
-                                      }
-                                      if (mounted) _filterProducts();
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Failed to add: ${e.toString()}')),
-                                        );
-                                      }
-                                    }
-                                  }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isEnabled 
-                                  ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
-                                  : AppColors.dynamicTextSecondary(context),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                ),
+                                child: Text(l10n.cancel),
                               ),
                             ),
-                            child: Text(isLoss ? l10n.confirm : l10n.add),
-                          );
-                        },
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Builder(
+                                builder: (context) {
+                                  final costPriceText = costPriceController.text.replaceAll(',', '');
+                                  final sellingPriceText = sellingPriceController.text.replaceAll(',', '');
+                                  final costPrice = double.tryParse(costPriceText) ?? 0.0;
+                                  final sellingPrice = double.tryParse(sellingPriceText);
+                                  final isLoss = sellingPrice != null && sellingPrice < costPrice;
+                                  final hasValidStock = true;
+                                  final thresholdText = lowStockThresholdController.text.trim();
+                                  final parsedThreshold = int.tryParse(thresholdText);
+                                  final hasValidLowStockThreshold = !trackInventory ||
+                                      (thresholdText.isNotEmpty &&
+                                          parsedThreshold != null &&
+                                          parsedThreshold >= 0);
+                                  final hasValidBarcode =
+                                      !useBarcode || barcodeController.text.trim().isNotEmpty;
+                                  final appStateForBarcode =
+                                      Provider.of<AppState>(context, listen: false);
+                                  final barcodeCode = barcodeController.text.trim();
+                                  final barcodeConflict = useBarcode && barcodeCode.isNotEmpty
+                                      ? findProductByBarcode(
+                                          appStateForBarcode.categories,
+                                          barcodeCode,
+                                        )
+                                      : null;
+                                  final hasUniqueBarcode = barcodeConflict == null;
+                                  
+                                  final isEnabled = nameController.text.trim().isNotEmpty &&
+                                      costPriceController.text.isNotEmpty &&
+                                      sellingPriceController.text.isNotEmpty &&
+                                      hasValidStock &&
+                                      hasValidLowStockThreshold &&
+                                      hasValidBarcode &&
+                                      hasUniqueBarcode;
+                                  
+                                  return ElevatedButton(
+                                    onPressed: isEnabled
+                                        ? () async {
+                                            final appState = Provider.of<AppState>(context, listen: false);
+                                            final category = appState.categories.firstWhere(
+                                              (cat) => cat.name == categoryName,
+                                              orElse: () => ProductCategory(id: '', name: '', createdAt: DateTime.now()),
+                                            );
+                                            try {
+                                              String cleanCostPrice = costPriceController.text.replaceAll(',', '');
+                                              String cleanSellingPrice = sellingPriceController.text.replaceAll(',', '');
+                                              double costPrice = double.parse(cleanCostPrice);
+                                              double sellingPrice = double.parse(cleanSellingPrice);
+                                              
+                                              String? productBarcode;
+                                              if (useBarcode) {
+                                                final barcodeText = barcodeController.text.trim();
+                                                if (barcodeText.isEmpty) {
+                                                  return;
+                                                }
+                                                final conflict = findProductByBarcode(
+                                                  appState.categories,
+                                                  barcodeText,
+                                                );
+                                                if (conflict != null) {
+                                                  return;
+                                                }
+                                                productBarcode = barcodeText;
+                                              }
+                                              int? productLowStockThreshold;
+                                              if (trackInventory) {
+                                                final thresholdText =
+                                                    lowStockThresholdController.text.trim();
+                                                if (thresholdText.isEmpty) {
+                                                  return;
+                                                }
+                                                final parsed = int.tryParse(thresholdText);
+                                                if (parsed == null || parsed < 0) {
+                                                  return;
+                                                }
+                                                productLowStockThreshold = parsed;
+                                              }
+                                              final subcategory = Subcategory(
+                                                id: appState.generateProductPurchaseId(),
+                                                name: nameController.text.trim(),
+                                                description: null,
+                                                costPrice: costPrice,
+                                                sellingPrice: sellingPrice,
+                                                createdAt: DateTime.now(),
+                                                costPriceCurrency: selectedCurrency,
+                                                sellingPriceCurrency: selectedCurrency,
+                                                trackInventory: trackInventory,
+                                                stockQuantity: trackInventory
+                                                    ? 0
+                                                    : null,
+                                                useBarcode: useBarcode,
+                                                barcode: productBarcode,
+                                                lowStockThreshold: productLowStockThreshold,
+                                              );
+                                              
+                                              if (!subcategory.hasValidPrices) {
+                                                return;
+                                              }
+                                              if (category.id.isEmpty) {
+                                                return;
+                                              }
+                                              category.subcategories.add(subcategory);
+                                              await appState.updateCategory(category);
+                                              if (context.mounted) {
+                                                Navigator.of(context).pop();
+                                              }
+                                              if (mounted) _filterProducts();
+                                            } catch (e) {
+                                              // ignore
+                                            }
+                                          }
+                                        : null,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isEnabled 
+                                          ? (isLoss ? AppColors.error : AppColors.dynamicPrimary(context))
+                                          : AppColors.dynamicTextSecondary(context),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: Text(isLoss ? l10n.confirm : l10n.add),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
+            ),
             );
           },
         );
@@ -2346,21 +2926,184 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 }
 
+class _DesktopProductTableColumns {
+  _DesktopProductTableColumns._();
+
+  static const double horizontalPadding = 20;
+  static const double costWidth = 100;
+  static const double priceWidth = 100;
+  static const double revenueWidth = 110;
+  static const double stockWidth = 130;
+}
+
+class _DesktopProductsTableHeader extends StatelessWidget {
+  const _DesktopProductsTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final labelStyle = TextStyle(
+      color: AppColors.dynamicTextSecondary(context),
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.3,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: _DesktopProductTableColumns.horizontalPadding,
+        vertical: 14,
+      ),
+      child: Row(
+        children: [
+          Expanded(child: Text(l10n.productLabel, style: labelStyle)),
+          SizedBox(
+            width: _DesktopProductTableColumns.costWidth,
+            child: Text(l10n.productCost, style: labelStyle),
+          ),
+          SizedBox(
+            width: _DesktopProductTableColumns.priceWidth,
+            child: Text(l10n.productPrice, style: labelStyle),
+          ),
+          SizedBox(
+            width: _DesktopProductTableColumns.revenueWidth,
+            child: Text(l10n.productRevenue, style: labelStyle),
+          ),
+          SizedBox(
+            width: _DesktopProductTableColumns.stockWidth,
+            child: Text(
+              l10n.quantity,
+              style: labelStyle,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProductCard extends StatelessWidget {
   final Subcategory subcategory;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
-  final String? categoryName; // Optional category name to display
+  final String? categoryName;
+  final bool desktopRow;
 
   const _ProductCard({
     required this.subcategory,
     required this.onEdit,
     required this.onDelete,
     this.categoryName,
+    this.desktopRow = false,
   });
+
+  static const double _productChipHeight = 36;
+
+  bool get _showsBarcode =>
+      subcategory.useBarcode &&
+      (subcategory.barcode?.trim().isNotEmpty ?? false);
+
+  Widget _buildProductChip(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    String? label,
+    required String value,
+    Color? valueColor,
+  }) {
+    final displayValueColor = valueColor ?? AppColors.dynamicTextPrimary(context);
+    final showLabel = label != null && label.isNotEmpty;
+
+    return Container(
+      height: _productChipHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            fit: FlexFit.loose,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: showLabel
+                  ? RichText(
+                      maxLines: 1,
+                      softWrap: false,
+                      text: TextSpan(
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: color,
+                        ),
+                        children: [
+                          TextSpan(text: '$label: '),
+                          TextSpan(
+                            text: value,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: displayValueColor,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: displayValueColor,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBarcodeChip(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return _buildProductChip(
+      context,
+      icon: Icons.qr_code_2,
+      color: AppColors.dynamicPrimary(context),
+      label: l10n.barcodeLabel,
+      value: subcategory.barcode!.trim(),
+    );
+  }
+
+  Widget _buildStockStatusChip(
+    BuildContext context, {
+    required Color badgeColor,
+    required IconData badgeIcon,
+    required String value,
+  }) {
+    return _buildProductChip(
+      context,
+      icon: badgeIcon,
+      color: badgeColor,
+      value: value,
+      valueColor: badgeColor,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (desktopRow) {
+      return _buildDesktopRow(context);
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -2375,121 +3118,45 @@ class _ProductCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+              Consumer<AppState>(
+                builder: (context, appState, child) {
+                  final showExchange = appState.currencySettings?.exchangeRate != null &&
+                      (subcategory.costPriceCurrency == 'LBP' ||
+                          subcategory.sellingPriceCurrency == 'LBP');
+                  final stock = subcategory.stockQuantity ?? 0.0;
+                  final stockText = _formatStockQuantity(stock);
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               subcategory.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.dynamicTextPrimary(context),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            // Exchange Rate Display - Only show for LBP products
-                            Consumer<AppState>(
-                              builder: (context, appState, child) {
-
-                                
-                                // Show exchange rate chip for LBP products when currency settings are available
-                                if (appState.currencySettings?.exchangeRate != null && 
-                                    (subcategory.costPriceCurrency == 'LBP' || subcategory.sellingPriceCurrency == 'LBP')) {
-
-                                  return _buildExchangeRateChip(context, appState.currencySettings!);
-                                } else {
-
-                                  return const SizedBox.shrink();
-                                }
-                              },
-                            ),
+                            if (showExchange) ...[
+                              const SizedBox(height: 4),
+                              _buildExchangeRateChip(
+                                context,
+                                appState.currencySettings!,
+                              ),
+                            ],
                           ],
                         ),
-                        if (categoryName != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            categoryName!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.dynamicTextSecondary(context),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 6),
-                        Consumer<AppState>(
-                          builder: (context, appState, child) {
-                            final stock = subcategory.stockQuantity ?? 0.0;
-                            final threshold = appState.lowStockThreshold;
-                            final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
-                            final isLow = subcategory.trackInventory &&
-                                stock > 0 &&
-                                stock <= threshold;
-                            final isOut = subcategory.trackInventory && stock <= 0;
-
-                            Color badgeColor;
-                            IconData badgeIcon;
-                            String badgeLabel;
-
-                            if (!subcategory.trackInventory) {
-                              badgeColor = AppColors.dynamicTextSecondary(context);
-                              badgeIcon = Icons.inventory_2_outlined;
-                              badgeLabel = 'Not tracked';
-                            } else if (isOut) {
-                              badgeColor = AppColors.error;
-                              badgeIcon = Icons.error_outline;
-                              badgeLabel = 'Out of stock';
-                            } else if (isLow) {
-                              badgeColor = AppColors.dynamicWarning(context);
-                              badgeIcon = Icons.warning_amber_rounded;
-                              badgeLabel = 'Low: $stockText';
-                            } else {
-                              badgeColor = AppColors.dynamicSuccess(context);
-                              badgeIcon = Icons.check_circle_outline;
-                              badgeLabel = 'In stock: $stockText';
-                            }
-
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: badgeColor.withAlpha(26),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: badgeColor.withAlpha(77)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(badgeIcon, size: 13, color: badgeColor),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    badgeLabel,
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      color: badgeColor,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (subcategory.trackInventory) ...[
-                    const SizedBox(width: 8),
-                    Consumer<AppState>(
-                      builder: (context, appState, child) {
-                        final stock = subcategory.stockQuantity ?? 0.0;
-                        final stockText = _formatStockQuantity(stock);
-
-                        return _buildStockStepper(
+                      ),
+                      if (subcategory.trackInventory) ...[
+                        const SizedBox(width: 8),
+                        _buildStockStepper(
                           context,
                           stockText: stockText,
                           currentStock: stock,
@@ -2498,14 +3165,28 @@ class _ProductCard extends StatelessWidget {
                           onDecrease: stock > 0
                               ? () => _updateStockQuantity(context, appState, stock - 1)
                               : null,
-                          onIncrease: () => _updateStockQuantity(context, appState, stock + 1),
-                        );
-                      },
-                    ),
-                  ],
-                ],
+                          onIncrease: () =>
+                              _updateStockQuantity(context, appState, stock + 1),
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
-            const SizedBox(height: 12),
+              if (categoryName != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  categoryName!,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.dynamicTextSecondary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 8),
+              _buildStatusChipRow(context),
+              const SizedBox(height: 12),
             Consumer<AppState>(
               builder: (context, appState, child) {
                 final l10n = AppLocalizations.of(context)!;
@@ -2555,16 +3236,26 @@ class _ProductCard extends StatelessWidget {
                 
 
                 
+                final costValue = subcategory.costPriceCurrency == 'LBP'
+                    ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+                        context, subcategory.costPrice, storedCurrency: 'LBP')
+                    : '${totalCost.toStringAsFixed(2)}\$';
+                final priceValue = subcategory.sellingPriceCurrency == 'LBP'
+                    ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+                        context, subcategory.sellingPrice, storedCurrency: 'LBP')
+                    : '${totalPrice.toStringAsFixed(2)}\$';
+                final revenueValue = subcategory.sellingPriceCurrency == 'LBP'
+                    ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+                        context, subcategory.profit, storedCurrency: 'LBP')
+                    : '${totalRevenue.toStringAsFixed(2)}\$';
+
                 return Row(
                   children: [
                     Expanded(
                       child: _buildInfoChip(
                         context,
                         l10n.productCost,
-                        // Pass original LBP values for LBP products, converted USD values for USD products
-                        subcategory.costPriceCurrency == 'LBP' 
-                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.costPrice, storedCurrency: 'LBP')
-                            : '${totalCost.toStringAsFixed(2)}\$',
+                        costValue,
                         Icons.shopping_cart,
                         AppColors.dynamicWarning(context),
                       ),
@@ -2574,10 +3265,7 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         l10n.productPrice,
-                        // Pass original LBP values for LBP products, converted USD values for USD products
-                        subcategory.sellingPriceCurrency == 'LBP'
-                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.sellingPrice, storedCurrency: 'LBP')
-                            : '${totalPrice.toStringAsFixed(2)}\$',
+                        priceValue,
                         Icons.attach_money,
                         AppColors.dynamicPrimary(context),
                       ),
@@ -2587,12 +3275,11 @@ class _ProductCard extends StatelessWidget {
                       child: _buildInfoChip(
                         context,
                         totalRevenue >= 0 ? l10n.productRevenue : l10n.productLoss,
-                        // Pass original LBP values for LBP products, converted USD values for USD products
-                        subcategory.sellingPriceCurrency == 'LBP'
-                            ? CurrencyFormatter.getFormattedUSDForProductDisplay(context, subcategory.profit, storedCurrency: 'LBP')
-                            : '${totalRevenue.toStringAsFixed(2)}\$',
+                        revenueValue,
                         Icons.trending_up,
-                        totalRevenue >= 0 ? AppColors.dynamicSuccess(context) : AppColors.error,
+                        totalRevenue >= 0
+                            ? AppColors.dynamicSuccess(context)
+                            : AppColors.error,
                       ),
                     ),
                   ],
@@ -2607,7 +3294,278 @@ class _ProductCard extends StatelessWidget {
     );
   }
 
+  ({
+    Color color,
+    IconData icon,
+    String value,
+  }) _stockStatusParts(BuildContext context) {
+    final stock = subcategory.stockQuantity ?? 0.0;
+    final threshold = subcategory.lowStockThreshold;
+    final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
+    final isLow = subcategory.trackInventory &&
+        threshold != null &&
+        stock > 0 &&
+        stock <= threshold;
+    final isOut = subcategory.trackInventory && stock <= 0;
+
+    if (!subcategory.trackInventory) {
+      return (
+        color: AppColors.dynamicTextSecondary(context),
+        icon: Icons.inventory_2_outlined,
+        value: 'Not tracked',
+      );
+    }
+    if (isOut) {
+      return (
+        color: AppColors.error,
+        icon: Icons.error_outline,
+        value: 'Out of stock',
+      );
+    }
+    if (isLow) {
+      return (
+        color: AppColors.dynamicWarning(context),
+        icon: Icons.warning_amber_rounded,
+        value: 'Low · $stockText',
+      );
+    }
+    return (
+      color: AppColors.dynamicSuccess(context),
+      icon: Icons.check_circle_outline,
+      value: 'In stock · $stockText',
+    );
+  }
+
+  Widget _buildStatusChipRow(BuildContext context) {
+    final stock = _stockStatusParts(context);
+    final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+
+    if (isDesktopWeb) {
+      return Row(
+        children: [
+          if (_showsBarcode) ...[
+            Expanded(
+              flex: 3,
+              child: _buildBarcodeChip(context),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _buildStockStatusChip(
+                context,
+                badgeColor: stock.color,
+                badgeIcon: stock.icon,
+                value: stock.value,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        if (_showsBarcode) ...[
+          Expanded(
+            flex: 2,
+            child: _buildBarcodeChip(context),
+          ),
+          const SizedBox(width: 8),
+        ],
+        Expanded(
+          flex: 1,
+          child: _buildStockStatusChip(
+            context,
+            badgeColor: stock.color,
+            badgeIcon: stock.icon,
+            value: stock.value,
+          ),
+        ),
+      ],
+    );
+  }
+
+  ({String cost, String price, String revenue, bool revenuePositive}) _financialValues(
+    BuildContext context,
+    AppState appState,
+  ) {
+    final productPurchases = appState.productPurchases
+        .where((p) => p.subcategoryName == subcategory.name)
+        .toList();
+
+    double totalCost = 0.0;
+    double totalPrice = 0.0;
+    double totalRevenue = 0.0;
+
+    if (productPurchases.isNotEmpty) {
+      for (final purchase in productPurchases) {
+        totalCost += purchase.costPrice;
+        totalPrice += purchase.sellingPrice;
+        totalRevenue += (purchase.sellingPrice - purchase.costPrice);
+      }
+    } else {
+      totalCost = subcategory.costPrice;
+      totalPrice = subcategory.sellingPrice;
+      totalRevenue = subcategory.profit;
+
+      if (appState.currencySettings?.exchangeRate != null &&
+          (subcategory.costPriceCurrency == 'LBP' ||
+              subcategory.sellingPriceCurrency == 'LBP')) {
+        final exchangeRate = appState.currencySettings!.exchangeRate!;
+        totalCost = totalCost / exchangeRate;
+        totalPrice = totalPrice / exchangeRate;
+        totalRevenue = totalRevenue / exchangeRate;
+      }
+    }
+
+    final costValue = subcategory.costPriceCurrency == 'LBP'
+        ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+            context, subcategory.costPrice, storedCurrency: 'LBP')
+        : '${totalCost.toStringAsFixed(2)}\$';
+    final priceValue = subcategory.sellingPriceCurrency == 'LBP'
+        ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+            context, subcategory.sellingPrice, storedCurrency: 'LBP')
+        : '${totalPrice.toStringAsFixed(2)}\$';
+    final revenueValue = subcategory.sellingPriceCurrency == 'LBP'
+        ? CurrencyFormatter.getFormattedUSDForProductDisplay(
+            context, subcategory.profit, storedCurrency: 'LBP')
+        : '${totalRevenue.toStringAsFixed(2)}\$';
+
+    return (
+      cost: costValue,
+      price: priceValue,
+      revenue: revenueValue,
+      revenuePositive: totalRevenue >= 0,
+    );
+  }
+
+  Widget _buildDesktopRow(BuildContext context) {
+    return Consumer<AppState>(
+      builder: (context, appState, child) {
+        final values = _financialValues(context, appState);
+        final revenueColor = values.revenuePositive
+            ? AppColors.dynamicSuccess(context)
+            : AppColors.error;
+        final stock = subcategory.stockQuantity ?? 0.0;
+        final stockText = _formatStockQuantity(stock);
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _showProductActionSheet(context),
+            hoverColor: AppColors.dynamicPrimary(context).withValues(alpha: 0.06),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: _DesktopProductTableColumns.horizontalPadding,
+                vertical: 12,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          subcategory.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        _buildStatusChipRow(context),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: _DesktopProductTableColumns.costWidth,
+                    child: Text(
+                      values.cost,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.dynamicWarning(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: _DesktopProductTableColumns.priceWidth,
+                    child: Text(
+                      values.price,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.dynamicPrimary(context),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: _DesktopProductTableColumns.revenueWidth,
+                    child: Text(
+                      values.revenue,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: revenueColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: _DesktopProductTableColumns.stockWidth,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: subcategory.trackInventory
+                          ? _buildStockStepper(
+                              context,
+                              stockText: stockText,
+                              currentStock: stock,
+                              onManualEdit: (manualStock) => _updateStockQuantity(
+                                context,
+                                appState,
+                                manualStock,
+                              ),
+                              onDecrease: stock > 0
+                                  ? () => _updateStockQuantity(
+                                        context,
+                                        appState,
+                                        stock - 1,
+                                      )
+                                  : null,
+                              onIncrease: () => _updateStockQuantity(
+                                context,
+                                appState,
+                                stock + 1,
+                              ),
+                            )
+                          : Text(
+                              '—',
+                              style: TextStyle(
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                              textAlign: TextAlign.end,
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showProductActionSheet(BuildContext context) {
+    if (ResponsiveLayout.isDesktopWeb(context)) {
+      _showProductWebActionDialog(context);
+      return;
+    }
+
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext context) => CupertinoActionSheet(
@@ -2642,6 +3600,81 @@ class _ProductCard extends StatelessWidget {
           child: Text(AppLocalizations.of(context)!.cancel),
         ),
       ),
+    );
+  }
+
+  void _showProductWebActionDialog(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final primary = AppColors.dynamicPrimary(context);
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: AppColors.dynamicSurface(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          subcategory.name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.dynamicTextPrimary(context),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        icon: Icon(
+                          Icons.close_rounded,
+                          color: AppColors.dynamicTextSecondary(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _QuickActionTile(
+                    icon: Icons.edit_outlined,
+                    label: 'Edit',
+                    color: primary,
+                    onTap: () {
+                      Navigator.of(dialogContext).pop();
+                      onEdit();
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  _QuickActionTile(
+                    icon: Icons.delete_outline_rounded,
+                    label: l10n.delete,
+                    color: AppColors.error,
+                    onTap: () {
+                      Navigator.of(dialogContext).pop();
+                      onDelete();
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    child: Text(l10n.cancel),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -2689,49 +3722,15 @@ class _ProductCard extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withAlpha(26), // 0.1 * 255
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withAlpha(77)), // 0.3 * 255
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 2),
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '$label: ',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-                // Keep amount and $ in LTR so dollar sign stays on the right in RTL
-                fw.Directionality(
-                  textDirection: fw.TextDirection.ltr,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: color,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    return fw.Directionality(
+      textDirection: fw.TextDirection.ltr,
+      child: _buildProductChip(
+        context,
+        icon: icon,
+        color: color,
+        label: label,
+        value: value,
+        valueColor: color,
       ),
     );
   }
@@ -2762,107 +3761,99 @@ class _ProductCard extends StatelessWidget {
     required VoidCallback? onDecrease,
     required VoidCallback onIncrease,
   }) {
-    final borderColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.systemGrey4,
-      context,
-    );
-    final bgColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.systemGrey6,
-      context,
-    );
+    final primary = AppColors.dynamicPrimary(context);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildStockControlButton(
-            context,
-            icon: CupertinoIcons.minus,
-            onPressed: onDecrease,
-          ),
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            minSize: 30,
-            onPressed: () async {
-              final manualStock = await _showStockQuantityDialog(context, currentStock);
-              if (manualStock == null) return;
-              HapticFeedback.selectionClick();
-              onManualEdit(manualStock);
-            },
-            child: Container(
-            constraints: const BoxConstraints(minWidth: 38),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildStockStepperShapeButton(
+          context,
+          icon: Icons.remove_rounded,
+          color: primary,
+          enabled: onDecrease != null,
+          onPressed: onDecrease,
+        ),
+        const SizedBox(width: 6),
+        InkWell(
+          onTap: () async {
+            final manualStock =
+                await _showStockQuantityDialog(context, currentStock);
+            if (manualStock == null) return;
+            HapticFeedback.selectionClick();
+            onManualEdit(manualStock);
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.dynamicSurface(context),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.dynamicBorder(context).withValues(alpha: 0.4),
+              ),
+            ),
             alignment: Alignment.center,
             child: Text(
               stockText,
               style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: AppColors.dynamicTextPrimary(context),
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),
-          ),
-          _buildStockControlButton(
-            context,
-            icon: CupertinoIcons.plus,
-            onPressed: onIncrease,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 6),
+        _buildStockStepperShapeButton(
+          context,
+          icon: Icons.add_rounded,
+          color: primary,
+          enabled: true,
+          onPressed: onIncrease,
+        ),
+      ],
     );
   }
 
-  Widget _buildStockControlButton(
+  Widget _buildStockStepperShapeButton(
     BuildContext context, {
     required IconData icon,
+    required Color color,
+    required bool enabled,
     required VoidCallback? onPressed,
   }) {
-    final isEnabled = onPressed != null;
-    final actionColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.activeBlue,
-      context,
-    );
-    final disabledColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.systemGrey3,
-      context,
-    );
-    final buttonColor = CupertinoDynamicColor.resolve(
-      CupertinoColors.systemBackground,
-      context,
-    );
+    const double size = 34;
+    final disabledColor = AppColors.dynamicTextSecondary(context).withValues(alpha: 0.35);
 
-    return SizedBox(
-      width: 30,
-      height: 30,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: buttonColor,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isEnabled ? actionColor.withAlpha(70) : disabledColor,
-            width: 0.8,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled && onPressed != null
+            ? () {
+                HapticFeedback.selectionClick();
+                onPressed();
+              }
+            : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Ink(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: enabled ? color.withValues(alpha: 0.12) : Colors.transparent,
+            border: Border.all(
+              color: enabled ? color.withValues(alpha: 0.45) : disabledColor,
+              width: 1.2,
+            ),
           ),
-        ),
-        child: CupertinoButton(
-          onPressed: onPressed == null
-              ? null
-              : () {
-                  HapticFeedback.selectionClick();
-                  onPressed();
-                },
-          padding: EdgeInsets.zero,
-          minSize: 30,
-          child: Icon(
-            icon,
-            color: isEnabled
-                ? actionColor
-                : CupertinoDynamicColor.resolve(CupertinoColors.systemGrey, context),
+          child: Center(
+            child: Icon(
+              icon,
+              size: 20,
+              color: enabled ? color : disabledColor,
+            ),
           ),
         ),
       ),
@@ -2963,76 +3954,163 @@ class _CategorySection extends StatelessWidget {
   final List<Subcategory> subcategories;
   final Function(Subcategory) onEditProduct;
   final Function(Subcategory) onDeleteProduct;
+  final bool desktopTable;
 
   const _CategorySection({
     required this.category,
     required this.subcategories,
     required this.onEditProduct,
     required this.onDeleteProduct,
+    this.desktopTable = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final header = Container(
+      margin: EdgeInsets.only(
+        top: desktopTable ? 12 : 16,
+        bottom: desktopTable ? 8 : 12,
+        left: 16,
+        right: 16,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicPrimary(context).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.dynamicPrimary(context).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.category_rounded,
+            color: AppColors.dynamicPrimary(context),
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              category.name,
+              style: TextStyle(
+                fontSize: desktopTable ? 15 : 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.dynamicPrimary(context),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.dynamicPrimary(context),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '${subcategories.length} product${subcategories.length == 1 ? '' : 's'}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (desktopTable) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          header,
+          const _DesktopProductsTableHeader(),
+          const Divider(height: 1),
+          ...subcategories.map(
+            (subcategory) => Column(
+              children: [
+                _ProductCard(
+                  subcategory: subcategory,
+                  onEdit: () => onEditProduct(subcategory),
+                  onDelete: () => onDeleteProduct(subcategory),
+                  desktopRow: true,
+                ),
+                Divider(
+                  height: 1,
+                  color: AppColors.dynamicBorder(context).withValues(alpha: 0.15),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category Header
-        Container(
-          margin: const EdgeInsets.only(top: 16, bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.3),
-              width: 1,
+        header,
+        ...subcategories.map(
+          (subcategory) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _ProductCard(
+              subcategory: subcategory,
+              onEdit: () => onEditProduct(subcategory),
+              onDelete: () => onDeleteProduct(subcategory),
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionTile({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        hoverColor: color.withValues(alpha: 0.14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             children: [
-              Icon(
-                Icons.category,
-                color: AppColors.dynamicPrimary(context),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
+              Icon(icon, size: 22, color: color),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  category.name,
+                  label,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.dynamicPrimary(context),
+                    color: color,
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.dynamicPrimary(context),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${subcategories.length} product${subcategories.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: color.withValues(alpha: 0.6),
               ),
             ],
           ),
         ),
-        
-        // Subcategories List
-        ...subcategories.map((subcategory) => _ProductCard(
-          subcategory: subcategory,
-          onEdit: () => onEditProduct(subcategory),
-          onDelete: () => onDeleteProduct(subcategory),
-          categoryName: null, // Don't show category name since it's already shown in header
-        )),
-      ],
+      ),
     );
   }
-} 
+}

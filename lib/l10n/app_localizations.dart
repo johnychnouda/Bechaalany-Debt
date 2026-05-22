@@ -1916,6 +1916,90 @@ abstract class AppLocalizations {
   /// **'Add Debt from Product'**
   String get addDebtFromProduct;
 
+  /// No description provided for @barcodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode'**
+  String get barcodeLabel;
+
+  /// No description provided for @barcodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan or type barcode number'**
+  String get barcodeHint;
+
+  /// No description provided for @scanBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan barcode'**
+  String get scanBarcode;
+
+  /// No description provided for @findProductByBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Find product'**
+  String get findProductByBarcode;
+
+  /// No description provided for @pointCameraAtBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at the barcode on the product'**
+  String get pointCameraAtBarcode;
+
+  /// No description provided for @productNotFoundForBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'No product found for this barcode'**
+  String get productNotFoundForBarcode;
+
+  /// No description provided for @useBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Use barcode'**
+  String get useBarcode;
+
+  /// No description provided for @trackInventory.
+  ///
+  /// In en, this message translates to:
+  /// **'Track inventory'**
+  String get trackInventory;
+
+  /// No description provided for @barcodeProductLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode'**
+  String get barcodeProductLabel;
+
+  /// No description provided for @barcodeProductHint.
+  ///
+  /// In en, this message translates to:
+  /// **'EAN / UPC number on package'**
+  String get barcodeProductHint;
+
+  /// No description provided for @barcodeRequiredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get barcodeRequiredHint;
+
+  /// No description provided for @barcodeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a barcode when barcode is enabled'**
+  String get barcodeRequired;
+
+  /// No description provided for @duplicateBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'This barcode is already used by \"{productName}\"'**
+  String duplicateBarcode(String productName);
+
+  /// No description provided for @useBarcodeScannerOrType.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your barcode scanner or type the number, then tap Find product'**
+  String get useBarcodeScannerOrType;
+
   /// No description provided for @customerLabel.
   ///
   /// In en, this message translates to:
@@ -1987,6 +2071,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add products to this category in the Products tab.'**
   String get addProductsToCategoryInProductsTab;
+
+  /// No description provided for @productLowStockThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Low stock threshold'**
+  String get productLowStockThreshold;
+
+  /// No description provided for @productLowStockThresholdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Required'**
+  String get productLowStockThresholdHint;
+
+  /// No description provided for @lowStockThresholdRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a low stock threshold when inventory tracking is enabled'**
+  String get lowStockThresholdRequired;
 
   /// No description provided for @productPurchases.
   ///

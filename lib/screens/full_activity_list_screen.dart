@@ -15,10 +15,12 @@ enum ActivityView { daily, weekly, monthly, yearly }
 
 class FullActivityListScreen extends StatefulWidget {
   final ActivityView initialView;
+  final bool embeddedInShell;
 
   const FullActivityListScreen({
     super.key,
     this.initialView = ActivityView.daily,
+    this.embeddedInShell = false,
   });
 
   @override
@@ -77,10 +79,13 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
       appBar: AppBar(
         backgroundColor: AppColors.dynamicSurface(context),
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: !widget.embeddedInShell,
+        leading: widget.embeddedInShell
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
         title: Text(
           AppLocalizations.of(context)!.activityHistory,
           style: AppTheme.title3.copyWith(
@@ -884,15 +889,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
             ),
           ),
         );
-      } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate monthly report. Please try again.'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
       }
     } catch (e) {
       // Hide loading indicator if it's still showing
@@ -900,14 +896,6 @@ class _FullActivityListScreenState extends State<FullActivityListScreen>
         Navigator.of(context).pop();
       }
       
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating report: ${e.toString()}'),
-          backgroundColor: AppColors.error,
-          duration: const Duration(seconds: 3),
-        ),
-      );
     }
   }
 

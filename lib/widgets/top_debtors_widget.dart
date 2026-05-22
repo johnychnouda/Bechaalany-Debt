@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_layout.dart';
 
 class TopDebtorsWidget extends StatelessWidget {
   const TopDebtorsWidget({super.key});
@@ -44,131 +46,207 @@ class TopDebtorsWidget extends StatelessWidget {
         // Take top 3
         final topDebtors = sortedCustomers.take(3).toList();
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withAlpha(26), // 0.1 * 255
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.trending_up,
-                        color: AppColors.error,
-                        size: 20,
-                      ),
+        final l10n = AppLocalizations.of(context)!;
+        final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+
+        return Container(
+          padding: EdgeInsets.all(isDesktopWeb ? 24 : 16),
+          decoration: BoxDecoration(
+            color: AppColors.dynamicSurface(context),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      AppLocalizations.of(context)!.topDebtors,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: const Icon(
+                      Icons.leaderboard_outlined,
+                      color: AppColors.error,
+                      size: 20,
                     ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                if (topDebtors.isEmpty)
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    l10n.topDebtors,
+                    style: AppTheme.title3.copyWith(
+                      color: AppColors.dynamicTextPrimary(context),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: isDesktopWeb ? 20 : 16),
+              if (topDebtors.isEmpty)
+                _buildEmptyState(context, l10n.noOutstandingDebts, isDesktopWeb)
+              else if (isDesktopWeb)
+                ...topDebtors.asMap().entries.map(
+                  (entry) => _buildDesktopDebtorRow(
+                    context,
+                    rank: entry.key,
+                    customerName: entry.value.name,
+                    amount: customerDebts[entry.value.id] ?? 0.0,
+                    isLast: entry.key == topDebtors.length - 1,
+                  ),
+                )
+              else
+                ...topDebtors.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final customer = entry.value;
+                  final totalDebt = customerDebts[customer.id] ?? 0.0;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
                       children: [
-                        const Icon(
-                          Icons.people_outline,
-                          size: 32,
-                          color: AppColors.textLight,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          AppLocalizations.of(context)!.noOutstandingDebts,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
+                        _buildRankBadge(index),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            customer.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          CurrencyFormatter.formatAmount(context, totalDebt),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: _getRankColor(index),
+                          ),
                         ),
                       ],
                     ),
-                  )
-                else
-                  Column(
-                    children: topDebtors.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final customer = entry.value;
-                      final totalDebt = customerDebts[customer.id] ?? 0.0;
-                      final customerDebtsList = debts.where((debt) => 
-                        debt.customerId == customer.id
-                      ).toList();
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: _getRankColor(index).withAlpha(26), // 0.1 * 255
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '${index + 1}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: _getRankColor(index),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    customer.name,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  CurrencyFormatter.formatAmount(context, totalDebt),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: _getRankColor(index),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-              ],
-            ),
+                  );
+                }),
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, String message, bool isDesktopWeb) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        vertical: isDesktopWeb ? 32 : 24,
+        horizontal: 16,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicBackground(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.1),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.people_outline,
+            size: isDesktopWeb ? 40 : 32,
+            color: AppColors.dynamicTextSecondary(context),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: AppTheme.subheadline.copyWith(
+              color: AppColors.dynamicTextSecondary(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopDebtorRow(
+    BuildContext context, {
+    required int rank,
+    required String customerName,
+    required double amount,
+    required bool isLast,
+  }) {
+    final color = _getRankColor(rank);
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            children: [
+              _buildRankBadge(rank),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  customerName,
+                  style: AppTheme.headline.copyWith(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                CurrencyFormatter.formatAmount(context, amount),
+                style: AppTheme.title3.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!isLast) const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _buildRankBadge(int index) {
+    final color = _getRankColor(index);
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Text(
+          '${index + 1}',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ),
     );
   }
 
@@ -181,12 +259,4 @@ class TopDebtorsWidget extends StatelessWidget {
     }
   }
 
-  String _getRankLabel(int index) {
-    switch (index) {
-      case 0: return '1st';
-      case 1: return '2nd';
-      case 2: return '3rd';
-      default: return '${index + 1}th';
-    }
-  }
 } 

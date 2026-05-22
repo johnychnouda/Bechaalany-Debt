@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../models/customer.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_layout.dart';
 
 class PaymentRemindersScreen extends StatefulWidget {
   const PaymentRemindersScreen({super.key});
@@ -364,6 +365,99 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
 
   void _showBatchReminderDialog(BuildContext context) {
     final messageController = TextEditingController();
+    final l10n = AppLocalizations.of(context)!;
+
+    if (ResponsiveLayout.isDesktopWeb(context)) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.dynamicSurface(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              l10n.sendPaymentReminderDialogTitle,
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.batchReminderSubtitle,
+                    style: TextStyle(
+                      color: AppColors.dynamicTextSecondary(context),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: messageController,
+                    maxLines: 4,
+                    minLines: 3,
+                    decoration: InputDecoration(
+                      hintText: l10n.enterCustomMessage,
+                      filled: true,
+                      fillColor: AppColors.dynamicBackground(context),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppColors.dynamicBorder(context),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppColors.dynamicBorder(context),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: AppColors.dynamicPrimary(context),
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: AppColors.dynamicTextPrimary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  l10n.cancel,
+                  style: TextStyle(color: AppColors.dynamicPrimary(context)),
+                ),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final message = messageController.text.trim();
+                  Navigator.of(dialogContext).pop();
+                  await _sendBatchWhatsAppReminders(context, message);
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.dynamicPrimary(context),
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(l10n.sendToCount(_selectedCustomerIds.length.toString())),
+              ),
+            ],
+          );
+        },
+      ).whenComplete(messageController.dispose);
+      return;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -512,7 +606,7 @@ class _PaymentRemindersScreenState extends State<PaymentRemindersScreen> with Wi
           ),
         ),
       ),
-    );
+    ).whenComplete(messageController.dispose);
   }
 
   Future<void> _sendBatchWhatsAppReminders(BuildContext context, String message) async {

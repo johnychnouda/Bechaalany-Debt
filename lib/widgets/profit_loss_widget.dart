@@ -5,6 +5,7 @@ import '../constants/app_theme.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/app_state.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/responsive_layout.dart';
 
 
 class ProfitLossWidget extends StatefulWidget {
@@ -67,98 +68,72 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
 
 
 
+        final l10n = AppLocalizations.of(context)!;
+        final isDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+        final metrics = [
+          (
+            'total_revenue',
+            l10n.totalRevenue,
+            totalRevenue,
+            Icons.arrow_upward,
+            AppColors.success,
+            l10n.fromProductProfitMargins,
+          ),
+          (
+            'potential_revenue',
+            l10n.potentialRevenue,
+            (revenueSummary['totalPotentialRevenue'] as num?)?.toDouble() ?? 0.0,
+            Icons.trending_up,
+            AppColors.warning,
+            l10n.fromUnpaidAmounts,
+          ),
+          (
+            'total_debts',
+            l10n.totalDebts,
+            totalDebts,
+            Icons.arrow_downward,
+            AppColors.error,
+            l10n.outstandingAmounts,
+          ),
+          (
+            'total_payments',
+            l10n.totalPayments,
+            totalPayments,
+            Icons.payment,
+            AppColors.info,
+            l10n.fromCustomerPayments,
+          ),
+        ];
+
         return SlideTransition(
           position: _slideAnimation,
           child: FadeTransition(
             opacity: _fadeAnimation,
-            child: Container(
-              padding: const EdgeInsets.all(16), // Reduced from 20
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppColors.dynamicSurface(context).withValues(alpha: 0.8),
-                    AppColors.dynamicSurface(context).withValues(alpha: 0.6),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.dynamicSurface(context).withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.trending_up,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        AppLocalizations.of(context)!.financialAnalysis,
-                        style: AppTheme.title3.copyWith(
-                          color: AppColors.dynamicTextPrimary(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  _buildProfitLossCard(
-                    'total_revenue',
-                    AppLocalizations.of(context)!.totalRevenue,
-                    totalRevenue,
-                    Icons.arrow_upward,
-                    AppColors.success,
-                    subtitle: AppLocalizations.of(context)!.fromProductProfitMargins,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildProfitLossCard(
-                    'potential_revenue',
-                    AppLocalizations.of(context)!.potentialRevenue,
-                    revenueSummary['totalPotentialRevenue'] ?? 0.0,
-                    Icons.trending_up,
-                    AppColors.warning,
-                    subtitle: AppLocalizations.of(context)!.fromUnpaidAmounts,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildProfitLossCard(
-                    'total_debts',
-                    AppLocalizations.of(context)!.totalDebts,
-                    totalDebts,
-                    Icons.arrow_downward,
-                    AppColors.error,
-                    subtitle: AppLocalizations.of(context)!.outstandingAmounts,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildProfitLossCard(
-                    'total_payments',
-                    AppLocalizations.of(context)!.totalPayments,
-                    totalPayments,
-                    Icons.payment,
-                    AppColors.info,
-                    subtitle: AppLocalizations.of(context)!.fromCustomerPayments,
-                  ),
-
-
-
-                ],
-              ),
+            child: _buildDashboardShell(
+              context,
+              isDesktopWeb: isDesktopWeb,
+              title: l10n.financialAnalysis,
+              icon: Icons.analytics_outlined,
+              iconColor: AppColors.primary,
+              child: isDesktopWeb
+                  ? _buildDesktopMetricsGrid(context, metrics)
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < metrics.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 12),
+                          _buildProfitLossCard(
+                            context,
+                            metrics[i].$1,
+                            metrics[i].$2,
+                            metrics[i].$3,
+                            metrics[i].$4,
+                            metrics[i].$5,
+                            subtitle: metrics[i].$6,
+                          ),
+                        ],
+                      ],
+                    ),
             ),
           ),
         );
@@ -166,25 +141,183 @@ class _ProfitLossWidgetState extends State<ProfitLossWidget>
     );
   }
 
-  Widget _buildProfitLossCard(String cardKey, String title, double amount, IconData icon, Color color, {String? subtitle}) {
-    // Determine background color based on card key (stable across locales)
-    Color backgroundColor;
+  Widget _buildDashboardShell(
+    BuildContext context, {
+    required bool isDesktopWeb,
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required Widget child,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(isDesktopWeb ? 24 : 16),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.dynamicTextSecondary(context).withValues(alpha: 0.12),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: AppTheme.title3.copyWith(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: isDesktopWeb ? 20 : 16),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopMetricsGrid(
+    BuildContext context,
+    List<(String, String, double, IconData, Color, String)> metrics,
+  ) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth >= 900 ? 4 : 2;
+        const spacing = 16.0;
+        final tileWidth =
+            (constraints.maxWidth - spacing * (crossAxisCount - 1)) /
+                crossAxisCount;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final metric in metrics)
+              SizedBox(
+                width: tileWidth,
+                child: _buildDesktopKpiCard(
+                  context,
+                  metric.$1,
+                  metric.$2,
+                  metric.$3,
+                  metric.$4,
+                  metric.$5,
+                  subtitle: metric.$6,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopKpiCard(
+    BuildContext context,
+    String cardKey,
+    String title,
+    double amount,
+    IconData icon,
+    Color color, {
+    String? subtitle,
+  }) {
+    final backgroundColor = _metricBackgroundColor(context, cardKey, color);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTheme.subheadline.copyWith(
+                    color: AppColors.dynamicTextSecondary(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            CurrencyFormatter.formatAmount(context, amount),
+            style: AppTheme.title1.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 28,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: AppTheme.caption1.copyWith(
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _metricBackgroundColor(BuildContext context, String cardKey, Color fallback) {
     switch (cardKey) {
       case 'total_revenue':
-        backgroundColor = AppColors.success.withValues(alpha: 0.1); // Light green
-        break;
+        return AppColors.success.withValues(alpha: 0.08);
       case 'potential_revenue':
-        backgroundColor = AppColors.warning.withValues(alpha: 0.1); // Light orange
-        break;
+        return AppColors.warning.withValues(alpha: 0.08);
       case 'total_debts':
-        backgroundColor = AppColors.error.withValues(alpha: 0.1); // Light red
-        break;
+        return AppColors.error.withValues(alpha: 0.08);
       case 'total_payments':
-        backgroundColor = AppColors.info.withValues(alpha: 0.1); // Light blue
-        break;
+        return AppColors.info.withValues(alpha: 0.08);
       default:
-        backgroundColor = AppColors.dynamicSurface(context).withValues(alpha: 0.5);
+        return AppColors.dynamicSurface(context).withValues(alpha: 0.5);
     }
+  }
+
+  Widget _buildProfitLossCard(
+    BuildContext context,
+    String cardKey,
+    String title,
+    double amount,
+    IconData icon,
+    Color color, {
+    String? subtitle,
+  }) {
+    final backgroundColor = _metricBackgroundColor(context, cardKey, color);
     
     return Container(
       padding: const EdgeInsets.all(12),

@@ -101,6 +101,15 @@ class Subcategory {
 
   double? stockQuantity;
 
+  /// When true, [barcode] is required and used for scan-to-sell lookup.
+  bool useBarcode;
+
+  /// EAN/UPC or other product barcode for scan-to-sell lookup.
+  String? barcode;
+
+  /// When set, low-stock warnings use this instead of the global default in Settings.
+  int? lowStockThreshold;
+
   Subcategory({
     required this.id,
     required this.name,
@@ -113,6 +122,9 @@ class Subcategory {
     required this.sellingPriceCurrency,
     this.trackInventory = false,
     this.stockQuantity,
+    this.useBarcode = false,
+    this.barcode,
+    this.lowStockThreshold,
   }) : priceHistory = priceHistory ?? [];
 
   // Helper function to parse DateTime from various formats
@@ -199,6 +211,9 @@ class Subcategory {
     String? sellingPriceCurrency,
     bool? trackInventory,
     double? stockQuantity,
+    bool? useBarcode,
+    String? barcode,
+    int? lowStockThreshold,
   }) {
     return Subcategory(
       id: id ?? this.id,
@@ -212,6 +227,9 @@ class Subcategory {
       sellingPriceCurrency: sellingPriceCurrency ?? this.sellingPriceCurrency,
       trackInventory: trackInventory ?? this.trackInventory,
       stockQuantity: stockQuantity ?? this.stockQuantity,
+      useBarcode: useBarcode ?? this.useBarcode,
+      barcode: barcode ?? this.barcode,
+      lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
     );
   }
 
@@ -228,10 +246,16 @@ class Subcategory {
       'sellingPriceCurrency': sellingPriceCurrency,
       'trackInventory': trackInventory,
       'stockQuantity': stockQuantity,
+      'useBarcode': useBarcode,
+      'barcode': barcode,
+      'lowStockThreshold': lowStockThreshold,
     };
   }
 
   factory Subcategory.fromJson(Map<String, dynamic> json) {
+    final storedBarcode = json['barcode'] as String?;
+    final hasStoredBarcode =
+        storedBarcode != null && storedBarcode.trim().isNotEmpty;
     return Subcategory(
       id: json['id'],
       name: json['name'],
@@ -246,6 +270,11 @@ class Subcategory {
       sellingPriceCurrency: json['sellingPriceCurrency'] ?? 'USD',
       trackInventory: json['trackInventory'] ?? false,
       stockQuantity: json['stockQuantity']?.toDouble(),
+      useBarcode: json['useBarcode'] as bool? ?? hasStoredBarcode,
+      barcode: storedBarcode,
+      lowStockThreshold: json['lowStockThreshold'] is num
+          ? (json['lowStockThreshold'] as num).toInt()
+          : null,
     );
   }
 }

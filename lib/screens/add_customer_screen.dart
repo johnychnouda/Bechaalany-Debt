@@ -4,12 +4,23 @@ import '../constants/app_colors.dart';
 import '../l10n/app_localizations.dart';
 import '../models/customer.dart';
 import '../providers/app_state.dart';
-// Notification service import removed
+import '../utils/responsive_layout.dart';
 
 class AddCustomerScreen extends StatefulWidget {
   final Customer? customer;
+  final bool embeddedInShell;
+  final VoidCallback? onCancel;
+  final VoidCallback? onComplete;
+  final VoidCallback? onDeleted;
 
-  const AddCustomerScreen({super.key, this.customer});
+  const AddCustomerScreen({
+    super.key,
+    this.customer,
+    this.embeddedInShell = false,
+    this.onCancel,
+    this.onComplete,
+    this.onDeleted,
+  });
 
   @override
   State<AddCustomerScreen> createState() => _AddCustomerScreenState();
@@ -19,13 +30,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   bool _isLoading = false;
-  bool _isIdDuplicate = false;
-  bool _isPhoneDuplicate = false;
-  bool _isEmailDuplicate = false;
+  bool _formSubmitted = false;
+  String? _idBorderError;
+  String? _nameBorderError;
+  String? _phoneBorderError;
+  String? _emailBorderError;
   String _countryCode = '+961'; // Default country code for Lebanon
   final _fullPhoneController = TextEditingController(); // Controller for full phone number
 
@@ -49,7 +61,6 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   void dispose() {
     _idController.dispose();
     _nameController.dispose();
-    _phoneController.dispose();
     _fullPhoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
@@ -112,18 +123,28 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   }
 
   // Direct navigation method
+  void _finish({bool saved = false, bool deleted = false}) {
+    if (!mounted) return;
+    if (widget.embeddedInShell) {
+      if (deleted) {
+        widget.onDeleted?.call();
+      } else if (saved) {
+        widget.onComplete?.call();
+      } else {
+        widget.onCancel?.call();
+      }
+      return;
+    }
+    _navigateBack(saved ? true : null);
+  }
+
   void _navigateBack([dynamic result]) {
     if (mounted) {
-
-      // Use a post-frame callback to ensure the UI is updated
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           try {
             Navigator.of(context).pop(result);
-
           } catch (e) {
-
-            // Try alternative method
             try {
               Navigator.of(context).maybePop();
             } catch (e2) {
@@ -153,6 +174,95 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
 
   // Validate email domain
+  void _updateIdBorderError() {
+    if (widget.customer != null) {
+      _idBorderError = null;
+      return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final value = _idController.text.trim();
+    if (value.isEmpty) {
+      _idBorderError = _formSubmitted ? l10n.pleaseEnterCustomerId : null;
+    } else if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value)) {
+      _idBorderError = l10n.customerIdInvalidChars;
+    } else if (_isDuplicateId(value)) {
+      _idBorderError = l10n.thisCustomerIdAlreadyExists;
+    } else {
+      _idBorderError = null;
+    }
+  }
+
+  void _updateNameBorderError() {
+    final l10n = AppLocalizations.of(context)!;
+    final value = _nameController.text.trim();
+    _nameBorderError = value.isEmpty && _formSubmitted ? l10n.pleaseEnterCustomerName : null;
+  }
+
+  void _updatePhoneBorderError() {
+    final l10n = AppLocalizations.of(context)!;
+    final value = _fullPhoneController.text.trim();
+    if (value.isEmpty) {
+      _phoneBorderError = _formSubmitted ? l10n.pleaseEnterPhoneNumber : null;
+    } else if (!_isValidPhoneNumber(value)) {
+      _phoneBorderError = l10n.validPhoneNumber;
+    } else if (_isDuplicatePhone(value)) {
+      _phoneBorderError = l10n.thisPhoneNumberAlreadyExists;
+    } else {
+      _phoneBorderError = null;
+    }
+  }
+
+  void _updateEmailBorderError() {
+    final l10n = AppLocalizations.of(context)!;
+    final value = _emailController.text.trim();
+    if (value.isEmpty) {
+      _emailBorderError = null;
+      return;
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+      _emailBorderError = l10n.pleaseEnterValidEmail;
+    } else if (!_isValidEmailDomain(value)) {
+      _emailBorderError = l10n.validEmailDomain;
+    } else if (_isDuplicateEmail(value)) {
+      _emailBorderError = l10n.thisEmailAlreadyUsed;
+    } else {
+      _emailBorderError = null;
+    }
+  }
+
+  void _updateAllBorderErrors() {
+    _updateIdBorderError();
+    _updateNameBorderError();
+    _updatePhoneBorderError();
+    _updateEmailBorderError();
+  }
+
+  bool _isBlockingPhoneError(AppLocalizations l10n) =>
+      _phoneBorderError == l10n.pleaseEnterPhoneNumber ||
+      _phoneBorderError == l10n.validPhoneNumber;
+
+  bool _isBlockingEmailError(AppLocalizations l10n) =>
+      _emailBorderError == l10n.pleaseEnterValidEmail ||
+      _emailBorderError == l10n.validEmailDomain;
+
+  bool _validateForm() {
+    setState(() {
+      _formSubmitted = true;
+      _updateAllBorderErrors();
+    });
+    final l10n = AppLocalizations.of(context)!;
+    if (_idBorderError != null || _nameBorderError != null) {
+      return false;
+    }
+    if (_phoneBorderError != null && _isBlockingPhoneError(l10n)) {
+      return false;
+    }
+    if (_emailBorderError != null && _isBlockingEmailError(l10n)) {
+      return false;
+    }
+    return true;
+  }
+
   bool _isValidEmailDomain(String email) {
     try {
       final parts = email.split('@');
@@ -178,8 +288,64 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     }
   }
 
+  Future<void> _confirmDeleteCustomer() async {
+    if (widget.customer == null) return;
+
+    final appState = Provider.of<AppState>(context, listen: false);
+    final customer = widget.customer!;
+    final debts =
+        appState.debts.where((d) => d.customerId == customer.id).toList();
+    final l10n = AppLocalizations.of(context)!;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          l10n.deleteCustomer,
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+        ),
+        content: Text(
+          debts.isNotEmpty
+              ? l10n.deleteCustomerConfirmWithDebts(debts.length.toString())
+              : l10n.deleteCustomerConfirm,
+          style: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              l10n.cancel,
+              style: TextStyle(color: AppColors.dynamicPrimary(context)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              l10n.delete,
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await appState.deleteCustomer(customer.id);
+      if (mounted) {
+        _finish(deleted: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _saveCustomer() async {
-          if (_formKey.currentState?.validate() != true) {
+    if (!_validateForm()) {
       return;
     }
 
@@ -242,38 +408,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
         
         // Show success message and navigate back immediately
         if (mounted) {
-          // Customer updated successfully
-          
-          // Try direct navigation first
-          try {
-
-            Navigator.of(context).pop(true);
-
-          } catch (e) {
-
-            // Fallback to our method
-            _navigateBack(true);
-          }
+          _finish(saved: true);
         }
       } else {
         await appState.addCustomer(customer);
-
-        
-        // Show success message and navigate back immediately
         if (mounted) {
-
-          // Customer added successfully
-          
-          // Try direct navigation first
-          try {
-
-            Navigator.of(context).pop();
-
-          } catch (e) {
-
-            // Fallback to our method
-            _navigateBack();
-          }
+          _finish(saved: true);
         }
       }
     } catch (e) {
@@ -338,13 +478,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     ) ?? false;
   }
 
-  // Custom phone input widget with editable country code
   Widget _buildPhoneInput({
     required String label,
     required String placeholder,
-    required Function(String) onChanged,
-    required String? Function(String?) validator,
+    required String? borderError,
+    required void Function(String) onChanged,
   }) {
+    final hasBorderError = borderError != null && borderError.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -357,36 +498,68 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.dynamicSurface(context),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: AppColors.dynamicBorder(context),
-              width: 1,
-            ),
-          ),
-          child: TextFormField(
-            controller: _fullPhoneController,
-            keyboardType: TextInputType.phone,
-            style: TextStyle(
-              color: AppColors.dynamicTextPrimary(context),
-              fontSize: 16,
-            ),
-            decoration: InputDecoration(
-              hintText: placeholder,
-              hintStyle: TextStyle(
-                color: AppColors.dynamicTextSecondary(context),
-                fontSize: 16,
+        Padding(
+          padding: EdgeInsets.only(top: hasBorderError ? 8 : 0),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              TextFormField(
+                controller: _fullPhoneController,
+                keyboardType: TextInputType.phone,
+                onChanged: onChanged,
+                decoration: InputDecoration(
+                  hintText: placeholder,
+                  hintStyle: TextStyle(
+                    color: AppColors.dynamicTextSecondary(context),
+                    fontSize: 16,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.dynamicSurface(context),
+                  border: _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  enabledBorder:
+                      _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  focusedBorder: _fieldOutlineBorder(
+                    context,
+                    hasBorderError: hasBorderError,
+                    focused: true,
+                  ),
+                  errorBorder:
+                      _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  focusedErrorBorder: _fieldOutlineBorder(
+                    context,
+                    hasBorderError: hasBorderError,
+                    focused: true,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  errorStyle: const TextStyle(height: 0, fontSize: 0),
+                ),
+                style: TextStyle(
+                  color: AppColors.dynamicTextPrimary(context),
+                  fontSize: 16,
+                ),
               ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-            onChanged: onChanged,
-            validator: validator,
+              if (hasBorderError)
+                Positioned(
+                  left: 12,
+                  top: 0,
+                  child: Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      color: AppColors.dynamicSurface(context),
+                      child: Text(
+                        borderError!,
+                        style: TextStyle(
+                          color: AppColors.dynamicError(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -397,29 +570,19 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
-      appBar: AppBar(
-        title: Text(
-          widget.customer != null
-              ? AppLocalizations.of(context)!.editCustomer
-              : AppLocalizations.of(context)!.addCustomer,
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: AppColors.dynamicTextPrimary(context),
-          ),
+    final l10n = AppLocalizations.of(context)!;
+    final isEditing = widget.customer != null;
+
+    final formContent = Form(
+      key: _formKey,
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          widget.embeddedInShell ? 20 : 16,
+          widget.embeddedInShell ? 12 : 16,
+          widget.embeddedInShell ? 20 : 16,
+          24,
         ),
-        backgroundColor: AppColors.dynamicSurface(context),
-        elevation: 0,
-        iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
+        children: [
               // Customer ID
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -474,32 +637,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       placeholder: AppLocalizations.of(context)!.enterCustomerId,
                       icon: Icons.tag,
                       keyboardType: TextInputType.number,
-                      validator: (value) {
-                        final l10n = AppLocalizations.of(context)!;
-                        if (value == null || value.trim().isEmpty) {
-                          return l10n.pleaseEnterCustomerId;
-                        }
-                        
-                        // Check for duplicate ID
-                        if (_isDuplicateId(value.trim())) {
-                          return l10n.customerIdAlreadyExists;
-                        }
-                        
-                        // Check for special characters
-                        if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(value.trim())) {
-                          return l10n.customerIdInvalidChars;
-                        }
-                        
-                        return null;
-                      },
-                      onChanged: (value) {
-                        setState(() {
-                          _isIdDuplicate = _isDuplicateId(value.trim());
-                        });
+                      borderError: _idBorderError,
+                      onChanged: (_) {
+                        setState(_updateIdBorderError);
                       },
                     ),
-                    if (_isIdDuplicate && _idController.text.trim().isNotEmpty)
-                      _buildDuplicateWarning(AppLocalizations.of(context)!.thisCustomerIdAlreadyExists),
                     const SizedBox(height: 16),
                   ],
                 ],
@@ -514,84 +656,35 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 placeholder: AppLocalizations.of(context)!.enterCustomerName,
                 icon: Icons.person,
                 textCapitalization: TextCapitalization.words,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return AppLocalizations.of(context)!.pleaseEnterCustomerName;
-                  }
-                  return null;
+                borderError: _nameBorderError,
+                onChanged: (_) {
+                  setState(_updateNameBorderError);
                 },
               ),
               
               const SizedBox(height: 16),
               
-              // Phone
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPhoneInput(
-                    label: AppLocalizations.of(context)!.phoneNumber,
-                    placeholder: AppLocalizations.of(context)!.enterPhoneNumber,
-                    onChanged: (value) {
-                      setState(() {
-                        _isPhoneDuplicate = _isDuplicatePhone(value.trim());
-                      });
-                    },
-                    validator: (value) {
-                      final l10n = AppLocalizations.of(context)!;
-                      if (value == null || value.trim().isEmpty) {
-                        return l10n.pleaseEnterPhoneNumber;
-                      }
-                      
-                      // Check phone number format
-                      if (!_isValidPhoneNumber(value.trim())) {
-                        return l10n.validPhoneNumber;
-                      }
-                      
-                      // Note: Duplicate phone number validation is handled in _saveCustomer with confirmation dialog
-                      
-                      return null;
-                    },
-                  ),
-                  if (_isPhoneDuplicate && _phoneController.text.trim().isNotEmpty)
-                    _buildDuplicateWarning(AppLocalizations.of(context)!.thisPhoneNumberAlreadyExists),
-                ],
+              _buildPhoneInput(
+                label: AppLocalizations.of(context)!.phoneNumber,
+                placeholder: AppLocalizations.of(context)!.enterPhoneNumber,
+                borderError: _phoneBorderError,
+                onChanged: (_) {
+                  setState(_updatePhoneBorderError);
+                },
               ),
               
               const SizedBox(height: 16),
               
-              // Email
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildModernField(
-                    label: AppLocalizations.of(context)!.emailAddress,
-                    controller: _emailController,
-                    placeholder: AppLocalizations.of(context)!.enterEmailOptional,
-                    icon: Icons.email,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      final l10n = AppLocalizations.of(context)!;
-                      if (value != null && value.trim().isNotEmpty) {
-                        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                          return l10n.pleaseEnterValidEmail;
-                        }
-                        
-                        // Check email domain
-                        if (!_isValidEmailDomain(value.trim())) {
-                          return l10n.validEmailDomain;
-                        }
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      setState(() {
-                        _isEmailDuplicate = _isDuplicateEmail(value.trim());
-                      });
-                    },
-                  ),
-                  if (_isEmailDuplicate && _emailController.text.trim().isNotEmpty)
-                    _buildDuplicateWarning(AppLocalizations.of(context)!.thisEmailAlreadyUsed),
-                ],
+              _buildModernField(
+                label: AppLocalizations.of(context)!.emailAddress,
+                controller: _emailController,
+                placeholder: AppLocalizations.of(context)!.enterEmailOptional,
+                icon: Icons.email,
+                keyboardType: TextInputType.emailAddress,
+                borderError: _emailBorderError,
+                onChanged: (_) {
+                  setState(_updateEmailBorderError);
+                },
               ),
               
               const SizedBox(height: 16),
@@ -606,80 +699,164 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               ),
               
               const SizedBox(height: 32),
-              
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveCustomer,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+
+              if (isEditing) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _saveCustomer,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.dynamicPrimary(context),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            l10n.updateCustomer,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        )
-                      : Text(
-                          widget.customer != null
-                              ? AppLocalizations.of(context)!.updateCustomer
-                              : AppLocalizations.of(context)!.addCustomer,
-                          style: const TextStyle(fontSize: 16),
-                        ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _confirmDeleteCustomer,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(
+                        color: AppColors.error.withValues(alpha: 0.4),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                    label: Text(
+                      l10n.deleteCustomer,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _saveCustomer,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.dynamicPrimary(context),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : Text(
+                            l10n.addCustomer,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
               
               const SizedBox(height: 16),
-              
-
             ],
           ),
+    );
+
+    final body = widget.embeddedInShell
+        ? formContent
+        : (ResponsiveLayout.isDesktopWeb(context)
+            ? Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: formContent,
+                ),
+              )
+            : formContent);
+
+    return Scaffold(
+      backgroundColor: widget.embeddedInShell
+          ? AppColors.dynamicSurface(context)
+          : AppColors.dynamicBackground(context),
+      appBar: AppBar(
+        automaticallyImplyLeading: !widget.embeddedInShell,
+        leading: widget.embeddedInShell
+            ? IconButton(
+                icon: Icon(
+                  Icons.arrow_back_rounded,
+                  color: AppColors.dynamicPrimary(context),
+                ),
+                onPressed: () => _finish(),
+              )
+            : null,
+        title: Text(
+          isEditing ? l10n.editCustomer : l10n.addCustomer,
+          style: TextStyle(
+            fontSize: widget.embeddedInShell ? 18 : 17,
+            fontWeight: FontWeight.w600,
+            color: AppColors.dynamicTextPrimary(context),
+          ),
         ),
+        backgroundColor: AppColors.dynamicSurface(context),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: AppColors.dynamicPrimary(context)),
       ),
+      body: body,
     );
   }
   
-  Widget _buildDuplicateWarning(String message) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.dynamicError(context).withAlpha(26),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.dynamicError(context).withAlpha(51),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: AppColors.dynamicError(context),
-            size: 20,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: AppColors.dynamicError(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
+  OutlineInputBorder _fieldOutlineBorder(
+    BuildContext context, {
+    required bool hasBorderError,
+    bool focused = false,
+  }) {
+    final errorColor = AppColors.dynamicError(context);
+    final normalColor = AppColors.dynamicBorder(context);
+    final color = hasBorderError
+        ? errorColor
+        : (focused ? AppColors.dynamicPrimary(context) : normalColor);
+    final width = hasBorderError || focused ? 2.0 : 1.0;
+
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: color, width: width),
     );
   }
-  
+
   Widget _buildModernField({
     required String label,
     required TextEditingController controller,
@@ -689,9 +866,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     TextCapitalization? textCapitalization,
     int maxLines = 1,
     bool enabled = true,
-    String? Function(String?)? validator,
+    String? borderError,
     void Function(String)? onChanged,
   }) {
+    final hasBorderError = borderError != null && borderError.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -704,38 +883,71 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          enabled: enabled,
-          textCapitalization: textCapitalization ?? TextCapitalization.none,
-          keyboardType: keyboardType,
-          validator: validator,
-          onChanged: onChanged,
-          decoration: InputDecoration(
-            hintText: placeholder,
-            hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
-            prefixIcon: Icon(icon, color: AppColors.dynamicTextSecondary(context)),
-            filled: true,
-            fillColor: AppColors.dynamicSurface(context),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.dynamicBorder(context)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.dynamicPrimary(context), width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.dynamicError(context)),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        Padding(
+          padding: EdgeInsets.only(top: hasBorderError ? 8 : 0),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              TextFormField(
+                controller: controller,
+                enabled: enabled,
+                textCapitalization: textCapitalization ?? TextCapitalization.none,
+                keyboardType: keyboardType,
+                onChanged: onChanged,
+                decoration: InputDecoration(
+                  hintText: placeholder,
+                  hintStyle: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+                  prefixIcon: Icon(
+                    icon,
+                    color: hasBorderError
+                        ? AppColors.dynamicError(context)
+                        : AppColors.dynamicTextSecondary(context),
+                  ),
+                  filled: true,
+                  fillColor: AppColors.dynamicSurface(context),
+                  border: _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  enabledBorder:
+                      _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  focusedBorder: _fieldOutlineBorder(
+                    context,
+                    hasBorderError: hasBorderError,
+                    focused: true,
+                  ),
+                  errorBorder:
+                      _fieldOutlineBorder(context, hasBorderError: hasBorderError),
+                  focusedErrorBorder: _fieldOutlineBorder(
+                    context,
+                    hasBorderError: hasBorderError,
+                    focused: true,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  errorStyle: const TextStyle(height: 0, fontSize: 0),
+                ),
+                style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+              ),
+              if (hasBorderError)
+                Positioned(
+                  left: 12,
+                  top: 0,
+                  child: Transform.translate(
+                    offset: const Offset(0, -10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      color: AppColors.dynamicSurface(context),
+                      child: Text(
+                        borderError!,
+                        style: TextStyle(
+                          color: AppColors.dynamicError(context),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
         ),
       ],
     );

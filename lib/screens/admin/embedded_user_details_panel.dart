@@ -7,29 +7,34 @@ import '../../services/access_service.dart';
 import '../../models/access.dart';
 import '../../widgets/border_error_text_field.dart';
 
-class UserDetailsScreen extends StatefulWidget {
+class EmbeddedUserDetailsPanel extends StatefulWidget {
   final String userId;
   final String userEmail;
   final String userDisplayName;
+  final VoidCallback? onClose;
+  final Future<void> Function()? onDeleteUser;
 
-  const UserDetailsScreen({
+  const EmbeddedUserDetailsPanel({
     super.key,
     required this.userId,
     required this.userEmail,
     required this.userDisplayName,
+    this.onClose,
+    this.onDeleteUser,
   });
 
   @override
-  State<UserDetailsScreen> createState() => _UserDetailsScreenState();
+  State<EmbeddedUserDetailsPanel> createState() => _EmbeddedUserDetailsPanelState();
 }
 
-class _UserDetailsScreenState extends State<UserDetailsScreen> {
+class _EmbeddedUserDetailsPanelState extends State<EmbeddedUserDetailsPanel> {
   final AccessService _accessService = AccessService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Access? _access;
   bool _isLoading = true;
   bool _isUpdating = false;
   bool _isSavingProfile = false;
+  bool _isDeletingUser = false;
   String _userDisplayName = '';
   String _userEmail = '';
   String _userPhone = '';
@@ -355,236 +360,311 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     }
   }
 
+  Future<void> _handleDeleteUser() async {
+    if (widget.onDeleteUser == null || _isDeletingUser) return;
+    setState(() => _isDeletingUser = true);
+    try {
+      await widget.onDeleteUser!();
+    } finally {
+      if (mounted) setState(() => _isDeletingUser = false);
+    }
+  }
+
+  Widget? _buildHeaderDeleteAction(AppLocalizations l10n) {
+    if (widget.onDeleteUser == null) return null;
+    return IconButton(
+      tooltip: l10n.deleteUser,
+      onPressed: _isDeletingUser ? null : _handleDeleteUser,
+      icon: _isDeletingUser
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.error.withValues(alpha: 0.7),
+              ),
+            )
+          : const Icon(
+              Icons.delete_outline_rounded,
+              color: AppColors.error,
+              size: 22,
+            ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicBackground(context),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              CupertinoIcons.person,
+              color: AppColors.dynamicPrimary(context),
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _userDisplayName,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.dynamicTextPrimary(context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (_shopName.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${l10n.shopName}: $_shopName',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: AppColors.dynamicTextSecondary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                if (_userPhone.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _userPhone,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: AppColors.dynamicTextSecondary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  _userEmail,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: AppColors.dynamicTextSecondary(context),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            minSize: 36,
+            onPressed: _isSavingProfile ? null : _showEditProfileDialog,
+            child: Icon(
+              CupertinoIcons.pencil,
+              size: 20,
+              color: AppColors.dynamicPrimary(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionsCard(BuildContext context, AppLocalizations l10n) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.dynamicBackground(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.dynamicBorder(context).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_isUpdating)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CupertinoActivityIndicator(
+                      radius: 7,
+                      color: AppColors.dynamicPrimary(context),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.updating,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.dynamicTextSecondary(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(
+                child: CupertinoButton.filled(
+                  onPressed: _isUpdating
+                      ? null
+                      : () => _grantAccess(AccessType.monthly),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(l10n.oneMonth, style: const TextStyle(fontSize: 14)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CupertinoButton.filled(
+                  onPressed: _isUpdating
+                      ? null
+                      : () => _grantAccess(AccessType.yearly),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Text(l10n.oneYear, style: const TextStyle(fontSize: 14)),
+                ),
+              ),
+            ],
+          ),
+          if (_isAccessActuallyActive(_access)) ...[
+            const SizedBox(height: 10),
+            _buildDestructiveOutlineButton(
+              context,
+              label: l10n.revokeAccess,
+              icon: CupertinoIcons.xmark_circle,
+              onPressed: _isUpdating ? null : _revokeAccess,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPanelBody(BuildContext context, AppLocalizations l10n) {
+    if (_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const CupertinoActivityIndicator(radius: 14),
+            const SizedBox(height: 16),
+            Text(
+              l10n.loadingUserDetails,
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.dynamicTextSecondary(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildProfileHeader(context, l10n),
+          const SizedBox(height: 12),
+          Text(
+            l10n.currentStatus,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildStatusCard(context, compact: true),
+          const SizedBox(height: 12),
+          Text(
+            l10n.actions,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.dynamicTextPrimary(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildActionsCard(context, l10n),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return CupertinoPageScaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(l10n.userDetails),
-        backgroundColor: AppColors.dynamicSurface(context),
-        border: null,
-      ),
-      child: SafeArea(
-        child: _isLoading
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CupertinoActivityIndicator(radius: 14),
-                    const SizedBox(height: 16),
-                    Text(
-                      l10n.loadingUserDetails,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: AppColors.dynamicTextSecondary(context),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 20),
-                    
-                    // User Info Card
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.dynamicSurface(context),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.dynamicBorder(context),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              CupertinoButton(
-                                padding: EdgeInsets.zero,
-                                minSize: 24,
-                                onPressed: _isSavingProfile ? null : _showEditProfileDialog,
-                                child: Icon(
-                                  CupertinoIcons.pencil,
-                                  size: 20,
-                                  color: AppColors.dynamicPrimary(context),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            width: 64,
-                            height: 64,
-                            decoration: BoxDecoration(
-                              color: AppColors.dynamicPrimary(context).withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              CupertinoIcons.person,
-                              color: AppColors.dynamicPrimary(context),
-                              size: 32,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _userDisplayName,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.dynamicTextPrimary(context),
-                            ),
-                          ),
-                          if (_userPhone.trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _userPhone,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: AppColors.dynamicTextSecondary(context),
-                              ),
-                            ),
-                          ],
-                          if (_shopName.trim().isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${l10n.shopName}: $_shopName',
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: AppColors.dynamicTextSecondary(context),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            _userEmail,
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: AppColors.dynamicTextSecondary(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Current Status
-                    Text(
-                      l10n.currentStatus,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.dynamicTextPrimary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStatusCard(context),
-                    const SizedBox(height: 32),
-                    
-                    // Actions
-                    Text(
-                      l10n.actions,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.dynamicTextPrimary(context),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: AppColors.dynamicSurface(context),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.dynamicBorder(context),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (_isUpdating)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CupertinoActivityIndicator(
-                                      radius: 7,
-                                      color: AppColors.dynamicPrimary(context),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    l10n.updating,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppColors.dynamicTextSecondary(context),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          _buildActionGroup(
-                            context,
-                            icon: CupertinoIcons.checkmark_circle,
-                            title: l10n.grantAccess,
-                            description: l10n.grantAccessDescription,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: CupertinoButton.filled(
-                                    onPressed: _isUpdating
-                                        ? null
-                                        : () => _grantAccess(AccessType.monthly),
-                                    child: Text(l10n.oneMonth),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: CupertinoButton.filled(
-                                    onPressed: _isUpdating
-                                        ? null
-                                        : () => _grantAccess(AccessType.yearly),
-                                    child: Text(l10n.oneYear),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_isAccessActuallyActive(_access)) ...[
-                            const SizedBox(height: 24),
-                            _buildActionGroup(
-                              context,
-                              icon: CupertinoIcons.xmark_circle_fill,
-                              title: l10n.revokeAccess,
-                              description: l10n.revokeAccessDescription,
-                              isDestructive: true,
-                              child: _buildDestructiveOutlineButton(
-                                context,
-                                label: l10n.revokeAccess,
-                                icon: CupertinoIcons.xmark_circle,
-                                onPressed: _isUpdating ? null : _revokeAccess,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-                  ],
+    final headerDeleteAction = _buildHeaderDeleteAction(l10n);
+
+    return ColoredBox(
+      color: AppColors.dynamicSurface(context),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.dynamicBorder(context).withValues(alpha: 0.2),
                 ),
               ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _userDisplayName.trim().isNotEmpty
+                        ? _userDisplayName
+                        : l10n.userDetails,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.dynamicTextPrimary(context),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (headerDeleteAction != null) headerDeleteAction,
+                if (widget.onClose != null)
+                  IconButton(
+                    tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                    onPressed: widget.onClose,
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: AppColors.dynamicTextSecondary(context),
+                      size: 22,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _buildPanelBody(context, l10n),
+        ],
       ),
     );
   }
@@ -680,35 +760,38 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   }
 
 
-  Widget _buildStatusCard(BuildContext context) {
+  Widget _buildStatusCard(BuildContext context, {bool compact = false}) {
     final l10n = AppLocalizations.of(context)!;
     final sub = _access;
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: EdgeInsets.all(compact ? 2 : 4),
       decoration: BoxDecoration(
-        color: AppColors.dynamicSurface(context),
-        borderRadius: BorderRadius.circular(16),
+        color: compact
+            ? AppColors.dynamicBackground(context)
+            : AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(compact ? 10 : 16),
         border: Border.all(
-          color: AppColors.dynamicBorder(context),
+          color: AppColors.dynamicBorder(context)
+              .withValues(alpha: compact ? 0.25 : 1.0),
           width: 1,
         ),
       ),
       child: sub == null
           ? Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(compact ? 12 : 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     CupertinoIcons.info_circle,
-                    size: 20,
+                    size: compact ? 16 : 20,
                     color: AppColors.dynamicTextSecondary(context),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     l10n.noAccessData,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: compact ? 12 : 15,
                       color: AppColors.dynamicTextSecondary(context),
                     ),
                   ),
@@ -717,14 +800,22 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
             )
           : Column(
               children: [
-                _buildStatusRow(l10n.status, _getActualStatusLabel(context, sub),
-                    valueColor: _getActualStatusColor(sub)),
+                _buildStatusRow(
+                  l10n.status,
+                  _getActualStatusLabel(context, sub),
+                  valueColor: _getActualStatusColor(sub),
+                  compact: compact,
+                ),
                 if (sub.trialStartDate != null) ...[
-                  _buildStatusDivider(),
-                  _buildStatusRow(l10n.trialStarted, _formatDate(sub.trialStartDate!)),
+                  _buildStatusDivider(compact: compact),
+                  _buildStatusRow(
+                    l10n.trialStarted,
+                    _formatDate(sub.trialStartDate!),
+                    compact: compact,
+                  ),
                 ],
                 if (sub.trialEndDate != null) ...[
-                  _buildStatusDivider(),
+                  _buildStatusDivider(compact: compact),
                   _buildStatusRow(
                     l10n.trialEnds,
                     _formatDateWithContext(
@@ -733,17 +824,19 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       sub.trialDaysRemaining,
                       isEndDate: true,
                     ),
+                    compact: compact,
                   ),
                 ],
                 if (sub.accessStartDate != null) ...[
-                  _buildStatusDivider(),
+                  _buildStatusDivider(compact: compact),
                   _buildStatusRow(
                     l10n.accessStarted,
                     _formatDate(sub.accessStartDate!),
+                    compact: compact,
                   ),
                 ],
                 if (sub.accessEndDate != null) ...[
-                  _buildStatusDivider(),
+                  _buildStatusDivider(compact: compact),
                   _buildStatusRow(
                     l10n.accessEnds,
                     _formatDateWithContext(
@@ -752,38 +845,44 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       sub.accessDaysRemaining,
                       isEndDate: true,
                     ),
+                    compact: compact,
                   ),
                 ],
                 if (sub.type != null) ...[
-                  _buildStatusDivider(),
+                  _buildStatusDivider(compact: compact),
                   _buildStatusRow(
                     l10n.accessPeriod,
-                    sub.type == AccessType.monthly ? l10n.oneMonthLabel : l10n.oneYearLabel,
+                    sub.type == AccessType.monthly
+                        ? l10n.oneMonthLabel
+                        : l10n.oneYearLabel,
                     valueColor: AppColors.dynamicPrimary(context),
+                    compact: compact,
                   ),
                 ],
-                _buildStatusDivider(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        CupertinoIcons.clock,
-                        size: 12,
-                        color: AppColors.dynamicTextSecondary(context),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10n.updatedDate(_formatDate(sub.lastUpdated)),
-                        style: TextStyle(
-                          fontSize: 12,
+                if (!compact) ...[
+                  _buildStatusDivider(compact: compact),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          CupertinoIcons.clock,
+                          size: 12,
                           color: AppColors.dynamicTextSecondary(context),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        Text(
+                          l10n.updatedDate(_formatDate(sub.lastUpdated)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.dynamicTextSecondary(context),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
     );
@@ -853,20 +952,28 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     return _statusColor(access.status);
   }
 
-  Widget _buildStatusDivider() {
+  Widget _buildStatusDivider({bool compact = false}) {
     return Divider(
       height: 1,
       thickness: 1,
       color: AppColors.dynamicDivider(context),
-      indent: 12,
-      endIndent: 12,
+      indent: compact ? 8 : 12,
+      endIndent: compact ? 8 : 12,
     );
   }
 
-  Widget _buildStatusRow(String label, String value, {Color? valueColor}) {
+  Widget _buildStatusRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool compact = false,
+  }) {
     final color = valueColor ?? AppColors.dynamicTextPrimary(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: compact ? 8 : 14,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,15 +981,16 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: compact ? 13 : 15,
               color: AppColors.dynamicTextSecondary(context),
             ),
           ),
+          const SizedBox(width: 8),
           Flexible(
             child: Text(
               value,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: compact ? 13 : 15,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),

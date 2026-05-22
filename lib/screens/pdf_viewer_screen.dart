@@ -134,15 +134,7 @@ class _PDFViewerScreenState extends State<PDFViewerScreen> {
         text: 'Monthly Activity Report from Bechaalany Connect',
       );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sharing PDF: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+      // ignore
     }
   }
 }

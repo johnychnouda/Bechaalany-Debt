@@ -7,6 +7,8 @@ import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import '../../services/admin_service.dart';
 import '../../services/account_deletion_service.dart';
+import '../../utils/responsive_layout.dart';
+import 'embedded_user_details_panel.dart';
 import 'user_details_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -34,6 +36,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   bool _isAdmin = false;
   bool _isCheckingAdmin = true;
   final Set<String> _deletingUserIds = <String>{};
+  Map<String, dynamic>? _selectedUser;
 
   @override
   void initState() {
@@ -62,6 +65,59 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
+  bool _useWebDialogs(BuildContext context) =>
+      ResponsiveLayout.isDesktopWeb(context);
+
+  Future<void> _showAlertMessage({
+    required BuildContext context,
+    required String title,
+    required String message,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    if (_useWebDialogs(context)) {
+      return showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.dynamicSurface(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.ok),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<bool> _confirmAndDeleteUser(Map<String, dynamic> user) async {
     if (!mounted) return false;
     final screenContext = context;
@@ -71,24 +127,69 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ? user['displayName'] as String
         : (user['email'] as String? ?? '');
 
-    final confirmed = await showCupertinoDialog<bool>(
-      context: screenContext,
-      builder: (dialogContext) => CupertinoAlertDialog(
-        title: Text(l10n.deleteUser),
-        content: Text(l10n.deleteUserConfirm(name)),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(l10n.cancel),
+    final bool? confirmed;
+    if (_useWebDialogs(screenContext)) {
+      confirmed = await showDialog<bool>(
+        context: screenContext,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.dynamicSurface(screenContext),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(l10n.delete),
+          title: Text(
+            l10n.deleteUser,
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(screenContext),
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ],
-      ),
-    );
+          content: Text(
+            l10n.deleteUserConfirm(name),
+            style: TextStyle(
+              color: AppColors.dynamicTextSecondary(screenContext),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                l10n.cancel,
+                style: TextStyle(
+                  color: AppColors.dynamicPrimary(screenContext),
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(l10n.delete),
+            ),
+          ],
+        ),
+      );
+    } else {
+      confirmed = await showCupertinoDialog<bool>(
+        context: screenContext,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: Text(l10n.deleteUser),
+          content: Text(l10n.deleteUserConfirm(name)),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l10n.cancel),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l10n.delete),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (confirmed != true) return false;
 
@@ -96,42 +197,69 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     try {
       await _accountDeletionService.deleteUserDataAsAdmin(userId);
       if (!mounted) return true;
-      showCupertinoDialog(
-        context: screenContext,
-        builder: (dialogContext) => CupertinoAlertDialog(
-          title: Text(l10n.success),
-          content: Text(l10n.deleteUserSuccess),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.ok),
-            ),
-          ],
-        ),
-      );
+      if (_useWebDialogs(screenContext)) {
+        await _showAlertMessage(
+          context: screenContext,
+          title: l10n.success,
+          message: l10n.deleteUserSuccess,
+        );
+        if (mounted && _selectedUser?['userId'] == userId) {
+          setState(() => _selectedUser = null);
+        }
+      } else {
+        showCupertinoDialog(
+          context: screenContext,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: Text(l10n.success),
+            content: Text(l10n.deleteUserSuccess),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l10n.ok),
+              ),
+            ],
+          ),
+        );
+      }
       return true;
     } catch (e) {
       if (!mounted) return false;
-      showCupertinoDialog(
-        context: screenContext,
-        builder: (dialogContext) => CupertinoAlertDialog(
-          title: Text(l10n.error),
-          content: Text(l10n.saveFailedTryAgain),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(l10n.ok),
-            ),
-          ],
-        ),
-      );
+      if (_useWebDialogs(screenContext)) {
+        await _showAlertMessage(
+          context: screenContext,
+          title: l10n.error,
+          message: l10n.saveFailedTryAgain,
+        );
+      } else {
+        showCupertinoDialog(
+          context: screenContext,
+          builder: (dialogContext) => CupertinoAlertDialog(
+            title: Text(l10n.error),
+            content: Text(l10n.saveFailedTryAgain),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(l10n.ok),
+              ),
+            ],
+          ),
+        );
+      }
       return false;
     } finally {
       if (mounted) setState(() => _deletingUserIds.remove(userId));
     }
   }
 
+  void _selectUser(Map<String, dynamic> user) {
+    setState(() => _selectedUser = user);
+  }
+
   void _openUserDetails(Map<String, dynamic> user) {
+    if (_useWebDialogs(context)) {
+      _selectUser(user);
+      return;
+    }
     final userId = user['userId'] as String;
     Navigator.push(
       context,
@@ -455,6 +583,341 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
   }
 
+  Widget _buildUserCard(
+    BuildContext context, {
+    required Map<String, dynamic> user,
+    required bool compact,
+    required bool isSelected,
+    required bool isDesktopWeb,
+  }) {
+    final userId = user['userId'] as String;
+    final status = user[FirestoreAccessKeys.status] as String? ?? 'trial';
+    final isTrialExpired = _isTrialExpired(user);
+    final statusColor =
+        _getStatusColor(status, user, isTrialExpired: isTrialExpired);
+    final daysLeft = _daysRemainingForUser(user);
+    final l10n = AppLocalizations.of(context)!;
+    final isDeleting = _deletingUserIds.contains(userId);
+    final hidePlanUnderEmail = _selectedFilter == UserFilter.all &&
+        _matchesFilter(user, UserFilter.expired);
+    final accessTypeLower =
+        (user[FirestoreAccessKeys.type] as String?)?.toLowerCase();
+    final hideRedundantAccessTypeLabel =
+        (_selectedFilter == UserFilter.monthly && accessTypeLower == 'monthly') ||
+            (_selectedFilter == UserFilter.yearly && accessTypeLower == 'yearly') ||
+            (_selectedFilter == UserFilter.trial) ||
+            (_selectedFilter == UserFilter.expired);
+    final showAccessTypePart =
+        user[FirestoreAccessKeys.type] != null && !hideRedundantAccessTypeLabel;
+    final showDaysPart = daysLeft != null;
+    final displayName = user['displayName'] as String? ?? 'No name';
+
+    return Container(
+      margin: EdgeInsets.only(bottom: compact ? 8 : 12),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.dynamicPrimary(context).withValues(alpha: 0.06)
+            : AppColors.dynamicSurface(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? AppColors.dynamicPrimary(context)
+              : AppColors.dynamicBorder(context),
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: isDeleting
+            ? null
+            : () {
+                if (isDesktopWeb) {
+                  _selectUser(user);
+                } else {
+                  _showUserActions(user);
+                }
+              },
+        child: Padding(
+          padding: EdgeInsets.all(compact ? 12 : 16),
+          child: Row(
+            children: [
+              Container(
+                width: compact ? 40 : 48,
+                height: compact ? 40 : 48,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  CupertinoIcons.person,
+                  color: statusColor,
+                  size: compact ? 20 : 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _getStatusText(context, status, user),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w600,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                              if (!hidePlanUnderEmail &&
+                                  (showAccessTypePart || showDaysPart)) ...[
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        height: 1.2,
+                                        color: AppColors.dynamicTextSecondary(
+                                          context,
+                                        ),
+                                      ),
+                                      children: [
+                                        if (showAccessTypePart)
+                                          TextSpan(
+                                            text:
+                                                '• ${_localizeAccessType(context, user[FirestoreAccessKeys.type].toString())}',
+                                          ),
+                                        if (showDaysPart)
+                                          TextSpan(
+                                            text: showAccessTypePart
+                                                ? ' (${l10n.daysRemaining(daysLeft.toString())})'
+                                                : '(${l10n.daysRemaining(daysLeft.toString())})',
+                                          ),
+                                      ],
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.dynamicTextPrimary(context),
+                            ),
+                          ),
+                          if ((user['businessName'] as String? ?? '')
+                              .trim()
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${l10n.shopName}: ${(user['businessName'] as String).trim()}',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.dynamicTextSecondary(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            user['email'] as String? ?? 'No email',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.dynamicTextSecondary(context),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  _getStatusText(context, status, user),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w600,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                              if (!hidePlanUnderEmail &&
+                                  (showAccessTypePart || showDaysPart)) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text.rich(
+                                    TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.2,
+                                        color: AppColors.dynamicTextSecondary(context),
+                                      ),
+                                      children: [
+                                        if (showAccessTypePart)
+                                          TextSpan(
+                                            text:
+                                                '• ${_localizeAccessType(context, user[FirestoreAccessKeys.type].toString())}',
+                                          ),
+                                        if (showDaysPart)
+                                          TextSpan(
+                                            text: showAccessTypePart
+                                                ? ' (${l10n.daysRemaining(daysLeft.toString())})'
+                                                : '(${l10n.daysRemaining(daysLeft.toString())})',
+                                          ),
+                                      ],
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+              ),
+              if (isDeleting)
+                const CupertinoActivityIndicator(radius: 10)
+              else if (!isDesktopWeb)
+                Icon(
+                  CupertinoIcons.chevron_right,
+                  color: AppColors.dynamicTextSecondary(context),
+                  size: 16,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopUsersLayout(
+    BuildContext context, {
+    required Widget filterChips,
+    required List<Map<String, dynamic>> users,
+  }) {
+    final selectedUser = _selectedUser;
+    final selectedId = selectedUser?['userId'] as String?;
+    final showDetail = selectedUser != null &&
+        users.any((u) => u['userId'] == selectedId);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          flex: showDetail ? 2 : 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              filterChips,
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+                    return _buildUserCard(
+                      context,
+                      user: user,
+                      compact: showDetail,
+                      isSelected: user['userId'] == selectedId,
+                      isDesktopWeb: true,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showDetail) ...[
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 3,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.dynamicSurface(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.dynamicBorder(context).withValues(alpha: 0.2),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: EmbeddedUserDetailsPanel(
+                    key: ValueKey(selectedId),
+                    userId: selectedId!,
+                    userEmail: selectedUser['email'] as String? ?? 'No email',
+                    userDisplayName:
+                        selectedUser['displayName'] as String? ?? 'No name',
+                    onClose: () => setState(() => _selectedUser = null),
+                    onDeleteUser: () async {
+                      await _confirmAndDeleteUser(selectedUser);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -747,6 +1210,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     );
                   }
 
+                  if (ResponsiveLayout.isDesktopWeb(context)) {
+                    return _buildDesktopUsersLayout(
+                      context,
+                      filterChips: filterChips,
+                      users: users,
+                    );
+                  }
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -782,7 +1253,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               !hideRedundantAccessTypeLabel;
                       final showDaysPart = daysLeft != null;
 
-                      final card = Container(
+                      return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
                           color: AppColors.dynamicSurface(context),
@@ -921,8 +1392,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           ),
                         ),
                       );
-
-                      return card;
                     },
                         ),
                       ),

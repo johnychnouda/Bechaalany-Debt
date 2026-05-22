@@ -383,6 +383,25 @@
   "categoryNameExists": "Category Name Exists",
 
   "addDebtFromProduct": "Add Debt from Product",
+  "barcodeLabel": "Barcode",
+  "barcodeHint": "Scan or type barcode number",
+  "scanBarcode": "Scan barcode",
+  "findProductByBarcode": "Find product",
+  "pointCameraAtBarcode": "Point the camera at the barcode on the product",
+  "productNotFoundForBarcode": "No product found for this barcode",
+  "useBarcode": "Use barcode",
+  "trackInventory": "Track inventory",
+  "barcodeProductLabel": "Barcode",
+  "barcodeProductHint": "EAN / UPC number on package",
+  "barcodeRequiredHint": "Required",
+  "barcodeRequired": "Please enter a barcode when barcode is enabled",
+  "duplicateBarcode": "This barcode is already used by \"{productName}\"",
+  "@duplicateBarcode": {
+    "placeholders": {
+      "productName": { "type": "String" }
+    }
+  },
+  "useBarcodeScannerOrType": "Use your barcode scanner or type the number, then tap Find product",
   "customerLabel": "Customer",
   "categoryLabel": "Category",
   "productLabel": "Product",
@@ -395,6 +414,10 @@
   "totalAmount": "Total Amount",
   "notSelected": "Not selected",
   "addProductsToCategoryInProductsTab": "Add products to this category in the Products tab.",
+
+  "productLowStockThreshold": "Low stock threshold",
+  "productLowStockThresholdHint": "Required",
+  "lowStockThresholdRequired": "Please enter a low stock threshold when inventory tracking is enabled",
 
   "productPurchases": "Product Purchases",
   "productsCount": "{count} products",

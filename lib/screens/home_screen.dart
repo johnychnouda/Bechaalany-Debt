@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
-
 import '../providers/app_state.dart';
+import '../utils/responsive_layout.dart';
 import '../widgets/customizable_dashboard_widget.dart';
+import '../widgets/desktop_content.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,11 +47,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final useDesktopWeb = ResponsiveLayout.isDesktopWeb(context);
+    final body = const CustomizableDashboardWidget();
+
     return Scaffold(
       backgroundColor: AppColors.dynamicBackground(context),
-      body: SafeArea(
-        child: const CustomizableDashboardWidget(),
-      ),
+      body: useDesktopWeb
+          ? DesktopContent(child: body)
+          : SafeArea(child: body),
     );
   }
 }

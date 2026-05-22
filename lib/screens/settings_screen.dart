@@ -17,9 +17,16 @@ import 'sign_in_screen.dart';
 import 'request_access_screen.dart';
 import '../services/admin_service.dart';
 import '../services/business_name_service.dart';
+import '../utils/responsive_layout.dart';
+import '../widgets/desktop_content.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool embeddedInShell;
+
+  const SettingsScreen({
+    super.key,
+    this.embeddedInShell = false,
+  });
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -60,26 +67,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: AppColors.dynamicBackground(context),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(AppLocalizations.of(context)!.settingsTitle, style: TextStyle(color: AppColors.dynamicTextPrimary(context))),
-        backgroundColor: AppColors.dynamicSurface(context),
-        border: null,
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          child: Icon(CupertinoIcons.info_circle, color: AppColors.dynamicPrimary(context)),
-          onPressed: () => _showAppInfo(),
-        ),
-      ),
-      child: SafeArea(
-        child: Material(
-          color: Colors.transparent,
-          child: ListView(
-            children: [
-              const SizedBox(height: 20),
+  Widget _buildSettingsList(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: ListView(
+        children: [
+          SizedBox(height: widget.embeddedInShell ? 8 : 20),
               
               // Account Section
               _buildSection(
@@ -156,12 +149,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     CupertinoIcons.money_dollar,
                     () => _showCurrencySettings(),
                   ),
-                  _buildNavigationRow(
-                    'Low Stock Alert Threshold',
-                    'Low stock warning limit',
-                    CupertinoIcons.exclamationmark_triangle,
-                    () => _showLowStockThresholdDialog(),
-                  ),
                 ],
               ),
               
@@ -237,9 +224,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
               
               const SizedBox(height: 40),
             ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settingsBody = _buildSettingsList(context);
+
+    if (widget.embeddedInShell) {
+      return Scaffold(
+        backgroundColor: AppColors.dynamicBackground(context),
+        body: DesktopContent(child: settingsBody),
+      );
+    }
+
+    return CupertinoPageScaffold(
+      backgroundColor: AppColors.dynamicBackground(context),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          AppLocalizations.of(context)!.settingsTitle,
+          style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
+        ),
+        backgroundColor: AppColors.dynamicSurface(context),
+        border: null,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Icon(
+            CupertinoIcons.info_circle,
+            color: AppColors.dynamicPrimary(context),
           ),
+          onPressed: () => _showAppInfo(),
         ),
       ),
+      child: SafeArea(child: settingsBody),
     );
   }
 
@@ -414,9 +432,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
 
 
+  Widget _languageOptionTile({
+    required BuildContext dialogContext,
+    required AppState appState,
+    required String code,
+    required String label,
+    required String currentCode,
+  }) {
+    final isSelected = currentCode == code;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+      title: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          color: AppColors.dynamicTextPrimary(context),
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check_rounded, color: AppColors.dynamicPrimary(context))
+          : null,
+      onTap: () async {
+        Navigator.of(dialogContext).pop();
+        await appState.setLocale(code);
+      },
+    );
+  }
+
   void _showLanguagePicker() {
     final l10n = AppLocalizations.of(context)!;
     final appState = Provider.of<AppState>(context, listen: false);
+
+    if (_useWebDialogs) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.dynamicSurface(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              l10n.language,
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _languageOptionTile(
+                    dialogContext: dialogContext,
+                    appState: appState,
+                    code: 'en',
+                    label: l10n.languageEnglish,
+                    currentCode: appState.localeCode,
+                  ),
+                  _languageOptionTile(
+                    dialogContext: dialogContext,
+                    appState: appState,
+                    code: 'ar',
+                    label: l10n.languageArabic,
+                    currentCode: appState.localeCode,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  l10n.cancel,
+                  style: TextStyle(color: AppColors.dynamicPrimary(context)),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showCupertinoModalPopup<void>(
       context: context,
       builder: (context) => SafeArea(
@@ -474,84 +573,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Navigator.of(context).push(
       CupertinoPageRoute(
         builder: (context) => const CurrencySettingsScreen(),
-      ),
-    );
-  }
-
-  void _showLowStockThresholdDialog() {
-    final appState = Provider.of<AppState>(context, listen: false);
-    final controller = TextEditingController(
-      text: appState.lowStockThreshold.toString(),
-    );
-
-    showCupertinoDialog(
-      context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
-        title: Text(
-          'Low Stock Threshold',
-          style: TextStyle(
-            color: AppColors.dynamicTextPrimary(dialogContext),
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Text(
-              'Products with stock less than or equal to this value will show as low stock.',
-              style: TextStyle(
-                color: AppColors.dynamicTextSecondary(dialogContext),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 12),
-            CupertinoTextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              placeholder: 'Enter threshold',
-            ),
-          ],
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: AppColors.dynamicTextSecondary(dialogContext)),
-            ),
-          ),
-          CupertinoDialogAction(
-            onPressed: () async {
-              final parsed = int.tryParse(controller.text.trim());
-              if (parsed == null || parsed < 0) {
-                Navigator.pop(dialogContext);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid number (0 or more)'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-                return;
-              }
-
-              await appState.setLowStockThreshold(parsed);
-              if (mounted) {
-                Navigator.pop(dialogContext);
-              }
-            },
-            child: Text(
-              'Save',
-              style: TextStyle(
-                color: AppColors.dynamicPrimary(dialogContext),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1202,8 +1223,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  bool get _useWebDialogs => ResponsiveLayout.isDesktopWeb(context);
+
   void _showDeleteAccountDialog() {
     final l10n = AppLocalizations.of(context)!;
+
+    if (_useWebDialogs) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.dynamicSurface(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              l10n.deleteAccount,
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: SizedBox(
+              width: 420,
+              child: Text(
+                l10n.deleteAccountDialogMessage,
+                style: TextStyle(
+                  color: AppColors.dynamicTextSecondary(context),
+                  height: 1.5,
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text(
+                  l10n.cancel,
+                  style: TextStyle(color: AppColors.dynamicPrimary(context)),
+                ),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.of(dialogContext).pop();
+                  await _confirmDeleteAccount();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(l10n.deleteAccount),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
     showCupertinoModalPopup(
       context: context,
       builder: (context) => CupertinoActionSheet(
@@ -1255,81 +1331,150 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _confirmDeleteAccount() async {
     final l10n = AppLocalizations.of(context)!;
-    // Show second confirmation action sheet
-    final confirmed = await showCupertinoModalPopup<bool>(
-      context: context,
-      builder: (context) => CupertinoActionSheet(
-        title: Text(
-          l10n.finalConfirmation,
-          style: TextStyle(
-            color: AppColors.dynamicTextPrimary(context),
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
+
+    final bool? confirmed;
+    if (_useWebDialogs) {
+      confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: AppColors.dynamicSurface(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              l10n.finalConfirmation,
+              style: TextStyle(
+                color: AppColors.dynamicTextPrimary(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: Text(
+              l10n.finalConfirmationDeleteMessage,
+              style: TextStyle(
+                color: AppColors.dynamicTextSecondary(context),
+                height: 1.5,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: Text(
+                  l10n.cancel,
+                  style: TextStyle(color: AppColors.dynamicPrimary(context)),
+                ),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(l10n.delete),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      confirmed = await showCupertinoModalPopup<bool>(
+        context: context,
+        builder: (context) => CupertinoActionSheet(
+          title: Text(
+            l10n.finalConfirmation,
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
           ),
-        ),
-        message: Text(
-          l10n.finalConfirmationDeleteMessage,
-          style: TextStyle(
-            color: AppColors.dynamicTextSecondary(context),
-            fontSize: 13,
+          message: Text(
+            l10n.finalConfirmationDeleteMessage,
+            style: TextStyle(
+              color: AppColors.dynamicTextSecondary(context),
+              fontSize: 13,
+            ),
           ),
-        ),
-        actions: [
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.pop(context, true),
+          actions: [
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                l10n.delete,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.pop(context, false),
             child: Text(
-              l10n.delete,
-              style: const TextStyle(
+              l10n.cancel,
+              style: TextStyle(
+                color: AppColors.dynamicPrimary(context),
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(
-            l10n.cancel,
-            style: TextStyle(
-              color: AppColors.dynamicPrimary(context),
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ),
-      ),
-    );
-
-    if (confirmed != true) {
-      return; // User cancelled
+      );
     }
 
-    // Show loading dialog
+    if (confirmed != true) {
+      return;
+    }
+
     if (!context.mounted) return;
-    showCupertinoDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
-        content: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+    if (_useWebDialogs) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.dynamicSurface(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CupertinoActivityIndicator(),
-              const SizedBox(height: 16),
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
               Text(
                 'Deleting account...',
-                style: TextStyle(
-                  color: AppColors.dynamicTextPrimary(context),
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppColors.dynamicTextPrimary(context)),
               ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    } else {
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => CupertinoAlertDialog(
+          content: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CupertinoActivityIndicator(),
+                const SizedBox(height: 16),
+                Text(
+                  'Deleting account...',
+                  style: TextStyle(
+                    color: AppColors.dynamicTextPrimary(context),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     try {
       final accountDeletionService = AccountDeletionService();
@@ -1367,6 +1512,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showErrorDialog(String message) {
+    if (_useWebDialogs) {
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.dynamicSurface(context),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Error',
+            style: TextStyle(
+              color: AppColors.dynamicTextPrimary(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(color: AppColors.dynamicTextSecondary(context)),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(

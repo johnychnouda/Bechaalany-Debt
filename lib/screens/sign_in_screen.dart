@@ -130,6 +130,13 @@ class _SignInScreenState extends State<SignInScreen> {
     final isSmallScreen = MediaQuery.of(context).size.width < 375;
     final isLargeScreen = MediaQuery.of(context).size.width > 428;
 
+    final signInForm = _buildSignInForm(
+      context,
+      isSmallScreen: isSmallScreen,
+      isLargeScreen: isLargeScreen,
+      showBranding: true,
+    );
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -154,10 +161,25 @@ class _SignInScreenState extends State<SignInScreen> {
                 constraints: const BoxConstraints(
                   maxWidth: _signInContentMaxWidth,
                 ),
-                child: Column(
+                child: signInForm,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignInForm(
+    BuildContext context, {
+    required bool isSmallScreen,
+    required bool isLargeScreen,
+    required bool showBranding,
+  }) {
+    return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                // Logo Design
+                if (showBranding) ...[
                 LogoUtils.buildLogo(
                   context: context,
                   width: isSmallScreen ? 120 : isLargeScreen ? 160 : 140,
@@ -168,10 +190,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     size: isSmallScreen ? 50 : isLargeScreen ? 70 : 60,
                   ),
                 ),
-                
                 SizedBox(height: isSmallScreen ? AppTheme.spacing32 : AppTheme.spacing40),
-                
-                // App Title with Elegant Styling
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
@@ -197,10 +216,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     ],
                   ),
                 ),
-                
                 SizedBox(height: AppTheme.spacing16),
-                
-                // Subtitle with Elegant Styling (1 line, scales to fit)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacing24),
                   child: FittedBox(
@@ -220,8 +236,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                   ),
                 ),
-                
                 SizedBox(height: isSmallScreen ? AppTheme.spacing48 : AppTheme.spacing56),
+                ],
                 
                 // Error Message with Elegant Styling
                 if (_errorMessage != null)
@@ -379,13 +395,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 
                 SizedBox(height: isSmallScreen ? AppTheme.spacing40 : AppTheme.spacing48),
                   ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+                );
   }
 }
 

@@ -271,15 +271,6 @@ iOS 18+ Design System
   }
   
   void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: PlatformTheme.getSurface(context),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+    // Snackbars disabled app-wide.
   }
 }
