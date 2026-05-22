@@ -223,9 +223,17 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   }
 
   Future<void> _showSplashForMinimumDuration() async {
-    // Reduced splash duration to 1 second for faster app startup
     await Future.delayed(const Duration(seconds: 1));
-    
+    if (!mounted) return;
+
+    // Keep splash up while restoring a persisted session (Firestore access check).
+    final gate = context.read<AuthGate>();
+    while (mounted &&
+        (gate.user ?? FirebaseAuth.instance.currentUser) != null &&
+        !gate.accessCheckReady) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+
     if (mounted) {
       setState(() {
         _isLoading = false;
@@ -316,14 +324,9 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       return const SplashScreen();
     }
 
-    // Signed in but access not verified yet — splash on cold start, sign-in after OAuth.
+    // Signed in but access check still running — stay on splash (never flash sign-in buttons).
     if (user != null && !authGate.accessCheckReady) {
-      if (_isLoading) {
-        return const SplashScreen();
-      }
-      return SignInScreen(
-        key: ValueKey('sign_in_${authGate.signInScreenKey}'),
-      );
+      return const SplashScreen();
     }
 
     // If user is signed in, check their state.
