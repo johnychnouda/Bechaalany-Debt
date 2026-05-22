@@ -368,7 +368,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "FRAMEWORKS_DIR=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Frameworks\"\nif [ -d \"$FRAMEWORKS_DIR\" ]; then\n  for fw in \"$FRAMEWORKS_DIR\"/*.framework; do\n    [ -d \"$fw\" ] || continue\n    plist=\"${fw}/Info.plist\"\n    if [ -f \"$plist\" ]; then\n      /usr/libexec/PlistBuddy -c \"Set :MinimumOSVersion 15.0\" \"$plist\" 2>/dev/null || true\n    fi\n  done\nfi\n";
+			shellScript = "bash \"${SRCROOT}/scripts/fix_framework_minimum_os.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		F7FEB656355EBBA69B4991A6 /* [CP] Check Pods Manifest.lock */ = {

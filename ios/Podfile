@@ -36,11 +36,26 @@ target 'Runner' do
   end
 end
 
+def fix_framework_plist(plist_path, min_os)
+  return unless File.exist?(plist_path)
+
+  set_ok = system('/usr/libexec/PlistBuddy', '-c', "Set :MinimumOSVersion #{min_os}", plist_path)
+  unless set_ok
+    system('/usr/libexec/PlistBuddy', '-c', "Add :MinimumOSVersion string #{min_os}", plist_path)
+  end
+
+  version = `/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "#{plist_path}" 2>/dev/null`.strip
+  if version.empty?
+    system('/usr/libexec/PlistBuddy', '-c', 'Add :CFBundleShortVersionString string 1.0', plist_path)
+  end
+end
+
 post_install do |installer|
+  min_os = '15.0'
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_os
 
       # gRPC-Core / gRPC-C++: ensure Abseil and address_sorting headers are found.
       if target.name.include?('gRPC-Core') || target.name.include?('gRPC-C++')
@@ -65,5 +80,10 @@ post_install do |installer|
         end
       end
     end
+  end
+
+  # ITMS-90208: gRPC / Firebase binary pods ship with low or missing MinimumOSVersion.
+  Dir.glob(File.join(installer.sandbox.root, '**', '*.framework', 'Info.plist')).each do |plist|
+    fix_framework_plist(plist, min_os)
   end
 end
