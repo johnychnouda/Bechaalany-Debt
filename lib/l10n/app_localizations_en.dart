@@ -1397,4 +1397,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get phone => 'Phone';
+
+  @override
+  String get contactOwner => 'Contact Owner';
+
+  @override
+  String get accessRevoked => 'Access Revoked';
+
+  @override
+  String get trialExpiredDescription =>
+      'Your trial period has ended. Please contact the administrator so we can restore your access.';
+
+  @override
+  String get accessExpiredDescription =>
+      'Your access period has ended. Please contact the administrator so we can restore your access.';
+
+  @override
+  String get accessRevokedDescription =>
+      'Your access has been revoked. Please contact the administrator so we can restore your access.';
+
+  @override
+  String get trialExpiredFooterMessage =>
+      'Once you contact the administrator, they will extend your access so you can continue using the app.';
+
+  @override
+  String get accessExpiredFooterMessage =>
+      'Once you contact the administrator, they will renew your access so you can continue using the app.';
+
+  @override
+  String get accessRevokedFooterMessage =>
+      'After you contact the administrator, we will review your account and restore your access if appropriate.';
 }

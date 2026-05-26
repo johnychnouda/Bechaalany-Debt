@@ -3,7 +3,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../auth/auth_gate.dart';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
+import '../services/business_name_service.dart';
 import '../utils/admin_contact.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 
 enum AccessDeniedReason {
   trialExpired,
@@ -21,25 +24,36 @@ class ContactOwnerScreen extends StatelessWidget {
 
   static const Color _whatsappGreen = Color(0xFF25D366);
   
-  String get _title {
+  String _title(AppLocalizations l10n) {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
-        return 'Trial Expired';
+        return l10n.trialExpired;
       case AccessDeniedReason.accessExpired:
-        return 'Access Expired';
+        return l10n.accessExpired;
       case AccessDeniedReason.accessRevoked:
-        return 'Access Revoked';
+        return l10n.accessRevoked;
     }
   }
   
-  String get _description {
+  String _description(AppLocalizations l10n) {
     switch (reason) {
       case AccessDeniedReason.trialExpired:
-        return 'We could not verify your trial status. The app is free to use, but there may be an issue with your account. Please contact the administrator so we can restore your access.';
+        return l10n.trialExpiredDescription;
       case AccessDeniedReason.accessExpired:
-        return 'We could not verify your access status. The app is free to use for all signed-in users. Please contact the administrator so we can fix your account.';
+        return l10n.accessExpiredDescription;
       case AccessDeniedReason.accessRevoked:
-        return 'There is an issue with your account. Please contact the administrator so we can review and restore your access if appropriate.';
+        return l10n.accessRevokedDescription;
+    }
+  }
+
+  String _footerMessage(AppLocalizations l10n) {
+    switch (reason) {
+      case AccessDeniedReason.trialExpired:
+        return l10n.trialExpiredFooterMessage;
+      case AccessDeniedReason.accessExpired:
+        return l10n.accessExpiredFooterMessage;
+      case AccessDeniedReason.accessRevoked:
+        return l10n.accessRevokedFooterMessage;
     }
   }
   
@@ -60,16 +74,18 @@ class ContactOwnerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
+    final l10n = AppLocalizations.of(context)!;
+
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('Contact Owner'),
+        middle: Text(l10n.contactOwner),
         backgroundColor: AppColors.dynamicSurface(context),
         border: null,
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () => _signOut(context),
-          child: const Text('Sign out'),
+          child: Text(l10n.signOut),
         ),
       ),
       child: SafeArea(
@@ -96,7 +112,7 @@ class ContactOwnerScreen extends StatelessWidget {
               const SizedBox(height: 30),
               // Title
               Text(
-                _title,
+                _title(l10n),
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -110,7 +126,7 @@ class ContactOwnerScreen extends StatelessWidget {
               const SizedBox(height: 16),
               // Description
               Text(
-                _description,
+                _description(l10n),
                 style: TextStyle(
                   fontSize: 16,
                   color: AppColors.dynamicTextSecondary(context),
@@ -122,10 +138,10 @@ class ContactOwnerScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               // WhatsApp
-              _buildWhatsAppCard(context),
+              _buildWhatsAppCard(context, l10n),
               const SizedBox(height: 16),
               // Call
-              _buildCallCard(context),
+              _buildCallCard(context, l10n),
               const SizedBox(height: 40),
               // Info Box
               Container(
@@ -149,7 +165,7 @@ class ContactOwnerScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'After you contact the administrator, we will review and fix any technical issues with your account so you can continue using the app.',
+                        _footerMessage(l10n),
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.dynamicTextSecondary(context),
@@ -168,7 +184,7 @@ class ContactOwnerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWhatsAppCard(BuildContext context) {
+  Widget _buildWhatsAppCard(BuildContext context, AppLocalizations l10n) {
     return CupertinoButton(
       padding: EdgeInsets.zero,
       onPressed: () => AdminContact.openWhatsApp(context),
@@ -207,7 +223,7 @@ class ContactOwnerScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Bechaalany Connect',
+                    BusinessNameService.adminBusinessName,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
@@ -242,7 +258,7 @@ class ContactOwnerScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCallCard(BuildContext context) {
+  Widget _buildCallCard(BuildContext context, AppLocalizations l10n) {
     final primary = AppColors.dynamicPrimary(context);
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -276,7 +292,7 @@ class ContactOwnerScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Bechaalany Connect',
+                    BusinessNameService.adminBusinessName,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,

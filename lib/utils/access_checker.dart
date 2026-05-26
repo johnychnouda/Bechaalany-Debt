@@ -9,7 +9,7 @@ class AccessChecker {
   static final AccessService _accessService = AccessService();
   static final AdminService _adminService = AdminService();
 
-  static AccessDeniedReason _determineAccessDeniedReason(Access? access) {
+  static AccessDeniedReason determineAccessDeniedReason(Access? access) {
     if (access == null) {
       return AccessDeniedReason.trialExpired;
     }
@@ -42,7 +42,7 @@ class AccessChecker {
       final hasAccess = await _accessService.hasActiveAccess();
       if (!hasAccess) {
         final access = await _accessService.getCurrentUserAccess();
-        final reason = _determineAccessDeniedReason(access);
+        final reason = determineAccessDeniedReason(access);
         if (context.mounted) {
           Navigator.push(
             context,

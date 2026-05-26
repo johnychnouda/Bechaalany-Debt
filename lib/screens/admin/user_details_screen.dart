@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
 import '../../models/access.dart';
 import '../../widgets/border_error_text_field.dart';
+import '../../widgets/cupertino_material_page_scaffold.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   final String userId;
@@ -358,7 +359,7 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(l10n.userDetails),

@@ -10,6 +10,7 @@ import '../services/data_service.dart';
 // Notification service import removed
 import '../providers/app_state.dart';
 import '../utils/settings_navigation.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 import '../widgets/web_subpage_scaffold.dart';
 
 class ThousandsSeparatorInputFormatter extends TextInputFormatter {
@@ -238,7 +239,7 @@ class _CurrencySettingsScreenState extends State<CurrencySettingsScreen> {
       );
     }
 
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         leading: SettingsNavigation.cupertinoBackButton(context),

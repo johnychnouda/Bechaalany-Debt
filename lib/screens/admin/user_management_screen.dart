@@ -9,6 +9,7 @@ import '../../services/admin_service.dart';
 import '../../services/account_deletion_service.dart';
 import '../../utils/responsive_layout.dart';
 import 'embedded_user_details_panel.dart';
+import '../../widgets/cupertino_material_page_scaffold.dart';
 import 'user_details_screen.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -926,7 +927,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         if (didPop) return;
         Navigator.of(context).pop();
       },
-      child: CupertinoPageScaffold(
+      child: CupertinoMaterialPageScaffold(
         backgroundColor: AppColors.dynamicBackground(context),
         navigationBar: CupertinoNavigationBar(
           middle: Text(AppLocalizations.of(context)!.userManagement),

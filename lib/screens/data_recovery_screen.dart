@@ -10,6 +10,7 @@ import '../services/backup_service.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
 import '../utils/settings_navigation.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 import '../widgets/web_subpage_scaffold.dart';
 
 class DataRecoveryScreen extends StatefulWidget {
@@ -362,7 +363,7 @@ class _DataRecoveryScreenState extends State<DataRecoveryScreen> {
       );
     }
 
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       navigationBar: CupertinoNavigationBar(
         leading: SettingsNavigation.cupertinoBackButton(context),
         middle: Text(

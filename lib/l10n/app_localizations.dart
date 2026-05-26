@@ -2587,6 +2587,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Phone'**
   String get phone;
+
+  /// No description provided for @contactOwner.
+  ///
+  /// In en, this message translates to:
+  /// **'Contact Owner'**
+  String get contactOwner;
+
+  /// No description provided for @accessRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Access Revoked'**
+  String get accessRevoked;
+
+  /// No description provided for @trialExpiredDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your trial period has ended. Please contact the administrator so we can restore your access.'**
+  String get trialExpiredDescription;
+
+  /// No description provided for @accessExpiredDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your access period has ended. Please contact the administrator so we can restore your access.'**
+  String get accessExpiredDescription;
+
+  /// No description provided for @accessRevokedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Your access has been revoked. Please contact the administrator so we can restore your access.'**
+  String get accessRevokedDescription;
+
+  /// No description provided for @trialExpiredFooterMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you contact the administrator, they will extend your access so you can continue using the app.'**
+  String get trialExpiredFooterMessage;
+
+  /// No description provided for @accessExpiredFooterMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you contact the administrator, they will renew your access so you can continue using the app.'**
+  String get accessExpiredFooterMessage;
+
+  /// No description provided for @accessRevokedFooterMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'After you contact the administrator, we will review your account and restore your access if appropriate.'**
+  String get accessRevokedFooterMessage;
 }
 
 class _AppLocalizationsDelegate

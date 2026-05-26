@@ -13,6 +13,7 @@ import '../providers/app_state.dart';
 import '../services/business_name_service.dart';
 import '../services/data_service.dart';
 import '../services/admin_service.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 import 'currency_settings_screen.dart' show ThousandsSeparatorInputFormatter;
 
 /// Shown when the user has access but has not yet set shop name and/or exchange rate.
@@ -144,15 +145,13 @@ class _RequiredSetupScreenState extends State<RequiredSetupScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return CupertinoPageScaffold(
-        resizeToAvoidBottomInset: false,
+      return CupertinoMaterialPageScaffold(
         backgroundColor: AppColors.dynamicBackground(context),
         child: const Center(child: CupertinoActivityIndicator()),
       );
     }
 
-    return CupertinoPageScaffold(
-      resizeToAvoidBottomInset: false,
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),

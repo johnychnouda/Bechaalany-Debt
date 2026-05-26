@@ -1,6 +1,6 @@
 {
   "@@locale": "ar",
-  "appTitle": "بيشعلاني كونكت",
+  "appTitle": "Bechaalany Connect",
   "navDashboard": "لوحة التحكم",
   "navCustomers": "العملاء",
   "navProducts": "المنتجات",
@@ -140,8 +140,8 @@
   "clearDebtsButton": "مسح الديون",
   "clearDebtsSuccess": "تم مسح جميع الديون والسجلات والمدفوعات بنجاح. تم الاحتفاظ بالمنتجات والعملاء.",
 
-  "signInTitleBechaalany": "بيشعلاني ",
-  "signInTitleConnect": "كونكت",
+  "signInTitleBechaalany": "Bechaalany ",
+  "signInTitleConnect": "Connect",
   "signInSubtitle": "سجّل الدخول بحساب Google أو Apple للبدء",
   "signInSubtitleGoogleOnly": "سجّل الدخول بحساب Google للبدء",
   "signingIn": "جاري تسجيل الدخول...",
@@ -469,5 +469,14 @@
   "welcomeToBechaalany": "مرحباً بك في تطبيق بيشعلاني للديون",
   "welcomeNoDataMessage": "التطبيق مجاني بالكامل ومتاح لجميع المستخدمين المسجلين. إذا واجهت مشكلة في الوصول إلى بياناتك، يمكنك التواصل مع المسؤول للحصول على الدعم الفني.",
   "whatsApp": "واتساب",
-  "phone": "هاتف"
+  "phone": "هاتف",
+
+  "contactOwner": "التواصل مع المالك",
+  "accessRevoked": "تم سحب الوصول",
+  "trialExpiredDescription": "انتهت فترتك التجريبية. يرجى التواصل مع المسؤول لاستعادة وصولك.",
+  "accessExpiredDescription": "انتهت فترة وصولك. يرجى التواصل مع المسؤول لاستعادة وصولك.",
+  "accessRevokedDescription": "تم سحب وصولك. يرجى التواصل مع المسؤول لاستعادة وصولك.",
+  "trialExpiredFooterMessage": "بعد التواصل مع المسؤول، سيتم تمديد وصولك لتتمكن من متابعة استخدام التطبيق.",
+  "accessExpiredFooterMessage": "بعد التواصل مع المسؤول، سيتم تجديد وصولك لتتمكن من متابعة استخدام التطبيق.",
+  "accessRevokedFooterMessage": "بعد التواصل مع المسؤول، سنراجع حسابك ونستعيد وصولك عند الاقتضاء."
 }

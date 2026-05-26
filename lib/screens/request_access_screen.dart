@@ -7,6 +7,7 @@ import '../models/access.dart';
 import '../services/access_service.dart';
 import '../utils/admin_contact.dart';
 import '../utils/settings_navigation.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 import '../widgets/web_subpage_scaffold.dart';
 import 'contact_owner_screen.dart';
 
@@ -142,7 +143,7 @@ class _RequestAccessScreenState extends State<RequestAccessScreen> {
       );
     }
 
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         leading: SettingsNavigation.cupertinoBackButton(context),

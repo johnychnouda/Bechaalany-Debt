@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get appTitle => 'بيشعلاني كونكت';
+  String get appTitle => 'Bechaalany Connect';
 
   @override
   String get navDashboard => 'لوحة التحكم';
@@ -401,10 +401,10 @@ class AppLocalizationsAr extends AppLocalizations {
       'تم مسح جميع الديون والسجلات والمدفوعات بنجاح. تم الاحتفاظ بالمنتجات والعملاء.';
 
   @override
-  String get signInTitleBechaalany => 'بيشعلاني ';
+  String get signInTitleBechaalany => 'Bechaalany ';
 
   @override
-  String get signInTitleConnect => 'كونكت';
+  String get signInTitleConnect => 'Connect';
 
   @override
   String get signInSubtitle => 'سجّل الدخول بحساب Google أو Apple للبدء';
@@ -1380,4 +1380,34 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get phone => 'هاتف';
+
+  @override
+  String get contactOwner => 'التواصل مع المالك';
+
+  @override
+  String get accessRevoked => 'تم سحب الوصول';
+
+  @override
+  String get trialExpiredDescription =>
+      'انتهت فترتك التجريبية. يرجى التواصل مع المسؤول لاستعادة وصولك.';
+
+  @override
+  String get accessExpiredDescription =>
+      'انتهت فترة وصولك. يرجى التواصل مع المسؤول لاستعادة وصولك.';
+
+  @override
+  String get accessRevokedDescription =>
+      'تم سحب وصولك. يرجى التواصل مع المسؤول لاستعادة وصولك.';
+
+  @override
+  String get trialExpiredFooterMessage =>
+      'بعد التواصل مع المسؤول، سيتم تمديد وصولك لتتمكن من متابعة استخدام التطبيق.';
+
+  @override
+  String get accessExpiredFooterMessage =>
+      'بعد التواصل مع المسؤول، سيتم تجديد وصولك لتتمكن من متابعة استخدام التطبيق.';
+
+  @override
+  String get accessRevokedFooterMessage =>
+      'بعد التواصل مع المسؤول، سنراجع حسابك ونستعيد وصولك عند الاقتضاء.';
 }

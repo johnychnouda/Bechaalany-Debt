@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +10,7 @@ import '../screens/main_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/contact_owner_screen.dart';
 import '../services/auth_service.dart';
+import '../utils/access_checker.dart';
 import '../utils/platform_utils.dart';
 import '../services/user_state_service.dart';
 import '../services/access_service.dart';
@@ -37,15 +40,77 @@ class _SignedInAccessChecker extends StatefulWidget {
   State<_SignedInAccessChecker> createState() => _SignedInAccessCheckerState();
 }
 
-class _SignedInAccessCheckerState extends State<_SignedInAccessChecker> {
+class _SignedInAccessCheckerState extends State<_SignedInAccessChecker>
+    with WidgetsBindingObserver {
   late Future<Map<String, dynamic>> _accessFuture;
   int _userDeletedRetryCount = 0;
   static const int _maxUserDeletedRetries = 3;
 
+  final AccessService _accessService = AccessService();
+  final AdminService _adminService = AdminService();
+  StreamSubscription<Access?>? _accessSubscription;
+  Timer? _accessExpiryTimer;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _accessFuture = widget.accessFuture;
+    _accessSubscription =
+        _accessService.getCurrentUserAccessStream().listen(_onLiveAccessUpdate);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _accessSubscription?.cancel();
+    _accessExpiryTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAccessStatus();
+    }
+  }
+
+  void _onLiveAccessUpdate(Access? access) {
+    if (!mounted) return;
+    _scheduleAccessExpiryCheck(access);
+    _refreshAccessStatus();
+  }
+
+  /// Re-check access when Firestore changes, app resumes, or trial/access end time passes.
+  void _refreshAccessStatus() {
+    if (!mounted) return;
+    _adminService.clearCache();
+    setState(() {
+      _accessFuture = widget.reloadAccess();
+    });
+  }
+
+  void _scheduleAccessExpiryCheck(Access? access) {
+    _accessExpiryTimer?.cancel();
+    if (access == null) return;
+
+    DateTime? expiry;
+    if (access.status == AccessStatus.trial && access.trialEndDate != null) {
+      expiry = access.trialEndDate;
+    } else if (access.status == AccessStatus.active &&
+        access.accessEndDate != null) {
+      expiry = access.accessEndDate;
+    }
+    if (expiry == null) return;
+
+    final delay = expiry.difference(DateTime.now());
+    if (!delay.isNegative) {
+      _accessExpiryTimer = Timer(delay, () {
+        if (mounted) _refreshAccessStatus();
+      });
+    } else if (access.hasActiveAccess) {
+      _refreshAccessStatus();
+    }
   }
 
   /// Retry access check when userDeleted is reported. Right after sign-in,
@@ -261,29 +326,10 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
       final hasExchangeRate = currencySettings?.exchangeRate != null && currencySettings!.exchangeRate! > 0;
       final needsSetup = !hasBusinessName || !hasExchangeRate;
       
-      // Determine the reason for access denial if user doesn't have access
       AccessDeniedReason? accessDeniedReason;
       if (!hasAccess && !isAdmin) {
         final access = await _accessService.getCurrentUserAccess();
-        if (access != null) {
-          if (access.status == AccessStatus.cancelled) {
-            accessDeniedReason = AccessDeniedReason.accessRevoked;
-          } else if (access.status == AccessStatus.expired) {
-            accessDeniedReason = AccessDeniedReason.accessExpired;
-          } else if (access.status == AccessStatus.active &&
-                     access.accessEndDate != null &&
-                     DateTime.now().isAfter(access.accessEndDate!)) {
-            accessDeniedReason = AccessDeniedReason.accessExpired;
-          } else if (access.status == AccessStatus.trial &&
-                     access.trialEndDate != null &&
-                     DateTime.now().isAfter(access.trialEndDate!)) {
-            accessDeniedReason = AccessDeniedReason.trialExpired;
-          } else {
-            accessDeniedReason = AccessDeniedReason.trialExpired;
-          }
-        } else {
-          accessDeniedReason = AccessDeniedReason.trialExpired;
-        }
+        accessDeniedReason = AccessChecker.determineAccessDeniedReason(access);
       }
       
       return {

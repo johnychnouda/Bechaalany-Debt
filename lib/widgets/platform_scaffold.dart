@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import '../constants/platform_theme.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_theme.dart';
+import 'cupertino_material_page_scaffold.dart';
 
 class PlatformScaffold extends StatelessWidget {
   final String title;
@@ -30,7 +31,7 @@ class PlatformScaffold extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: backgroundColor ?? AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(

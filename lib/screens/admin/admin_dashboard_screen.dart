@@ -4,6 +4,7 @@ import '../../constants/app_colors.dart';
 import '../../constants/firestore_access_keys.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/access_service.dart';
+import '../../widgets/cupertino_material_page_scaffold.dart';
 import 'user_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -118,7 +119,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildDashboardContent(BuildContext context) {
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(

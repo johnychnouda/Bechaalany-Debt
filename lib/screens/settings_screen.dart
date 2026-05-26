@@ -18,6 +18,7 @@ import 'request_access_screen.dart';
 import '../services/admin_service.dart';
 import '../services/business_name_service.dart';
 import '../utils/responsive_layout.dart';
+import '../widgets/cupertino_material_page_scaffold.dart';
 import '../utils/settings_navigation.dart';
 import '../widgets/desktop_content.dart';
 import '../widgets/settings_nav_host.dart';
@@ -266,7 +267,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
 
-    return CupertinoPageScaffold(
+    return CupertinoMaterialPageScaffold(
       backgroundColor: AppColors.dynamicBackground(context),
       navigationBar: CupertinoNavigationBar(
         middle: Text(

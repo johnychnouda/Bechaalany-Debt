@@ -19,6 +19,7 @@ import 'services/auth_service.dart';
 import 'services/backup_service.dart';
 // Background services removed - no longer needed
 import 'services/app_update_service.dart';
+import 'widgets/app_default_text_style.dart';
 
 
 void main() async {
@@ -243,11 +244,14 @@ class _BechaalanyDebtAppState extends State<BechaalanyDebtApp> with WidgetsBindi
                 data: MediaQuery.of(context).copyWith(
                   textScaler: textScaler,
                 ),
-                child: AnnotatedRegion<SystemUiOverlayStyle>(
-                  value: _getSystemUIOverlayStyle(appState.isDarkMode),
-                  child: Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: child!,
+                child: AppDefaultTextStyle.wrap(
+                  context,
+                  AnnotatedRegion<SystemUiOverlayStyle>(
+                    value: _getSystemUIOverlayStyle(appState.isDarkMode),
+                    child: Directionality(
+                      textDirection: TextDirection.ltr,
+                      child: child!,
+                    ),
                   ),
                 ),
               );
