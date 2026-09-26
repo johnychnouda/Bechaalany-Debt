@@ -499,6 +499,7 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                     final isOutOfStock = isTracked && stock <= 0;
                     final stockText = stock.toStringAsFixed(stock % 1 == 0 ? 0 : 2);
 
+                    final l10nStock = AppLocalizations.of(context)!;
                     Color chipColor;
                     IconData chipIcon;
                     String label;
@@ -506,19 +507,19 @@ class _AddDebtFromProductScreenState extends State<AddDebtFromProductScreen> {
                     if (!isTracked) {
                       chipColor = AppColors.dynamicTextSecondary(context);
                       chipIcon = Icons.inventory_2_outlined;
-                      label = 'Inventory not tracked';
+                      label = l10nStock.inventoryNotTracked;
                     } else if (isOutOfStock) {
                       chipColor = AppColors.error;
                       chipIcon = Icons.error_outline;
-                      label = 'Out of stock';
+                      label = l10nStock.outOfStock;
                     } else if (isLowStock) {
                       chipColor = AppColors.dynamicWarning(context);
                       chipIcon = Icons.warning_amber_rounded;
-                      label = 'Low stock: $stockText';
+                      label = l10nStock.lowStockWithQuantity(stockText);
                     } else {
                       chipColor = AppColors.dynamicSuccess(context);
                       chipIcon = Icons.check_circle_outline;
-                      label = 'In stock: $stockText';
+                      label = l10nStock.inStockWithQuantity(stockText);
                     }
 
                     return Container(

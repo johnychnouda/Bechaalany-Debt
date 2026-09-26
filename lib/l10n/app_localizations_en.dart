@@ -1143,6 +1143,33 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String categoryProductCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count products',
+      one: '1 product',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outOfStock => 'Out of stock';
+
+  @override
+  String inStockWithQuantity(String quantity) {
+    return 'In stock · $quantity';
+  }
+
+  @override
+  String lowStockWithQuantity(String quantity) {
+    return 'Low · $quantity';
+  }
+
+  @override
+  String get inventoryNotTracked => 'Not tracked';
+
+  @override
   String get makePayment => 'Make Payment';
 
   @override
@@ -1182,6 +1209,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get receiptFor => 'Receipt for';
+
+  @override
+  String get back => 'Back';
+
+  @override
+  String get receipt => 'Receipt';
 
   @override
   String pageOf(String current, String total) {

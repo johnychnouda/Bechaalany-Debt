@@ -2120,6 +2120,36 @@ abstract class AppLocalizations {
   /// **'{count} products'**
   String productsCount(String count);
 
+  /// No description provided for @categoryProductCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 product} other{{count} products}}'**
+  String categoryProductCount(int count);
+
+  /// No description provided for @outOfStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Out of stock'**
+  String get outOfStock;
+
+  /// No description provided for @inStockWithQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'In stock · {quantity}'**
+  String inStockWithQuantity(String quantity);
+
+  /// No description provided for @lowStockWithQuantity.
+  ///
+  /// In en, this message translates to:
+  /// **'Low · {quantity}'**
+  String lowStockWithQuantity(String quantity);
+
+  /// No description provided for @inventoryNotTracked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not tracked'**
+  String get inventoryNotTracked;
+
   /// No description provided for @makePayment.
   ///
   /// In en, this message translates to:
@@ -2197,6 +2227,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Receipt for'**
   String get receiptFor;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
+
+  /// No description provided for @receipt.
+  ///
+  /// In en, this message translates to:
+  /// **'Receipt'**
+  String get receipt;
 
   /// No description provided for @pageOf.
   ///

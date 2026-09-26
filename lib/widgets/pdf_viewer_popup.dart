@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:typed_data';
 import '../constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 import '../models/pdf_document_file.dart';
 import '../utils/platform_utils.dart';
 // Notification service import removed
@@ -67,6 +68,8 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     return Scaffold(
       backgroundColor: CupertinoColors.systemBackground.resolveFrom(context),
       body: Column(
@@ -93,13 +96,13 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        CupertinoIcons.chevron_left,
+                        isRtl ? CupertinoIcons.chevron_right : CupertinoIcons.chevron_left,
                         color: CupertinoColors.activeBlue,
                         size: 20,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        'Back',
+                        l10n.back,
                         style: TextStyle(
                           color: CupertinoColors.activeBlue,
                           fontSize: 17,
@@ -111,7 +114,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                 ),
                 const Spacer(),
                 Text(
-                  'Receipt',
+                  l10n.receipt,
                   style: TextStyle(
                     color: CupertinoColors.label.resolveFrom(context),
                     fontSize: 17,
@@ -176,7 +179,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                         ? () => _goToPage(_currentPage - 1)
                         : null,
                     child: Icon(
-                      CupertinoIcons.chevron_left,
+                      isRtl ? CupertinoIcons.chevron_right : CupertinoIcons.chevron_left,
                       color: _currentPage > 1
                           ? CupertinoColors.activeBlue
                           : CupertinoColors.systemGrey,
@@ -186,7 +189,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Text(
-                      '$_currentPage of $_totalPages',
+                      l10n.pageOf('$_currentPage', '$_totalPages'),
                       style: TextStyle(
                         color: CupertinoColors.label.resolveFrom(context),
                         fontSize: 17,
@@ -200,7 +203,7 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                         ? () => _goToPage(_currentPage + 1)
                         : null,
                     child: Icon(
-                      CupertinoIcons.chevron_right,
+                      isRtl ? CupertinoIcons.chevron_left : CupertinoIcons.chevron_right,
                       color: _currentPage < _totalPages
                           ? CupertinoColors.activeBlue
                           : CupertinoColors.systemGrey,
@@ -406,9 +409,9 @@ class _PDFViewerPopupState extends State<PDFViewerPopup> {
                   enableDocumentLinkAnnotation: false,
                   enableHyperlinkNavigation: false,
                   canShowPaginationDialog: false,
-                  pageLayoutMode: PlatformUtils.isBrowserContext
-                      ? PdfPageLayoutMode.single
-                      : PdfPageLayoutMode.continuous,
+                  pageLayoutMode: _totalPages > 1
+                      ? PdfPageLayoutMode.continuous
+                      : PdfPageLayoutMode.single,
                   onDocumentLoaded: (PdfDocumentLoadedDetails details) {
                     if (mounted) {
                       _fitPdfToViewport(details);

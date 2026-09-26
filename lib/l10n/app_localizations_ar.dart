@@ -1126,6 +1126,33 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String categoryProductCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count منتجات',
+      one: '1 منتج',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get outOfStock => 'نفد المخزون';
+
+  @override
+  String inStockWithQuantity(String quantity) {
+    return 'متوفر · $quantity';
+  }
+
+  @override
+  String lowStockWithQuantity(String quantity) {
+    return 'منخفض · $quantity';
+  }
+
+  @override
+  String get inventoryNotTracked => 'غير متتبع';
+
+  @override
   String get makePayment => 'إجراء الدفع';
 
   @override
@@ -1165,6 +1192,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get receiptFor => 'إيصال لـ';
+
+  @override
+  String get back => 'رجوع';
+
+  @override
+  String get receipt => 'الإيصال';
 
   @override
   String pageOf(String current, String total) {

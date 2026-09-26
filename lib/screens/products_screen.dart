@@ -3378,31 +3378,32 @@ class _ProductCard extends StatelessWidget {
         stock <= threshold;
     final isOut = subcategory.trackInventory && stock <= 0;
 
+    final l10n = AppLocalizations.of(context)!;
     if (!subcategory.trackInventory) {
       return (
         color: AppColors.dynamicTextSecondary(context),
         icon: Icons.inventory_2_outlined,
-        value: 'Not tracked',
+        value: l10n.inventoryNotTracked,
       );
     }
     if (isOut) {
       return (
         color: AppColors.error,
         icon: Icons.error_outline,
-        value: 'Out of stock',
+        value: l10n.outOfStock,
       );
     }
     if (isLow) {
       return (
         color: AppColors.dynamicWarning(context),
         icon: Icons.warning_amber_rounded,
-        value: 'Low · $stockText',
+        value: l10n.lowStockWithQuantity(stockText),
       );
     }
     return (
       color: AppColors.dynamicSuccess(context),
       icon: Icons.check_circle_outline,
-      value: 'In stock · $stockText',
+      value: l10n.inStockWithQuantity(stockText),
     );
   }
 
@@ -4072,7 +4073,7 @@ class _CategorySection extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '${subcategories.length} product${subcategories.length == 1 ? '' : 's'}',
+              AppLocalizations.of(context)!.categoryProductCount(subcategories.length),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
