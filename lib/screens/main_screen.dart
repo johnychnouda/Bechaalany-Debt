@@ -20,7 +20,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  final GlobalKey<NavigatorState> _shellNavigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<State<SettingsScreen>> _settingsScreenKey =
       GlobalKey<State<SettingsScreen>>();
   int _currentIndex = 0;
@@ -106,32 +105,7 @@ class _MainScreenState extends State<MainScreen> {
         index != _settingsTabIndex) {
       SettingsScreen.popInnerToRootFromHost(_settingsScreenKey);
     }
-    if (useDesktopWeb) {
-      _shellNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-    }
     setState(() => _currentIndex = index);
-  }
-
-  Route<void> _shellHomeRoute(List<Widget> screens) {
-    final stackIndex = screens.isEmpty
-        ? 0
-        : _currentIndex.clamp(0, screens.length - 1);
-    return PageRouteBuilder<void>(
-      pageBuilder: (context, animation, secondaryAnimation) => IndexedStack(
-        index: stackIndex,
-        children: screens,
-        sizing: StackFit.expand,
-      ),
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
-    );
-  }
-
-  Widget _buildShellNavigator(List<Widget> screens) {
-    return Navigator(
-      key: _shellNavigatorKey,
-      onGenerateRoute: (_) => _shellHomeRoute(screens),
-    );
   }
 
   List<WebSidebarNavItem> _sidebarItems(BuildContext context) {
@@ -281,15 +255,22 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildMobileBody() {
-    final screens = _mobileScreens;
+  Widget _buildIndexedTabBody(List<Widget> screens, {required bool wrapTabsInNavigator}) {
     final index = screens.isEmpty
         ? 0
         : _currentIndex.clamp(0, screens.length - 1);
     return IndexedStack(
       index: index,
       sizing: StackFit.expand,
-      children: screens,
+      children: [
+        for (var i = 0; i < screens.length; i++)
+          wrapTabsInNavigator
+              ? _WebTabNavigator(
+                  key: ValueKey('web-tab-$i'),
+                  root: screens[i],
+                )
+              : screens[i],
+      ],
     );
   }
 
@@ -303,7 +284,7 @@ class _MainScreenState extends State<MainScreen> {
           onIndexSelected: _selectIndex,
         ),
         Expanded(
-          child: _buildShellNavigator(screens),
+          child: _buildIndexedTabBody(screens, wrapTabsInNavigator: true),
         ),
       ],
     );
@@ -319,9 +300,27 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: AppColors.dynamicBackground(context),
       body: useDesktopWeb
           ? _buildWebDesktopShell(screens)
-          : _buildMobileBody(),
+          : _buildIndexedTabBody(_mobileScreens, wrapTabsInNavigator: false),
       bottomNavigationBar:
           useDesktopWeb ? null : _buildMobileBottomNav(),
+    );
+  }
+}
+
+/// One navigator per web tab so [SettingsNavigation.pushSubpage] keeps the sidebar visible.
+class _WebTabNavigator extends StatelessWidget {
+  final Widget root;
+
+  const _WebTabNavigator({super.key, required this.root});
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (_) => PageRouteBuilder<void>(
+        pageBuilder: (context, animation, secondaryAnimation) => root,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
   }
 }
