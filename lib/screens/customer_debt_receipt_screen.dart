@@ -93,16 +93,10 @@ class _CustomerDebtReceiptScreenState extends State<CustomerDebtReceiptScreen> {
     final sortedDebts = List<Debt>.from(relevantDebts)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final remainingAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount);
-    
-    // Get relevant partial payments and activities for accurate total calculation
-    final relevantPaymentActivities = _getRelevantPaymentActivities(widget.activities, sortedDebts);
-    
-    // Calculate total paid amount from relevant payment activities
-    final totalPaidAmount = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
-    
-    // Calculate total original amount
-    final totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+    final remainingAmount = (sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount) * 100).round() / 100;
+    // Paid and original come from the product records, same as the customer screen.
+    final totalPaidAmount = (sortedDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount) * 100).round() / 100;
+    final totalOriginalAmount = (sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount) * 100).round() / 100;
     
 
 

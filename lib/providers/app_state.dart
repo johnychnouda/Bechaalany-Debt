@@ -3320,18 +3320,20 @@ class AppState extends ChangeNotifier {
           remainingPayment -= actualPayment;
         }
       }
+
+      final appliedAmount = ((paymentAmount - remainingPayment) * 100).round() / 100.0;
       
-      // Create ONE consolidated payment activity for the entire payment amount
-      if (paymentAmount > 0) {
+      // Record only the amount that was written onto the products.
+      if (appliedAmount > 0) {
         final firstDebt = pendingDebts.first;
         final consolidatedActivity = Activity(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           customerId: firstDebt.customerId,
           customerName: firstDebt.customerName,
           type: ActivityType.payment,
-          description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
-          paymentAmount: paymentAmount,
-          amount: paymentAmount,
+          description: 'Partial payment: ${appliedAmount.toStringAsFixed(2)}\$',
+          paymentAmount: appliedAmount,
+          amount: appliedAmount,
           oldStatus: DebtStatus.pending,
           newStatus: DebtStatus.pending,
           date: DateTime.now(),
@@ -3458,17 +3460,24 @@ class AppState extends ChangeNotifier {
         });
         
         // Create a more descriptive consolidated activity
+        final appliedAmount = ((paymentAmount - remainingPayment) * 100).round() / 100.0;
+        if (appliedAmount <= 0) {
+          _clearCache();
+          notifyListeners();
+          return;
+        }
+
         String description;
         if (allSelectedDebtsCompleted) {
           if (pendingDebts.length == 1) {
             // Single debt completed
-            description = '${pendingDebts.first.description}: ${paymentAmount.toStringAsFixed(2)}\$';
+            description = '${pendingDebts.first.description}: ${appliedAmount.toStringAsFixed(2)}\$';
           } else {
             // Multiple debts completed - show as consolidated settlement
-            description = 'Complete settlement: ${paymentAmount.toStringAsFixed(2)}\$ (${pendingDebts.length} products)';
+            description = 'Complete settlement: ${appliedAmount.toStringAsFixed(2)}\$ (${pendingDebts.length} products)';
           }
         } else {
-          description = 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$';
+          description = 'Partial payment: ${appliedAmount.toStringAsFixed(2)}\$';
         }
         
         final newStatus = allSelectedDebtsCompleted ? DebtStatus.paid : DebtStatus.pending;
@@ -3479,7 +3488,7 @@ class AppState extends ChangeNotifier {
           customerName: firstDebt.customerName,
           type: ActivityType.payment,
           description: description,
-          paymentAmount: paymentAmount,
+          paymentAmount: appliedAmount,
           amount: firstDebt.amount,
           oldStatus: oldStatus,
           newStatus: newStatus,

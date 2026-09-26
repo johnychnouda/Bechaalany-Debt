@@ -1558,74 +1558,80 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> with Widg
     
     if (pendingDebts.isEmpty) return;
     
-    // Calculate the total remaining debt
-    final totalRemaining = pendingDebts.fold(0.0, (sum, debt) => sum + debt.remainingAmount);
-    // Fix floating-point precision issues by rounding to 2 decimal places
-    final roundedTotalRemaining = ((totalRemaining * 100).round() / 100);
-    
-    // Use integer arithmetic to avoid floating-point errors
-    // Convert to cents (multiply by 100) for precise calculations
-    final totalPaymentCents = (paymentAmount * 100).round();
-    final totalRemainingCents = (roundedTotalRemaining * 100).round();
-    
-    int remainingPaymentCents = totalPaymentCents;
-    final updatedDebts = <Debt>[];
-    
-    // Apply payment proportionally, but ensure exact total
+    // Split the payment in cents so the amount saved on the receipt
+    // is the same amount written onto the products.
+    final debtRemainingCents = pendingDebts
+        .map((debt) => (debt.remainingAmount * 100).round())
+        .toList();
+    final totalRemainingCents = debtRemainingCents.fold<int>(0, (sum, cents) => sum + cents);
+    if (totalRemainingCents <= 0) return;
+
+    var paymentCents = (paymentAmount * 100).round();
+    if (paymentCents > totalRemainingCents) {
+      paymentCents = totalRemainingCents;
+    }
+    if (paymentCents <= 0) return;
+
+    final allocations = List<int>.filled(pendingDebts.length, 0);
+    var unallocated = paymentCents;
     for (int i = 0; i < pendingDebts.length; i++) {
-      final debt = pendingDebts[i];
-      int reductionCents;
-      
-      if (i == pendingDebts.length - 1) {
-        // For the last debt, use remaining payment to ensure exact total
-        reductionCents = remainingPaymentCents;
-      } else {
-        // Calculate proportional reduction using integer arithmetic
-        final debtRemainingCents = (debt.remainingAmount * 100).round();
-        reductionCents = (totalPaymentCents * debtRemainingCents) ~/ totalRemainingCents;
-        remainingPaymentCents -= reductionCents;
+      final share = i == pendingDebts.length - 1
+          ? unallocated
+          : (paymentCents * debtRemainingCents[i]) ~/ totalRemainingCents;
+      final room = debtRemainingCents[i] - allocations[i];
+      final applied = share > room ? room : (share < 0 ? 0 : share);
+      allocations[i] = applied;
+      unallocated -= applied;
+    }
+
+    // Put any leftover cents on products that still have room.
+    while (unallocated > 0) {
+      var placed = false;
+      for (int i = 0; i < pendingDebts.length && unallocated > 0; i++) {
+        if (allocations[i] < debtRemainingCents[i]) {
+          allocations[i] += 1;
+          unallocated -= 1;
+          placed = true;
+        }
       }
-      
-      // Convert back to dollars
-      final reductionAmount = reductionCents / 100.0;
-      
-      // Ensure the reduction amount doesn't exceed the debt's remaining amount
-      final maxReduction = debt.remainingAmount;
-      final finalReductionAmount = reductionAmount > maxReduction ? maxReduction : reductionAmount;
-      
-      final newPaidAmount = debt.paidAmount + finalReductionAmount;
+      if (!placed) break;
+    }
+
+    for (int i = 0; i < pendingDebts.length; i++) {
+      if (allocations[i] <= 0) continue;
+      final debt = pendingDebts[i];
+      final reductionAmount = allocations[i] / 100.0;
+      final newPaidAmount = ((debt.paidAmount + reductionAmount) * 100).round() / 100.0;
       final isFullyPaid = newPaidAmount >= debt.amount;
-      
-      // Update the debt
+
       final updatedDebt = debt.copyWith(
         paidAmount: newPaidAmount,
         status: isFullyPaid ? DebtStatus.paid : DebtStatus.pending,
         paidAt: isFullyPaid ? DateTime.now() : debt.paidAt,
       );
-      
-      updatedDebts.add(updatedDebt);
-      
-      // Update in storage
+
       await appState.updateDebt(updatedDebt);
-      
-      // Update local debt list
+
       final index = appState.debts.indexWhere((d) => d.id == debt.id);
       if (index != -1) {
         appState.debts[index] = updatedDebt;
       }
     }
-    
-    // Create ONE consolidated payment activity for the entire payment amount
-    if (paymentAmount > 0) {
+
+    final appliedCents = allocations.fold<int>(0, (sum, cents) => sum + cents);
+    final appliedAmount = appliedCents / 100.0;
+
+    // Create ONE consolidated payment activity for the amount actually applied
+    if (appliedAmount > 0) {
       final firstDebt = pendingDebts.first;
       final consolidatedActivity = Activity(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         customerId: firstDebt.customerId,
         customerName: firstDebt.customerName,
         type: ActivityType.payment,
-        description: 'Partial payment: ${paymentAmount.toStringAsFixed(2)}\$',
-        paymentAmount: paymentAmount,
-        amount: paymentAmount,
+        description: 'Partial payment: ${appliedAmount.toStringAsFixed(2)}\$',
+        paymentAmount: appliedAmount,
+        amount: appliedAmount,
         oldStatus: DebtStatus.pending,
         newStatus: DebtStatus.pending,
         date: DateTime.now(),

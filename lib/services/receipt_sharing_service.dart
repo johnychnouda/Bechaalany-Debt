@@ -442,11 +442,12 @@ class ReceiptSharingService {
       
       allItems.sort((a, b) => b['date'].compareTo(a['date']));
       
-      // Calculate total paid amount from relevant payment activities
-      double totalPaidAmount = relevantPaymentActivities.fold<double>(0, (sum, activity) => sum + (activity.paymentAmount ?? 0));
-      
-      // Calculate total original amount from relevant debts
+      // Totals come from the product records, same as the customer screen.
+      // Payment history can be higher when a recorded payment was not fully applied.
+      double totalPaidAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.paidAmount);
       double totalOriginalAmount = sortedDebts.fold<double>(0, (sum, debt) => sum + debt.amount);
+      totalPaidAmount = (totalPaidAmount * 100).round() / 100;
+      totalOriginalAmount = (totalOriginalAmount * 100).round() / 100;
       
       final sanitizedCustomerName = PdfFontUtils.sanitizeText(customer.name);
       final sanitizedCustomerPhone = PdfFontUtils.sanitizeText(customer.phone);
@@ -466,7 +467,7 @@ class ReceiptSharingService {
         totalPages = 1 + additionalPages;
       }
       
-      final remainingAmount = totalOriginalAmount - totalPaidAmount;
+      final remainingAmount = (sortedDebts.fold<double>(0, (sum, debt) => sum + debt.remainingAmount) * 100).round() / 100;
       
       // Generate first page with header, customer info, and summary
       final firstPageItems = allItems.take(itemsPerFirstPage).toList();
